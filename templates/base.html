@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ head.title }}</title>
+  <meta name="description" content="{{ head.description }}">
+  <link rel="canonical" href="{{ head.canonical }}">
+  <meta property="og:title" content="{{ head.og_title }}">
+  <meta property="og:description" content="{{ head.og_description }}">
+  <meta property="og:image" content="{{ head.og_image }}">
+  <meta property="og:type" content="website">
+  <link rel="stylesheet" href="/static/css/site.css">
+  {% for ld in head.jsonld %}
+  <script type="application/ld+json">{{ ld|tojson }}</script>
+  {% endfor %}
+</head>
+<body>
+  <header class="site-header">
+    <a href="/" class="brand">Kras-Trans</a>
+    <nav class="nav">
+      <a href="/#oferta">Oferta</a>
+      <a href="/#kontakt">Kontakt</a>
+      <a href="tel:+48793927467" class="btn">Zadzwoń 24/7</a>
+    </nav>
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+  <footer class="site-footer" id="kontakt">
+    <p>© {{ (company[0].name if company else 'Kras-Trans') }} — Ekspresowy transport 24/7</p>
+  </footer>
+</body>
+</html>
