@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div class="hero-media">
+    <picture>
+      <source type="image/webp" media="(max-width: 767px)" srcset="/static/img/{{ page.hero_image_mobile }}">
+      <source type="image/webp" media="(min-width: 768px)" srcset="/static/img/{{ page.hero_image }}">
+      <img src="/static/img/{{ page.hero_image }}" alt="{{ page.hero_alt or 'Kras-Trans — transport ekspresowy' }}" loading="eager" fetchpriority="high">
+    </picture>
+  </div>
+  <div class="hero-copy">
+    <h1>{{ page.h1 or page.title }}</h1>
+    {% if page.lead %}<p class="lead">{{ page.lead }}</p>{% endif %}
+    <p class="cta-row"><a href="tel:+48793927467" class="btn">Zadzwoń 24/7</a> <a href="/wycena/" class="btn ghost">Wycena</a></p>
+  </div>
+</section>
+
+<section class="content">
+  {{ page.html | safe }}
+</section>
+
+{% if related %}
+<section class="related">
+  <h3>Powiązane strony</h3>
+  <ul>
+  {% for r in related %}
+    <li><a href="/{{ r.slug }}/">{{ r.title }}</a></li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}
