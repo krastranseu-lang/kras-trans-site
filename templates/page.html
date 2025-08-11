@@ -1,32 +1,73 @@
-{% extends "base.html" %}
-{% block content %}
-<section class="hero">
-  <div class="hero-media">
-    <picture>
-      <source type="image/webp" media="(max-width: 767px)" srcset="/static/img/{{ page.hero_image_mobile }}">
-      <source type="image/webp" media="(min-width: 768px)" srcset="/static/img/{{ page.hero_image }}">
-      <img src="/static/img/{{ page.hero_image }}" alt="{{ page.hero_alt or 'Kras-Trans — transport ekspresowy' }}" loading="eager" fetchpriority="high">
-    </picture>
-  </div>
-  <div class="hero-copy">
-    <h1>{{ page.h1 or page.title }}</h1>
-    {% if page.lead %}<p class="lead">{{ page.lead }}</p>{% endif %}
-    <p class="cta-row"><a href="tel:+48793927467" class="btn">Zadzwoń 24/7</a> <a href="/wycena/" class="btn ghost">Wycena</a></p>
-  </div>
-</section>
+<!doctype html>
+<html lang="{{ page.lang or 'pl' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ head.title }}</title>
+  <meta name="description" content="{{ head.description }}">
+  <link rel="canonical" href="{{ head.canonical }}">
 
-<section class="content">
-  {{ page.html | safe }}
-</section>
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ head.og_title }}">
+  <meta property="og:description" content="{{ head.og_description }}">
+  <meta property="og:image" content="{{ head.og_image }}">
 
-{% if related %}
-<section class="related">
-  <h3>Powiązane strony</h3>
-  <ul>
-  {% for r in related %}
-    <li><a href="/{{ r.slug }}/">{{ r.title }}</a></li>
-  {% endfor %}
-  </ul>
-</section>
-{% endif %}
-{% endblock %}
+  <!-- KLUCZOWE: pełna ścieżka do CSS -->
+  <link rel="stylesheet" href="{{ site_url }}/static/css/site.css">
+  <link rel="preload" as="image" href="{{ site_url }}/static/img/{{ page.lcp_image }}">
+
+  <script type="application/ld+json">{{ head.jsonld|tojson }}</script>
+</head>
+<body>
+  <header class="site-header">
+    <a href="{{ site_url }}/" class="brand">Kras-Trans</a>
+    <nav>
+      <a href="{{ site_url }}/#oferta">Oferta</a>
+      <a href="{{ site_url }}/#kontakt">Kontakt</a>
+      <a href="tel:+48793927467" class="btn">Zadzwoń 24/7</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    <section class="hero">
+      <picture>
+        <source media="(max-width: 600px)" srcset="{{ site_url }}/static/img/{{ page.hero_image_mobile }}">
+        <img
+          src="{{ site_url }}/static/img/{{ page.hero_image }}"
+          alt="{{ page.hero_alt or page.h1 or page.title }}"
+          width="1200" height="630"
+          loading="eager" fetchpriority="high">
+      </picture>
+      <div class="hero-copy">
+        <p class="eyebrow">Kras-Trans — transport ekspresowy</p>
+        <h1>{{ page.h1 or page.title }}</h1>
+        {% if page.lead %}<p class="lead">{{ page.lead }}</p>{% endif %}
+        <p>
+          <a class="btn" href="tel:+48793927467">Zadzwoń 24/7</a>
+          <a class="btn ghost" href="{{ site_url }}/wycena/">Wycena</a>
+        </p>
+        {% if page.tags %}<p class="tags">{{ page.tags|join(", ") }}</p>{% endif %}
+      </div>
+    </section>
+
+    {% if page.html %}
+      <article class="entry">{{ page.html | safe }}</article>
+    {% endif %}
+
+    {% if related and related|length %}
+      <section class="related">
+        <h2>Powiązane strony</h2>
+        <ul>
+          {% for r in related %}
+            <li><a href="{{ site_url }}/{{ r.slug }}/">{{ r.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+  </main>
+
+  <footer class="site-footer">
+    © Kras-Trans — Ekspresowy transport 24/7
+  </footer>
+</body>
+</html>
