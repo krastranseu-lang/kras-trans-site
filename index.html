@@ -9,22 +9,24 @@
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f7f8">
   <meta name="theme-color" media="(prefers-color-scheme: dark)"  content="#0b0b0c">
 
-  <!-- TODO: podmień ścieżkę, gdy wrzucisz font -->
   <style>
+    /* =====================
+       FONT: Inter (lokalnie)
+       ===================== */
     @font-face{
-  font-family: "Inter var";
-  src: url("/assets/fonts/InterVariable.woff2") format("woff2-variations");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
+      font-family: "Inter var";
+      src: url("/assets/fonts/InterVariable.woff2") format("woff2-variations");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: swap;
+    }
     @font-face{
-  font-family: "Inter var";
-  src: url("/assets/fonts/InterVariable-Italic.woff2") format("woff2-variations");
-  font-weight: 100 900;
-  font-style: italic;
-  font-display: swap;
-}
+      font-family: "Inter var";
+      src: url("/assets/fonts/InterVariable-Italic.woff2") format("woff2-variations");
+      font-weight: 100 900;
+      font-style: italic;
+      font-display: swap;
+    }
 
     /* =====================
        DESIGN TOKENS
@@ -39,7 +41,7 @@
       --muted-2:   #8a8f99;
       --brand:     #0ea5e9;      /* CTA – cyjan/niebieski */
       --brand-2:   #22c55e;      /* pomocniczy: sukces */
-      --accent:    #f59e0b;      /* bursztyn – liczby/liczniki */
+      --accent:    #f59e0b;      /* bursztyn – liczby/liczniki + separatory */
       --border:    color-mix(in oklab, var(--fg) 12%, transparent);
       --shadow:    0 8px 40px rgba(0,0,0,.08);
       --radius:    16px;
@@ -59,15 +61,15 @@
       --switch-bg:    #dbe2e8;
       --switch-knob:  #ffffff;
     }
-    @media (prefers-color-scheme: dark){
-      :root{
-        --bg:#0b0b0c; --bg-alt:#111214; --card:#121314; --fg:#f5f5f6;
-        --muted:#b3b6bd; --muted-2:#8f94a1; --brand:#38bdf8; --accent:#fbbf24;
-        --border: color-mix(in oklab, var(--fg) 14%, transparent);
-        --switch-bg:#1c1d21; --switch-knob:#111214;
-        --shadow: 0 12px 50px rgba(0,0,0,.35);
-      }
+    :root[data-theme="dark"]{
+      --bg:#0b0b0c; --bg-alt:#111214; --card:#121314; --fg:#f5f5f6;
+      --muted:#b3b6bd; --muted-2:#8f94a1; --brand:#38bdf8; --accent:#fbbf24;
+      --border: color-mix(in oklab, var(--fg) 14%, transparent);
+      --switch-bg:#1c1d21; --switch-knob:#111214;
+      --shadow: 0 12px 50px rgba(0,0,0,.35);
+      color-scheme: dark;
     }
+    :root[data-theme="light"]{ color-scheme: light; }
 
     /* Preferencje ruchu – wygaszamy animacje gdy user tak chce */
     @media (prefers-reduced-motion: reduce){
@@ -94,12 +96,19 @@
     .section{ position: relative; padding: 72px 24px }
     .section.alt{ background: var(--bg-alt) }
     .text{ max-width: var(--content); margin-inline: auto }
+    /* Separatory pod nagłówkami */
+    h2{ position:relative; margin:0 0 18px 0; font-size: clamp(22px,3vw,28px) }
+    h2::after{
+      content:""; display:block; height:3px; width:96px; margin-top:10px;
+      background: linear-gradient(90deg, var(--accent), color-mix(in oklab, var(--accent) 0%, transparent));
+      border-radius: 3px;
+    }
 
     /* =====================
        HEADER + MEGA MENU
        ===================== */
     header{
-      position: sticky; top:0; z-index: 50;
+      position: sticky; top:0; z-index: 1000;
       backdrop-filter: var(--glass);
       background: color-mix(in oklab, var(--bg) 60%, transparent);
       border-bottom: 1px solid var(--border);
@@ -119,7 +128,10 @@
     .nav-right{ display:flex; align-items:center; gap:14px }
     .menu{ display:flex; gap:18px; align-items:center }
     .menu > a{ opacity:.9; padding:10px 12px; border-radius: 10px; }
-    .menu > a:hover{ background: color-mix(in oklab, var(--fg) 6%, transparent) }
+    .menu > a:hover{
+      background: color-mix(in oklab, var(--accent) 16%, transparent);
+      border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+    }
 
     /* Mega menu (desktop) */
     .mega{ position: absolute; left:0; right:0; top:100%; display:none; padding: 16px 20px 24px; }
@@ -136,17 +148,18 @@
 
     /* Przełącznik trybu (pigułka) */
     .switch{
-      position: relative; width: 74px; height: 36px; border-radius: 999px;
+      position: relative; width: 80px; height: 36px; border-radius: 999px;
       background: var(--switch-bg); border:1px solid var(--border);
       display:inline-flex; align-items:center; padding: 0 6px; gap: 6px; cursor: pointer;
+      overflow: hidden;
     }
     .switch .knob{
-      width: 28px; height: 28px; border-radius: 50%; background: var(--switch-knob);
+      width: 30px; height: 30px; border-radius: 50%; background: var(--switch-knob);
       box-shadow: 0 2px 8px rgba(0,0,0,.18);
       transform: translateX(0); transition: transform .25s ease;
       display:grid; place-items:center; font-size: 14px;
     }
-    .switch[aria-checked="true"] .knob{ transform: translateX(34px) }
+    .switch[aria-checked="true"] .knob{ transform: translateX(var(--knob-max-x, 34px)) }
 
     /* Ikonki */
     .icon-btn{ width:38px; height:38px; display:grid; place-items:center; border-radius: 12px; border:1px solid var(--border) }
@@ -164,9 +177,9 @@
       position: fixed; inset: 0; background: color-mix(in oklab, var(--bg) 95%, transparent);
       backdrop-filter: var(--glass);
       transform: translateY(100%); transition: transform .35s ease; z-index: 60;
-      display:flex; flex-direction:column;
+      display:flex; flex-direction:column; visibility:hidden; pointer-events:none;
     }
-    .drawer.open{ transform: translateY(0) }
+    .drawer.open{ transform: translateY(0); visibility:visible; pointer-events:auto }
     .drawer .list{ padding: 24px; display:grid; gap: 10px }
     .drawer a{ padding: 14px 16px; border-radius: 14px; border:1px solid var(--border); background: var(--card) }
 
@@ -196,20 +209,24 @@
        HERO
        ===================== */
     .hero{ position:relative; min-height: 86svh; display:grid; place-items:center; overflow:hidden }
-    .hero hero-bg{
+    .hero .hero-bg{
       position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:-2;
-      filter: saturate(105%);
+      object-position: center center; filter: saturate(105%);
+    }
+    /* mobilne ustawienie kadru aby nie "ucinało" kluczowych elementów */
+    @media (max-width: 680px){
+      .hero .hero-bg{ object-position: center 35%; }
     }
     .hero::after{
       content:""; position:absolute; inset:0; z-index:-1;
-      /* silna nakładka dla czytelności tekstu */
+      /* nakładka dla czytelności tekstu: lekki radial z boku + pionowy gradient */
       background:
-        radial-gradient(1200px 600px at 10% -20%, color-mix(in oklab, var(--brand) 20%, transparent), transparent),
-        linear-gradient(180deg, rgba(0,0,0,.45), transparent 40%, rgba(0,0,0,.45));
+        radial-gradient(900px 500px at 8% 10%, color-mix(in oklab, var(--bg) 16%, transparent), transparent 60%),
+        linear-gradient(180deg, rgba(0,0,0,.45), transparent 40%, rgba(0,0,0,.50));
       mix-blend-mode: multiply;
     }
     .hero-inner{ width: min(1200px, 100%); padding: 28px; display:grid; gap: 18px }
-    .hero h1{ font-size: clamp(32px, 6vw, 62px); line-height:1.05; letter-spacing:-.02em; margin:0 }
+    .hero h1{ font-size: clamp(32px, 6vw, 62px); line-height:1.05; letter-spacing:-.02em; margin:0; color:#fff }
     .hero p{ font-size: clamp(16px, 2.2vw, 20px); color: #f2f5f8 }
     .badges{ display:flex; gap: 10px; flex-wrap:wrap }
     .badge-pill{
@@ -221,8 +238,11 @@
     .btn{
       display:inline-flex; align-items:center; justify-content:center; gap:10px;
       padding: 12px 18px; border-radius: 14px; border:1px solid var(--border); background: var(--card); font-weight:700;
+      transition: background .2s ease, transform .1s ease;
     }
+    .btn:hover{ transform: translateY(-1px) }
     .btn.primary{ background: var(--brand); color: #002433; border-color: transparent }
+    .btn.primary:hover{ background: color-mix(in oklab, var(--brand) 86%, #fff 14%) }
     .eta{
       display:inline-flex; align-items:center; gap:10px; padding: 10px 14px; border-radius: 12px;
       border:1px solid var(--border); background: color-mix(in oklab, var(--card) 75%, transparent);
@@ -329,6 +349,9 @@
        STOPKA + DOLNY PASEK (MOBILE)
        ===================== */
     footer{ padding: 40px 20px; color: var(--muted); border-top: 1px solid var(--border) }
+    .footer-grid{ display:grid; gap:18px; grid-template-columns: 1.2fr 1fr }
+    @media (max-width: 800px){ .footer-grid{ grid-template-columns: 1fr } }
+    .footer-links a{ display:inline-block; margin:6px 10px 0 0; padding:6px 10px; border:1px solid var(--border); border-radius:10px; background:var(--card) }
 
     .bottom-bar{
       position: fixed; left:0; right:0; bottom:0; z-index: 55;
@@ -344,10 +367,10 @@
     @media (max-width: 900px){ .bottom-bar{ display:grid } }
   </style>
 
-  <!-- Preload hero image to help LCP (podmień ścieżkę na swoje zdjęcie) -->
-  <link rel="preload" as="image" href="/assets/media/hero.mp4" imagesrcset="/assets/media/hero.mp4" />
+  <!-- Preload plakatu hero (obraz) – LCP -->
+  <link rel="preload" as="image" href="/assets/media/hero.webp" imagesrcset="/assets/media/hero.webp" />
 </head>
-<body>
+<body id="top">
   <!-- Particles container (po 10 s, tylko dark) -->
   <div id="particles-js" style="position:fixed;z-index:-1;top:0;left:0;width:100vw;height:100vh;pointer-events:none;opacity:0;"></div>
 
@@ -403,15 +426,15 @@
         <!-- Wyszukiwarka -->
         <button id="openSearch" class="icon-btn" aria-label="Szukaj">🔎</button>
 
-        <!-- Języki -->
-        <div class="menu">
-          <a href="/pl/" aria-label="Polski 🇵🇱">PL</a>
-          <a href="/en/" aria-label="English 🇬🇧">EN</a>
-          <a href="/de/" aria-label="Deutsch 🇩🇪">DE</a>
-          <a href="/fr/" aria-label="Français 🇫🇷">FR</a>
-          <a href="/ru/" aria-label="Русский 🇷🇺">RU</a>
-          <a href="/uk/" aria-label="Українська 🇺🇦">UK</a>
-        </div>
+        <!-- Języki (flagi pojawią się automatycznie; skrypt ukryje nieaktywne) -->
+        <nav id="langs" class="menu" aria-label="Wybór języka">
+          <a href="/pl/" data-lang="pl" title="Polski">PL</a>
+          <a href="/en/" data-lang="en" title="English">EN</a>
+          <a href="/de/" data-lang="de" title="Deutsch">DE</a>
+          <a href="/fr/" data-lang="fr" title="Français">FR</a>
+          <a href="/ru/" data-lang="ru" title="Русский">RU</a>
+          <a href="/uk/" data-lang="uk" title="Українська">UK</a>
+        </nav>
 
         <!-- Hamburger -->
         <button id="hamb" class="icon-btn hamb" aria-label="Otwórz menu">☰</button>
@@ -442,11 +465,10 @@
   </div>
 
   <!-- HERO -->
-  <section class="hero">
-    <!-- LCP: obraz hero (podmień ścieżkę) -->
-<video class="hero-bg" autoplay muted loop playsinline preload="none" poster="/assets/media/hero.webp">
-  <source src="/assets/media/hero.mp4" type="video/mp4">
-</video>
+  <section class="hero" aria-label="Hero">
+    <!-- Tło: plakat (LCP) + wideo uaktywniane skryptem po ~1s -->
+    <video id="heroVid" class="hero-bg" muted playsinline loop preload="none" poster="/assets/media/hero.webp"></video>
+
     <div class="hero-inner">
       <div class="badges">
         <span class="badge-pill">🚚 Ekspres FTL</span>
@@ -665,7 +687,16 @@
 
   <!-- STOPKA -->
   <footer>
-    <div class="text">© <span id="y"></span> Kras‑Trans — rodzinna firma • Łódź • Polska</div>
+    <div class="text footer-grid">
+      <div>
+        © <span id="y"></span> <strong>Kras‑Trans</strong> — rodzinna firma • Łódź • Polska
+        <div class="footer-links" id="footer-city-links" style="margin-top:10px"></div>
+      </div>
+      <div style="text-align:right">
+        <a class="btn" href="/polityka-prywatnosci/">Polityka prywatności</a>
+        <a class="btn" href="/regulamin/">Regulamin</a>
+      </div>
+    </div>
   </footer>
 
   <!-- DOLNY PASEK (MOBILE) -->
@@ -679,8 +710,12 @@
 
   <script>
     /* ==============
-       NARZĘDZIA
+       KONFIG + UTILS
        ============== */
+    const CFG = {
+      langsAvailable: ['pl','en','de','fr','ru','uk'], // ukryj te, których nie masz
+      videoDelayMs: 1000
+    };
     const $ = (sel, ctx=document) => ctx.querySelector(sel);
     const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
 
@@ -691,14 +726,16 @@
     /* Drawer (mobile) */
     const hamb = $('#hamb'), drawer = $('#drawer'), openMenu = $('#openMenu');
     const toggleDrawer = (open) => {
+      if(!drawer) return;
       drawer.classList.toggle('open', open);
       drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+      document.body.style.overflow = open ? 'hidden' : '';
     };
     hamb?.addEventListener('click', () => toggleDrawer(!drawer.classList.contains('open')));
     openMenu?.addEventListener('click', () => toggleDrawer(true));
     drawer?.addEventListener('click', (e)=>{ if(e.target === drawer) toggleDrawer(false) });
 
-    /* Wyszukiwarka overlay */
+    /* Wyszukiwarka overlay + sugestie */
     const openSearchBtn = $('#openSearch'), search = $('#search'), q = $('#q'), sug = $('#sug');
     const idx = [
       {t:'Ekspres FTL', cat:'Usługi', url:'#uslugi'},
@@ -714,7 +751,6 @@
     ];
     function renderSug(list){
       if(!list.length){ sug.innerHTML = ''; return; }
-      // grupowanie
       const groups = {};
       for(const it of list){ (groups[it.cat] ||= []).push(it); }
       sug.innerHTML = Object.entries(groups).map(([cat, items]) => `
@@ -723,6 +759,7 @@
         </ul></div>`).join('');
     }
     function searchOpen(open){
+      if(!search) return;
       search.classList.toggle('open', open);
       search.setAttribute('aria-hidden', open ? 'false' : 'true');
       if(open){ q.value=''; renderSug([]); q.focus(); }
@@ -737,7 +774,7 @@
       renderSug(list.slice(0,12));
     });
 
-    /* Przełącznik trybu (auto + ręcznie) */
+    /* Przełącznik trybu (auto + ręcznie) + dynamiczna pozycja gałki */
     const themeBtn = $('#theme');
     const prefersDark = matchMedia('(prefers-color-scheme: dark)');
     function setTheme(mode){ // 'light'|'dark'|null(auto)
@@ -746,12 +783,32 @@
       const dark = (mode ? mode==='dark' : prefersDark.matches);
       themeBtn?.setAttribute('aria-checked', dark ? 'true' : 'false');
     }
+    function setKnobMax(){
+      const knob = themeBtn?.querySelector('.knob'); if(!knob||!themeBtn) return;
+      const cs = getComputedStyle(themeBtn);
+      const travel = themeBtn.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - knob.offsetWidth;
+      themeBtn.style.setProperty('--knob-max-x', Math.max(0, travel) + 'px');
+    }
     themeBtn?.addEventListener('click', ()=>{
       const current = themeBtn.getAttribute('aria-checked') === 'true';
       setTheme(current ? 'light' : 'dark');
     });
     prefersDark.addEventListener?.('change', ()=>{ if(!localStorage.getItem('theme')) setTheme(null) });
-    setTheme(localStorage.getItem('theme')); // init
+    setTheme(localStorage.getItem('theme')); setKnobMax(); addEventListener('resize', setKnobMax);
+
+    /* Flagi języków (pokazuj tylko dostępne) */
+    (function(){
+      const wrap = $('#langs'); if(!wrap) return;
+      const FLAGS = { pl:'🇵🇱', en:'🇬🇧', de:'🇩🇪', fr:'🇫🇷', ru:'🇷🇺', uk:'🇺🇦' };
+      $$('#langs a').forEach(a=>{
+        const code = (a.dataset.lang||'').toLowerCase();
+        if(!CFG.langsAvailable.includes(code)){ a.remove(); return; }
+        a.textContent = FLAGS[code] || code.toUpperCase();
+        a.setAttribute('aria-label', a.title || code.toUpperCase());
+        a.style.width = '32px'; a.style.height='32px'; a.style.display='grid'; a.style.placeItems='center';
+        a.style.border = '1px solid var(--border)'; a.style.borderRadius='50%'; a.style.background='var(--card)';
+      });
+    })();
 
     /* "Kopiuj e‑mail" */
     $('#copyMail')?.addEventListener('click', async (e)=>{
@@ -761,23 +818,21 @@
       setTimeout(()=> e.currentTarget.textContent='Skopiuj e‑mail', 1500);
     });
 
-    /* ETA z nazwy podstrony / front‑matter (fallback: hero badge) */
+    /* ETA z nazwy podstrony / fallback */
     (function(){
       const span = $('#eta'); if(!span) return;
       const path = location.pathname.toLowerCase();
       const map = { berlin:'8–12 h', mediolan:'14–18 h', paris:'14–18 h', praha:'6–9 h', wien:'6–9 h', bratislava:'6–9 h' };
-      let city = Object.keys(map).find(k => path.includes(k));
-      if(city){ span.textContent = `⏱️ ETA: typowo ${map[city]}`; }
-      else{ span.textContent = `⏱️ ETA: typowo < 12 h`; }
+      const city = Object.keys(map).find(k => path.includes(k));
+      span.textContent = `⏱️ ETA: typowo ${city? map[city] : '< 12 h'}`;
     })();
 
-    /* Prosty estimator widełek — pokazuje coś po wypełnieniu (UX, nie final) */
+    /* Prosty estimator widełek (UX) */
     (function(){
       const qty = $('#qty'), prio = $('#prio'), est = $('#estimate');
       function calc(){
         const q = Math.max(1, (+qty.value||1));
         const mult = prio.value==='Express ++' ? 1.6 : prio.value==='Priorytet' ? 1.3 : 1.0;
-        // „udawane” widełki na start – prawdziwą cenę potwierdzimy w 15 min
         const min = Math.round(250 * mult + q*40);
         const max = Math.round(420 * mult + q*60);
         est.textContent = `${min}–${max} PLN (orientacyjnie)`;
@@ -802,7 +857,6 @@
     /* Liczniki — start po 10 s i gdy w viewport */
     const startTime = Date.now();
     function canStartEffects(){
-      // heurystyka „szybkie urządz.”: >3 rdzenie + nie 2g
       const cores = navigator.hardwareConcurrency || 2;
       const net = (navigator.connection && navigator.connection.effectiveType) || '4g';
       return cores >= 4 && !/2g/.test(net);
@@ -824,7 +878,7 @@
         if(e.isIntersecting){
           const elapsed = (Date.now() - startTime);
           const start = ()=> $$('#kpi .val').forEach(v=> countUp(v));
-          if(elapsed >= 10000 && canStartEffects()) start(); // >=10 s
+          if(elapsed >= 10000 && canStartEffects()) start();
           else setTimeout(()=> canStartEffects() && start(), Math.max(0, 10000 - elapsed));
           io.disconnect();
         }
@@ -835,11 +889,11 @@
     /* Taśma branż — aktywacja po 10 s (pauza na hover) */
     setTimeout(()=> $('#marquee')?.classList.add('active'), 10000);
 
-    /* Particles — tylko dark, po 10 s, płynny fade‑in, bez reduced‑motion */
+    /* Particles — tylko dark, po 10 s, pointer: fine, bez reduced‑motion, płynny fade‑in */
     const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)');
     function isDark(){ return (document.documentElement.dataset.theme==='dark') || ( !localStorage.getItem('theme') && matchMedia('(prefers-color-scheme: dark)').matches ); }
     function loadParticles(){
-      if(!isDark() || prefersReduced.matches || !canStartEffects()) return;
+      if(!isDark() || prefersReduced.matches || !canStartEffects() || !matchMedia('(pointer: fine)').matches) return;
       const wrap = $('#particles-js'); if(!wrap) return;
       const s = document.createElement('script');
       s.src = 'https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js'; s.defer = true;
@@ -848,24 +902,69 @@
           particles:{
             number:{ value: 40, density:{ enable:true, value_area: 900 } },
             color:{ value: "#ffffff" },
-            opacity:{ value: 0.25 },
+            opacity:{ value: 0.22 },
             size:{ value: 2.6, random:true },
             line_linked:{ enable:true, distance: 140, color:"#ffffff", opacity:0.15, width:1 },
             move:{ enable:true, speed: 1.2, out_mode:"out" }
           },
-          interactivity:{ events:{ onhover:{ enable:false }, onclick:{ enable:false } } },
+          interactivity:{
+            detect_on:"window",
+            events:{ onhover:{ enable:true, mode:"repulse" }, onclick:{ enable:false } },
+            modes:{ repulse:{ distance:180, duration:0.3 } }
+          },
           retina_detect:true
         });
-        // płynny fade-in
         wrap.style.transition = 'opacity 1.2s ease'; requestAnimationFrame(()=> wrap.style.opacity = '1');
       };
       document.head.appendChild(s);
     }
-    // start po 10 s od pełnego załadowania
     addEventListener('load', ()=> setTimeout(loadParticles, 10000));
+
+    /* HERO VIDEO — lazy start (~1s po load), tylko gdy warto */
+    addEventListener('load', ()=>{
+      const vid = document.getElementById('heroVid');
+      if(!vid) return;
+      if(prefersReduced.matches || !canStartEffects()) return;
+      setTimeout(()=>{
+        vid.src = '/assets/media/hero.mp4';
+        vid.addEventListener('canplay', ()=>{ try{vid.play()}catch(e){}; vid.style.opacity='1'; }, {once:true});
+        // CSS dla płynnego wejścia
+        vid.style.opacity='0'; vid.style.transition='opacity .8s ease';
+        vid.load();
+      }, CFG.videoDelayMs);
+    });
 
     /* Rok w stopce */
     $('#y').textContent = new Date().getFullYear();
+
+    /* STOPKA — linkowanie wewn. zależne od miasta w URL (proste SEO) */
+    (function(){
+      const el = document.getElementById('footer-city-links'); if(!el) return;
+      const CITY = {
+        lodz:'Łódź', warszawa:'Warszawa', krakow:'Kraków', wroclaw:'Wrocław', poznan:'Poznań',
+        berlin:'Berlin', mediolan:'Mediolan', praha:'Praga', wien:'Wiedeń', paris:'Paryż'
+      };
+      const path = location.pathname.toLowerCase();
+      const slug = Object.keys(CITY).find(k => path.includes(k));
+      if(slug){
+        const name = CITY[slug];
+        el.innerHTML = `
+          <strong>Powiązane:</strong>
+          <a href="/pl/miasta/${slug}/uslugi/">Usługi — ${name}</a>
+          <a href="/pl/miasta/${slug}/flota/">Flota — ${name}</a>
+          <a href="/pl/miasta/${slug}/faq/">FAQ — ${name}</a>
+        `;
+      }else{
+        // fallback: najpopularniejsze
+        el.innerHTML = `
+          <strong>Popularne miasta:</strong>
+          <a href="/pl/miasta/lodz/">Łódź</a>
+          <a href="/pl/miasta/berlin/">Berlin</a>
+          <a href="/pl/miasta/mediolan/">Mediolan</a>
+          <a href="/pl/miasta/praga/">Praga</a>
+        `;
+      }
+    })();
   </script>
 </body>
 </html>
