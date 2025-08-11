@@ -1,10 +1,854 @@
 <!doctype html>
 <html lang="pl">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kras-Trans — test</title>
-<body style="font-family:system-ui;padding:40px">
-  <h1>Działa! (Kras-Trans)</h1>
-  <p>To tylko strona testowa. Za chwilę podłączymy domenę i automatyczny build.</p>
+<head>
+  <meta charset="utf-8" />
+  <title>Kras‑Trans — Ekspresowy transport busami do 3,5 t • 24/7</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <!-- Kolor paska adresu -->
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f7f8">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)"  content="#0b0b0c">
+
+  <!-- TODO: podmień ścieżkę, gdy wrzucisz font -->
+  <style>
+    /* =====================
+       DESIGN TOKENS
+       ===================== */
+    :root{
+      /* Tła (jasny) */
+      --bg:        #f6f7f8;      /* nie-biały, komfortowy */
+      --bg-alt:    #eef0f2;      /* drugi kolor sekcji */
+      --card:      #ffffff;
+      --fg:        #0b0b0c;
+      --muted:     #60646c;
+      --muted-2:   #8a8f99;
+      --brand:     #0ea5e9;      /* CTA – cyjan/niebieski */
+      --brand-2:   #22c55e;      /* pomocniczy: sukces */
+      --accent:    #f59e0b;      /* bursztyn – liczby/liczniki */
+      --border:    color-mix(in oklab, var(--fg) 12%, transparent);
+      --shadow:    0 8px 40px rgba(0,0,0,.08);
+      --radius:    16px;
+      --radius-sm: 12px;
+      --radius-lg: 22px;
+
+      /* Efekty */
+      --glass:     saturate(160%) blur(10px);
+
+      /* Typografia */
+      --font: "Inter var", "InterVariable", Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+
+      /* Layout */
+      --content:   72ch; /* szer. czytania dla bloków tekstu */
+
+      /* Przełącznik */
+      --switch-bg:    #dbe2e8;
+      --switch-knob:  #ffffff;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0b0b0c; --bg-alt:#111214; --card:#121314; --fg:#f5f5f6;
+        --muted:#b3b6bd; --muted-2:#8f94a1; --brand:#38bdf8; --accent:#fbbf24;
+        --border: color-mix(in oklab, var(--fg) 14%, transparent);
+        --switch-bg:#1c1d21; --switch-knob:#111214;
+        --shadow: 0 12px 50px rgba(0,0,0,.35);
+      }
+    }
+
+    /* Preferencje ruchu – wygaszamy animacje gdy user tak chce */
+    @media (prefers-reduced-motion: reduce){
+      *{ animation: none !important; transition: none !important; }
+    }
+
+    /* =====================
+       RESET & GLOBAL
+       ===================== */
+    *{ box-sizing: border-box }
+    html, body{ margin:0; padding:0 }
+    body{
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    a{ color: inherit; text-decoration: none }
+    img{ max-width: 100%; display: block }
+
+    /* Sekcje pełnej szerokości, ale tekstowe bloki trzymają skład */
+    .section{ position: relative; padding: 72px 24px }
+    .section.alt{ background: var(--bg-alt) }
+    .text{ max-width: var(--content); margin-inline: auto }
+
+    /* =====================
+       HEADER + MEGA MENU
+       ===================== */
+    header{
+      position: sticky; top:0; z-index: 50;
+      backdrop-filter: var(--glass);
+      background: color-mix(in oklab, var(--bg) 60%, transparent);
+      border-bottom: 1px solid var(--border);
+      transition: background .35s ease, box-shadow .35s ease;
+    }
+    body[data-scrolled="1"] header{
+      background: color-mix(in oklab, var(--bg) 95%, transparent);
+      box-shadow: var(--shadow);
+    }
+    .nav{
+      display:flex; align-items:center; justify-content:space-between; gap:16px;
+      padding: 14px 20px;
+    }
+    .brand{ display:flex; align-items:center; gap:12px; font-weight:800; letter-spacing:.2px }
+    .badge{ width:28px; height:28px; border-radius:9px; background: var(--brand); }
+
+    .nav-right{ display:flex; align-items:center; gap:14px }
+    .menu{ display:flex; gap:18px; align-items:center }
+    .menu > a{ opacity:.9; padding:10px 12px; border-radius: 10px; }
+    .menu > a:hover{ background: color-mix(in oklab, var(--fg) 6%, transparent) }
+
+    /* Mega menu (desktop) */
+    .mega{ position: absolute; left:0; right:0; top:100%; display:none; padding: 16px 20px 24px; }
+    .menu-item{ position: relative }
+    .menu-item:hover .mega, .menu-item:focus-within .mega{ display:block }
+    .mega-inner{
+      margin: 0 20px; border:1px solid var(--border); border-radius: var(--radius);
+      background: var(--card); box-shadow: var(--shadow);
+      display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px; padding: 14px;
+    }
+    .mega h4{ margin: 8px 10px; font-size: 14px; opacity:.8 }
+    .mega a{ padding:10px 12px; border-radius: 10px; }
+    .mega a:hover{ background: color-mix(in oklab, var(--fg) 6%, transparent) }
+
+    /* Przełącznik trybu (pigułka) */
+    .switch{
+      position: relative; width: 74px; height: 36px; border-radius: 999px;
+      background: var(--switch-bg); border:1px solid var(--border);
+      display:inline-flex; align-items:center; padding: 0 6px; gap: 6px; cursor: pointer;
+    }
+    .switch .knob{
+      width: 28px; height: 28px; border-radius: 50%; background: var(--switch-knob);
+      box-shadow: 0 2px 8px rgba(0,0,0,.18);
+      transform: translateX(0); transition: transform .25s ease;
+      display:grid; place-items:center; font-size: 14px;
+    }
+    .switch[aria-checked="true"] .knob{ transform: translateX(34px) }
+
+    /* Ikonki */
+    .icon-btn{ width:38px; height:38px; display:grid; place-items:center; border-radius: 12px; border:1px solid var(--border) }
+    .icon-btn:hover{ background: color-mix(in oklab, var(--fg) 6%, transparent) }
+
+    /* Hamburger (mobile) */
+    .hamb{ display:none }
+    @media (max-width: 1023px){
+      .menu{ display:none }
+      .hamb{ display:grid }
+    }
+
+    /* Szuflada menu (mobile) */
+    .drawer{
+      position: fixed; inset: 0; background: color-mix(in oklab, var(--bg) 95%, transparent);
+      backdrop-filter: var(--glass);
+      transform: translateY(100%); transition: transform .35s ease; z-index: 60;
+      display:flex; flex-direction:column;
+    }
+    .drawer.open{ transform: translateY(0) }
+    .drawer .list{ padding: 24px; display:grid; gap: 10px }
+    .drawer a{ padding: 14px 16px; border-radius: 14px; border:1px solid var(--border); background: var(--card) }
+
+    /* =====================
+       WYSZUKIWARKA FULLSCREEN
+       ===================== */
+    .search-overlay{
+      position: fixed; inset:0; z-index: 70;
+      background: color-mix(in oklab, var(--bg) 96%, transparent);
+      backdrop-filter: var(--glass);
+      display:none; padding: 24px;
+    }
+    .search-overlay.open{ display:block }
+    .search-wrap{ max-width: 900px; margin: 6vh auto 0; }
+    .search-input{
+      width:100%; font-size: clamp(18px,2.5vw,22px);
+      padding: 16px 18px; border-radius: 16px; border:1px solid var(--border); background: var(--card);
+    }
+    .suggestions{ margin-top: 14px; display:grid; gap:8px }
+    .group{ border:1px solid var(--border); border-radius: 16px; background: var(--card) }
+    .group h5{ margin: 10px 12px; opacity:.7; font-size: 14px }
+    .group ul{ list-style:none; margin:0; padding: 0 10px 12px }
+    .group li a{ display:block; padding: 10px 10px; border-radius: 10px }
+    .group li a:hover{ background: color-mix(in oklab, var(--fg) 6%, transparent) }
+
+    /* =====================
+       HERO
+       ===================== */
+    .hero{ position:relative; min-height: 86svh; display:grid; place-items:center; overflow:hidden }
+    .hero img.hero-bg{
+      position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:-2;
+      filter: saturate(105%);
+    }
+    .hero::after{
+      content:""; position:absolute; inset:0; z-index:-1;
+      /* silna nakładka dla czytelności tekstu */
+      background:
+        radial-gradient(1200px 600px at 10% -20%, color-mix(in oklab, var(--brand) 20%, transparent), transparent),
+        linear-gradient(180deg, rgba(0,0,0,.45), transparent 40%, rgba(0,0,0,.45));
+      mix-blend-mode: multiply;
+    }
+    .hero-inner{ width: min(1200px, 100%); padding: 28px; display:grid; gap: 18px }
+    .hero h1{ font-size: clamp(32px, 6vw, 62px); line-height:1.05; letter-spacing:-.02em; margin:0 }
+    .hero p{ font-size: clamp(16px, 2.2vw, 20px); color: #f2f5f8 }
+    .badges{ display:flex; gap: 10px; flex-wrap:wrap }
+    .badge-pill{
+      display:inline-flex; align-items:center; gap:8px; padding: 10px 14px; border-radius: 999px;
+      background: color-mix(in oklab, var(--card) 20%, transparent);
+      border:1px solid var(--border); color: #fff;
+    }
+    .cta-row{ display:flex; gap: 12px; flex-wrap:wrap }
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center; gap:10px;
+      padding: 12px 18px; border-radius: 14px; border:1px solid var(--border); background: var(--card); font-weight:700;
+    }
+    .btn.primary{ background: var(--brand); color: #002433; border-color: transparent }
+    .eta{
+      display:inline-flex; align-items:center; gap:10px; padding: 10px 14px; border-radius: 12px;
+      border:1px solid var(--border); background: color-mix(in oklab, var(--card) 75%, transparent);
+      color: #fff;
+    }
+
+    /* =====================
+       WYCENA (STEP 1-2-3)
+       ===================== */
+    .quote{
+      display:grid; gap:14px; grid-template-columns: repeat(3, minmax(0,1fr));
+      border:1px solid var(--border); border-radius: var(--radius); padding: 14px; background: var(--card);
+    }
+    .quote .field{ display:grid; gap:8px }
+    .quote label{ font-size: 14px; opacity:.8 }
+    .quote input, .quote select{
+      padding: 12px 12px; border:1px solid var(--border); border-radius: 12px; background: var(--bg);
+    }
+    .quote .out{
+      grid-column: 1 / -1; display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding-top: 6px; border-top: 1px dashed var(--border);
+    }
+    @media (max-width: 1023px){
+      .quote{ grid-template-columns: 1fr }
+    }
+
+    /* =====================
+       KAFELKI 3D (USŁUGI)
+       ===================== */
+    .cards{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:14px }
+    @media (max-width: 1200px){ .cards{ grid-template-columns: repeat(2, minmax(0,1fr)) } }
+    @media (max-width: 680px){ .cards{ grid-template-columns: 1fr } }
+
+    .card3d{
+      perspective: 900px; border-radius: var(--radius); background: var(--card);
+      border:1px solid var(--border); padding: 16px; position:relative; overflow:hidden;
+    }
+    .card3d .inner{
+      transform-style: preserve-3d; transition: transform .2s ease;
+    }
+    .card3d:hover .inner{ transform: rotateX(6deg) rotateY(-6deg) }
+    .card3d h3{ margin:8px 0 6px }
+    .card3d p{ margin:0; color: var(--muted) }
+
+    /* =====================
+       GALERIA "CO TRANSPORTUJEMY"
+       ===================== */
+    .filters{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom: 10px }
+    .chip{
+      padding:8px 12px; border-radius: 999px; border:1px solid var(--border); background: var(--card);
+      cursor:pointer; user-select:none;
+    }
+    .chip.active{ background: var(--brand); color: #002433; border-color: transparent }
+    .gallery{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px }
+    @media (max-width: 1000px){ .gallery{ grid-template-columns: repeat(2, minmax(0,1fr)) } }
+    @media (max-width: 600px){ .gallery{ grid-template-columns: 1fr } }
+    .gallery figure{
+      margin:0; border-radius: var(--radius-sm); overflow:hidden; border:1px solid var(--border); background: var(--card)
+    }
+    .gallery img{ width:100%; aspect-ratio: 4 / 3; object-fit: cover }
+
+    /* =====================
+       LICZNIKI
+       ===================== */
+    .kpi{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px }
+    @media (max-width: 900px){ .kpi{ grid-template-columns: repeat(2, minmax(0,1fr)) } }
+    @media (max-width: 520px){ .kpi{ grid-template-columns: 1fr } }
+    .kpi .tile{
+      padding: 16px; border-radius: var(--radius); border:1px solid var(--border); background: var(--card);
+    }
+    .kpi .val{ font-size: clamp(26px, 5vw, 40px); font-weight: 900; color: var(--accent) }
+    .kpi .name{ color: var(--muted) }
+
+    /* =====================
+       BRANŻE / TAŚMA
+       ===================== */
+    .marquee{
+      overflow:hidden; border:1px solid var(--border); border-radius: var(--radius); background: var(--card)
+    }
+    .marquee .track{ display:flex; gap: 22px; padding: 12px 16px; will-change: transform }
+    .marquee .pill{ white-space: nowrap; padding: 10px 14px; border:1px solid var(--border); border-radius: 999px; background: var(--bg) }
+    .marquee.active .track{ animation: scroll 28s linear infinite }
+    .marquee:hover .track{ animation-play-state: paused }
+    @keyframes scroll{ from{ transform: translateX(0) } to{ transform: translateX(-50%) } }
+
+    /* =====================
+       FAQ
+       ===================== */
+    .faq{ display:grid; gap:10px }
+    .faq details{
+      border:1px solid var(--border); border-radius: var(--radius); background: var(--card); padding: 12px 14px
+    }
+    .faq summary{ cursor:pointer; list-style:none; font-weight:700 }
+    .faq summary::-webkit-details-marker{ display:none }
+    .faq p{ margin: 10px 0 0; color: var(--muted) }
+
+    /* =====================
+       MAPA / EMBED
+       ===================== */
+    .embed{ border:1px solid var(--border); border-radius: var(--radius); overflow:hidden; background: var(--card) }
+    .embed iframe{ display:block; width:100%; aspect-ratio: 16 / 9; border:0 }
+
+    /* =====================
+       STOPKA + DOLNY PASEK (MOBILE)
+       ===================== */
+    footer{ padding: 40px 20px; color: var(--muted); border-top: 1px solid var(--border) }
+
+    .bottom-bar{
+      position: fixed; left:0; right:0; bottom:0; z-index: 55;
+      padding: max(8px, env(safe-area-inset-bottom));
+      background: color-mix(in oklab, var(--bg) 96%, transparent);
+      backdrop-filter: var(--glass); border-top:1px solid var(--border);
+      display:none; grid-template-columns: repeat(5, 1fr); gap:8px;
+    }
+    .bottom-bar a{
+      display:flex; flex-direction:column; align-items:center; gap:4px; padding: 8px 6px;
+      border-radius: 12px; border:1px solid var(--border); background: var(--card); font-size: 12px;
+    }
+    @media (max-width: 900px){ .bottom-bar{ display:grid } }
+  </style>
+
+  <!-- Preload hero image to help LCP (podmień ścieżkę na swoje zdjęcie) -->
+  <link rel="preload" as="image" href="/assets/media/hero.jpg" imagesrcset="/assets/media/hero.jpg" />
+</head>
+<body>
+  <!-- Particles container (po 10 s, tylko dark) -->
+  <div id="particles-js" style="position:fixed;z-index:-1;top:0;left:0;width:100vw;height:100vh;pointer-events:none;opacity:0;"></div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="nav">
+      <div class="brand">
+        <span class="badge"></span> <span>Kras‑Trans</span>
+      </div>
+
+      <nav class="menu" aria-label="Główne">
+        <a href="#uslugi" class="menu-item">Usługi
+          <div class="mega" aria-hidden="true">
+            <div class="mega-inner">
+              <div>
+                <h4>Ekspres</h4>
+                <a href="#uslugi">Transport FTL</a>
+                <a href="#uslugi">Do 3,5 t</a>
+                <a href="#uslugi">Just‑in‑time</a>
+              </div>
+              <div>
+                <h4>Flota</h4>
+                <a href="#flota">Busy 5–12 EP</a>
+                <a href="#flota">Parametry</a>
+              </div>
+              <div>
+                <h4>Branże</h4>
+                <a href="#branze">Automotive</a>
+                <a href="#branze">E‑commerce</a>
+                <a href="#branze">Eventy</a>
+              </div>
+              <div>
+                <h4>Firma</h4>
+                <a href="#faq">FAQ</a>
+                <a href="#kontakt">Kontakt</a>
+              </div>
+            </div>
+          </div>
+        </a>
+        <a href="#flota">Flota</a>
+        <a href="#branze">Branże</a>
+        <a href="#faq">FAQ</a>
+        <a href="#kontakt">Kontakt</a>
+      </nav>
+
+      <div class="nav-right">
+        <!-- Przełącznik trybu -->
+        <button id="theme" class="switch" role="switch" aria-checked="false" aria-label="Przełącz tryb światło/ciemność">
+          <span aria-hidden="true">🌞</span>
+          <span class="knob" aria-hidden="true">🌙</span>
+        </button>
+
+        <!-- Wyszukiwarka -->
+        <button id="openSearch" class="icon-btn" aria-label="Szukaj">🔎</button>
+
+        <!-- Języki -->
+        <div class="menu">
+          <a href="/pl/" aria-label="Polski 🇵🇱">PL</a>
+          <a href="/en/" aria-label="English 🇬🇧">EN</a>
+          <a href="/de/" aria-label="Deutsch 🇩🇪">DE</a>
+          <a href="/fr/" aria-label="Français 🇫🇷">FR</a>
+          <a href="/ru/" aria-label="Русский 🇷🇺">RU</a>
+          <a href="/uk/" aria-label="Українська 🇺🇦">UK</a>
+        </div>
+
+        <!-- Hamburger -->
+        <button id="hamb" class="icon-btn hamb" aria-label="Otwórz menu">☰</button>
+      </div>
+    </div>
+
+    <!-- Drawer (mobile) -->
+    <div id="drawer" class="drawer" aria-hidden="true">
+      <div class="list">
+        <a href="#uslugi">Usługi</a>
+        <a href="#flota">Flota</a>
+        <a href="#branze">Branże</a>
+        <a href="#mapa">Mapa</a>
+        <a href="#faq">FAQ</a>
+        <a href="#kontakt">Kontakt</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- SEARCH OVERLAY -->
+  <div id="search" class="search-overlay" aria-hidden="true">
+    <div class="search-wrap">
+      <input id="q" class="search-input" placeholder="Czego szukasz? (usługi, flota, FAQ, miasta…)" aria-label="Szukaj" />
+      <div id="sug" class="suggestions">
+        <!-- Podpowiedzi generowane JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <section class="hero">
+    <!-- LCP: obraz hero (podmień ścieżkę) -->
+    <img class="hero-bg" src="/assets/media/hero.jpg" alt="" decoding="async" fetchpriority="high" />
+    <div class="hero-inner">
+      <div class="badges">
+        <span class="badge-pill">🚚 Ekspres FTL</span>
+        <span class="badge-pill">🕒 24/7</span>
+        <span class="badge-pill">🇪🇺 Cała Europa</span>
+      </div>
+      <h1>Ekspresowe dostawy busami do 3,5&nbsp;t</h1>
+      <p>Lojalność, punktualność i bezpieczeństwo. Zgłaszasz — my ogarniamy załadunek, trasę i dowóz. 24/7.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="#wycena">Zamów transport</a>
+        <a class="btn" href="tel:+48XXXXXXXXX">Zadzwoń 24/7</a>
+        <span id="eta" class="eta">⏱️ ETA: typowo &lt; 12 h</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- WYCENA 15 MIN -->
+  <section id="wycena" class="section">
+    <div class="text">
+      <h2>Wycena w 15 minut — bez ściemy</h2>
+      <p>Podaj podstawowe dane — pokażemy orientacyjny zakres, a finalną wycenę dostaniesz w ≤ 15 minut od zgłoszenia.</p>
+      <div class="quote" role="form" aria-label="Szybka wycena">
+        <div class="field">
+          <label for="from">Skąd</label>
+          <input id="from" placeholder="np. Łódź, PL" inputmode="text" />
+        </div>
+        <div class="field">
+          <label for="to">Dokąd</label>
+          <input id="to" placeholder="np. Berlin, DE" inputmode="text" />
+        </div>
+        <div class="field">
+          <label for="type">Rodzaj</label>
+          <select id="type">
+            <option>Paczki</option>
+            <option>Palety</option>
+            <option>Sprzęt</option>
+            <option>Inne</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="prio">Priorytet</label>
+          <select id="prio">
+            <option>Standard</option>
+            <option>Priorytet</option>
+            <option>Express ++</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="qty">Ilość (szt./EP)</label>
+          <input id="qty" type="number" min="1" step="1" value="1"/>
+        </div>
+        <div class="field">
+          <label for="notes">Uwagi</label>
+          <input id="notes" placeholder="np. ADR/fragile/winda" />
+        </div>
+        <div class="out">
+          <div><strong>Szacowana widełki:</strong> <span id="estimate">—</span></div>
+          <div class="cta-row">
+            <a class="btn" href="mailto:hello@kras-trans.com?subject=Wycena%20transportu">Wyślij zapytanie ✉️</a>
+            <a class="btn primary" href="https://wa.me/48XXXXXXXXX">WhatsApp</a>
+          </div>
+        </div>
+      </div>
+      <p style="color:var(--muted);margin-top:8px">Uczciwie: online pokazujemy orientację. Finalną cenę potwierdzamy w ≤ 15 min.</p>
+    </div>
+  </section>
+
+  <!-- USŁUGI (kafelki 3D) -->
+  <section id="uslugi" class="section alt">
+    <div class="text">
+      <h2>Usługi</h2>
+      <div class="cards">
+        <article class="card3d"><div class="inner">
+          <h3>Ekspres FTL</h3><p>Najkrótszy czas odbioru i dostawy.</p>
+        </div></article>
+        <article class="card3d"><div class="inner">
+          <h3>Do 3,5 t</h3><p>Busy 5–12 EP, monitoring i kontakt 24/7.</p>
+        </div></article>
+        <article class="card3d"><div class="inner">
+          <h3>Just‑in‑time</h3><p>Dowóz pod linie i okna czasowe.</p>
+        </div></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- CO TRANSPORTUJEMY + GALERIA -->
+  <section class="section">
+    <div class="text">
+      <h2>Co transportujemy</h2>
+      <div class="filters" aria-label="Filtry">
+        <button class="chip active" data-filter="all">Wszystko</button>
+        <button class="chip" data-filter="paczki">Paczki</button>
+        <button class="chip" data-filter="palety">Palety</button>
+        <button class="chip" data-filter="sprzet">Sprzęt</button>
+        <button class="chip" data-filter="inne">Inne</button>
+      </div>
+    </div>
+    <div class="gallery" id="gallery">
+      <!-- Przykładowe placeholdy – podmień obrazy we własnym czasie -->
+      <figure data-cat="paczki"><img loading="lazy" src="/assets/media/goods-1.jpg" alt="Paczki na busie"></figure>
+      <figure data-cat="palety"><img loading="lazy" src="/assets/media/goods-2.jpg" alt="Palety gotowe do załadunku"></figure>
+      <figure data-cat="sprzet"><img loading="lazy" src="/assets/media/goods-3.jpg" alt="Sprzęt eventowy zabezpieczony"></figure>
+      <figure data-cat="inne"><img loading="lazy" src="/assets/media/goods-4.jpg" alt="Nietypowy ładunek"></figure>
+      <figure data-cat="palety"><img loading="lazy" src="/assets/media/goods-5.jpg" alt="Palety w magazynie"></figure>
+      <figure data-cat="paczki"><img loading="lazy" src="/assets/media/goods-6.jpg" alt="Paczki"></figure>
+    </div>
+  </section>
+
+  <!-- MAPA / APLIKACJA -->
+  <section id="mapa" class="section alt">
+    <div class="text">
+      <h2>Zasięg — cała Europa</h2>
+      <p>Wybierz kraj lub miasto, aby zobaczyć typowe czasy, trasy i case studies.</p>
+    </div>
+    <div class="embed">
+      <!-- Podmień plik: w repo stwórz /embeds/mapa.html i wgraj swoją aplikację -->
+      <iframe src="/embeds/mapa.html" title="Mapa zasięgu Kras‑Trans" loading="lazy"></iframe>
+    </div>
+  </section>
+
+  <!-- ZAUFALI / LICZBY -->
+  <section class="section">
+    <div class="text">
+      <h2>Zaufali i liczby</h2>
+      <div class="kpi" id="kpi">
+        <div class="tile"><div class="val" data-target="99.2" data-suffix="%">0</div><div class="name">On‑time SLA</div></div>
+        <div class="tile"><div class="val" data-target="24" data-suffix="/7">0</div><div class="name">Dyspozytor</div></div>
+        <div class="tile"><div class="val" data-target="1200" data-suffix="+">0</div><div class="name">Zadowolonych klientów</div></div>
+        <div class="tile"><div class="val" data-target="500000" data-suffix=" km">0</div><div class="name">Km rocznie</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BRANŻE / KLIENCI – TAŚMA -->
+  <section id="branze" class="section alt">
+    <div class="text"><h2>Branże i klienci</h2></div>
+    <div class="marquee" id="marquee">
+      <div class="track">
+        <span class="pill">Automotive</span>
+        <span class="pill">E‑commerce</span>
+        <span class="pill">Eventy</span>
+        <span class="pill">Retail / FMCG</span>
+        <span class="pill">High‑tech</span>
+        <span class="pill">Przemysł</span>
+        <span class="pill">Budownictwo</span>
+        <span class="pill">Meble</span>
+        <!-- powtórka dla płynności pętli -->
+        <span class="pill">Automotive</span>
+        <span class="pill">E‑commerce</span>
+        <span class="pill">Eventy</span>
+        <span class="pill">Retail / FMCG</span>
+        <span class="pill">High‑tech</span>
+        <span class="pill">Przemysł</span>
+        <span class="pill">Budownictwo</span>
+        <span class="pill">Meble</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- OPINIE / CASE -->
+  <section class="section">
+    <div class="text">
+      <h2>Opinie i realizacje</h2>
+      <p style="color:var(--muted)">„Szybko, sprawnie, kontakt 24/7 — zdecydowanie polecamy.” — Klient z branży e‑commerce</p>
+      <p><a class="btn" href="#kontakt">Porozmawiajmy o Twojej trasie</a></p>
+    </div>
+  </section>
+
+  <!-- FAQ (mini) -->
+  <section id="faq" class="section alt">
+    <div class="text">
+      <h2>FAQ — najczęściej pytacie</h2>
+      <div class="faq">
+        <details open>
+          <summary>Jak szybko możecie podstawić busa?</summary>
+          <p>W ekspresie zwykle 1–3 h w Polsce i przy granicy. Zadzwoń — sprawdzimy dostępność najbliższej jednostki.</p>
+        </details>
+        <details>
+          <summary>Czy przewozicie ładunki niestandardowe?</summary>
+          <p>Tak — prosimy o wymiary i wagę, dobierzemy odpowiedni pojazd i zabezpieczenie.</p>
+        </details>
+        <details>
+          <summary>Jak wygląda kontakt podczas przewozu?</summary>
+          <p>Dyspozytor 24/7 ma stały kontakt z kierowcą. Informujemy o statusach i ETA w czasie rzeczywistym.</p>
+        </details>
+      </div>
+      <p style="margin-top:12px"><a class="btn" href="/faq/">Zobacz wszystkie pytania</a></p>
+    </div>
+    <!-- FAQ schema (rich results) – dopasowane do powyższych 3 pytań -->
+    <script type="application/ld+json">
+    {
+      "@context":"https://schema.org",
+      "@type":"FAQPage",
+      "mainEntity":[
+        {"@type":"Question","name":"Jak szybko możecie podstawić busa?","acceptedAnswer":{"@type":"Answer","text":"W ekspresie zwykle 1–3 h w Polsce i przy granicy. Zadzwoń — sprawdzimy dostępność najbliższej jednostki."}},
+        {"@type":"Question","name":"Czy przewozicie ładunki niestandardowe?","acceptedAnswer":{"@type":"Answer","text":"Tak — prosimy o wymiary i wagę, dobierzemy odpowiedni pojazd i zabezpieczenie."}},
+        {"@type":"Question","name":"Jak wygląda kontakt podczas przewozu?","acceptedAnswer":{"@type":"Answer","text":"Dyspozytor 24/7 ma stały kontakt z kierowcą. Informujemy o statusach i ETA w czasie rzeczywistym."}}
+      ]
+    }
+    </script>
+  </section>
+
+  <!-- KONTAKT -->
+  <section id="kontakt" class="section">
+    <div class="text">
+      <h2>Kontakt</h2>
+      <p>Jesteśmy do dyspozycji 24/7.</p>
+      <p>
+        <a class="btn primary" href="tel:+48XXXXXXXXX">Zadzwoń: +48&nbsp;XXX&nbsp;XXX&nbsp;XXX</a>
+        <a class="btn" href="https://wa.me/48XXXXXXXXX">WhatsApp</a>
+        <button id="copyMail" class="btn" data-mail="hello@kras-trans.com" aria-live="polite">Skopiuj e‑mail</button>
+      </p>
+      <p style="color:var(--muted)">Adres, NIP i godziny pracy umieścimy tu po podpięciu danych.</p>
+    </div>
+  </section>
+
+  <!-- STOPKA -->
+  <footer>
+    <div class="text">© <span id="y"></span> Kras‑Trans — rodzinna firma • Łódź • Polska</div>
+  </footer>
+
+  <!-- DOLNY PASEK (MOBILE) -->
+  <nav class="bottom-bar" aria-label="Szybka nawigacja">
+    <a href="#top"   aria-label="Strona główna">🏠<span>Home</span></a>
+    <a href="#uslugi" aria-label="Usługi">🧭<span>Usługi</span></a>
+    <a href="#flota" aria-label="Flota">🚚<span>Flota</span></a>
+    <a href="#wycena" aria-label="Wycena">💬<span>Wycena</span></a>
+    <a href="javascript:void(0)" id="openMenu" aria-label="Menu">☰<span>Menu</span></a>
+  </nav>
+
+  <script>
+    /* ==============
+       NARZĘDZIA
+       ============== */
+    const $ = (sel, ctx=document) => ctx.querySelector(sel);
+    const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
+
+    /* Header shadow / scroll */
+    const setScrolled = () => document.body.setAttribute('data-scrolled', window.scrollY > 8 ? '1' : '0');
+    addEventListener('scroll', setScrolled, {passive:true}); setScrolled();
+
+    /* Drawer (mobile) */
+    const hamb = $('#hamb'), drawer = $('#drawer'), openMenu = $('#openMenu');
+    const toggleDrawer = (open) => {
+      drawer.classList.toggle('open', open);
+      drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+    };
+    hamb?.addEventListener('click', () => toggleDrawer(!drawer.classList.contains('open')));
+    openMenu?.addEventListener('click', () => toggleDrawer(true));
+    drawer?.addEventListener('click', (e)=>{ if(e.target === drawer) toggleDrawer(false) });
+
+    /* Wyszukiwarka overlay */
+    const openSearchBtn = $('#openSearch'), search = $('#search'), q = $('#q'), sug = $('#sug');
+    const idx = [
+      {t:'Ekspres FTL', cat:'Usługi', url:'#uslugi'},
+      {t:'Do 3,5 t', cat:'Usługi', url:'#uslugi'},
+      {t:'Just‑in‑time', cat:'Usługi', url:'#uslugi'},
+      {t:'Busy 5–12 EP', cat:'Flota', url:'#flota'},
+      {t:'FAQ — podstawy', cat:'FAQ', url:'#faq'},
+      {t:'Mapa — Europa', cat:'Mapa', url:'#mapa'},
+      {t:'Kontakt 24/7', cat:'Kontakt', url:'#kontakt'},
+      {t:'Łódź', cat:'Miasta', url:'/pl/miasta/lodz/'},
+      {t:'Berlin', cat:'Miasta', url:'/pl/miasta/berlin/'},
+      {t:'Mediolan', cat:'Miasta', url:'/pl/miasta/mediolan/'}
+    ];
+    function renderSug(list){
+      if(!list.length){ sug.innerHTML = ''; return; }
+      // grupowanie
+      const groups = {};
+      for(const it of list){ (groups[it.cat] ||= []).push(it); }
+      sug.innerHTML = Object.entries(groups).map(([cat, items]) => `
+        <div class="group"><h5>${cat}</h5><ul>
+          ${items.slice(0,6).map(it=>`<li><a href="${it.url}">${it.t}</a></li>`).join('')}
+        </ul></div>`).join('');
+    }
+    function searchOpen(open){
+      search.classList.toggle('open', open);
+      search.setAttribute('aria-hidden', open ? 'false' : 'true');
+      if(open){ q.value=''; renderSug([]); q.focus(); }
+    }
+    openSearchBtn?.addEventListener('click', ()=> searchOpen(true));
+    search?.addEventListener('click', (e)=> { if(e.target===search) searchOpen(false) });
+    addEventListener('keydown', (e)=>{ if(e.key==='Escape') searchOpen(false) });
+    q?.addEventListener('input', (e)=>{
+      const v = e.target.value.toLowerCase().trim();
+      if(!v){ renderSug([]); return; }
+      const list = idx.filter(it=> it.t.toLowerCase().includes(v));
+      renderSug(list.slice(0,12));
+    });
+
+    /* Przełącznik trybu (auto + ręcznie) */
+    const themeBtn = $('#theme');
+    const prefersDark = matchMedia('(prefers-color-scheme: dark)');
+    function setTheme(mode){ // 'light'|'dark'|null(auto)
+      if(mode){ document.documentElement.dataset.theme = mode; localStorage.setItem('theme', mode); }
+      else     { delete document.documentElement.dataset.theme; localStorage.removeItem('theme'); }
+      const dark = (mode ? mode==='dark' : prefersDark.matches);
+      themeBtn?.setAttribute('aria-checked', dark ? 'true' : 'false');
+    }
+    themeBtn?.addEventListener('click', ()=>{
+      const current = themeBtn.getAttribute('aria-checked') === 'true';
+      setTheme(current ? 'light' : 'dark');
+    });
+    prefersDark.addEventListener?.('change', ()=>{ if(!localStorage.getItem('theme')) setTheme(null) });
+    setTheme(localStorage.getItem('theme')); // init
+
+    /* "Kopiuj e‑mail" */
+    $('#copyMail')?.addEventListener('click', async (e)=>{
+      const mail = e.currentTarget.dataset.mail;
+      try{ await navigator.clipboard.writeText(mail); e.currentTarget.textContent='Skopiowano ✅'; }
+      catch{ e.currentTarget.textContent=mail; }
+      setTimeout(()=> e.currentTarget.textContent='Skopiuj e‑mail', 1500);
+    });
+
+    /* ETA z nazwy podstrony / front‑matter (fallback: hero badge) */
+    (function(){
+      const span = $('#eta'); if(!span) return;
+      const path = location.pathname.toLowerCase();
+      const map = { berlin:'8–12 h', mediolan:'14–18 h', paris:'14–18 h', praha:'6–9 h', wien:'6–9 h', bratislava:'6–9 h' };
+      let city = Object.keys(map).find(k => path.includes(k));
+      if(city){ span.textContent = `⏱️ ETA: typowo ${map[city]}`; }
+      else{ span.textContent = `⏱️ ETA: typowo < 12 h`; }
+    })();
+
+    /* Prosty estimator widełek — pokazuje coś po wypełnieniu (UX, nie final) */
+    (function(){
+      const qty = $('#qty'), prio = $('#prio'), est = $('#estimate');
+      function calc(){
+        const q = Math.max(1, (+qty.value||1));
+        const mult = prio.value==='Express ++' ? 1.6 : prio.value==='Priorytet' ? 1.3 : 1.0;
+        // „udawane” widełki na start – prawdziwą cenę potwierdzimy w 15 min
+        const min = Math.round(250 * mult + q*40);
+        const max = Math.round(420 * mult + q*60);
+        est.textContent = `${min}–${max} PLN (orientacyjnie)`;
+      }
+      qty?.addEventListener('input', calc);
+      prio?.addEventListener('change', calc);
+      calc();
+    })();
+
+    /* Filtry galerii */
+    $$('.chip').forEach(ch=>{
+      ch.addEventListener('click', ()=>{
+        $$('.chip').forEach(c=>c.classList.remove('active'));
+        ch.classList.add('active');
+        const f = ch.dataset.filter;
+        $$('#gallery figure').forEach(fig=>{
+          fig.style.display = (f==='all' || fig.dataset.cat===f) ? '' : 'none';
+        })
+      })
+    });
+
+    /* Liczniki — start po 10 s i gdy w viewport */
+    const startTime = Date.now();
+    function canStartEffects(){
+      // heurystyka „szybkie urządz.”: >3 rdzenie + nie 2g
+      const cores = navigator.hardwareConcurrency || 2;
+      const net = (navigator.connection && navigator.connection.effectiveType) || '4g';
+      return cores >= 4 && !/2g/.test(net);
+    }
+    function countUp(el){
+      const target = parseFloat(el.dataset.target);
+      const suffix = el.dataset.suffix||'';
+      let cur = 0, dur = 1200, st = performance.now();
+      function tick(t){
+        const p = Math.min(1, (t - st)/dur);
+        const val = (target * (0.2 + 0.8*p));
+        el.textContent = (target>=1000 ? Math.round(val).toLocaleString('pl-PL') : (Math.round(val*10)/10)) + suffix;
+        if(p<1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+    const io = new IntersectionObserver((entries)=>{
+      for(const e of entries){
+        if(e.isIntersecting){
+          const elapsed = (Date.now() - startTime);
+          const start = ()=> $$('#kpi .val').forEach(v=> countUp(v));
+          if(elapsed >= 10000 && canStartEffects()) start(); // >=10 s
+          else setTimeout(()=> canStartEffects() && start(), Math.max(0, 10000 - elapsed));
+          io.disconnect();
+        }
+      }
+    }, {threshold: .3});
+    const kpis = $('#kpi'); if(kpis) io.observe(kpis);
+
+    /* Taśma branż — aktywacja po 10 s (pauza na hover) */
+    setTimeout(()=> $('#marquee')?.classList.add('active'), 10000);
+
+    /* Particles — tylko dark, po 10 s, płynny fade‑in, bez reduced‑motion */
+    const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)');
+    function isDark(){ return (document.documentElement.dataset.theme==='dark') || ( !localStorage.getItem('theme') && matchMedia('(prefers-color-scheme: dark)').matches ); }
+    function loadParticles(){
+      if(!isDark() || prefersReduced.matches || !canStartEffects()) return;
+      const wrap = $('#particles-js'); if(!wrap) return;
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js'; s.defer = true;
+      s.onload = ()=>{
+        particlesJS("particles-js", {
+          particles:{
+            number:{ value: 40, density:{ enable:true, value_area: 900 } },
+            color:{ value: "#ffffff" },
+            opacity:{ value: 0.25 },
+            size:{ value: 2.6, random:true },
+            line_linked:{ enable:true, distance: 140, color:"#ffffff", opacity:0.15, width:1 },
+            move:{ enable:true, speed: 1.2, out_mode:"out" }
+          },
+          interactivity:{ events:{ onhover:{ enable:false }, onclick:{ enable:false } } },
+          retina_detect:true
+        });
+        // płynny fade-in
+        wrap.style.transition = 'opacity 1.2s ease'; requestAnimationFrame(()=> wrap.style.opacity = '1');
+      };
+      document.head.appendChild(s);
+    }
+    // start po 10 s od pełnego załadowania
+    addEventListener('load', ()=> setTimeout(loadParticles, 10000));
+
+    /* Rok w stopce */
+    $('#y').textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
