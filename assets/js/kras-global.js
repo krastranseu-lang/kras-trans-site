@@ -115,4 +115,35 @@ try{ if (matchMedia('(max-width: 900px)').matches) { CFG.PARTICLES = false; } }c
   });
 })();
 
+/* ===== PATCH v5.3 — desktop FP i CLS ===== */
+
+/* 1) Particles i interaktywne linie – opóźnij na desktop (czas 1.8 s).
+      Efekty startują PO wyrenderowaniu treści, tylko transform/opacity. */
+(function delayDesktopFX(){
+  const desktop = matchMedia('(min-width: 1024px)').matches;
+  if (!desktop) return;
+  const start = () => {
+    try{
+      // zostawiamy Twoje initInteractiveLines/initParticles – tylko odpalamy później
+      setTimeout(()=>{ 
+        if (typeof initInteractiveLines === 'function') initInteractiveLines();
+        if (typeof initParticles === 'function') initParticles();
+      }, 1800);
+    }catch(e){}
+  };
+  if ('requestIdleCallback' in window) requestIdleCallback(start, {timeout: 2000}); else start();
+})();
+
+/* 2) Auto‑dense dla szerokich telefonów (zachowane z v5.2) */
+(function autoDenseCards(){
+  const widePhone = matchMedia('(max-width:600px) and (min-width:414px)').matches;
+  if (!widePhone) return;
+  document.querySelectorAll('.cards:not([data-grid])').forEach(g=>{
+    const items = Array.from(g.children).filter(n=>n.nodeType===1);
+    if (!items.length) return;
+    const short = items.every(el => (el.textContent||'').trim().length <= 120);
+    if (short) g.setAttribute('data-grid','dense');
+  });
+})();
+
 </script>
