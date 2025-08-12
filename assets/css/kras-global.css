@@ -246,4 +246,48 @@ footer::after{ content:""; display:block; height: var(--pad-btm) }
 .faq details{ margin-block:10px }
 .faq summary{ padding:6px 0 }
 
+/* ===== PATCH v5.2 — CLS fix + 3 kolumny na Pro Max + dock safe ===== */
+
+/* HERO nie ukryty content-visibility (stabilny blok) */
+#kras-hero{ content-visibility: visible; contain-intrinsic-size: auto }
+#kras-hero::after{ contain: paint; will-change: opacity }
+
+/* pseudo-element linii: istnieje od 1. klatki (opacity 0 → brak CLS) */
+.bg-lines::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  opacity:0; transition:opacity .2s;
+  background: radial-gradient(300px 300px at var(--mx,50%) var(--my,50%),
+              hsl(var(--accent-hue) 90% 60% / .10), transparent 65%);
+  mix-blend-mode: screen; will-change: opacity;
+}
+.bg-lines.fx-pointer::after{ opacity:1 }
+
+/* Rezerwa pod dolny dock – od 1. klatki */
+main::after{ content:""; display:block; height: var(--pad-btm) }
+footer::after{ content:""; display:block; height: var(--pad-btm) }
+
+/* Dymek CTA na mobile – nie koliduje z dockiem */
+@media (max-width:700px){
+  #kras-hero .nudge{ margin-bottom: calc(8px + var(--pad-btm)) }
+}
+
+/* KAFELKI: reguły „opt‑in” na szerokie telefony (iPhone Pro Max i podobne) */
+/* Najlepiej dodaj atrybut data-grid="dense" w sekcjach z krótkimi kartami. */
+@media (max-width:600px) and (min-width:414px){
+  /* opt‑in przez atrybut lub klasę */
+  .cards[data-grid="dense"],
+  .cards.--dense{ grid-template-columns: repeat(3, minmax(0,1fr)) }
+
+  /* wymuś 3 kolumny w konkretnych krótkich sekcjach */
+  #uslugi   .cards.cards--min-320,
+  #dlaczego .cards.cards--min-320,
+  #blog     .cards.cards--min-320{
+    grid-template-columns: repeat(3, minmax(0,1fr));
+  }
+}
+
+/* FAQ – ciaśniejszy rytm, ale bez ryzyka ścisku */
+.faq details{ margin-block:10px }
+.faq summary{ padding:6px 0 }
+
 </style>
