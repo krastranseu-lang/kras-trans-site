@@ -97,4 +97,22 @@ function initHero(){
   // Hero po DOM ready
   if(document.readyState!=='loading') initHero(); else addEventListener('DOMContentLoaded', initHero);
 })();
+
+/* ===== PATCH v5.2 — wyższa stabilność mobile ===== */
+
+/* 1) Particles OFF na mobile (FCP/LCP) */
+try{ if (matchMedia('(max-width: 900px)').matches) { CFG.PARTICLES = false; } }catch(e){}
+
+/* 2) Auto-densyfikacja kafelków na szerokich telefonach (gdy nie oznaczono ręcznie) */
+(function autoDenseCards(){
+  const widePhone = matchMedia('(max-width:600px) and (min-width:414px)').matches;
+  if (!widePhone) return;
+  document.querySelectorAll('.cards:not([data-grid])').forEach(g=>{
+    const items = Array.from(g.children).filter(n=>n.nodeType===1);
+    if (!items.length) return;
+    const short = items.every(el => (el.textContent||'').trim().length <= 120);
+    if (short) g.setAttribute('data-grid','dense'); // minimalny reflow; preferuj opt‑in w HTML
+  });
+})();
+
 </script>
