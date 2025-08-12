@@ -290,4 +290,98 @@ footer::after{ content:""; display:block; height: var(--pad-btm) }
 .faq details{ margin-block:10px }
 .faq summary{ padding:6px 0 }
 
+/* ===== PATCH v5.3 — DESKTOP CLS FIX + RESPONSYWNE OPAKOWANIE (CONTAINER) ===== */
+
+/* 0) HERO: na desktopie wyłączamy pseudo‑warstwy (to one wskazuje Lighthouse).
+      Dajemy statyczne tło w samym .kh (bez ::before/::after). */
+@media (min-width: 1024px){
+  #kras-hero::before, #kras-hero::after{ display:none !important }
+  /* subtelny gradient tła zamiast pseudo-elementów */
+  #kras-hero{
+    background:
+      radial-gradient(80rem 60rem at -20rem 40%,
+        hsl(var(--accent-hue) 90% 50% / .08), transparent 60%),
+      radial-gradient(80rem 60rem at calc(100% + 20rem) 60%,
+        hsl(var(--accent-hue) 90% 50% / .08), transparent 60%),
+      var(--bg);
+  }
+}
+
+/* 1) pseudo‑element globalny (fx-pointer) — istnieje od 1. klatki (opacity animowane).
+      Dzięki temu nie generuje CLS nawet jeśli JS doda klasę. */
+.bg-lines::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  opacity:0; transition:opacity .2s; will-change:opacity;
+  background: radial-gradient(300px 300px at var(--mx,50%) var(--my,50%),
+              hsl(var(--accent-hue) 90% 60% / .10), transparent 65%);
+  mix-blend-mode: screen;
+}
+.bg-lines.fx-pointer::after{ opacity:1 }
+
+/* 2) Rezerwa pod dolny dock – zero zasłaniania stopki i zero CLS */
+main::after{ content:""; display:block; height: var(--pad-btm) }
+footer::after{ content:""; display:block; height: var(--pad-btm) }
+
+/* 3) RESPONSYWNE OPAKOWANIE (kontener + guttery) — 360 px → 4K
+   Założenia:
+   - marginesy boczne (gutter) rosną płynnie,
+   - treść centralna nie rozciąga się bez końca (max szerokości),
+   - teksty akapitów ~60–75 znaków/wiersz (66ch docelowo). */
+
+/* Tokenty kontenera */
+:root{
+  --gutter: clamp(16px, 4vw, 48px);          /* bazowy margines boczny */
+  --page-md:  1100px;                        /* laptop 13–15" */
+  --page-lg:  1240px;                        /* 1440p/desktop typowy */
+  --page-xl:  1440px;                        /* 2K */
+  --page-4k:  1680px;                        /* 4K (duże monitory) */
+  --text-measure: 66ch;                      /* ~66 znaków/wiersz */
+}
+
+/* Uniwersalny kontener (używany implicite dla większości sekcji) */
+.container, .wrap, .section .text, .cards{
+  width: min(var(--page-md), 100% - 2*var(--gutter));
+  margin-inline: auto;
+}
+
+/* Stopniowo zwiększaj max‑width dla większych ekranów */
+@media (min-width: 1280px){
+  .container, .wrap, .section .text, .cards{
+    width: min(var(--page-lg), 100% - 2*var(--gutter));
+  }
+}
+@media (min-width: 1536px){
+  .container, .wrap, .section .text, .cards{
+    width: min(var(--page-xl), 100% - 2*var(--gutter));
+  }
+}
+@media (min-width: 1920px){
+  :root{ --gutter: clamp(48px, 6vw, 96px) } /* trochę większy oddech na 2K/4K */
+  .container, .wrap, .section .text, .cards{
+    width: min(var(--page-4k), 100% - 2*var(--gutter));
+  }
+}
+
+/* Miara linii tekstu – akapity i copy nie rozciągają się za szeroko */
+.section .text, .prose, .copy{
+  max-width: var(--text-measure);            /* ~66ch */
+}
+
+/* Kafelki – siatka zawsze w opakowaniu; czytelne odstępy */
+.cards{
+  gap: clamp(12px, 2vw, 18px);
+}
+
+/* 4) Dymek CTA na mobile – lekki bufor od docka */
+@media (max-width:700px){
+  #kras-hero .nudge{ margin-bottom: calc(8px + var(--pad-btm)) }
+}
+
+/* 5) FAQ – ciaśniej, ale bez ścisku */
+.faq details{ margin-block:10px }
+.faq summary{ padding:6px 0 }
+
+/* 6) Dodatkowo: jeśli masz krótkie kafle i chcesz 3 kolumny na iPhone Pro Max,
+      dodaj data-grid="dense" na .cards (logika w JS – patrz niżej). */
+
 </style>
