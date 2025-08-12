@@ -216,4 +216,34 @@ footer{ padding:40px 20px; color:var(--muted); border-top:1px solid var(--border
 .reading .section{ padding: clamp(40px, 6vw, 56px) 20px }
 .reading .text{ max-width:65ch }
 .reading p{ hyphens:auto } .reading p + p{ text-indent:1.2rem; margin-top:0 }
+/* ===== PATCH v5.1 — GRID NA PRO MAX + CLS + DOCK ===== */
+
+/* 0) HERO nie korzysta z content-visibility (unik CLS) */
+#kras-hero { content-visibility: visible; contain-intrinsic-size: auto }
+
+/* 1) Kafelki: domyślnie 2 kolumny na mobile, ale pozwól na 3 w „krótkich” gridach */
+@media (max-width:600px){
+  .cards{ --card-min-px: 200px; --card-min-ch: 24ch } /* czytelna min. szerokość */
+}
+/* iPhone 11+/14+/15+ Pro Max i podobne (≥414px) – opt‑in na 3 kolumny */
+@media (max-width:600px) and (min-width:414px){
+  /* OPTYMALNY SPOSÓB: dodaj data-grid="dense" na wrapperze z krótkimi kartami */
+  .cards[data-grid="dense"],
+  .cards.--dense,
+  .why-grid { grid-template-columns: repeat(3, minmax(0,1fr)) }
+}
+
+/* 2) Dock nigdy nie zasłania treści */
+main::after{ content:""; display:block; height: var(--pad-btm) }
+footer::after{ content:""; display:block; height: var(--pad-btm) }
+
+/* 3) Dymek CTA na mobile – drobny oddech, by nie kolidował z dockiem */
+@media (max-width:700px){
+  #kras-hero .nudge{ margin-bottom: calc(8px + var(--pad-btm)) }
+}
+
+/* 4) „FAQ pudełka” – ciaśniejszy pionowy rytm i lepsza klikalność */
+.faq details{ margin-block:10px }
+.faq summary{ padding:6px 0 }
+
 </style>
