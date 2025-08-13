@@ -88,10 +88,19 @@ jobs:
           env.get_template("page.html")  # fail fast jeśli błąd składni
           PY
 
-      - name: Build site (HTML + sitemap/robots + zip)
+      - name: Build site (HTML + sitemap/robots)
+        env:
+          SITE_URL: https://kras-trans.com
+          DEFAULT_LANG: pl
+          BRAND: "Kras-Trans"
+          GA_ID: "G-5FYE42J3BE"                   # ← Twój GA4
+          GSC_VERIFICATION: "Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y"  # ← meta do Search Console
+          CNAME: kras-trans.com
         run: |
+          python -m pip install --upgrade pip
+          pip install Jinja2 markdown
           python -u tools/build.py
-
+          
       - name: Run audit (non-blocking)
         run: |
           python -u tools/audit.py || true
