@@ -1,387 +1,124 @@
-<style id="kras-global">
 /* =========================================================
-   KRAS‑TRANS • GLOBAL UI v5 • 2025‑08‑12
-   – Mobile nudge bubble, dock padding, lower CLS, cards margins
+   ★ KRAS-TRANS • GLOBAL CSS • 2025-08-13
+   - Bezpieczne dla CWV (LCP/CLS/INP), mobile-first
+   - Kafelki poziome na mobile (scroll-snap)
+   - Header sticky z przełącznikiem jasny/ciemny (ikony)
    ========================================================= */
 
-/* ---------- TOKENS / RESET ---------- */
+/* TOKENS -------------------------------------------------- */
 :root{
-  --bg:#ffffff; --ink:#1f2126; --muted:#646b75; --card:#fff; --bg-alt:#eef0f2;
-  --accent-hue:22; --accent: hsl(var(--accent-hue) 90% 55%); --accent-ink:#061019;
+  --bg:#ffffff; --ink:#1f2126; --muted:#646b75; --card:#ffffff; --bg-alt:#eef0f2;
+  --accent-hue:22; --accent: hsl(var(--accent-hue) 90% 55%); --accent-ink:#051218;
   --border: color-mix(in oklab, var(--ink) 14%, transparent);
+  --glass: saturate(160%) blur(10px);
   --radius:14px; --shadow-1: 0 10px 24px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.05);
   --shadow-2: 0 16px 36px rgba(0,0,0,.14), 0 6px 12px rgba(0,0,0,.09);
   --ff: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-  --fs: clamp(15px, 0.6vw + 0.75rem, 18px); --lh:1.55;
+  --fs: clamp(15px, 0.6vw + 0.75rem, 18px);
+  --lh: 1.55;
   --content: clamp(52ch, 70ch, 76ch);
   --section-pad: clamp(48px, 8vw, 80px);
   --gap: clamp(10px, 2vw, 16px);
-  --underline-op:.55; --divider: color-mix(in oklab, var(--ink) 12%, transparent);
-  --card-min-px: 340px; --card-min-ch: 32ch;
-  /* Dock (mobile bottom bar) – stała wysokość dla braku CLS */
-  --dock-h: 80px;               /* możesz dostroić 72–92 px */
-  --pad-btm: 0px;               /* będzie nadpisane media query poniżej */
+  --divider: color-mix(in oklab, var(--ink) 12%, transparent);
 }
-@media (prefers-color-scheme:dark){
+@media (prefers-color-scheme: dark){
   :root{ --bg:#0b0f17; --ink:#e9eef4; --muted:#a9afb9; --card:#12151c; --bg-alt:#0e141d; --border: color-mix(in oklab, var(--ink) 18%, transparent); }
 }
-:root[data-theme="dark"]{ color-scheme:dark }
-
-*{ box-sizing:border-box } html,body{ margin:0;padding:0 }
-body{ background:var(--bg); color:var(--ink); font:400 var(--fs)/var(--lh) var(--ff); -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; text-wrap:pretty }
-img{ max-width:100%; height:auto; display:block }
-a{ color:inherit; text-decoration:none } a:hover{ box-shadow: inset 0 -1px 0 hsl(var(--accent-hue) 90% 55% / .7) }
+*{ box-sizing:border-box } html,body{ margin:0; padding:0 }
+body{ background:var(--bg); color:var(--ink); font: 400 var(--fs)/var(--lh) var(--ff); -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; text-wrap: pretty; }
+img{ max-width:100%; height:auto; display:block; }
+a{ color:inherit; text-decoration:none }
+a:hover{ box-shadow: inset 0 -1px 0 hsl(var(--accent-hue) 90% 55% / .7) }
 :focus-visible{ outline:2px solid var(--accent); outline-offset:2px }
 
-/* ---------- LAYOUT ---------- */
-.section{ position:relative; padding: var(--section-pad) 24px; container: section / inline-size; content-visibility:auto; contain-intrinsic-size: 1px 640px }
-.section .text{ max-width: var(--content); margin-inline:auto }
-.section.alt{ background: var(--bg-alt) }
-
-/* Rezerwujemy miejsce na DOCK od pierwszej klatki – brak CLS */
-@media (max-width:900px){
-  body{ --pad-btm: calc(var(--dock-h) + env(safe-area-inset-bottom)) }
-}
-main{ padding-bottom: var(--pad-btm) }
-footer{ padding-bottom: calc(16px + var(--pad-btm)) }
-
-/* Separatory */
-.section.--line::before,.section.--dots::before,.section.--wave::before{ content:""; position:absolute; inset:auto 0 0 0 }
-.section.--line::before{ height:1px; background:linear-gradient(90deg,transparent,var(--divider),transparent) }
-.section.--dots::before{ height:2px; opacity:.35; color:var(--divider); background-image:radial-gradient(currentColor 1px,transparent 1px); background-size:8px 2px }
+/* LAYOUT -------------------------------------------------- */
+.container{ max-width: 1200px; margin-inline: auto; padding-inline: clamp(16px, 3vw, 24px); }
+.section{ position:relative; padding: var(--section-pad) 0; }
+.section.alt{ background:var(--bg-alt) }
+.section.--line::before,.section.--dots::before,.section.--wave::before{ content:""; position:absolute; inset:auto 0 0 0; }
+.section.--line::before{ height:1px; background: linear-gradient(90deg, transparent, var(--divider), transparent) }
+.section.--dots::before{ height:2px; opacity:.35; color:var(--divider); background-image: radial-gradient(currentColor 1px, transparent 1px); background-size: 8px 2px }
 .section.--wave::before{ height:8px; opacity:.45; background: radial-gradient(4px 4px at 4px 4px, var(--divider) 98%, transparent 100%) repeat-x; background-size: 12px 8px }
-.section.--sep-inset::before{ left:50%; right:auto; width:min(100%, var(--content)); transform:translateX(-50%) }
+.text{ max-width: var(--content); margin-inline:auto; padding-inline: clamp(12px, 3vw, 20px) }
 
-/* ---------- HEADINGS ---------- */
-h1,h2,h3{ margin:0 0 18px; position:relative; text-wrap:balance; text-shadow:0 .5px 0 rgba(255,255,255,.65), 0 0 .001px rgba(0,0,0,.28) }
+/* HEADINGS ------------------------------------------------ */
+h1,h2,h3{ margin:0 0 18px; text-wrap: balance; }
 h1{ font-size: clamp(32px, 5.6vw, 62px); line-height:1.05; letter-spacing:-.02em }
 h2{ font-size: clamp(22px, 2.8vw, 28px) }
 h3{ font-size: clamp(18px, 2.2vw, 22px) }
-h1::after{ content:""; position:absolute; left:0; bottom:-.35em; height:3px; width:56%; background:linear-gradient(90deg,hsl(var(--accent-hue) 90% 55% / var(--underline-op)),transparent) }
-h2::after{ content:""; position:absolute; left:0; bottom:-.35em; height:2px; width:48%; background:repeating-linear-gradient(90deg,hsl(var(--accent-hue) 90% 55% /.55) 0 10px,transparent 10px 18px) }
-h3::after{ content:""; position:absolute; left:0; bottom:-.35em; height:2px; width:36%; background:linear-gradient(90deg,hsl(var(--accent-hue) 90% 55% /.45),transparent 70%), conic-gradient(from 0turn,transparent 0 340deg,hsl(var(--accent-hue) 90% 65%) 350deg 360deg); background-size:auto,14px 14px; background-repeat:repeat,repeat-x; background-position:0 0,0 50% }
+h1::after{ content:""; display:block; height:3px; margin-top:.35em; width:56%; background: linear-gradient(90deg, hsl(var(--accent-hue) 90% 55% / .55), transparent) }
+h2::after{ content:""; display:block; height:2px; margin-top:.35em; width:48%; background: repeating-linear-gradient(90deg, hsl(var(--accent-hue) 90% 55% / .55) 0 10px, transparent 10px 18px) }
 
-/* ---------- HEADER + DOCK ---------- */
-.header{ position:sticky; top:0; z-index:1000; background: color-mix(in oklab, var(--bg) 65%, transparent); backdrop-filter: saturate(160%) blur(10px); border-bottom:1px solid var(--border) }
-.header .menu a{ padding:8px 10px; border-radius:10px } .header .menu a:hover{ background:color-mix(in oklab, var(--ink) 6%, transparent) }
-.btn{ display:inline-flex; align-items:center; justify-content:center; gap:10px; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius); background:var(--card); font-weight:700; transition:filter .15s ease }
+/* HEADER -------------------------------------------------- */
+.site-header{
+  position:sticky; top:0; z-index:1000;
+  background: color-mix(in oklab, var(--bg) 78%, transparent);
+  backdrop-filter: var(--glass);
+  border-bottom: 1px solid var(--border);
+}
+.site-header .row{ display:flex; align-items:center; gap:10px; padding: 10px 0; }
+.brand{ font-weight: 800; letter-spacing:.2px; white-space:nowrap }
+.nav{ display:flex; align-items:center; gap:6px; overflow:auto hidden; scroll-snap-type: x proximity; scrollbar-width: none; -ms-overflow-style: none; }
+.nav::-webkit-scrollbar{ display:none }
+.nav a{ padding:8px 10px; border-radius:10px; flex: 0 0 auto; scroll-snap-align: start; }
+.nav a:hover{ background: color-mix(in oklab, var(--ink) 6%, transparent) }
+.header-actions{ display:flex; gap:8px; margin-left:auto; white-space:nowrap }
+.btn{ display:inline-flex; align-items:center; justify-content:center; gap:10px; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius); background:var(--card); font-weight:700; transition: filter .15s ease }
 .btn.primary{ background:var(--accent); color:var(--accent-ink); border-color:transparent }
-.btn:hover{ filter:brightness(1.02) }
-.btn-ghost{ padding:8px 12px; border:1px solid var(--border); border-radius:var(--radius); background:var(--card) }
 .icon-btn{ width:38px; height:38px; display:grid; place-items:center; border:1px solid var(--border); border-radius:12px; background:var(--card) }
 
-.switch{ position:relative; width:64px; height:34px; border-radius:999px; border:1px solid var(--border); background:color-mix(in oklab, var(--card) 80%, transparent) }
-.switch .knob{ position:absolute; top:2px; left:2px; width:30px; height:30px; border-radius:50%; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.2); transition: transform .2s ease }
-.switch[aria-checked="true"] .knob{ transform: translateX(30px) }
+/* THEME SWITCH (sun/moon icons via mask) ------------------ */
+.theme-toggle{ position:relative }
+.theme-toggle .sun, .theme-toggle .moon{ width:20px; height:20px; mask-repeat:no-repeat; mask-position:center; background: currentColor; }
+.theme-toggle .sun{ mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="black" d="M6.76 4.84l-1.8-1.79L3.17 4.84l1.79 1.79l1.8-1.79m10.48 0l1.79-1.79l1.79 1.79l-1.79 1.79l-1.79-1.79M12 4h-0v3a1 1 0 0 0 0 0h0V4m0 13a4 4 0 1 1 0-8a4 4 0 0 1 0 8m0 3h0v3h0v-3m7.16-4.84l1.79 1.79l-1.79 1.79l-1.8-1.79l1.8-1.79M4.84 17.16l-1.79 1.79l1.79 1.79l1.79-1.79l-1.79-1.79Z"/></svg>'); }
+.theme-toggle .moon{ mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="black" d="M12.74 2a9 9 0 1 0 8.52 12.1A7 7 0 0 1 12.74 2Z"/></svg>'); }
+[data-theme="dark"] .theme-toggle .sun{ display:none } 
+:not([data-theme="dark"]) .theme-toggle .moon{ display:none }
 
-.bottom-bar{ position:fixed; left:0; right:0; bottom:0; z-index:55; padding:max(8px, env(safe-area-inset-bottom)); background: color-mix(in oklab, var(--bg) 96%, transparent); backdrop-filter:saturate(160%) blur(12px); border-top:1px solid var(--border); display:none; grid-template-columns:repeat(5,1fr); gap:8px; min-height: var(--dock-h) }
-.bottom-bar a{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 6px; border-radius:12px; border:1px solid var(--border); background:var(--card); font-size:12px }
-@media (max-width:900px){ .bottom-bar{ display:grid } }
-
-/* ---------- CARDS / GRID (z marginesami) ---------- */
-.cards{ display:grid; gap:var(--gap);
-  /* marginesy globalnie – nie na pełną szerokość */
-  margin-inline:auto; max-width:min(1200px, 100% - 32px);
-  grid-template-columns: repeat(auto-fit, minmax(min(var(--card-min-px), var(--card-min-ch)), 1fr));
+/* HERO ---------------------------------------------------- */
+.hero{
+  position:relative; min-height:86svh; display:grid; place-items:center; overflow:hidden;
+  background:#0f1115; color:#eaecef;
 }
-.cards--min-280{ --card-min-px: 280px } .cards--min-320{ --card-min-px: 320px } .cards--min-360{ --card-min-px: 360px }
-/* na małych tel wymuś min. 2 kolumny – bez ścisku poniżej 320px */
-@media (max-width:560px){
-  .cards{ grid-template-columns: repeat(2, minmax(0,1fr)) }
-}
+.hero .wrap{ width:min(1200px,100%); padding:28px; display:grid; gap:18px; z-index:1 }
+.hero video{ width:100%; height:auto; object-fit:cover; opacity:0; transition:opacity .3s; filter:brightness(.89) saturate(1.04) }
+.hero video.active{ opacity:1 }
+.hero::after{ content:""; position:absolute; inset:0; z-index:0; background: radial-gradient(900px 500px at 8% 10%, color-mix(in oklab, #0f1115 16%, transparent), transparent 60%), linear-gradient(180deg, rgba(0,0,0,.45), transparent 40%, rgba(0,0,0,.50)); mix-blend-mode:multiply }
+.hero .claim{display:inline-block;background:rgba(22,37,58,.88);color:#fff;padding:.5em 1.1em;border-radius:10px;text-transform:uppercase;font-weight:700;margin-bottom:1.2em;font-size:clamp(11px,1.6vw,13px)}
+.hero h1{ color:#fff } .hero p{ color:#f2f5f8 }
 
-/* Kafelki 3D */
-.smart-card,.card,.feature-box,.service-box,.pricing,.testimonial,
-.elementor-widget-icon-box,.elementor-widget-image-box,.elementor-widget-call-to-action,.elementor-widget-price-table,.elementor-widget-testimonial,
-.wp-block-cover,.wp-block-group.has-background,.wp-block-media-text{
-  background: color-mix(in oklab, var(--bg) 82%, transparent);
-  backdrop-filter:saturate(120%) blur(6px);
-  border:1px solid color-mix(in oklab, white 26%, transparent);
-  border-radius:var(--radius); box-shadow:var(--shadow-1);
-  transition: transform .28s cubic-bezier(.2,.7,.2,1), box-shadow .28s, border-color .28s; will-change:transform, box-shadow;
-}
-.smart-card:hover{ transform:translateY(-3px) perspective(900px) rotateX(2deg) rotateY(-2deg); box-shadow:var(--shadow-2); border-color:hsl(var(--accent-hue) 90% 60% / .25) }
+/* CARDS --------------------------------------------------- */
+.cards{ display:grid; gap:var(--gap); grid-template-columns: repeat(auto-fit, minmax(min(340px, 32ch), 1fr)); }
+.card{ background: color-mix(in oklab, var(--bg) 82%, transparent); border:1px solid color-mix(in oklab, white 26%, transparent); border-radius: var(--radius); box-shadow: var(--shadow-1); }
+.card > .pad{ padding:16px }
 
-/* ---------- HERO (sekcja .kh) ---------- */
-.kh{ position:relative; background:#0f1115; color:#eaecef; overflow:hidden;
-  /* Stała wysokość względem *small* viewport – mniej CLS na mobile */
-  min-height: min(86svh, 820px);
-}
-@media (prefers-color-scheme:light){ .kh{ background:#E9EAEC; color:#16253A } }
+/* Horizontal cards (mobile scroll) */
+.cards--scroll{ display:grid; grid-auto-flow: column; grid-auto-columns: min(85%, 320px); overflow-x:auto; gap:var(--gap); padding-bottom:6px; scroll-snap-type: x mandatory; }
+.cards--scroll > *{ scroll-snap-align:start }
+.cards--scroll::-webkit-scrollbar{ height:8px } /* optional */
 
-.kh::before,.kh::after{ content:""; position:absolute; inset:-10% -5%; pointer-events:none; z-index:0 }
-.kh::before{ --pwr:.11; background:
-  radial-gradient(70vw 90vh at -12vw calc(50% + var(--parY,0px)), hsl(var(--accent-hue) 90% 50%/calc(var(--pwr)*.9)), transparent 65%),
-  radial-gradient(70vw 90vh at 112vw calc(50% - var(--parY,0px)), hsl(var(--accent-hue) 90% 50%/calc(var(--pwr)*.9)), transparent 65%) }
-.kh::after{ opacity:.018; mix-blend-mode:overlay; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size:100px 100px }
-
-.kh .wrap{ position:relative; z-index:1; display:flex; align-items:stretch; gap:0; max-width:1440px; margin:0 auto }
-.kh .left{ flex:1; display:flex; flex-direction:column; justify-content:center; padding:5em 4em 4em 6vw }
-.kh .right{ flex:1; position:relative; overflow:hidden; display:flex; min-height:360px }
-@media (max-width:900px){
-  .kh .wrap{ flex-direction:column }
-  .kh .left{ order:1; padding:2.2em 6vw 1.2em }
-  .kh .right{ order:2; min-height:auto }
-}
-
-.kh .claim{ display:inline-block; background:rgba(22,37,58,.88); color:#fff; padding:.5em 1.1em; border-radius:10px; text-transform:uppercase; font-weight:700; margin-bottom:1.2em; font-size:clamp(11px,1.6vw,13px) }
-.kh h1{ margin:0 0 .35em; font-size:clamp(24px,3.4vw,42px); font-weight:900; line-height:1.16; text-wrap:balance; text-shadow:0 2px 8px rgba(0,0,0,.28) }
-.kh h2{ margin:0 0 .7em; font-size:clamp(14px,2.1vw,18px); font-weight:600; opacity:.95 }
-.kh .seo-line{ margin:.2em 0 1.2em; font-size:clamp(12px,1.6vw,15px); opacity:.9 }
-.kh .micro{ font-size:clamp(12px,1.5vw,14px); opacity:.85; margin:.5em 0 0 }
-.kh .trust{ display:flex; flex-wrap:wrap; gap:8px; margin:.6em 0 1.2em }
-.kh .chip{ font-weight:700; font-size:clamp(11px,1.5vw,13px); padding:8px 10px; border-radius:999px; background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.14) }
-@media (prefers-color-scheme:light){ .kh .chip{ background:rgba(0,0,0,.05); border-color:rgba(0,0,0,.08) } }
-
-.kh .cta-wrap{ position:relative; display:inline-block }
-.kh .cta{ position:relative; display:inline-flex; align-items:center; gap:.6em; padding:16px 44px; border-radius:10px; background:#FF5A00; color:#fff; text-decoration:none; font-weight:900; letter-spacing:.2px; box-shadow:0 8px 26px rgba(255,90,0,.38); transition:transform .15s,background .2s; font-size:clamp(14px,1.8vw,16px) }
-.kh .cta:hover{ transform:translateY(-2px) scale(1.02); background:#E04E00 }
-@media (prefers-reduced-motion:reduce){ .kh .cta{ animation:none } }
-@media (max-width:560px){ .kh .cta{ width:100%; justify-content:center } }
-
-/* 📣 NUDGE → speech‑bubble na mobile */
-.kh .nudge{ position:absolute; left:100%; top:50%; transform:translate(12px,-50%); background:#fff; color:#1b1b1b; border-radius:14px; padding:10px 12px; box-shadow:0 12px 26px rgba(0,0,0,.18); font-weight:800; white-space:nowrap; z-index:2 }
-.kh .nudge:before{ content:""; position:absolute; left:-10px; top:50%; transform:translateY(-50%); border:8px solid transparent; border-right-color:#fff }
-/* Mobile – dymek pod przyciskiem (nie zasłania) */
-@media (max-width:700px){
-  .kh .nudge{ left:0; top:auto; transform:none; margin-top:10px; white-space:normal; max-width: min(80vw, 520px) }
-  .kh .nudge:before{ left:22px; top:-10px; transform:none; border:8px solid transparent; border-bottom-color:#fff }
-}
-
-/* Wideo */
-.kh .vid{ width:100%; height:auto; object-fit:cover; inline-size:100%; block-size:100%; opacity:0; transition:opacity .3s; filter:brightness(.89) saturate(1.04) }
-.kh .vid.active{ opacity:1 }
-.kh .overlay{ position:absolute; inset:0; background:linear-gradient(180deg,rgba(22,37,58,.22),rgba(22,37,58,.14)); pointer-events:none }
-
-/* Sidebar / FAB */
-.kh .sidebar{ position:fixed; top:50%; left:0; transform:translateY(-50%); display:flex; flex-direction:column; gap:8px; padding:8px; z-index:9999 }
-.kh .sidebar a{ display:flex; align-items:center; width:44px; height:44px; color:#FF5A00; background:transparent; border:2px solid #FF5A00; border-radius:10px 0 0 10px; overflow:hidden; transition:width .3s, background .3s, color .3s }
-.kh .sidebar a:hover{ width:180px; background:#FF5A00; color:#fff }
-.kh .sidebar .icon{ font-size:1.2em; margin:0 8px } .kh .sidebar .label{ opacity:0; white-space:nowrap; margin-left:12px; transition:opacity .2s }
-.kh .sidebar a:hover .label{ opacity:1 }
-.kh .fab{ display:none; position:fixed; bottom:calc(24px + env(safe-area-inset-bottom)); left:24px; width:56px; height:56px; border-radius:50%; background:#FF5A00; color:#fff; border:none; box-shadow:0 4px 12px rgba(0,0,0,.2); font-size:24px; z-index:10000 }
-@media (max-width:700px){ .kh .sidebar{ left:-200px; transition:left .3s } .kh .sidebar.open{ left:0 } .kh .fab{ display:flex; align-items:center; justify-content:center } }
-
-/* Coach bar – uwzględnij dock */
-.kh .coach{ position:absolute; left:50%; transform:translateX(-50%); bottom: calc(12px + var(--pad-btm)); z-index:2; background:rgba(255,255,255,.9); border:1px solid rgba(0,0,0,.08); backdrop-filter:saturate(120%) blur(6px); border-radius:999px; padding:8px 12px; display:flex; gap:10px; box-shadow:0 10px 28px rgba(0,0,0,.16) }
-.kh .coach .step{ display:none; font-weight:800; gap:.6em; align-items:center; white-space:nowrap }
-.kh .coach .step.active{ display:flex }
-.kh .dot{ width:10px; height:10px; border-radius:50%; background:hsl(var(--accent-hue) 90% 55%) }
-@media (prefers-color-scheme:dark){ .kh .coach{ background:rgba(15,17,21,.84); color:#fff; border-color:rgba(255,255,255,.08) } }
-
-/* 3 kroki – ciaśniej */
-.kh .steps{ position:relative; z-index:1; max-width:1100px; margin:18px auto 6px; padding:0 6vw }
-.kh .grid{ display:grid; gap:14px; grid-template-columns:repeat(3,1fr) }
-@media (max-width:900px){ .kh .grid{ grid-template-columns:1fr } }
-.kh .k{ background:color-mix(in oklab,var(--bg) 82%,transparent); backdrop-filter:saturate(120%) blur(6px); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:16px 16px 14px; box-shadow:0 10px 24px rgba(0,0,0,.1); transition:box-shadow .25s }
-@media (prefers-color-scheme:light){ .kh .k{ border-color:rgba(0,0,0,.06) } }
-.kh .k.active{ box-shadow:0 16px 36px rgba(0,0,0,.14) }
-.kh .num{ width:28px; height:28px; border-radius:50%; display:grid; place-items:center; background:hsl(var(--accent-hue) 90% 55%/.16); font-weight:800; margin-bottom:10px }
-
-/* ---------- FAQ ---------- */
-.faq details{ border:1px solid var(--border); border-radius:var(--radius); background:var(--card); padding:12px 14px; transition:border-color .2s, background .2s, box-shadow .2s }
-.faq details[open]{ border-color:hsl(var(--accent-hue) 90% 55% /.28); background:color-mix(in oklab, var(--card) 95%, var(--accent) 5%); box-shadow:0 6px 20px rgba(0,0,0,.12) }
+/* FAQ ----------------------------------------------------- */
+.faq details{ border:1px solid var(--border); border-radius:var(--radius); background:var(--card); padding:12px 14px; }
 .faq summary{ list-style:none; cursor:pointer; font-weight:700; display:flex; align-items:center; gap:8px }
 .faq summary::-webkit-details-marker{ display:none }
-.faq summary::before{ content:"?"; font-weight:900; width:22px; height:22px; display:grid; place-items:center; border-radius:6px; background:var(--accent); color:var(--accent-ink); box-shadow:0 2px 8px rgba(0,0,0,.18) }
+.faq summary::before{ content:"?"; font-weight:900; width:22px; height:22px; display:grid; place-items:center; border-radius:6px; background: var(--accent); color: var(--accent-ink); box-shadow: 0 2px 8px rgba(0,0,0,.18); animation: faq-breathe 2.2s ease-in-out infinite; }
+@keyframes faq-breathe{ 0%,100%{ filter: brightness(1) } 50%{ filter: brightness(1.18) } }
 .faq details[open] summary::before{ content:"!" }
 .faq p{ margin:10px 0 0; color:var(--muted) }
 
-/* ---------- FOOTER ---------- */
-footer{ padding:40px 20px; color:var(--muted); border-top:1px solid var(--border) }
+/* FOOTER + MOBILE DOCK ----------------------------------- */
+.site-footer{ padding:40px 0; color:var(--muted); border-top:1px solid var(--border) }
 .footer-grid{ display:grid; gap:18px; grid-template-columns:1.2fr 1fr }
 @media (max-width:800px){ .footer-grid{ grid-template-columns:1fr } }
+.footer-links a{ display:inline-block; margin:6px 10px 0 0; padding:6px 10px; border:1px solid var(--border); border-radius:10px; background:var(--card) }
 
-/* ---------- TŁO „LINIE” ---------- */
-.bg-lines{
-  background:
-    repeating-linear-gradient(to right, rgba(0,0,0,.03) 0 1px, transparent 1px 60px),
-    repeating-linear-gradient(to bottom, rgba(0,0,0,.03) 0 1px, transparent 1px 60px),
-    var(--bg);
-}
-.bg-lines .section{ background:transparent }
-.bg-lines.fx-pointer::after{ content:""; position:fixed; inset:0; pointer-events:none; z-index:0; background: radial-gradient(300px 300px at var(--mx,50%) var(--my,50%), hsl(var(--accent-hue) 90% 60% / .10), transparent 65%); mix-blend-mode: screen }
-/* Jasny/ciemny automatycznie – bez migotania */
-@media (prefers-color-scheme:dark){
-  .bg-lines{
-    background:
-      repeating-linear-gradient(to right, rgba(255,255,255,.04) 0 1px, transparent 1px 60px),
-      repeating-linear-gradient(to bottom, rgba(255,255,255,.035) 0 1px, transparent 1px 60px),
-      var(--bg);
-  }
-}
+.bottom-bar{ position:fixed; left:0; right:0; bottom:0; z-index:55; padding:max(8px, env(safe-area-inset-bottom)); background: color-mix(in oklab, var(--bg) 96%, transparent); backdrop-filter: var(--glass); border-top:1px solid var(--border); display:none; grid-template-columns:repeat(5,1fr); gap:8px }
+.bottom-bar a{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 6px; border-radius:12px; border:1px solid var(--border); background:var(--card); font-size:12px }
+@media (max-width:900px){ .bottom-bar{ display:grid } }
 
-/* ---------- TRYB CZYTANIA ---------- */
-.reading{ --bg:#fffdf8; --ink:#202124; --muted:#69707b; --card:#fff }
-.reading .section{ padding: clamp(40px, 6vw, 56px) 20px }
-.reading .text{ max-width:65ch }
-.reading p{ hyphens:auto } .reading p + p{ text-indent:1.2rem; margin-top:0 }
-/* ===== PATCH v5.1 — GRID NA PRO MAX + CLS + DOCK ===== */
-
-/* 0) HERO nie korzysta z content-visibility (unik CLS) */
-#kras-hero { content-visibility: visible; contain-intrinsic-size: auto }
-
-/* 1) Kafelki: domyślnie 2 kolumny na mobile, ale pozwól na 3 w „krótkich” gridach */
-@media (max-width:600px){
-  .cards{ --card-min-px: 200px; --card-min-ch: 24ch } /* czytelna min. szerokość */
-}
-/* iPhone 11+/14+/15+ Pro Max i podobne (≥414px) – opt‑in na 3 kolumny */
-@media (max-width:600px) and (min-width:414px){
-  /* OPTYMALNY SPOSÓB: dodaj data-grid="dense" na wrapperze z krótkimi kartami */
-  .cards[data-grid="dense"],
-  .cards.--dense,
-  .why-grid { grid-template-columns: repeat(3, minmax(0,1fr)) }
-}
-
-/* 2) Dock nigdy nie zasłania treści */
-main::after{ content:""; display:block; height: var(--pad-btm) }
-footer::after{ content:""; display:block; height: var(--pad-btm) }
-
-/* 3) Dymek CTA na mobile – drobny oddech, by nie kolidował z dockiem */
-@media (max-width:700px){
-  #kras-hero .nudge{ margin-bottom: calc(8px + var(--pad-btm)) }
-}
-
-/* 4) „FAQ pudełka” – ciaśniejszy pionowy rytm i lepsza klikalność */
-.faq details{ margin-block:10px }
-.faq summary{ padding:6px 0 }
-
-/* ===== PATCH v5.2 — CLS fix + 3 kolumny na Pro Max + dock safe ===== */
-
-/* HERO nie ukryty content-visibility (stabilny blok) */
-#kras-hero{ content-visibility: visible; contain-intrinsic-size: auto }
-#kras-hero::after{ contain: paint; will-change: opacity }
-
-/* pseudo-element linii: istnieje od 1. klatki (opacity 0 → brak CLS) */
-.bg-lines::after{
-  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
-  opacity:0; transition:opacity .2s;
-  background: radial-gradient(300px 300px at var(--mx,50%) var(--my,50%),
-              hsl(var(--accent-hue) 90% 60% / .10), transparent 65%);
-  mix-blend-mode: screen; will-change: opacity;
-}
-.bg-lines.fx-pointer::after{ opacity:1 }
-
-/* Rezerwa pod dolny dock – od 1. klatki */
-main::after{ content:""; display:block; height: var(--pad-btm) }
-footer::after{ content:""; display:block; height: var(--pad-btm) }
-
-/* Dymek CTA na mobile – nie koliduje z dockiem */
-@media (max-width:700px){
-  #kras-hero .nudge{ margin-bottom: calc(8px + var(--pad-btm)) }
-}
-
-/* KAFELKI: reguły „opt‑in” na szerokie telefony (iPhone Pro Max i podobne) */
-/* Najlepiej dodaj atrybut data-grid="dense" w sekcjach z krótkimi kartami. */
-@media (max-width:600px) and (min-width:414px){
-  /* opt‑in przez atrybut lub klasę */
-  .cards[data-grid="dense"],
-  .cards.--dense{ grid-template-columns: repeat(3, minmax(0,1fr)) }
-
-  /* wymuś 3 kolumny w konkretnych krótkich sekcjach */
-  #uslugi   .cards.cards--min-320,
-  #dlaczego .cards.cards--min-320,
-  #blog     .cards.cards--min-320{
-    grid-template-columns: repeat(3, minmax(0,1fr));
-  }
-}
-
-/* FAQ – ciaśniejszy rytm, ale bez ryzyka ścisku */
-.faq details{ margin-block:10px }
-.faq summary{ padding:6px 0 }
-
-/* ===== PATCH v5.3 — DESKTOP CLS FIX + RESPONSYWNE OPAKOWANIE (CONTAINER) ===== */
-
-/* 0) HERO: na desktopie wyłączamy pseudo‑warstwy (to one wskazuje Lighthouse).
-      Dajemy statyczne tło w samym .kh (bez ::before/::after). */
-@media (min-width: 1024px){
-  #kras-hero::before, #kras-hero::after{ display:none !important }
-  /* subtelny gradient tła zamiast pseudo-elementów */
-  #kras-hero{
-    background:
-      radial-gradient(80rem 60rem at -20rem 40%,
-        hsl(var(--accent-hue) 90% 50% / .08), transparent 60%),
-      radial-gradient(80rem 60rem at calc(100% + 20rem) 60%,
-        hsl(var(--accent-hue) 90% 50% / .08), transparent 60%),
-      var(--bg);
-  }
-}
-
-/* 1) pseudo‑element globalny (fx-pointer) — istnieje od 1. klatki (opacity animowane).
-      Dzięki temu nie generuje CLS nawet jeśli JS doda klasę. */
-.bg-lines::after{
-  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
-  opacity:0; transition:opacity .2s; will-change:opacity;
-  background: radial-gradient(300px 300px at var(--mx,50%) var(--my,50%),
-              hsl(var(--accent-hue) 90% 60% / .10), transparent 65%);
-  mix-blend-mode: screen;
-}
-.bg-lines.fx-pointer::after{ opacity:1 }
-
-/* 2) Rezerwa pod dolny dock – zero zasłaniania stopki i zero CLS */
-main::after{ content:""; display:block; height: var(--pad-btm) }
-footer::after{ content:""; display:block; height: var(--pad-btm) }
-
-/* 3) RESPONSYWNE OPAKOWANIE (kontener + guttery) — 360 px → 4K
-   Założenia:
-   - marginesy boczne (gutter) rosną płynnie,
-   - treść centralna nie rozciąga się bez końca (max szerokości),
-   - teksty akapitów ~60–75 znaków/wiersz (66ch docelowo). */
-
-/* Tokenty kontenera */
-:root{
-  --gutter: clamp(16px, 4vw, 48px);          /* bazowy margines boczny */
-  --page-md:  1100px;                        /* laptop 13–15" */
-  --page-lg:  1240px;                        /* 1440p/desktop typowy */
-  --page-xl:  1440px;                        /* 2K */
-  --page-4k:  1680px;                        /* 4K (duże monitory) */
-  --text-measure: 66ch;                      /* ~66 znaków/wiersz */
-}
-
-/* Uniwersalny kontener (używany implicite dla większości sekcji) */
-.container, .wrap, .section .text, .cards{
-  width: min(var(--page-md), 100% - 2*var(--gutter));
-  margin-inline: auto;
-}
-
-/* Stopniowo zwiększaj max‑width dla większych ekranów */
-@media (min-width: 1280px){
-  .container, .wrap, .section .text, .cards{
-    width: min(var(--page-lg), 100% - 2*var(--gutter));
-  }
-}
-@media (min-width: 1536px){
-  .container, .wrap, .section .text, .cards{
-    width: min(var(--page-xl), 100% - 2*var(--gutter));
-  }
-}
-@media (min-width: 1920px){
-  :root{ --gutter: clamp(48px, 6vw, 96px) } /* trochę większy oddech na 2K/4K */
-  .container, .wrap, .section .text, .cards{
-    width: min(var(--page-4k), 100% - 2*var(--gutter));
-  }
-}
-
-/* Miara linii tekstu – akapity i copy nie rozciągają się za szeroko */
-.section .text, .prose, .copy{
-  max-width: var(--text-measure);            /* ~66ch */
-}
-
-/* Kafelki – siatka zawsze w opakowaniu; czytelne odstępy */
-.cards{
-  gap: clamp(12px, 2vw, 18px);
-}
-
-/* 4) Dymek CTA na mobile – lekki bufor od docka */
-@media (max-width:700px){
-  #kras-hero .nudge{ margin-bottom: calc(8px + var(--pad-btm)) }
-}
-
-/* 5) FAQ – ciaśniej, ale bez ścisku */
-.faq details{ margin-block:10px }
-.faq summary{ padding:6px 0 }
-
-/* 6) Dodatkowo: jeśli masz krótkie kafle i chcesz 3 kolumny na iPhone Pro Max,
-      dodaj data-grid="dense" na .cards (logika w JS – patrz niżej). */
-
-</style>
+/* PAGE LAYOUT (content pages) ---------------------------- */
+.page{ display:grid; grid-template-columns: 280px 1fr; gap:24px; }
+@media (max-width: 900px){ .page{ grid-template-columns: 1fr } }
+.sidebar{ position:sticky; top:72px; align-self:start; display:flex; flex-direction:column; gap:10px; }
+.sidebar a{ padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--card) }
+.entry{ min-height: 60vh }
