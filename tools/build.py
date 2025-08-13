@@ -1,199 +1,174 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import json, os, shutil, time, pathlib, zipfile
-from urllib.parse import urljoin
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-import markdown as md
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-DIST = ROOT / "dist"
-DATA = ROOT / "data" / "cms.json"
-STATIC_IN = ROOT / "static"
-ASSETS_IN = ROOT / "assets"
+ROOT   = pathlib.Path(__file__).resolve().parents[1]
+DIST   = ROOT / "dist"
+CMS    = ROOT / "data" / "cms.json"
+TMPL   = ROOT / "templates"
+SITE   = "https://kras-trans.com"  # do kanonikali, robots, sitemap
 
-# ===== helpers =====
+DEFAULT_LANG = "pl"  # domyślny język do przekierowań z / i bezjęzykowych URL
 
-def log(*a): print("[build]", *a)
+# ------------------------- helpers -------------------------
 
-def clean_dist():
+def clean():
     shutil.rmtree(DIST, ignore_errors=True)
     DIST.mkdir(parents=True, exist_ok=True)
 
-def copy_tree(src: pathlib.Path, dst: pathlib.Path):
-    if src.exists():
-        shutil.copytree(src, dst, dirs_exist_ok=True)
-
-def site_url():
-    # pozwala nadpisać w Actions: env SITE_URL, domyślnie docelowa domena
-    return os.environ.get("SITE_URL", "https://kras-trans.com").rstrip("/")
-
-def lang_path(lang: str, slug: str, typ: str):
-    lang = (lang or "pl").strip("/")
-    slug = (slug or "").strip("/")
-    # home -> /{lang}/index.html
-    if typ == "home":
-        return f"/{lang}/index.html"
-    # pozostałe -> /{lang}/{slug}/index.html (gdy slug pusty potraktuj jak home)
-    if not slug:
-        return f"/{lang}/index.html"
-    return f"/{lang}/{slug}/index.html"
-
-def url_from_path(path_html: str):
-    # zamienia ścieżkę /pl/xyz/index.html -> https://.../pl/xyz/
-    u = site_url() + path_html.replace("index.html","")
-    return u
-
-def ensure_parent(p: pathlib.Path):
-    p.parent.mkdir(parents=True, exist_ok=True)
-
-def render_markdown(txt: str) -> str:
-    if not txt: return ""
-    return md.markdown(txt, extensions=["extra","sane_lists","tables"])
-
-# ===== main build =====
-
-def load_cms():
-    if not DATA.exists():
-        raise SystemExit("data/cms.json not found")
-    j = json.loads(DATA.read_text("utf-8"))
-    if not j.get("ok"):
-        raise SystemExit("cms.json ok=false")
-    return j
-
-def jinja_env():
-    env = Environment(
-        loader=FileSystemLoader(str(ROOT / "templates")),
+def env():
+    return Environment(
+        loader=FileSystemLoader(str(TMPL)),
         autoescape=select_autoescape(["html"])
     )
-    # filtr do absolutnych URL-i
-    env.filters["abs"] = lambda rel: urljoin(site_url()+"/", rel.lstrip("/"))
-    return env
 
-def compute_hreflang(pages):
-    # grupujemy po slugKey -> budujemy wzajemne alternatywy
-    by_key = {}
-    for p in pages:
-        key = (p.get("slugKey") or "").strip()
-        if not key: 
-            continue
-        by_key.setdefault(key, []).append(p)
-    altmap = {}
-    for key, group in by_key.items():
-        for p in group:
-            alts = []
-            for q in group:
-                href = url_from_path(lang_path(q.get("lang"), q.get("slug"), q.get("type")))
-                alts.append({"lang": q.get("lang") or "pl", "url": href})
-            altmap[p.get("id") or f"{p.get('lang')}::{p.get('slug')}"] = {
-                "alts": alts,
-                "x_default": url_from_path(lang_path(group[0].get("lang"), group[0].get("slug"), group[0].get("type")))
-            }
-    return altmap
+def write_file(path: pathlib.Path, html: str):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(html, "utf-8")
 
-def choose_related(pages, page, kmin=3, kmax=6):
-    """Bardzo bezpieczne powiązania: rodzeństwo + parent/children po parentSlug."""
-    same_parent = [p for p in pages 
-                   if p is not page and (p.get("parentSlug") or "") == (page.get("parentSlug") or "")]
-    # fallback: ten sam typ lub tagi
-    if len(same_parent) < kmin:
-        tags = set((page.get("tags") or []))
-        more = [p for p in pages if p is not page and tags.intersection(set(p.get("tags") or []))]
-        same_parent += [m for m in more if m not in same_parent]
-    return same_parent[:kmax]
+def meta_redirect_html(to_url: str, title="Redirecting…", body="Redirecting"):
+    return f"""<!doctype html><html lang="pl"><head>
+<meta charset="utf-8"><meta http-equiv="refresh" content="0;url={to_url}">
+<link rel="canonical" href="{to_url}">
+<title>{title}</title>
+</head><body><p>{body} <a href="{to_url}">{to_url}</a></p></body></html>"""
 
-def build():
-    clean_dist()
-    j = load_cms()
+def write_redirect(from_path: str, to_url: str):
+    """
+    from_path: ścieżka bez hosta, np. '/transport-do-niemiec/'
+    Tworzy plik dist/transport-do-niemiec/index.html z meta-refresh.
+    """
+    # normalizacja
+    from_path = from_path.strip("/")
+    target = DIST / from_path / "index.html"
+    html = meta_redirect_html(to_url)
+    write_file(target, html)
 
-    pages = j.get("pages", [])
-    company = j.get("company", [])
-    strings = j.get("strings", [])
-    faq = j.get("faq", [])
-    media = j.get("media", [])
-    redirects = j.get("redirects", [])
-    # kosmetyka: publikuj tylko publish==true lub brak pola (home mógł nie mieć)
-    pages = [p for p in pages if p.get("publish") in (True, "TRUE", "true", "", None)]
+def write_root_index(default_lang=DEFAULT_LANG):
+    to = f"/{default_lang}/"
+    write_file(DIST / "index.html", meta_redirect_html(to))
 
-    env = jinja_env()
-    tpl = env.get_template("page.html")
+def write_404(default_lang=DEFAULT_LANG):
+    html = f"""<!doctype html><html lang="pl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>404 – Nie znaleziono</title>
+<style>body{{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.6;padding:2rem}}a{{color:#0b57d0}}</style>
+<script>
+(function(){{
+  var p = location.pathname;
+  // jeśli brak prefiksu języka, spróbuj dodać /{default_lang} i przejść ponownie
+  var m = p.match(/^\\/([a-z]{{2}})(\\/|$)/);
+  if(!m) {{
+    var guess = "/{default_lang}" + (p.startsWith("/")? p : "/"+p);
+    location.replace(guess + location.search + location.hash);
+  }}
+}})();
+</script>
+</head><body>
+  <h1>404 – Nie znaleziono</h1>
+  <p>Nie znaleziono strony. Jeśli zaraz nie nastąpi przekierowanie, przejdź do <a href="/{default_lang}/">strony głównej</a>.</p>
+</body></html>"""
+    write_file(DIST / "404.html", html)
 
-    # hreflang
-    hl = compute_hreflang(pages)
+def write_robots(base=SITE):
+    write_file(DIST / "robots.txt", f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n")
 
-    # render
-    rendered = 0
-    for pg in pages:
-        # HTML z Markdown
-        body_html = render_markdown(pg.get("body_md", ""))
-        pg_out = dict(pg)  # kopia
-        pg_out["html"] = body_html
-        # head
-        canonical = url_from_path(lang_path(pg.get("lang"), pg.get("slug"), pg.get("type")))
-        og_img = pg.get("og_image") or pg.get("hero_image") or "/static/img/placeholder-hero-desktop.webp"
-        head = {
-            "title": pg.get("seo_title") or pg.get("title") or pg.get("h1") or "Kras-Trans",
-            "description": pg.get("meta_description") or (pg.get("lead") or ""),
-            "canonical": canonical,
-            "og_title": pg.get("seo_title") or pg.get("title") or "Kras-Trans",
-            "og_description": pg.get("meta_description") or (pg.get("lead") or ""),
-            "og_image": env.filters["abs"](og_img),
-            "hreflangs": hl.get(pg.get("id") or f"{pg.get('lang')}::{pg.get('slug')}",
-                                {"alts": [], "x_default": None})["alts"],
-            "x_default": hl.get(pg.get("id") or f"{pg.get('lang')}::{pg.get('slug')}",
-                                {"alts": [], "x_default": None})["x_default"],
-            "jsonld": []  # JSON-LD wkładamy na etapie template (Breadcrumb/Organization/FAQ)
-        }
-
-        # related
-        related = choose_related(pages, pg, kmin=int(pg.get("min_outlinks") or 3), 
-                                 kmax=int(pg.get("max_outlinks") or 6))
-
-        # dokąd pisać
-        out_path = DIST / lang_path(pg.get("lang"), pg.get("slug"), pg.get("type")).lstrip("/")
-        ensure_parent(out_path)
-        html = tpl.render(page=pg_out, head=head, company=company, strings=strings, related=related, site_url=site_url())
-        out_path.write_text(html, "utf-8")
-        rendered += 1
-
-    # assets & static
-    copy_tree(STATIC_IN, DIST / "static")
-    copy_tree(ASSETS_IN, DIST / "assets")
-
-    # robots
-    (DIST / "robots.txt").write_text(
-        f"User-agent: *\nAllow: /\nSitemap: {site_url()}/sitemap.xml\n", "utf-8"
-    )
-
-    # sitemap
+def write_sitemap(base=SITE, pages=None):
+    pages = pages or []
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    urls = []
-    for pg in pages:
-        loc = url_from_path(lang_path(pg.get("lang"), pg.get("slug"), pg.get("type")))
-        urls.append(f"<url><loc>{loc}</loc><lastmod>{now}</lastmod></url>")
-    sm = '<?xml version="1.0" encoding="UTF-8"?>\n' \
-         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' \
-         + "\n".join(urls) + "\n</urlset>\n"
-    (DIST / "sitemap.xml").write_text(sm, "utf-8")
+    items = "\n".join(f"<url><loc>{base.rstrip('/')}{p}</loc><lastmod>{now}</lastmod></url>" for p in sorted(set(pages)))
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+{items}
+</urlset>
+"""
+    write_file(DIST / "sitemap.xml", xml)
 
-    # CNAME (dla GH Pages)
-    (DIST / "CNAME").write_text("kras-trans.com\n", "utf-8")
+def keep_cms_json():
+    dst = DIST / "data"; dst.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(CMS, dst / "cms.json")
 
-    # ZIP w dist/download/site.zip
-    dl_dir = DIST / "download"
-    dl_dir.mkdir(parents=True, exist_ok=True)
-    zip_path = dl_dir / "site.zip"
-    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as z:
-        # pakujemy całą zawartość dist – bez samego ZIP-a
+def copy_static():
+    skip = {".git", ".github", "data", "tools", "dist"}
+    for p in ROOT.iterdir():
+        if p.name in skip: 
+            continue
+        if p.is_dir():
+            shutil.copytree(p, DIST / p.name, dirs_exist_ok=True)
+        else:
+            shutil.copy2(p, DIST / p.name)
+
+def zip_site():
+    zpath = DIST / "download" / "site.zip"
+    zpath.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
         for p in DIST.rglob("*"):
-            if p.resolve() == zip_path.resolve():
-                continue
             if p.is_file():
                 z.write(p, p.relative_to(DIST))
 
-    log(f"Rendered pages: {rendered}")
-    log(f"ZIP: {zip_path} ({zip_path.stat().st_size} bytes)")
-    log("Build OK")
+# ------------------------- build pages -------------------------
+
+def build_pages():
+    j = json.loads(CMS.read_text("utf-8"))
+    e = env()
+    tpl = e.get_template("page.html")
+
+    pages = j.get("pages", [])
+    company = j.get("company", [])
+
+    urls_for_sitemap = set()
+
+    for pg in pages:
+        # wyznacz docelowy URL (z językiem)
+        lang = (pg.get("lang") or DEFAULT_LANG).strip().lower()
+        slug = (pg.get("slug") or "").strip("/")
+
+        if pg.get("type") == "home":
+            url_path = f"/{lang}/"
+            out = DIST / lang / "index.html"
+        else:
+            url_path = f"/{lang}/{slug}/" if slug else f"/{lang}/"
+            out = DIST / lang / slug / "index.html" if slug else DIST / lang / "index.html"
+
+        # head (kanonikal, og itp.)
+        head = {
+            "title": pg.get("seo_title") or pg.get("title") or "",
+            "description": pg.get("meta_description") or pg.get("lead") or "",
+            "canonical": f"{SITE.rstrip('/')}{url_path}",
+            "og_title": pg.get("og_title") or pg.get("seo_title") or pg.get("title") or "",
+            "og_description": pg.get("og_description") or pg.get("meta_description") or pg.get("lead") or "",
+            "og_image": f"{SITE.rstrip('/')}/static/img/placeholder-hero-desktop.webp",
+            "jsonld": [],  # (opcjonalnie dokładasz tu Organization/Breadcrumbs)
+        }
+
+        html = tpl.render(page=pg, company=company, head=head, site_url=SITE.rstrip("/"))
+        write_file(out, html)
+        urls_for_sitemap.add(url_path)
+
+        # === SHADOW REDIRECT (bez języka) ===
+        if slug:
+            shadow_from = f"/{slug}/"      # np. /transport-do-niemiec/
+            shadow_to   = url_path         # np. /pl/transport-do-niemiec/
+            write_redirect(shadow_from, shadow_to)
+
+    return sorted(urls_for_sitemap)
+
+# ------------------------- main -------------------------
+
+def main():
+    if not CMS.exists():
+        raise SystemExit("cms.json not found (data/cms.json)")
+
+    clean()
+    copy_static()
+    keep_cms_json()
+
+    urls = build_pages()  # generuje html + shadow redirects
+    write_root_index(DEFAULT_LANG)
+    write_404(DEFAULT_LANG)
+    write_robots(SITE)
+    write_sitemap(SITE, urls)
+    zip_site()
 
 if __name__ == "__main__":
-    build()
+    main()
