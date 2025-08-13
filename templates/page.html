@@ -21,6 +21,7 @@
   {% for ld in head.jsonld %}
     <script type="application/ld+json">{{ ld|tojson }}</script>
   {% endfor %}
+    {{ head.extra_head | safe }}
 </head>
 <body>
   <header class="site-header">
