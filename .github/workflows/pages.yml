@@ -17,10 +17,13 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Install jq + zip
         run: |
@@ -31,14 +34,13 @@ jobs:
       - name: Fetch CMS JSON from Apps Script (robust)
         env:
           APPS_URL: ${{ secrets.APPS_URL }}   # np. https://script.google.com/macros/s/AKfycb.../exec
-          APPS_KEY: ${{ secrets.APPS_KEY }}   # IDENTYCZNY jak API_KEY w Apps Script → Właściwości skryptu
+          APPS_KEY: ${{ secrets.APPS_KEY }}   # identyczny jak API_KEY w Apps Script (Właściwości skryptu)
         run: |
           set -euo pipefail
           mkdir -p data
 
-          # (opcjonalnie) szybka walidacja formatu URL
           echo "$APPS_URL" | grep -Eq '^https://script\.google\.com/macros/s/.+/(exec|dev)$' || {
-            echo "WARN: APPS_URL wygląda nietypowo. Upewnij się, że to /exec lub /dev z 'Deploy' Web App'."
+            echo "WARN: APPS_URL wygląda nietypowo. Upewnij się, że to /exec lub /dev z 'Deploy → Web app'."
           }
 
           ATTEMPTS=5
@@ -65,20 +67,35 @@ jobs:
           done
 
           test -s data/cms.json || (echo "CMS JSON missing (empty file)"; exit 1)
-          jq -e '.ok==true' data/cms.json >/dev/null || (echo "Apps Script returned non-ok response"; cat data/cms.json; exit 1)
+          jq -e '.ok==true and (.pages|type=="array")' data/cms.json >/dev/null \
+            || (echo "Apps Script returned non-ok or malformed response"; cat data/cms.json; exit 1)
 
           echo "Updated: $(jq -r '.updated' data/cms.json)"
           echo "Pages:   $(jq -r '.pages | length' data/cms.json)"
 
+      - name: Keep a copy of cms.json (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: cms.json
+          path: data/cms.json
+          if-no-files-found: error
+
+      # === PYTHON + CACHE ===
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+          cache: 'pip'
 
       - name: Install build deps
         run: |
           python -m pip install --upgrade pip
-          pip install Jinja2 markdown beautifulsoup4 lxml
+          # jeśli jest requirements.txt – użyj go; w przeciwnym razie zainstaluj podstawowe pakiety
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            pip install Jinja2 markdown beautifulsoup4 lxml
+          fi
 
       - name: Sanity check (Jinja compile)
         run: |
@@ -86,36 +103,45 @@ jobs:
           from jinja2 import Environment, FileSystemLoader
           env = Environment(loader=FileSystemLoader("templates"))
           env.get_template("page.html")  # fail fast jeśli błąd składni
+          print("Templates OK")
           PY
 
-      - name: Build site (HTML + sitemap/robots)
+      # === BUDOWANIE STRONY ===
+      - name: Build site (HTML + sitemap/robots + ZIP)
         env:
-          SITE_URL: https://kras-trans.com
-          DEFAULT_LANG: pl
-          BRAND: "Kras-Trans"
-          GA_ID: "G-5FYE42J3BE"                   # ← Twój GA4
-          GSC_VERIFICATION: "Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y"  # ← meta do Search Console
-          CNAME: kras-trans.com
+          # Preferuj Repository Variables; jeśli nie ustawione – użyj sensownych domyślnych
+          SITE_URL: ${{ vars.SITE_URL || 'https://kras-trans.com' }}
+          DEFAULT_LANG: ${{ vars.DEFAULT_LANG || 'pl' }}
+          BRAND: ${{ vars.BRAND || 'Kras-Trans' }}
+          GA_ID: ${{ vars.GA_ID || 'G-5FYE42J3BE' }}
+          GSC_VERIFICATION: ${{ vars.GSC_VERIFICATION || 'Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y' }}
+          CNAME: ${{ vars.CNAME || 'kras-trans.com' }}
         run: |
-          python -m pip install --upgrade pip
-          pip install Jinja2 markdown
           python -u tools/build.py
-          
+
+      # === AUDYT (nie blokuje wdrożenia) ===
       - name: Run audit (non-blocking)
         run: |
-          python -u tools/audit.py || true
+          if [ -f tools/audit.py ]; then
+            python -u tools/audit.py || true
+          else
+            echo "No tools/audit.py – skipping."
+          fi
 
       - name: Upload audit report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: audit-report
           path: audit/report.md
+          if-no-files-found: ignore
 
       - name: Upload site snapshot (ZIP)
         uses: actions/upload-artifact@v4
         with:
           name: site-snapshot
           path: dist/download/site.zip
+          if-no-files-found: warn
 
       - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v3
