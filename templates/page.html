@@ -8,11 +8,10 @@
   <meta name="description" content="{{ head.description }}" />
   <link rel="canonical" href="{{ head.canonical }}" />
 
-  {# --- hreflang --- #}
+  {# hreflang #}
   {% if head.hreflangs %}
     {% for alt in head.hreflangs %}
-      {% set current_lang = (page.lang or 'pl') %}
-      {% if alt.lang != current_lang %}
+      {% if alt.lang != (page.lang or 'pl') %}
         <link rel="alternate" hreflang="{{ alt.lang }}" href="{{ alt.url }}" />
       {% endif %}
     {% endfor %}
@@ -21,94 +20,116 @@
     {% endif %}
   {% endif %}
 
-  {# --- Open Graph --- #}
   <meta property="og:type" content="website" />
   <meta property="og:title" content="{{ head.og_title }}" />
   <meta property="og:description" content="{{ head.og_description }}" />
   <meta property="og:image" content="{{ head.og_image }}" />
 
-  {# --- Search Console (meta verification) --- #}
-  {% if head.gsc_meta %}
-    <meta name="google-site-verification" content="{{ head.gsc_meta }}">
-  {% endif %}
+  <link rel="preload" as="video" href="{{ site_url }}/assets/media/hero.mp4" />
+  <link rel="stylesheet" href="{{ site_url }}/assets/css/kras-global.css" />
 
-  {# --- CSS --- #}
-  <link rel="stylesheet" href="{{ site_url }}/static/css/site.css" />
-
-  {# --- Preload LCP image (ostrożnie: tylko jeśli jest zdefiniowane) --- #}
   {% if page.lcp_image %}
     <link rel="preload" as="image" href="{{ site_url }}/static/img/{{ page.lcp_image }}">
   {% endif %}
 
-  {# --- JSON-LD --- #}
+  {# JSON-LD #}
   {% for ld in head.jsonld %}
     <script type="application/ld+json">{{ ld|tojson }}</script>
   {% endfor %}
 
-  {# --- Google Analytics 4 (opcjonalnie) --- #}
-  {% if head.ga_id %}
-    <script async src="https://www.googletagmanager.com/gtag/js?id={{ head.ga_id }}"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', '{{ head.ga_id }}');
-    </script>
-  {% endif %}
-
-  {# miejsce na ewentualne dodatkowe head-y w przyszłości #}
   {{ head.extra_head | safe }}
 </head>
 <body>
+  <!-- HEADER (sticky + menu, CTA nie łamie się) -->
   <header class="site-header" role="banner">
-    <a href="{{ site_url }}/" class="brand">Kras-Trans</a>
-    <nav class="nav" aria-label="Menu główne">
-      <!-- menu zbuduje JS z assets/js/menu.js -->
-      <a href="tel:+48793927467" class="btn">Zadzwoń 24/7</a>
-    </nav>
+    <div class="container row">
+      <a href="{{ site_url }}/" class="brand">{{ brand }}</a>
+      <nav id="site-nav" class="nav" aria-label="Główna nawigacja">
+        {# Możesz zbudować menu z arkusza 'Nav' przez assets/js/menu-builder.js #}
+      </nav>
+      <div class="header-actions">
+        <button id="theme-toggle" class="icon-btn theme-toggle" aria-label="Przełącz motyw">
+          <span class="sun" aria-hidden="true"></span>
+          <span class="moon" aria-hidden="true"></span>
+        </button>
+        <a href="tel:+48793927467" class="btn primary">Zadzwoń 24/7</a>
+      </div>
+    </div>
   </header>
 
-  <main class="content" id="main">
-    <section class="hero" id="kras-hero" aria-label="Hero">
-      <picture>
-        {% if page.hero_image_mobile %}
-          <source
-            media="(max-width: 600px)"
-            srcset="{{ site_url }}/static/img/{{ page.hero_image_mobile }}">
-        {% endif %}
-        <img
-          src="{{ site_url }}/static/img/{{ page.hero_image or 'hero.svg' }}"
-          alt="{{ page.hero_alt or page.h1 or page.title }}"
-          width="1200" height="630"
-          loading="eager" fetchpriority="high">
-      </picture>
-
-      <div class="hero-copy">
-        <p class="eyebrow">Kras-Trans — transport ekspresowy</p>
-        <h1>{{ page.h1 or page.title }}</h1>
-        {% if page.lead %}<p class="lead">{{ page.lead }}</p>{% endif %}
-        <p class="cta">
-          <a class="btn" href="tel:+48793927467">Zadzwoń 24/7</a>
-          <a class="btn ghost" href="{{ site_url }}/wycena/">Wycena</a>
-        </p>
-        {% if page.tags %}<p class="tags">{{ page.tags|join(", ") }}</p>{% endif %}
+  <main id="main">
+    <!-- HERO: stałe W/H + poster (zero CLS) -->
+    <section class="hero" id="kras-hero" aria-label="{{ page.h1 or page.title }}">
+      <div class="container wrap">
+        <div>
+          <span class="claim">KOMPLEKSOWE USŁUGI TRANSPORTOWE</span>
+          <h1>{{ page.h1 or page.title }}</h1>
+          {% if page.lead %}<p>{{ page.lead }}</p>{% endif %}
+          <p>
+            <a class="btn primary" href="{{ site_url }}/wycena/">Wycena 15 min</a>
+            <a class="btn" href="tel:+48793927467">Zadzwoń</a>
+          </p>
+        </div>
+        <picture>
+          {% if page.hero_image_mobile %}
+            <source media="(max-width: 600px)" srcset="{{ site_url }}/static/img/{{ page.hero_image_mobile }}">
+          {% endif %}
+          <img
+            src="{{ site_url }}/static/img/{{ page.hero_image or 'placeholder-hero-desktop.webp' }}"
+            alt="{{ page.hero_alt or page.h1 or page.title }}"
+            width="1280" height="720"
+            loading="eager" fetchpriority="high">
+        </picture>
       </div>
     </section>
 
+    <!-- OFERTA / BLoki (z arkusza Blocks, jeśli chcesz) -->
     {% if page.html %}
-      <article class="entry">{{ page.html | safe }}</article>
+      <section class="section --line">
+        <div class="container text entry">
+          {{ page.html | safe }}
+        </div>
+      </section>
     {% endif %}
 
-    {# --- Breadcrumbs (jeśli w JSON-LD jest BreadcrumbList) --- #}
+    <!-- FAQ (jeśli bloki/FAQ są wstawione do body_md to już są powyżej) -->
+    <section class="section --dots" id="faq">
+      <div class="container text">
+        <h2>FAQ – najczęściej zadawane pytania</h2>
+        <div class="faq">
+          <details><summary>Jak szybko zrealizujecie transport?</summary><p>Standardowo 24–48 h, w trybie ekspresowym często tego samego dnia.</p></details>
+          <details><summary>Ile kosztuje przewóz busem 3,5 t?</summary><p>Orientacyjnie od 3,50 zł/km. Wycena online 24/7.</p></details>
+          <details><summary>Skąd startujecie?</summary><p>Łódź i cała Polska — realizujemy transport po UE.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <!-- Kontakt/Wycena -->
+    <section class="section --wave" id="wycena">
+      <div class="container text">
+        <h2>Skontaktuj się z nami</h2>
+        <form class="card" method="post" action="#">
+          <div class="pad">
+            <div class="cards">
+              <label class="card"><div class="pad"><input name="name" type="text" placeholder="Imię i nazwisko" required style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border)"></div></label>
+              <label class="card"><div class="pad"><input name="phone" type="tel" placeholder="Telefon" required style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border)"></div></label>
+              <label class="card"><div class="pad"><input name="email" type="email" placeholder="E-mail" required style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border)"></div></label>
+            </div>
+            <p><textarea name="message" placeholder="Treść zapytania" rows="4" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border)"></textarea></p>
+            <p><button class="btn primary" type="submit">Wyślij</button> <a class="btn" href="tel:+48793927467">Zadzwoń</a></p>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    {# breadcrumbs z JSON-LD są w <head>, ale możesz też wyrenderować ścieżkę: #}
     {% set crumbs = [] %}
     {% for ld in head.jsonld %}
-      {% if ld['@type'] == 'BreadcrumbList' %}
-        {% set crumbs = ld.itemListElement %}
-      {% endif %}
+      {% if ld['@type'] == 'BreadcrumbList' %}{% set crumbs = ld.itemListElement %}{% endif %}
     {% endfor %}
-    {% if crumbs and crumbs|length %}
+    {% if crumbs %}
       <nav aria-label="breadcrumb" class="breadcrumbs">
-        <ul>
+        <ul class="container">
           {% for c in crumbs %}
             <li{% if loop.last %} aria-current="page"{% endif %}><a href="{{ c.item }}">{{ c.name }}</a></li>
           {% endfor %}
@@ -116,37 +137,38 @@
       </nav>
     {% endif %}
 
-    {# --- Powiązane strony (linki poprawione) --- #}
     {% if related and related|length %}
-      <section class="related">
-        <h2>Powiązane strony</h2>
-        <ul>
-          {% for r in related %}
-            {# Jeżeli builder nie podał gotowego r.url, wyliczamy z lang/slug (ten sam język co bieżąca strona). #}
-            {% set rlang = r.lang or page.lang or 'pl' %}
-            {% set rslug = r.slug or '' %}
-            {% if not r.url %}
-              {% if rslug in ['', 'home'] %}
-                {% set rurl = site_url ~ '/' ~ rlang ~ '/' %}
-              {% else %}
-                {% set rurl = site_url ~ '/' ~ rlang ~ '/' ~ rslug ~ '/' %}
-              {% endif %}
-            {% else %}
-              {% set rurl = r.url %}
-            {% endif %}
-            <li><a href="{{ rurl }}">{{ r.title or r.h1 or r.slug }}</a></li>
-          {% endfor %}
-        </ul>
+      <section class="section">
+        <div class="container text">
+          <h2>Powiązane strony</h2>
+          <ul class="cards">
+            {% for r in related %}
+              <li class="card"><div class="pad"><a href="{{ site_url }}{{ r.url }}">{{ r.title }}</a></div></li>
+            {% endfor %}
+          </ul>
+        </div>
       </section>
     {% endif %}
   </main>
 
-  <footer class="site-footer" id="kontakt">
-    <p>© {{ (company[0].name if company else 'Kras-Trans') }} — Ekspresowy transport 24/7</p>
-    <p><a href="{{ site_url }}/download/site.zip">Pobierz snapshot strony (ZIP)</a></p>
+  <!-- Dock mobilny -->
+  <nav class="bottom-bar" aria-label="Skróty">
+    <a href="#wycena">📦<span>Wycena</span></a>
+    <a href="#faq">❓<span>FAQ</span></a>
+    <a href="tel:+48793927467">📞<span>Telefon</span></a>
+    <a href="#kras-hero">⬆️<span>Góra</span></a>
+    <a href="{{ site_url }}/pl/transport-miedzynarodowy/">🌍<span>EU</span></a>
+  </nav>
+
+  <footer class="site-footer">
+    <div class="container footer-grid" id="footer-columns"></div>
+    <div class="container">
+      <small>© {{ (company[0].name if company else brand) }} • <a href="tel:+48793927467">+48 793 927 467</a></small>
+      <small> • <a href="{{ site_url }}/download/site.zip">Pobierz snapshot (ZIP)</a></small>
+    </div>
   </footer>
 
-  <script src="{{ site_url }}/assets/js/menu.js" defer></script>
   <script src="{{ site_url }}/assets/js/kras-global.js" defer></script>
+  <script src="{{ site_url }}/assets/js/menu-builder.js" defer></script>
 </body>
 </html>
