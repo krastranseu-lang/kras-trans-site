@@ -1,370 +1,518 @@
 #!/usr/bin/env python3
-# tools/build.py
-# Kompletny builder dla kras-trans.com
-# Wymagane: Jinja2, markdown (instalujesz w workflow: pip install Jinja2 markdown)
+# -*- coding: utf-8 -*-
+
+"""
+Kras-Trans — generator statyczny (build.py)
+- Czyta data/cms.json (output z Apps Script)
+- Renderuje strony z Jinja2 (templates/page.html)
+- Tworzy sitemap.xml, robots.txt, 404.html
+- Root redirect / -> /pl/
+- Kopiuje assets/static
+- ZIP snapshot dist/download/site.zip
+- Wstrzykuje GA4 (GA_ID) i GSC meta (GSC_VERIFICATION)
+
+Autor: (Twoje)
+"""
 
 from __future__ import annotations
-import os, re, json, time, shutil, pathlib, zipfile, hashlib
-from typing import Dict, List, Any, Tuple, Optional
+import os
+import re
+import json
+import shutil
+import zipfile
+from pathlib import Path
+from datetime import datetime, timezone
+from typing import Dict, Any, List, Iterable, Tuple, Optional
+
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-# ────────────────────────────────────────────────────────────────────────────────
-# ŚCIEŻKI I KONFIG
-# ────────────────────────────────────────────────────────────────────────────────
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-DIST = ROOT / "dist"
+ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data" / "cms.json"
-TPL_DIR = ROOT / "templates"
-STATIC_DIR = ROOT / "static"
-ASSETS_DIR = ROOT / "assets"
+TEMPLATES = ROOT / "templates"
+DIST = ROOT / "dist"
 
-# Możesz nadpisać przez ENV w pages.yml
-SITE_URL     = os.getenv("SITE_URL", "https://kras-trans.com").rstrip("/")
-DEFAULT_LANG = os.getenv("DEFAULT_LANG", "pl").strip("/") or "pl"
-BRAND        = os.getenv("BRAND", "Kras-Trans")
+ASSETS_DIRS = ["static", "assets"]  # skopiujemy w całości, jeśli istnieją
 
-# Google
-GA_ID           = os.getenv("GA_ID", "")  # np. G-5FYE42J3BE
-GSC_VERIFICATION = os.getenv("GSC_VERIFICATION", "")  # np. Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y
+# --- ENV (z pages.yml) ---
+SITE_URL = os.getenv("SITE_URL", "https://kras-trans.com").rstrip("/")
+DEFAULT_LANG = (os.getenv("DEFAULT_LANG", "pl") or "pl").lower()
+BRAND = os.getenv("BRAND", "Kras-Trans")
 
-# CNAME (GitHub Pages)
-CNAME_VALUE = os.getenv("CNAME", "kras-trans.com")
+GA_ID = os.getenv("GA_ID", "").strip()  # np. G-XXXX
+GSC_VERIFICATION = os.getenv("GSC_VERIFICATION", "").strip()  # np. Q3XgX...
 
-# ────────────────────────────────────────────────────────────────────────────────
-# UTYLITY
-# ────────────────────────────────────────────────────────────────────────────────
-def clean_dist():
-    shutil.rmtree(DIST, ignore_errors=True)
-    DIST.mkdir(parents=True, exist_ok=True)
+CNAME_VALUE = os.getenv("CNAME", "").strip()  # np. kras-trans.com (opcjonalnie)
 
-def copy_dir(src: pathlib.Path, dst: pathlib.Path):
-    if src.exists():
-        shutil.copytree(src, dst, dirs_exist_ok=True)
+# --- UTILS --------------------------------------------------------------------
 
-def slugify(s: str) -> str:
-    s = (s or "").strip().lower()
-    s = re.sub(r"\s+", "-", s)
-    s = re.sub(r"[^a-z0-9\-/_]", "", s)
-    s = s.strip("/")
-    return s
-
-def ensure_dir(p: pathlib.Path):
-    p.parent.mkdir(parents=True, exist_ok=True)
-
-def write(path: pathlib.Path, content: str):
-    ensure_dir(path)
-    path.write_text(content, "utf-8")
 
 def now_iso() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
-def minify_html(html: str) -> str:
-    # Bezpieczna, „lekka” minifikacja (nie zjada <pre>, ale upraszcza whitespace)
-    html = re.sub(r">\s+<", "><", html)        # spacje między tagami
-    html = re.sub(r"\s{2,}", " ", html)       # ciągi spacji
-    html = re.sub(r"<!--[^>]*-->", "", html)  # komentarze
-    return html.strip()
 
-def join_url(*parts: str) -> str:
-    return "/".join(x.strip("/") for x in parts if x is not None)
+def tojson(value: Any) -> str:
+    """Jinja filter: |tojson (defensywnie)."""
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
-# ────────────────────────────────────────────────────────────────────────────────
-# JINJA
-# ────────────────────────────────────────────────────────────────────────────────
+
+def t(s: Any) -> str:
+    return "" if s is None else str(s).strip()
+
+
+def slugify(s: str) -> str:
+    s = t(s).strip("/").strip()
+    s = re.sub(r"\s+", "-", s)
+    s = re.sub(r"[^a-zA-Z0-9\-_]", "", s)
+    return s.lower()
+
+
+def lang_of(p: Dict[str, Any]) -> str:
+    return (p.get("lang") or DEFAULT_LANG).strip().lower()
+
+
+def canonical_for(page: Dict[str, Any]) -> str:
+    """
+    Buduje kanoniczny URL:
+    - pusty slug => /<lang>/
+    - slug => /<lang>/<slug>/
+    """
+    ln = lang_of(page)
+    slug = t(page.get("slug")).strip().strip("/")
+    if not slug:
+        return f"{SITE_URL}/{ln}/"
+    return f"{SITE_URL}/{ln}/{slug}/"
+
+
+def page_url_rel(page: Dict[str, Any]) -> str:
+    ln = lang_of(page)
+    slug = t(page.get("slug")).strip().strip("/")
+    if not slug:
+        return f"/{ln}/"
+    return f"/{ln}/{slug}/"
+
+
+def out_path(dist: Path, page: Dict[str, Any]) -> Path:
+    ln = lang_of(page)
+    slug = t(page.get("slug")).strip().strip("/")
+    if not slug:
+        return dist / ln / "index.html"
+    return dist / ln / slug / "index.html"
+
+
+def ensure_dir(p: Path):
+    p.mkdir(parents=True, exist_ok=True)
+
+
+def copy_assets():
+    for name in ASSETS_DIRS:
+        src = ROOT / name
+        if src.exists() and src.is_dir():
+            dst = DIST / name
+            if dst.exists():
+                shutil.rmtree(dst)
+            shutil.copytree(src, dst)
+            print(f"[copy] {name}/ -> dist/{name}/")
+        else:
+            print(f"[copy] (skip) {name}/ (not found)")
+
+
+def zip_site(dist: Path, out_zip: Path):
+    ensure_dir(out_zip.parent)
+    # Uwaga: nie pakujemy samego ZIP-a
+    with zipfile.ZipFile(out_zip, "w", compression=zipfile.ZIP_DEFLATED) as z:
+        for p in dist.rglob("*"):
+            if p.is_file():
+                rel = p.relative_to(dist)
+                if rel.as_posix() == out_zip.relative_to(dist).as_posix():
+                    continue
+                z.write(p, rel.as_posix())
+    print(f"[zip] {out_zip} ({out_zip.stat().st_size} bytes)")
+
+
+# --- LOADING CMS --------------------------------------------------------------
+
+
+def load_cms(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        raise FileNotFoundError(f"Missing {path}")
+    data = json.loads(path.read_text("utf-8"))
+    if not data.get("ok"):
+        raise RuntimeError("cms.json has ok:false")
+    return data
+
+
+# --- JINJA --------------------------------------------------------------------
+
+
 def jinja_env() -> Environment:
     env = Environment(
-        loader=FileSystemLoader(str(TPL_DIR)),
+        loader=FileSystemLoader(str(TEMPLATES)),
         autoescape=select_autoescape(["html", "xml"]),
-        trim_blocks=True,
-        lstrip_blocks=True,
     )
-    # Filtry pomocnicze
-    env.filters["tojson"] = lambda obj: json.dumps(obj, ensure_ascii=False)
+    env.filters["tojson"] = tojson
     return env
 
-# ────────────────────────────────────────────────────────────────────────────────
-# DANE (CMS JSON)
-# ────────────────────────────────────────────────────────────────────────────────
-def load_cms() -> Dict[str, Any]:
-    if not DATA.exists():
-        raise SystemExit(f"ERROR: {DATA} not found (fetch step should create it)")
-    j = json.loads(DATA.read_text("utf-8"))
-    if not j.get("ok"):
-        raise SystemExit("ERROR: cms.json ok=false")
-    return j
 
-# ────────────────────────────────────────────────────────────────────────────────
-# HEAD / SEO
-# ────────────────────────────────────────────────────────────────────────────────
-def build_canonical(lang: str, slug: str) -> str:
-    lang = (lang or DEFAULT_LANG).strip("/")
-    slug = (slug or "").strip("/")
-    if not slug or slug in ("", "home"):
-        return f"{SITE_URL}/{lang}/"
-    return f"{SITE_URL}/{lang}/{slug}/"
+# --- JSON-LD ------------------------------------------------------------------
 
-def build_jsonld_org(company: Dict[str, Any]) -> Dict[str, Any]:
-    # LocalBusiness/Organization (minimalny, bezpieczny)
-    name = company.get("name") or company.get("legal_name") or BRAND
-    tel  = company.get("telephone", "")
-    same_as = []
-    for k in ("facebook", "instagram", "linkedin", "twitter", "youtube"):
-        url = (company.get(k) or "").strip()
-        if url:
-            same_as.append(url)
-    ld = {
+
+def jsonld_org(company: List[Dict[str, Any]]) -> Dict[str, Any]:
+    if not company:
+        company = [{}]
+    c = company[0]
+    org = {
         "@context": "https://schema.org",
         "@type": "Organization",
-        "name": name,
+        "name": c.get("name") or c.get("legal_name") or BRAND,
         "url": SITE_URL,
     }
-    if tel:
-        ld["telephone"] = tel
+    telephone = t(c.get("telephone") or c.get("phone"))
+    if telephone:
+        org["telephone"] = telephone
+    nip = t(c.get("nip"))
+    if nip:
+        # w PL: taxID z prefixem PL
+        org["taxID"] = f"PL {nip}" if not nip.upper().startswith("PL") else nip
+    logo = c.get("logo") or f"{SITE_URL}/static/img/logo.png"
+    org["logo"] = logo
+    same_as = []
+    for k in ("facebook", "instagram", "linkedin", "youtube", "twitter", "x", "tiktok"):
+        url = t(c.get(k))
+        if url:
+            same_as.append(url)
     if same_as:
-        ld["sameAs"] = same_as
-    # tag weryfikacji GSC – jako meta robimy w <head>, nie w LD
-    return ld
+        org["sameAs"] = same_as
+    adr = {}
+    if t(c.get("street_address")):
+        adr["streetAddress"] = c.get("street_address")
+    if t(c.get("postal_code")):
+        adr["postalCode"] = c.get("postal_code")
+    if t(c.get("city")):
+        adr["addressLocality"] = c.get("city")
+    if t(c.get("country")):
+        adr["addressCountry"] = c.get("country")
+    if adr:
+        adr["@type"] = "PostalAddress"
+        org["address"] = adr
+    return org
 
-def build_head(page: Dict[str, Any], company: Dict[str, Any]) -> Dict[str, Any]:
-    title = page.get("seo_title") or page.get("title") or page.get("h1") or BRAND
-    desc  = page.get("meta_description") or page.get("lead") or ""
-    if not desc:
-        desc = "Ekspresowy transport 24/7 — busy 3.5 t, ADR na życzenie. Europa (PL, DE, FR, IT, ES)."
-    canonical = build_canonical(page.get("lang"), page.get("slug"))
 
-    og_img = page.get("og_image") or f"{SITE_URL}/static/img/placeholder-hero-desktop.webp"
+def jsonld_webpage(page: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "url": canonical_for(page),
+        "inLanguage": lang_of(page),
+        "name": page.get("title") or page.get("h1") or BRAND,
+        "description": page.get("description") or "",
+    }
 
-    # hreflangi (proste: jeżeli są inne warianty lang dla tej samej 'slugKey' lub 'slug')
+
+def jsonld_breadcrumb(page: Dict[str, Any]) -> Dict[str, Any]:
+    # Home -> Page
+    items = [
+        {
+            "@type": "ListItem",
+            "position": 1,
+            "name": BRAND,
+            "item": f"{SITE_URL}/{lang_of(page)}/",
+        },
+        {
+            "@type": "ListItem",
+            "position": 2,
+            "name": page.get("title") or page.get("h1") or "Strona",
+            "item": canonical_for(page),
+        },
+    ]
+    return {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": items,
+    }
+
+
+# --- SEO HEAD -----------------------------------------------------------------
+
+
+def build_head(page: Dict[str, Any],
+               alts: List[Dict[str, Any]],
+               company: List[Dict[str, Any]]) -> Dict[str, Any]:
+    canonical = canonical_for(page)
+    og_img_rel = t(page.get("og_image") or page.get("hero_image") or "static/img/og-default.jpg")
+    og_img = og_img_rel if og_img_rel.startswith("http") else f"{SITE_URL}/{og_img_rel.lstrip('/')}"
+
+    # hreflang alternates
     hreflangs = []
-    x_default = None
-    # ścieżka: zrobimy to później, kiedy mamy listę wszystkich stron (tu: placeholder)
+    langs_seen = set()
+    for alt in alts:
+        ln = lang_of(alt)
+        if ln in langs_seen:
+            continue
+        langs_seen.add(ln)
+        hreflangs.append({"lang": ln, "url": canonical_for(alt)})
+
+    # JSON-LD (WebPage + Org + BreadcrumbList)
+    jsonld = [jsonld_webpage(page), jsonld_org(company), jsonld_breadcrumb(page)]
+
+    # extra_head: GSC + GA4
+    extra = []
+    if GSC_VERIFICATION:
+        extra.append(f'<meta name="google-site-verification" content="{GSC_VERIFICATION}">')
+    if GA_ID:
+        extra.append(
+            f"""<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){{dataLayer.push(arguments);}}
+  gtag('js', new Date());
+  gtag('config', '{GA_ID}');
+</script>"""
+        )
+
     head = {
-        "title": title,
-        "description": desc[:300],
+        "title": page.get("title") or BRAND,
+        "description": page.get("description") or "",
         "canonical": canonical,
-        "og_title": title,
-        "og_description": desc[:300],
+        "og_title": page.get("og_title") or page.get("title") or BRAND,
+        "og_description": page.get("og_description") or page.get("description") or "",
         "og_image": og_img,
-        "jsonld": [build_jsonld_org(company)],
         "hreflangs": hreflangs,
-        "x_default": x_default,
-        "ga_id": GA_ID,
-        "gsc_meta": GSC_VERIFICATION,
+        "x_default": f"{SITE_URL}/{DEFAULT_LANG}/",
+        "jsonld": jsonld,
+        "extra_head": "\n".join(extra),
     }
     return head
 
-# ────────────────────────────────────────────────────────────────────────────────
-# RELATED / PROSTA LOGIKA
-# ────────────────────────────────────────────────────────────────────────────────
-def pick_related(pages: List[Dict[str, Any]], cur: Dict[str, Any], limit=5) -> List[Dict[str, Any]]:
-    cur_tags = set(cur.get("tags") or [])
-    cur_lang = cur.get("lang") or DEFAULT_LANG
-    # ten sam język, wspólne tagi
-    out = []
-    for p in pages:
-        if p is cur:
-            continue
-        if (p.get("lang") or DEFAULT_LANG) != cur_lang:
-            continue
-        score = len(cur_tags.intersection(set(p.get("tags") or [])))
-        if score > 0:
-            out.append((score, p))
-    out.sort(key=lambda x: (-x[0], (x[1].get("weight") or 0)))
-    return [p for _, p in out[:limit]]
 
-# ────────────────────────────────────────────────────────────────────────────────
-# PISANIE PLIKÓW GLOBALNYCH
-# ────────────────────────────────────────────────────────────────────────────────
-def write_robots():
-    content = f"""User-agent: *
+# --- RELATED ------------------------------------------------------------------
+
+
+def build_related(current: Dict[str, Any], pages: List[Dict[str, Any]], limit: int = 6) -> List[Dict[str, Any]]:
+    """Najpierw related_override (slug), potem po tagach."""
+    cur_slug = t(current.get("slug"))
+    override = [slugify(s) for s in (current.get("related_override") or [])]
+    out: List[Dict[str, Any]] = []
+
+    by_slug = {slugify(p.get("slug")): p for p in pages}
+    for s in override:
+        p = by_slug.get(s)
+        if p and p is not current and p.get("publish") is not False:
+            out.append(p)
+
+    if len(out) >= limit:
+        pass
+    else:
+        tags = set([t(x).lower() for x in current.get("tags") or []])
+        if tags:
+            # proste dopasowanie po tagach
+            for p in pages:
+                if p is current or p.get("publish") is False:
+                    continue
+                pt = set([t(x).lower() for x in p.get("tags") or []])
+                if pt & tags:
+                    out.append(p)
+                    if len(out) >= limit:
+                        break
+
+    # wzbogacamy każdy element w url i title
+    seen = set()
+    enriched = []
+    for p in out:
+        key = (lang_of(p), t(p.get("slug")))
+        if key in seen:
+            continue
+        seen.add(key)
+        enriched.append({"title": p.get("title") or p.get("h1") or "", "url": page_url_rel(p)})
+    return enriched[:limit]
+
+
+# --- GROUPING FOR HREFLANG ----------------------------------------------------
+
+
+def group_alternates(pages: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Grupujemy strony po „kluczu alternatywności”.
+    Preferencja: page_ref -> route -> slug (ostatnie najmniej pewne).
+    """
+    groups: Dict[str, List[Dict[str, Any]]] = {}
+    for p in pages:
+        if p.get("publish") is False:
+            continue
+        key = t(p.get("page_ref")) or t(p.get("route")) or t(p.get("slug"))
+        key = key or f"__home__{lang_of(p)}__" if not t(p.get("slug")) else key
+        groups.setdefault(key, []).append(p)
+    return groups
+
+
+# --- SITEMAP ------------------------------------------------------------------
+
+
+def write_sitemap(dist: Path, pages: List[Dict[str, Any]], updated_iso: str):
+    groups = group_alternates(pages)
+    xmlns = 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+    xhtml = 'xmlns:xhtml="http://www.w3.org/1999/xhtml"'
+    lines = [f'<?xml version="1.0" encoding="UTF-8"?>',
+             f'<urlset {xmlns} {xhtml}>']
+    for key, variants in groups.items():
+        # bierzemy pierwszy jako "główny" do wpisu url
+        primary = variants[0]
+        loc = canonical_for(primary)
+        lines.append("  <url>")
+        lines.append(f"    <loc>{loc}</loc>")
+        lines.append(f"    <lastmod>{updated_iso}</lastmod>")
+        lines.append("    <changefreq>weekly</changefreq>")
+        # alternates
+        for v in variants:
+            lines.append(f'    <xhtml:link rel="alternate" hreflang="{lang_of(v)}" href="{canonical_for(v)}" />')
+        # x-default
+        lines.append(f'    <xhtml:link rel="alternate" hreflang="x-default" href="{SITE_URL}/{DEFAULT_LANG}/" />')
+        lines.append("  </url>")
+    lines.append("</urlset>")
+    (dist / "sitemap.xml").write_text("\n".join(lines), "utf-8")
+    print("[sitemap] dist/sitemap.xml")
+
+
+# --- ROBOTS & 404 & ROOT REDIRECT --------------------------------------------
+
+
+def write_robots(dist: Path):
+    txt = f"""User-agent: *
 Allow: /
 Sitemap: {SITE_URL}/sitemap.xml
 """
-    write(DIST / "robots.txt", content)
+    (dist / "robots.txt").write_text(txt, "utf-8")
+    print("[robots] dist/robots.txt")
 
-def write_cname():
-    write(DIST / "CNAME", f"{CNAME_VALUE}\n")
 
-def write_root_redirect(default_lang=DEFAULT_LANG):
-    target = f"/{default_lang.strip('/')}/"
+def write_404(dist: Path):
+    html = f"""<!doctype html><html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <title>404 — Nie znaleziono</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="canonical" href="{SITE_URL}/{DEFAULT_LANG}/">
+  <meta http-equiv="refresh" content="3; url=/{DEFAULT_LANG}/">
+  <style>body{{font:16px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:4rem;color:#111}}a{{color:#06c}}</style>
+</head>
+<body>
+  <h1>404 — Nie znaleziono</h1>
+  <p>Ups! Tej strony nie ma. Wróć do <a href="/{DEFAULT_LANG}/">strony głównej</a>.</p>
+</body></html>"""
+    (dist / "404.html").write_text(html, "utf-8")
+    print("[404] dist/404.html")
+
+
+def write_root_redirect(dist: Path, default_lang: str = DEFAULT_LANG, site_url: str = SITE_URL):
+    root = dist / "index.html"
+    target = f"/{default_lang}/"
     html = f"""<!doctype html><html lang="en">
 <head>
   <meta charset="utf-8">
   <title>{BRAND}</title>
   <meta http-equiv="refresh" content="0; url={target}">
-  <link rel="canonical" href="{SITE_URL}{target}">
+  <link rel="canonical" href="{site_url}{target}">
   <meta name="robots" content="noindex,follow">
 </head>
 <body>
   <p>Przenoszę do <a href="{target}">{target}</a>…</p>
   <script>location.replace("{target}")</script>
 </body></html>"""
-    write(DIST / "index.html", html)
+    root.write_text(html, "utf-8")
+    print("[root] dist/index.html -> /pl/")
 
-def write_404(lang="pl"):
-    # prosty 404 w danym języku
-    msg = "Nie znaleziono" if lang == "pl" else "Not found"
-    html = f"""<!doctype html><html lang="{lang}">
-<head>
-  <meta charset="utf-8">
-  <title>404 — {msg}</title>
-  <meta name="robots" content="noindex,follow">
-  <link rel="stylesheet" href="/static/css/site.css">
-</head>
-<body>
-  <main style="padding:2rem;max-width:720px;margin:auto">
-    <h1>404 — {msg}</h1>
-    <p>Ups! Tej strony nie ma. Wróć do <a href="/{lang}/">strony głównej</a>.</p>
-  </main>
-</body></html>"""
-    write(DIST / "404.html", html) if lang == "pl" else None
-    # również 404 pod /{lang}/
-    write(DIST / lang / "404.html", html)
 
-def write_sitemap(pages: List[Dict[str, Any]]):
-    now = now_iso()
-    urls = []
-    # unikalne canonicale
-    seen = set()
-    for p in pages:
-        loc = build_canonical(p.get("lang"), p.get("slug"))
-        if loc in seen:
-            continue
-        seen.add(loc)
-        urls.append(f"<url><loc>{loc}</loc><lastmod>{now}</lastmod></url>")
-    xml = f'<?xml version="1.0" encoding="UTF-8"?>\n' \
-          f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' \
-          + "\n".join(urls) + "\n</urlset>\n"
-    write(DIST / "sitemap.xml", xml)
+# --- BUILD --------------------------------------------------------------------
 
-# ────────────────────────────────────────────────────────────────────────────────
-# RENDEROWANIE STRON
-# ────────────────────────────────────────────────────────────────────────────────
-def compute_hreflangs(all_pages: List[Dict[str, Any]]) -> Dict[Tuple[str, str], List[Tuple[str, str]]]:
-    """
-    Zwraca mapę (slugKey, slug?) → listę (lang, url) wariantów językowych.
-    Priorytet: jeśli w danych masz 'slugKey' to grupujemy po nim;
-    w przeciwnym razie grupujemy po (slug, type).
-    """
-    groups = {}
-    for p in all_pages:
-        key = p.get("slugKey") or f"{p.get('slug','')}-{p.get('type','')}"
-        key = (key, p.get("type",""))
-        lang = (p.get("lang") or DEFAULT_LANG).strip("/")
-        url  = build_canonical(lang, p.get("slug"))
-        groups.setdefault(key, []).append((lang, url))
-    return groups
 
-def render_pages(env: Environment, cms: Dict[str, Any]):
-    pages_raw: List[Dict[str, Any]] = cms.get("pages") or []
-    company = (cms.get("company") or [{}])[0]
-
-    # Normalizacja podstawowa
-    norm = []
-    for r in pages_raw:
-        p = {k: r.get(k) for k in r.keys()}
-        p["lang"] = (p.get("lang") or DEFAULT_LANG).strip("/")
-        p["slug"] = slugify(p.get("slug") or ("home" if p.get("type")=="home" else ""))
-        p["tags"] = p.get("tags") or p.get("mdtags") or []
-        norm.append(p)
-
-    # Hreflangi – pre-komputacja
-    hreflang_map = compute_hreflangs(norm)
-
+def render_page(env: Environment, page: Dict[str, Any], ctx: Dict[str, Any]) -> str:
     tpl = env.get_template("page.html")
+    return tpl.render(**ctx)
 
-    rendered = []
-    for p in norm:
-        # ścieżka do pliku
-        lang = p["lang"]
-        is_home = (p.get("type") == "home") or (p.get("slug") in ("", "home"))
-        out_dir = DIST / lang
-        if not is_home:
-            out_dir = out_dir / p["slug"]
-        out_path = out_dir / "index.html"
 
-        # head
-        head = build_head(p, company)
-        # uzupełnij hreflangi
-        key = p.get("slugKey") or f"{p.get('slug','')}-{p.get('type','')}"
-        key = (key, p.get("type",""))
-        hreflangs = [
-            {"lang": L, "url": U} for (L, U) in sorted(hreflang_map.get(key, []), key=lambda x: x[0])
-        ]
-        head["hreflangs"] = hreflangs
-        # x-default → język domyślny
-        for h in hreflangs:
-            if h["lang"] == DEFAULT_LANG:
-                head["x_default"] = h["url"]
-                break
-
-        # related
-        related = pick_related(norm, p, limit=int(p.get("max_outlinks") or 6))
-
-        # wstrzykuj GA i GSC przez head (template je wykorzysta)
-        # head["ga_id"] = GA_ID  (już ustawione)
-        # head["gsc_meta"] = GSC_VERIFICATION
-
-        html = tpl.render(
-            page=p,
-            head=head,
-            company=cms.get("company") or [],
-            related=related,
-            site_url=SITE_URL,
-            brand=BRAND,
-        )
-        html = minify_html(html)
-        write(out_path, html)
-        rendered.append(p)
-
-    return rendered
-
-# ────────────────────────────────────────────────────────────────────────────────
-# ZIP (opcjonalnie)
-# ────────────────────────────────────────────────────────────────────────────────
-def write_snapshot_zip(enable=True):
-    if not enable:
-        return
-    zpath = ROOT / "site-snapshot.zip"
-    if zpath.exists():
-        zpath.unlink()
-    with zipfile.ZipFile(zpath, "w", compression=zipfile.ZIP_DEFLATED) as z:
-        for p in DIST.rglob("*"):
-            if p.is_file():
-                z.write(p, p.relative_to(DIST))
-
-# ────────────────────────────────────────────────────────────────────────────────
-# MAIN
-# ────────────────────────────────────────────────────────────────────────────────
 def main():
-    print("== Build start ==")
-    clean_dist()
-    copy_dir(STATIC_DIR, DIST / "static")
-    copy_dir(ASSETS_DIR, DIST / "assets")
+    print(f"[env] SITE_URL={SITE_URL}, DEFAULT_LANG={DEFAULT_LANG}, BRAND={BRAND}")
+    if GA_ID:
+        print(f"[env] GA_ID={GA_ID}")
+    if GSC_VERIFICATION:
+        print(f"[env] GSC_VERIFICATION=***{GSC_VERIFICATION[-4:]}")
 
-    cms = load_cms()
+    cms = load_cms(DATA)
+    pages: List[Dict[str, Any]] = cms.get("pages") or []
+    company: List[Dict[str, Any]] = cms.get("company") or []
+    updated_iso = (cms.get("updated") or now_iso())
+
+    # Filtrowanie publish!=False (pozwalamy na True/None)
+    pages = [p for p in pages if p.get("publish") is not False]
+
+    # diagnostyka "home" dla PL
+    home_pl = [p for p in pages if lang_of(p) == "pl" and not t(p.get("slug")) and p.get("publish") is not False]
+    print(f"[diag] HOME pl count: {len(home_pl)}")
+
+    # Jinja
     env = jinja_env()
 
-    # 1) Redirect z ROOT → /pl/
-    write_root_redirect(DEFAULT_LANG)
+    # Grupy alternatyw (dla hreflang)
+    groups = group_alternates(pages)
 
-    # 2) Render stron
-    rendered = render_pages(env, cms)
+    # Dist clean
+    if DIST.exists():
+        shutil.rmtree(DIST)
+    ensure_dir(DIST)
 
-    # 3) Globalne pliki
-    write_robots()
-    write_sitemap(rendered)
-    write_cname()
+    # CNAME (opcjonalnie)
+    if CNAME_VALUE:
+        (DIST / "CNAME").write_text(CNAME_VALUE.strip() + "\n", "utf-8")
 
-    # 4) 404 (global + per-lang obecnych)
-    langs = sorted({(p.get("lang") or DEFAULT_LANG) for p in rendered} | {DEFAULT_LANG})
-    for lg in langs:
-        write_404(lg)
+    # Render stron
+    count = 0
+    for p in pages:
+        key = t(p.get("page_ref")) or t(p.get("route")) or t(p.get("slug")) or "__home__"
+        alts = groups.get(key, [p])
 
-    # 5) Snapshot (żebyś mógł pobrać ZIP artefaktu w Actions)
-    write_snapshot_zip(enable=True)
+        head = build_head(p, alts, company)
+        related = build_related(p, pages, limit=int(p.get("max_outlinks") or 6))
 
-    print(f"== Done. Pages: {len(rendered)}, Langs: {', '.join(langs)} ==")
+        ctx = {
+            "site_url": SITE_URL,
+            "brand": BRAND,
+            "page": p,
+            "head": head,
+            "related": related,
+            "company": company,
+        }
+
+        out = out_path(DIST, p)
+        ensure_dir(out.parent)
+        html = render_page(env, p, ctx)
+        out.write_text(html, "utf-8")
+        count += 1
+
+    print(f"[build] rendered pages: {count}")
+
+    # Assets
+    copy_assets()
+
+    # SEO pliki
+    write_sitemap(DIST, pages, updated_iso)
+    write_robots(DIST)
+    write_404(DIST)
+    write_root_redirect(DIST, DEFAULT_LANG, SITE_URL)
+
+    # ZIP snapshot
+    zip_site(DIST, DIST / "download" / "site.zip")
+
+    # Debug: pokaż top drzewo
+    print("== DIST (first 100 files) ==")
+    shown = 0
+    for p in sorted(DIST.rglob("*")):
+        if p.is_file():
+            print(p.relative_to(DIST).as_posix())
+            shown += 1
+            if shown >= 100:
+                print("... (cut)")
+                break
+
 
 if __name__ == "__main__":
     main()
