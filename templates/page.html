@@ -1,84 +1,96 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="{{ page.lang or 'pl' }}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ head.title or (page.title ~ ' — Kras-Trans') }}</title>
-  <meta name="description" content="{{ head.description or page.description or '' }}" />
-  {% if head.canonical %}<link rel="canonical" href="{{ head.canonical }}"/>{% endif %}
-
-  {# Hreflang #}
+  <title>{{ head.title }}</title>
+  <meta name="description" content="{{ head.description }}" />
+  <link rel="canonical" href="{{ head.canonical }}" />
   {% if head.hreflangs %}
     {% for alt in head.hreflangs %}
-      <link rel="alternate" href="{{ alt.url }}" hreflang="{{ alt.lang }}"/>
+      {% if alt.lang != (page.lang or 'pl') %}<link rel="alternate" hreflang="{{ alt.lang }}" href="{{ alt.url }}" />{% endif %}
     {% endfor %}
-    {% if head.x_default %}<link rel="alternate" hreflang="x-default" href="{{ head.x_default }}"/>{% endif %}
+    {% if head.x_default %}<link rel="alternate" hreflang="x-default" href="{{ head.x_default }}" />{% endif %}
   {% endif %}
-
-  {# Open Graph #}
-  {% if og %}
-    {% if og.type %}<meta property="og:type" content="{{ og.type }}"/>{% endif %}
-    {% if og.title %}<meta property="og:title" content="{{ og.title }}"/>{% endif %}
-    {% if og.description %}<meta property="og:description" content="{{ og.description }}"/>{% endif %}
-    {% if og.image %}<meta property="og:image" content="{{ og.image }}"/>{% endif %}
-  {% endif %}
-
-  <link rel="preload" as="video" href="{{ site_url }}/assets/media/hero.mp4" />
-  <link rel="stylesheet" href="{{ site_url }}/assets/css/kras-global.css" />
-
-  {# JSON-LD #}
-  {% if head.jsonld %}<script type="application/ld+json">{{ head.jsonld|tojson }}</script>{% endif %}
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="{{ head.og_title }}" />
+  <meta property="og:description" content="{{ head.og_description }}" />
+  <meta property="og:image" content="{{ head.og_image }}" />
+  <link rel="stylesheet" href="{{ site_url }}/static/css/site.css" />
+  {% if page.lcp_image %}<link rel="preload" as="image" href="{{ site_url }}/static/img/{{ page.lcp_image }}">{% endif %}
+  {% for ld in head.jsonld %}
+    <script type="application/ld+json">{{ ld|tojson }}</script>
+  {% endfor %}
 </head>
 <body>
-  <!-- HEADER -->
-  <header class="site-header" role="banner">
-    <div class="container row">
-      <a href="{{ site_url }}/" class="brand">Kras-Trans</a>
-      <nav id="site-nav" class="nav" aria-label="Główna nawigacja"></nav>
-      <div class="header-actions">
-        <button id="theme-toggle" class="icon-btn theme-toggle" aria-label="Przełącz motyw">
-          <span class="sun" aria-hidden="true"></span>
-          <span class="moon" aria-hidden="true"></span>
-        </button>
-        <a href="tel:+48793927467" class="btn primary">Zadzwoń 24/7</a>
-      </div>
-    </div>
+  <header class="site-header">
+    <a href="{{ site_url }}/" class="brand">Kras-Trans</a>
+    <nav class="nav" aria-label="Menu główne">
+      <!-- menu zbuduje JS z assets/js/menu.js -->
+      <a href="tel:+48793927467" class="btn">Zadzwoń 24/7</a>
+    </nav>
   </header>
 
-  <main id="main" class="content">
-    <!-- HERO: bez własnego tła/overlay — dziedziczy motyw -->
-    <section class="hero" id="kras-hero" aria-label="{{ page.hero_aria or 'Ekspresowy transport' }}">
-      <div class="container wrap">
-        <div>
-          {% if page.claim %}<span class="claim">{{ page.claim }}</span>{% endif %}
-          <h1>{{ page.h1 or page.title }}</h1>
-          {% if page.lede %}<p>{{ page.lede }}</p>{% endif %}
-          <p>
-            <a class="btn primary" href="{{ page.cta_url or '#wycena' }}">{{ page.cta_label or 'Wycena 15 min' }}</a>
-            <a class="btn" href="tel:+48793927467">Zadzwoń</a>
-          </p>
-        </div>
-
-        <video muted loop playsinline preload="none"
-               poster="{{ site_url }}/assets/media/hero-poster.webp"
-               width="{{ page.hero_w or 1280 }}" height="{{ page.hero_h or 720 }}">
-          <source src="{{ site_url }}/assets/media/hero.mp4" type="video/mp4"/>
-        </video>
+  <main class="content">
+    <section class="hero" id="kras-hero">
+      <picture>
+        {% if page.hero_image_mobile %}
+          <source media="(max-width: 600px)" srcset="{{ site_url }}/static/img/{{ page.hero_image_mobile }}">
+        {% endif %}
+        <img
+          src="{{ site_url }}/static/img/{{ page.hero_image or 'hero.svg' }}"
+          alt="{{ page.hero_alt or page.h1 or page.title }}"
+          width="1200" height="630"
+          loading="eager" fetchpriority="high">
+      </picture>
+      <div class="hero-copy">
+        <p class="eyebrow">Kras-Trans — transport ekspresowy</p>
+        <h1>{{ page.h1 or page.title }}</h1>
+        {% if page.lead %}<p class="lead">{{ page.lead }}</p>{% endif %}
+        <p>
+          <a class="btn" href="tel:+48793927467">Zadzwoń 24/7</a>
+          <a class="btn ghost" href="{{ site_url }}/wycena/">Wycena</a>
+        </p>
+        {% if page.tags %}<p class="tags">{{ page.tags|join(", ") }}</p>{% endif %}
       </div>
     </section>
 
-    {# Treść strony (HTML z builda) #}
     {% if page.html %}
       <article class="entry">{{ page.html | safe }}</article>
     {% endif %}
+
+    {% set crumbs = [] %}
+    {% for ld in head.jsonld %}
+      {% if ld['@type'] == 'BreadcrumbList' %}{% set crumbs = ld.itemListElement %}{% endif %}
+    {% endfor %}
+    {% if crumbs %}
+      <nav aria-label="breadcrumb" class="breadcrumbs">
+        <ul>
+          {% for c in crumbs %}
+            <li{% if loop.last %} aria-current="page"{% endif %}><a href="{{ c.item }}">{{ c.name }}</a></li>
+          {% endfor %}
+        </ul>
+      </nav>
+    {% endif %}
+
+    {% if related and related|length %}
+      <section class="related">
+        <h2>Powiązane strony</h2>
+        <ul>
+          {% for r in related %}
+            <li><a href="{{ site_url }}{{ r.url }}">{{ r.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
   </main>
 
-  <footer class="site-footer">
-    <div class="container footer-grid" id="footer-columns"></div>
-    <div class="container"><small>© 2025 Kras-Trans</small></div>
+  <footer class="site-footer" id="kontakt">
+    <p>© {{ (company[0].name if company else 'Kras-Trans') }} — Ekspresowy transport 24/7</p>
+    <p><a href="{{ site_url }}/download/site.zip">Pobierz snapshot strony (ZIP)</a></p>
   </footer>
 
+  <script src="{{ site_url }}/assets/js/menu.js" defer></script>
   <script src="{{ site_url }}/assets/js/kras-global.js" defer></script>
-  <script src="{{ site_url }}/assets/js/menu-builder.js" defer></script>
 </body>
 </html>
