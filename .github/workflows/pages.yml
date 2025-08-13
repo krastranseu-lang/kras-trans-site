@@ -13,6 +13,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,14 +26,22 @@ jobs:
           mkdir -p data
           curl -fsSL "$APPS_URL?key=$APPS_KEY" -o data/cms.json
           test -s data/cms.json || (echo "CMS JSON missing" && exit 1)
-          jq '.ok,.updated' data/cms.json || true
+          # wymagamy ok:true
+          [ "$(jq -r '.ok // empty' data/cms.json)" = "true" ] || (echo "Apps Script returned non-ok response" && cat data/cms.json && exit 1)
+          echo "Updated: $(jq -r '.updated' data/cms.json)"
+          echo "Pages:   $(jq -r '.pages | length' data/cms.json)"
+
+      - name: Setup Node (for menu-builder.js)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      - name: Build site
+      - name: Build site (HTML + menu + sitemap/robots)
         run: |
           python -u tools/build.py
 
