@@ -87,16 +87,12 @@ jobs:
           python-version: '3.x'
           cache: 'pip'
 
-      - name: Install build deps
-        run: |
-          python -m pip install --upgrade pip
-          # jeśli jest requirements.txt – użyj go; w przeciwnym razie zainstaluj podstawowe pakiety
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          else
-            pip install Jinja2 markdown beautifulsoup4 lxml
-          fi
+ - name: Install build deps
+  run: |
+    python -m pip install --upgrade pip
+    pip install -r requirements.txt
 
+    
       - name: Sanity check (Jinja compile)
         run: |
           python - <<'PY'
