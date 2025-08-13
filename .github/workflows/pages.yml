@@ -10,6 +10,10 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,6 +21,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install jq (JSON CLI)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
 
       - name: Fetch CMS JSON from Apps Script
         env:
@@ -31,18 +40,15 @@ jobs:
           echo "Updated: $(jq -r '.updated' data/cms.json)"
           echo "Pages:   $(jq -r '.pages | length' data/cms.json)"
 
-      - name: Setup Node (for menu-builder.js)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      - name: Build site (HTML + menu + sitemap/robots)
+      - name: Build site (HTML + sitemap/robots)
         run: |
+          python -m pip install --upgrade pip
+          pip install Jinja2 markdown
           python -u tools/build.py
 
       - name: Upload artifact
