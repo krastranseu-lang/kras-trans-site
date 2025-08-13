@@ -30,7 +30,7 @@
     <link rel="preload" as="image" href="{{ site_url }}/static/img/{{ page.lcp_image }}">
   {% endif %}
 
-  {# --- JSON‑LD (Breadcrumbs + Organization/LocalBusiness) --- #}
+  {# --- JSON‑LD (Breadcrumbs + Organization/LocalBusiness/WebSite) --- #}
   {% for ld in head.jsonld %}
     <script type="application/ld+json">{{ ld|tojson }}</script>
   {% endfor %}
@@ -51,14 +51,15 @@
     <section class="hero">
       <picture>
         {% if page.hero_image_mobile %}
-          <source media="(max-width: 600px)" srcset="{{ site_url }}/static/img/{{ page.hero_image_mobile }}">
+          <source media="(max-width: 600px)"
+                  srcset="{{ site_url }}/static/img/{{ page.hero_image_mobile }}">
         {% endif %}
-        <img
-          src="{{ site_url }}/static/img/{{ page.hero_image }}"
-          alt="{{ page.hero_alt or page.h1 or page.title }}"
-          width="1200" height="630"
-          loading="eager" fetchpriority="high">
+        <img src="{{ site_url }}/static/img/{{ page.hero_image }}"
+             alt="{{ page.hero_alt or page.h1 or page.title }}"
+             width="1200" height="630"
+             loading="eager" fetchpriority="high">
       </picture>
+
       <div class="hero-copy">
         <p class="eyebrow">Kras-Trans — transport ekspresowy</p>
         <h1>{{ page.h1 or page.title }}</h1>
