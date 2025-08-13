@@ -1,6 +1,6 @@
 Jinja2>=3.1
 Markdown>=3.6
-python-slugify>=8.0
+python-slugify
 beautifulsoup4>=4.12
 lxml>=5.2
-requests>=2.31
+Pillow>=10.3
