@@ -22,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install jq and zip
+      - name: Install jq
         run: |
           sudo apt-get update
           sudo apt-get install -y jq zip
@@ -30,12 +30,11 @@ jobs:
       - name: Fetch CMS JSON from Apps Script
         env:
           APPS_URL: ${{ secrets.APPS_URL }}   # np. https://script.google.com/macros/s/AKfycb.../exec
-          APPS_KEY: ${{ secrets.APPS_KEY }}   # identyczny jak API_KEY w Apps Script (Właściwości skryptu)
+          APPS_KEY: ${{ secrets.APPS_KEY }}   # identyczny jak API_KEY we Właściwościach skryptu
         run: |
           mkdir -p data
           curl -fsSL "$APPS_URL?key=$APPS_KEY" -o data/cms.json
           test -s data/cms.json || (echo "CMS JSON missing" && exit 1)
-          # wymagamy ok:true, w przeciwnym razie pokaż response i przerwij
           [ "$(jq -r '.ok // empty' data/cms.json)" = "true" ] || (echo "Apps Script returned non-ok response" && cat data/cms.json && exit 1)
           echo "Updated: $(jq -r '.updated' data/cms.json)"
           echo "Pages:   $(jq -r '.pages | length' data/cms.json)"
@@ -58,31 +57,25 @@ jobs:
           env.get_template("page.html")  # fail fast jeśli błąd składni
           PY
 
-      - name: Build site (HTML + sitemap/robots)
+      - name: Build site (HTML + sitemap/robots + zip)
         run: |
           python -u tools/build.py
 
-      - name: Run audit (nie blokuje wdrożenia)
+      - name: Run audit (non-blocking)
         run: |
           python -u tools/audit.py || true
 
-      - name: Archive audit report
-        if: always()
+      - name: Upload audit report
         uses: actions/upload-artifact@v4
         with:
           name: audit-report
           path: audit/report.md
 
-      - name: Archive built site (snapshot)
-        run: |
-          cd dist && zip -r ../site-snapshot.zip .
-        shell: bash
-
-      - name: Upload site snapshot
+      - name: Upload site snapshot (ZIP)
         uses: actions/upload-artifact@v4
         with:
           name: site-snapshot
-          path: site-snapshot.zip
+          path: dist/download/site.zip
 
       - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v3
