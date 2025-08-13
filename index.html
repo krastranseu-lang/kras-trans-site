@@ -2,614 +2,107 @@
 <html lang="pl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Kras‑Trans — Firma transportowa • Ekspres 3,5 t i TIR • Polska & UE</title>
-  <meta name="description" content="Firma transportowa Kras‑Trans: ekspresowy transport busem 3,5 t i TIR w Polsce i całej UE. Door‑to‑door, 24/7, monitoring GPS, ubezpieczenie ładunku." />
-
-  <!-- ======================= GLOBAL CSS (v4) ======================= -->
-  <style id="kras-global">
-/* =========================================================
-   ★ KRAS-TRANS • GLOBAL UI v4 • 2025-08-12
-   ========================================================= */
-
-/* ---------- [0] TOKENS / RESET / FLUID TYPO ---------- */
-:root{
-  --bg:#ffffff; --ink:#1f2126; --muted:#646b75; --card:#ffffff; --bg-alt:#eef0f2;
-  --accent-hue:22; --accent: hsl(var(--accent-hue) 90% 55%); --accent-ink:#051218;
-  --border: color-mix(in oklab, var(--ink) 14%, transparent);
-  --glass: saturate(160%) blur(10px);
-  --radius:14px; --shadow-1: 0 10px 24px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.05);
-  --shadow-2: 0 16px 36px rgba(0,0,0,.14), 0 6px 12px rgba(0,0,0,.09);
-  --edge:.14; --edge-md:.12; --edge-sm:.10; --grain:.015;
-  --ff: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-  --fs: clamp(15px, 0.6vw + 0.75rem, 18px);
-  --lh: 1.55;
-  --content: clamp(52ch, 70ch, 76ch);
-  --section-pad: clamp(48px, 8vw, 80px);
-  --gap: clamp(10px, 2vw, 16px);
-  --underline-op:.55;
-  --divider: color-mix(in oklab, var(--ink) 12%, transparent);
-  --card-min-px: 340px; --card-min-ch: 32ch;
-}
-@media (prefers-color-scheme: dark){
-  :root{ --bg:#0b0f17; --ink:#e9eef4; --muted:#a9afb9; --card:#12151c; --bg-alt:#0e141d; --border: color-mix(in oklab, var(--ink) 18%, transparent); --grain:.02; }
-}
-:root[data-theme="dark"]{ color-scheme: dark; }
-
-*{ box-sizing:border-box } html,body{ margin:0; padding:0 }
-body{ background:var(--bg); color:var(--ink); font: 400 var(--fs)/var(--lh) var(--ff); -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; text-wrap: pretty; }
-img{ max-width:100%; height:auto; display:block }
-:focus-visible{ outline:2px solid var(--accent); outline-offset:2px }
-a{ color:inherit; text-decoration:none } a:hover{ box-shadow: inset 0 -1px 0 hsl(var(--accent-hue) 90% 55% / .7) }
-
-/* ---------- [1] LAYOUT / CQ ---------- */
-.section{ position:relative; padding: var(--section-pad) 24px; container-type:inline-size; container-name: section; content-visibility:auto; contain-intrinsic-size: 1px 640px; }
-.section .text{ max-width: var(--content); margin-inline:auto }
-.section.alt{ background: var(--bg-alt) }
-@container section (max-width: 640px){ .section{ padding: clamp(36px, 6vw, 52px) 16px } }
-.is-compact .section{ padding: clamp(28px, 5.4vw, 40px) 14px }
-.is-compact h1{ margin-bottom: 10px } .is-compact h2,.is-compact h3{ margin-bottom: 8px } .is-compact .cta-row{ gap: 8px } .is-compact .btn{ padding: 9px 12px }
-
-/* Separatory */
-.section.--line::before,.section.--dots::before,.section.--wave::before{ content:""; position:absolute; inset:auto 0 0 0; }
-.section.--line::before{ height:1px; background: linear-gradient(90deg, transparent, var(--divider), transparent) }
-.section.--dots::before{ height:2px; opacity:.35; color:var(--divider); background-image: radial-gradient(currentColor 1px, transparent 1px); background-size: 8px 2px }
-.section.--wave::before{ height:8px; opacity:.45; background: radial-gradient(4px 4px at 4px 4px, var(--divider) 98%, transparent 100%) repeat-x; background-size: 12px 8px }
-.section.--sep-inset::before{ left:50%; right:auto; width:min(100%, var(--content)); transform: translateX(-50%); }
-
-/* ---------- [2] HEADINGS ---------- */
-h1,h2,h3,.h1,.h2,.h3{ margin:0 0 18px; position:relative; text-wrap: balance; text-shadow: 0 .5px 0 rgba(255,255,255,.65), 0 0 .001px rgba(0,0,0,.28); }
-h1,.h1{ font-size: clamp(32px, 5.6vw, 62px); line-height:1.05; letter-spacing:-.02em }
-h2,.h2{ font-size: clamp(22px, 2.8vw, 28px) }
-h3,.h3{ font-size: clamp(18px, 2.2vw, 22px) }
-h1::after,.h1::after{ content:""; position:absolute; left:0; bottom:-.35em; height:3px; width:56%; background: linear-gradient(90deg, hsl(var(--accent-hue) 90% 55% / var(--underline-op)), transparent); transform-origin:left; animation: h1-underline .7s ease both; }
-h2::after,.h2::after{ content:""; position:absolute; left:0; bottom:-.35em; height:2px; width:48%; background: repeating-linear-gradient(90deg, hsl(var(--accent-hue) 90% 55% / .55) 0 10px, transparent 10px 18px); animation: h2-dash 8s linear infinite; }
-h3::after,.h3::after{ content:""; position:absolute; left:0; bottom:-.35em; height:2px; width:36%; background: linear-gradient(90deg, hsl(var(--accent-hue) 90% 55% / .45), transparent 70%), conic-gradient(from 0turn, transparent 0 340deg, hsl(var(--accent-hue) 90% 65%) 350deg 360deg); background-size:auto,14px 14px; background-repeat:repeat,repeat-x; background-position:0 0,0 50%; animation: h3-spark 2.8s ease-in-out infinite; opacity:.9; }
-.section.--u-full h1::after,.section.--u-full h2::after,.section.--u-full h3::after{ width:100% }
-@keyframes h1-underline{ from{ transform:scaleX(.15) } to{ transform:scaleX(1) } }
-@keyframes h2-dash{ to{ background-position:160px 0 } }
-@keyframes h3-spark{ 0%{background-position:0 0,0 50%} 50%{background-position:0 0,14px 50%} 100%{background-position:0 0,28px 50%} }
-@media (prefers-reduced-motion: reduce){ h1::after,h2::after,h3::after{ animation:none } }
-
-/* ---------- [3] HEADER ---------- */
-.header{ position:sticky; top:0; z-index:1000; background: color-mix(in oklab, var(--bg) 65%, transparent); backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass); border-bottom:1px solid var(--border) }
-.header .brand{ font-weight:800; letter-spacing:.2px }
-.header .menu a{ padding:8px 10px; border-radius:10px }
-.header .menu a:hover{ background: color-mix(in oklab, var(--ink) 6%, transparent) }
-.header .btn,.header .icon-btn,.header .btn-ghost{ background: color-mix(in oklab, var(--card) 85%, transparent) }
-.bottom-bar{ position:fixed; left:0; right:0; bottom:0; z-index:55; padding:max(8px, env(safe-area-inset-bottom)); background: color-mix(in oklab, var(--bg) 96%, transparent); backdrop-filter: var(--glass); border-top:1px solid var(--border); display:none; grid-template-columns:repeat(5,1fr); gap:8px }
-.bottom-bar a{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 6px; border-radius:12px; border:1px solid var(--border); background:var(--card); font-size:12px }
-@media (max-width:900px){ .bottom-bar{ display:grid } }
-
-/* ---------- [4] BUTTONS ---------- */
-.btn{ display:inline-flex; align-items:center; justify-content:center; gap:10px; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius); background:var(--card); font-weight:700; transition: filter .15s ease }
-.btn.primary{ background:var(--accent); color:var(--accent-ink); border-color:transparent }
-.btn:hover{ filter: brightness(1.02) }
-.btn-ghost{ padding:8px 12px; border:1px solid var(--border); background:var(--card); border-radius:var(--radius) }
-.icon-btn{ width:38px; height:38px; display:grid; place-items:center; border:1px solid var(--border); border-radius:12px; background:var(--card) }
-.btn--pulse{ animation: cta-pulse 1.4s ease-in-out 0s 3; box-shadow: 0 0 0 0 hsl(var(--accent-hue) 90% 55% / .5) }
-@keyframes cta-pulse{ 0%{ box-shadow: 0 0 0 0 hsl(var(--accent-hue) 90% 55% / .45) } 70%{ box-shadow: 0 0 0 16px hsla(0,0%,100%,0) } 100%{ box-shadow: 0 0 0 0 hsla(0,0%,100%,0) } }
-@media (prefers-reduced-motion: reduce){ .btn--pulse{ animation:none } }
-.switch{ position:relative; width:64px; height:34px; border-radius:999px; border:1px solid var(--border); background:color-mix(in oklab, var(--card) 80%, transparent) }
-.switch .knob{ position:absolute; top:2px; left:2px; width:30px; height:30px; border-radius:50%; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.2); transition: transform .2s ease }
-.switch[aria-checked="true"] .knob{ transform: translateX(30px) }
-
-/* ---------- [5] HERO ---------- */
-.hero{ position:relative; min-height:86svh; display:grid; place-items:center; overflow:hidden }
-.hero .hero-bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:-2; object-position:center 35% }
-.hero::after{ content:""; position:absolute; inset:0; z-index:-1; background: radial-gradient(900px 500px at 8% 10%, color-mix(in oklab, var(--bg) 16%, transparent), transparent 60%), linear-gradient(180deg, rgba(0,0,0,.45), transparent 40%, rgba(0,0,0,.50)); mix-blend-mode: multiply }
-.hero-inner{ width:min(1200px,100%); padding:28px; display:grid; gap:18px }
-.hero h1{ color:#fff } .hero p{ color:#f2f5f8 }
-.badges{ display:flex; gap:10px; flex-wrap:wrap }
-.badge-pill{ display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:999px; background: color-mix(in oklab, var(--card) 20%, transparent); border:1px solid var(--border); color:#fff }
-.cta-row{ display:flex; gap:12px; flex-wrap:wrap }
-
-/* ---------- [6] CARDS + GRID ---------- */
-.smart-card,
-.card,.feature-box,.service-box,.pricing,.testimonial,
-.elementor-widget-icon-box,.elementor-widget-image-box,.elementor-widget-call-to-action,.elementor-widget-price-table,.elementor-widget-testimonial,
-.wp-block-cover,.wp-block-group.has-background,.wp-block-media-text{
-  background: color-mix(in oklab, var(--bg) 82%, transparent);
-  backdrop-filter: saturate(120%) blur(6px); -webkit-backdrop-filter: saturate(120%) blur(6px);
-  border:1px solid color-mix(in oklab, white 26%, transparent);
-  border-radius: var(--radius); box-shadow: var(--shadow-1);
-  transition: transform .28s cubic-bezier(.2,.7,.2,1), box-shadow .28s, border-color .28s; will-change: transform, box-shadow;
-}
-.smart-card:hover,.card:hover,.feature-box:hover,.service-box:hover,.pricing:hover,.testimonial:hover{ transform: translateY(-3px) perspective(900px) rotateX(2deg) rotateY(-2deg); box-shadow: var(--shadow-2); border-color: hsl(var(--accent-hue) 90% 60% / .25); }
-.cards{ display:grid; gap:var(--gap); grid-template-columns: repeat(auto-fit, minmax(min(var(--card-min-px), var(--card-min-ch)), 1fr)); }
-.cards--min-280{ --card-min-px: 280px } .cards--min-320{ --card-min-px: 320px } .cards--min-360{ --card-min-px: 360px }
-
-/* Spotlight */
-.spotlight{ position:relative; isolation:isolate; box-shadow: 0 1px 0 color-mix(in oklab, var(--accent) 20%, transparent), 0 10px 24px rgba(0,0,0,.12) }
-.spotlight::after{ content:""; position:absolute; inset:auto 12px -14px 12px; height:22px; z-index:-1; border-radius:22px; background: radial-gradient(30% 100% at 50% 0%, hsl(var(--accent-hue) 90% 55% / .55), transparent 70%); filter: blur(8px) }
-
-/* ---------- [7] FAQ ---------- */
-.faq details{ border:1px solid var(--border); border-radius:var(--radius); background:var(--card); padding:12px 14px; transition: border-color .2s ease, background .2s ease, box-shadow .2s ease; }
-.faq details[open]{ border-color: hsl(var(--accent-hue) 90% 55% / .28); background: color-mix(in oklab, var(--card) 95%, var(--accent) 5%); box-shadow: 0 6px 20px rgba(0,0,0,.12) }
-.faq summary{ list-style:none; cursor:pointer; font-weight:700; display:flex; align-items:center; gap:8px }
-.faq summary::-webkit-details-marker{ display:none }
-.faq summary::before{ content:"?"; font-weight:900; width:22px; height:22px; display:grid; place-items:center; border-radius:6px; background: var(--accent); color: var(--accent-ink); box-shadow: 0 2px 8px rgba(0,0,0,.18); animation: faq-breathe 2.2s ease-in-out infinite; }
-@keyframes faq-breathe{ 0%,100%{ filter: brightness(1) } 50%{ filter: brightness(1.18) } }
-.faq details[open] summary::before{ content:"!" }
-.faq p{ margin:10px 0 0; color:var(--muted) }
-
-/* ---------- [8] FOOTER ---------- */
-footer{ padding:40px 20px; color:var(--muted); border-top:1px solid var(--border) }
-.footer-grid{ display:grid; gap:18px; grid-template-columns:1.2fr 1fr }
-@media (max-width:800px){ .footer-grid{ grid-template-columns:1fr } }
-.footer-links a{ display:inline-block; margin:6px 10px 0 0; padding:6px 10px; border:1px solid var(--border); border-radius:10px; background:var(--card) }
-.ctx-links{ display:flex; gap:10px; padding:6px 20px 10px }
-.ctx-links a{ padding:6px 10px; border:1px dashed var(--border); border-radius:10px; color:var(--muted) }
-
-/* ---------- [9] FX: BOCZNY PARALLAX + ZIARNO ---------- */
-.fx-ready body::before,.fx-ready body::after{ content:""; position:fixed; inset:0; pointer-events:none; z-index:0 }
-.fx-ready body::before{
-  --pwr: var(--edge); --y: var(--parallaxY, 0px);
-  background:
-    radial-gradient(70vw 90vh at -12vw calc(50% + var(--y)), hsl(var(--accent-hue) 90% 50% / calc(var(--pwr)*.9)), transparent 65%),
-    radial-gradient(70vw 90vh at 112vw calc(50% - var(--y)), hsl(var(--accent-hue) 90% 50% / calc(var(--pwr)*.9)), transparent 65%);
-}
-.fx-ready body::after{ opacity:var(--grain); mix-blend-mode:overlay; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size:100px 100px; }
-@media (max-width:991.98px){ .fx-ready body::before{ --pwr: var(--edge-md) } }
-@media (max-width:599.98px){ .fx-ready body::before{ --pwr: var(--edge-sm) } }
-@media (prefers-reduced-motion: reduce){ .fx-ready body::after{ opacity: calc(var(--grain)*.6) } }
-
-/* ---------- [10] BG LINES ---------- */
-.bg-lines{
-  background:
-    repeating-linear-gradient(to right, rgba(255,255,255,.04) 0 1px, transparent 1px 60px),
-    repeating-linear-gradient(to bottom, rgba(255,255,255,.035) 0 1px, transparent 1px 60px),
-    var(--bg);
-}
-.bg-lines .section{ background: transparent }
-.bg-lines.fx-pointer::after{ content:""; position:fixed; inset:0; pointer-events:none; z-index:0; background: radial-gradient(300px 300px at var(--mx,50%) var(--my,50%), hsl(var(--accent-hue) 90% 60% / .10), transparent 65%); mix-blend-mode: screen; }
-@media (prefers-color-scheme: light){
-  .bg-lines{ background:
-    repeating-linear-gradient(to right, rgba(0,0,0,.035) 0 1px, transparent 1px 60px),
-    repeating-linear-gradient(to bottom, rgba(0,0,0,.03) 0 1px, transparent 1px 60px),
-    var(--bg);
-  }
-}
-
-/* ---------- [11] READ MODE ---------- */
-.reading{ --bg:#fffdf8; --ink:#202124; --muted:#69707b; --card:#fff }
-.reading .section{ padding: clamp(40px, 6vw, 56px) 20px }
-.reading .text{ max-width: 65ch }
-.reading p{ hyphens:auto } .reading p + p{ text-indent:1.2rem; margin-top:0 }
-.reading mark{ background: color-mix(in oklab, var(--accent) 28%, transparent); padding:.08em .2em; border-radius:.3em }
-  </style>
-  <!-- ======================= /GLOBAL CSS ======================= -->
-
-  <style>
-    /* skip link (a11y) */
-    .skip{ position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden }
-    .skip:focus{ left:12px; top:12px; width:auto; height:auto; background:#fff; color:#000; padding:8px 10px; border-radius:8px; z-index:99999 }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kras-Trans — Ekspresowy transport 3,5 t i TIR • Polska & UE</title>
+  <meta name="description" content="Transport ekspresowy i dedykowany: busy do 3,5 t i TIR. Łódź, Polska, cała UE. 24/7, monitoring GPS, OC przewoźnika." />
+  <link rel="preload" as="video" href="assets/media/hero.mp4" />
+  <link rel="stylesheet" href="assets/css/kras-global.css" />
 </head>
-
-<body class="bg-lines">
-<a href="#main" class="skip">Przejdź do treści</a>
-
-<!-- ========== sekcja header ========= -->
-<header class="header" role="banner" id="top">
-  <!-- ======= komp. header ======= -->
-  <div class="section" style="padding:12px 20px">
-    <nav class="text" style="max-width:none; display:flex; align-items:center; gap:14px; justify-content:space-between">
-      <div class="brand"><a href="#top" class="btn-ghost">Kras‑Trans</a></div>
-
-      <div class="menu" style="display:flex; gap:6px; flex-wrap:wrap">
-        <a href="#onas">O nas</a>
-        <a href="#kontakt">Kontakt</a>
-        <a href="#uslugi">Usługi Transportowe</a>
-        <a href="#flota">Flota</a>
-        <a href="#praca">Praca</a>
-        <a href="#faq">FAQ</a>
-        <a href="#blog">Blog</a>
-        <a href="#vanfit">VanFit</a>
-        <a href="#wycena" class="btn primary btn--pulse">Wycena 15 min</a>
-      </div>
-
-      <div style="display:flex; align-items:center; gap:8px">
-        <button class="switch" id="d-theme" type="button" aria-checked="false" aria-label="Przełącz motyw">
-          <span class="knob" aria-hidden="true"></span>
+<body>
+  <!-- HEADER (sticky + scrollowalne menu, CTA się nie łamie) -->
+  <header class="site-header" role="banner">
+    <div class="container row">
+      <a href="/" class="brand">Kras-Trans</a>
+      <nav id="site-nav" class="nav" aria-label="Główna nawigacja"></nav>
+      <div class="header-actions">
+        <button id="theme-toggle" class="icon-btn theme-toggle" aria-label="Przełącz motyw">
+          <span class="sun" aria-hidden="true"></span>
+          <span class="moon" aria-hidden="true"></span>
         </button>
-        <button id="reading-toggle" class="btn-ghost" type="button" aria-pressed="false" title="Tryb czytania">Czytanie</button>
-        <a href="tel:+48793927467" class="btn">Zadzwoń</a>
+        <a href="tel:+48793927467" class="btn primary">Zadzwoń 24/7</a>
       </div>
-    </nav>
-  </div>
-  <!-- ======= koniec komp. header ======= -->
-</header>
-<!-- ========== koniec header ========= -->
+    </div>
+  </header>
 
-<!-- ======= mobile header / dock ======= -->
-<nav class="bottom-bar" aria-label="Skróty">
-  <a href="#wycena">📦<span>Wycena</span></a>
-  <a href="#uslugi">📄<span>Usługi</span></a>
-  <a href="#kierunki">🌍<span>Kierunki</span></a>
-  <a href="tel:+48793927467">📞<span>Zadzwoń</span></a>
-  <a href="#sledz">🚚<span>Śledź</span></a>
-</nav>
-<!-- ======= /mobile header / dock ======= -->
-
-<main id="main">
-
-<!-- ========== początek hero ========= -->
-<section id="kras-hero" class="kh" aria-label="Ekspresowy transport 3,5 t i TIR – Polska i Europa">
-  <style>
-    .kh{--bg:#0f1115;--ink:#eaecef;--cta:#FF5A00;--cta-ink:#fff;--rad:12px;--hue:20; position:relative;background:var(--bg);color:var(--ink);overflow:hidden}
-    @media (prefers-color-scheme:light){.kh{--bg:#E9EAEC;--ink:#16253A}}
-    .kh::before,.kh::after{content:"";position:absolute;inset:-10% -5%;pointer-events:none;z-index:0}
-    .kh::before{--pwr:.11;background:
-      radial-gradient(70vw 90vh at -12vw calc(50% + var(--parY,0px)),hsl(var(--hue) 90% 50%/calc(var(--pwr)*.9)),transparent 65%),
-      radial-gradient(70vw 90vh at 112vw calc(50% - var(--parY,0px)),hsl(var(--hue) 90% 50%/calc(var(--pwr)*.9)),transparent 65%)}
-    .kh::after{opacity:.018;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:100px 100px}
-    .kh .wrap{position:relative;z-index:1;display:flex;align-items:stretch;gap:0;min-height:640px;max-width:1440px;margin:0 auto}
-    .kh .left{flex:1;display:flex;flex-direction:column;justify-content:center;padding:5em 4em 4em 6vw}
-    .kh .right{flex:1;position:relative;overflow:hidden;display:flex;min-height:360px}
-    @media (min-width:1600px){ .kh .wrap{min-height:720px} .kh h1{font-size:clamp(32px,2.6vw,56px)} .kh h2{font-size:clamp(18px,1.4vw,22px)}}
-    @media (max-width:900px){ .kh .wrap{flex-direction:column} .kh .left{order:1;padding:2.2em 6vw 1.2em} .kh .right{order:2;min-height:auto} .kh .vid{aspect-ratio:16/9;height:auto;max-height:62vh}}
-    .kh .claim{display:inline-block;background:rgba(22,37,58,.88);color:#fff;padding:.5em 1.1em;border-radius:10px;text-transform:uppercase;font-weight:700;margin-bottom:1.2em;font-size:clamp(11px,1.6vw,13px)}
-    .kh h1{margin:0 0 .35em;font-size:clamp(24px,3.4vw,42px);font-weight:900;line-height:1.16;text-wrap:balance;text-shadow:0 2px 8px rgba(0,0,0,.28)}
-    .kh h2{margin:0 0 .7em;font-size:clamp(14px,2.1vw,18px);font-weight:600;opacity:.95}
-    .kh .seo-line{margin:.2em 0 1.2em;font-size:clamp(12px,1.6vw,15px);opacity:.9}
-    .kh .micro{font-size:clamp(12px,1.5vw,14px);opacity:.85;margin:.5em 0 0}
-    .kh .trust{display:flex;flex-wrap:wrap;gap:8px;margin:.6em 0 1.2em}
-    .kh .chip{font-weight:700;font-size:clamp(11px,1.5vw,13px);padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.14)}
-    @media (prefers-color-scheme:light){.kh .chip{background:rgba(0,0,0,.05);border-color:rgba(0,0,0,.08)}}
-    .kh .cta-wrap{position:relative;display:inline-block}
-    .kh .cta{position:relative;display:inline-flex;align-items:center;gap:.6em;padding:16px 44px;border-radius:10px;background:var(--cta);color:var(--cta-ink);text-decoration:none;font-weight:900;letter-spacing:.2px;box-shadow:0 8px 26px rgba(255,90,0,.38);transition:transform .15s,background .2s;font-size:clamp(14px,1.8vw,16px)}
-    .kh .cta:hover{transform:translateY(-2px) scale(1.02);background:#E04E00}
-    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,90,0,.35)}70%{box-shadow:0 0 0 20px rgba(255,90,0,0)}100%{box-shadow:0 0 0 0 rgba(255,90,0,0)}}
-    .kh .cta{animation:pulse 2.8s infinite}
-    @media (prefers-reduced-motion:reduce){.kh .cta{animation:none}}
-    @media (max-width:560px){.kh .cta{width:100%;justify-content:center}}
-    .kh .nudge{position:absolute;left:100%;top:50%;transform:translate(12px,-50%);background:#fff;color:#1b1b1b;border-radius:14px;padding:10px 12px;box-shadow:0 12px 26px rgba(0,0,0,.18);font-weight:800;white-space:nowrap;z-index:2}
-    .kh .nudge:before{content:"";position:absolute;left:-10px;top:50%;transform:translateY(-50%);border:8px solid transparent;border-right-color:#fff}
-    @keyframes swing{0%,100%{transform:translate(12px,-50%)}50%{transform:translate(6px,-50%)}}
-    .kh .nudge{animation:swing 2.2s ease-in-out infinite}
-    @media (max-width:560px){.kh .nudge{left:0;top:auto;transform:none;margin-top:10px}.kh .nudge:before{left:22px;top:-10px;transform:none;border:8px solid transparent;border-bottom-color:#fff}}
-    .kh .vid{width:100%;height:auto;object-fit:cover;inline-size:100%;block-size:100%;opacity:0;transition:opacity .3s;filter:brightness(.89) saturate(1.04)}
-    .kh .vid.active{opacity:1}
-    .kh .overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(22,37,58,.22),rgba(22,37,58,.14));pointer-events:none}
-    .kh .sidebar{position:fixed;top:50%;left:0;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;padding:8px;z-index:9999}
-    .kh .sidebar a{display:flex;align-items:center;width:44px;height:44px;color:var(--cta);background:transparent;border:2px solid var(--cta);border-radius:10px 0 0 10px;text-decoration:none;overflow:hidden;transition:width .3s,background .3s,color .3s}
-    .kh .sidebar a:hover{width:180px;background:var(--cta);color:#fff}
-    .kh .sidebar .icon{font-size:1.2em;margin:0 8px}.kh .sidebar .label{opacity:0;white-space:nowrap;margin-left:12px;transition:opacity .2s}
-    .kh .sidebar a:hover .label{opacity:1}
-    .kh .fab{display:none;position:fixed;bottom:24px;left:24px;width:56px;height:56px;border-radius:50%;background:var(--cta);color:#fff;border:none;box-shadow:0 4px 12px rgba(0,0,0,.2);font-size:24px;z-index:10000}
-    @media (max-width:700px){.kh .sidebar{left:-200px;transition:left .3s}.kh .sidebar.open{left:0}.kh .fab{display:flex;align-items:center;justify-content:center}}
-    .kh .coach{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;z-index:2;background:rgba(255,255,255,.9);border:1px solid rgba(0,0,0,.08);backdrop-filter:saturate(120%) blur(6px);border-radius:999px;padding:8px 12px;display:flex;gap:10px;box-shadow:0 10px 28px rgba(0,0,0,.16)}
-    .kh .coach .step{display:none;font-weight:800;gap:.6em;align-items:center;white-space:nowrap}
-    .kh .coach .step.active{display:flex}
-    .kh .dot{width:10px;height:10px;border-radius:50%;background:hsl(var(--hue) 90% 55%)}
-    .kh .coach small{font-weight:700;opacity:.85}
-    @media (max-width:700px){.kh .coach{bottom:72px}}
-    @media (prefers-color-scheme:dark){.kh .coach{background:rgba(15,17,21,.84);color:#fff;border-color:rgba(255,255,255,.08)}}
-    .kh .steps{position:relative;z-index:1;max-width:1100px;margin:24px auto 10px;padding:0 6vw}
-    .kh .steps h3{margin:.2em 0 .6em;font-size:clamp(18px,2.2vw,26px)}
-    .kh .grid{display:grid;gap:14px;grid-template-columns:repeat(3,1fr)}
-    @media (max-width:900px){.kh .grid{grid-template-columns:1fr}}
-    .kh .k{background:color-mix(in oklab,var(--bg) 82%,transparent);backdrop-filter:saturate(120%) blur(6px);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:16px 16px 14px;box-shadow:0 10px 24px rgba(0,0,0,.1);transition:box-shadow .25s}
-    @media (prefers-color-scheme:light){.kh .k{border-color:rgba(0,0,0,.06)}}
-    .kh .k.active{box-shadow:0 16px 36px rgba(0,0,0,.14)}
-    .kh .k strong{display:block;font-size:1.05rem;margin-bottom:6px}
-    .kh .k p{margin:0;color:color-mix(in oklab,var(--ink) 72%,transparent)}
-    .kh .num{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:hsl(var(--hue) 90% 55%/.16);font-weight:800;margin-bottom:10px}
-  </style>
-
-  <!-- Sidebar (szybkie akcje) -->
-  <nav class="sidebar" id="khSidebar" aria-label="Szybkie menu">
-    <a href="#wycena"><span class="icon">📦</span><span class="label">Wycena</span></a>
-    <a href="#uslugi"><span class="icon">📄</span><span class="label">Usługi</span></a>
-    <a href="#kierunki"><span class="icon">🌍</span><span class="label">Kierunki</span></a>
-    <a href="tel:+48793927467"><span class="icon">📞</span><span class="label">Zadzwoń</span></a>
-    <a href="#sledz"><span class="icon">🚚</span><span class="label">Śledź</span></a>
-  </nav>
-  <button class="fab" id="khFab" aria-label="Otwórz menu">☰</button>
-
-  <div class="wrap">
-    <div class="left">
-      <span class="claim">KOMPLEKSOWE USŁUGI TRANSPORTOWE</span>
-      <h1>Ekspresowy transport busem 3,5 t i TIR – Polska &amp; Europa</h1>
-      <h2>Transport ekspresowy i dedykowany door‑to‑door dla firm i produkcji</h2>
-      <p class="seo-line">Transport ekspresowy bus 3,5 t • transport dedykowany door‑to‑door • Łódź, Polska, Europa</p>
-      <div class="trust" aria-label="Atuty">
-        <span class="chip">Licencjonowany przewoźnik</span>
-        <span class="chip">OC przewoźnika</span>
-        <span class="chip">Dostępność 24/7</span>
-        <span class="chip">Szybki odbiór</span>
+  <main id="main">
+    <!-- HERO: wideo ma W/H + poster (zero CLS) -->
+    <section class="hero" id="kras-hero" aria-label="Ekspresowy transport 3,5 t i TIR – Polska i UE">
+      <div class="container wrap">
+        <div>
+          <span class="claim">KOMPLEKSOWE USŁUGI TRANSPORTOWE</span>
+          <h1>Ekspresowy transport busem 3,5 t i TIR – Polska &amp; Europa</h1>
+          <p>Transport ekspresowy i dedykowany door-to-door dla firm i produkcji. Odbiór już dziś.</p>
+          <p>
+            <a class="btn primary" href="#wycena">Wycena 15 min</a>
+            <a class="btn" href="tel:+48793927467">Zadzwoń</a>
+          </p>
+        </div>
+        <video muted loop playsinline preload="none" poster="assets/media/hero-poster.webp" width="1280" height="720">
+          <source src="assets/media/hero.mp4" type="video/mp4" />
+        </video>
       </div>
-      <div class="cta-wrap">
-        <a href="#wycena" class="cta" id="ctaMain" aria-label="Wyceń transport teraz">Wyceń transport teraz</a>
-        <div class="nudge" id="ctaNudge" role="status" aria-live="polite">
-          Kliknij tutaj <span class="sub">zamów transport — wolne auta dziś</span>
+    </section>
+
+    <!-- OFERTA: na mobile przewijanie w poziomie (scroll-snap) -->
+    <section class="section --line">
+      <div class="container text">
+        <h2>Nasza oferta</h2>
+      </div>
+      <div class="container cards cards--scroll" aria-label="Usługi (przesuń w lewo/prawo)">
+        <article class="card"><div class="pad"><h3>Transport krajowy</h3><p>Szybkie przewozy w Polsce.</p></div></article>
+        <article class="card"><div class="pad"><h3>Transport międzynarodowy</h3><p>Obsługa całej Europy.</p></div></article>
+        <article class="card"><div class="pad"><h3>Transport ekspresowy</h3><p>Dostawy tego samego dnia.</p></div></article>
+        <article class="card"><div class="pad"><h3>Transport ADR</h3><p>Bezpieczny przewóz materiałów niebezpiecznych.</p></div></article>
+        <article class="card"><div class="pad"><h3>Transport paletowy</h3><p>Palety EUR/EPAL, winda, wózek.</p></div></article>
+      </div>
+    </section>
+
+    <!-- FAQ: znak zapytania animowany (breathe), respektuje prefers-reduced-motion -->
+    <section class="section --dots" id="faq">
+      <div class="container text">
+        <h2>FAQ – najczęściej zadawane pytania</h2>
+        <div class="faq">
+          <details><summary>Jak szybko zrealizujecie transport?</summary><p>Standardowo 24–48 h, w trybie ekspresowym często tego samego dnia.</p></details>
+          <details><summary>Ile kosztuje przewóz busem 3,5 t?</summary><p>Orientacyjnie od 3,50 zł/km. Wycena online 24/7.</p></details>
+          <details><summary>Skąd startujecie?</summary><p>Łódź i cała Polska — realizujemy transport po UE.</p></details>
         </div>
       </div>
-      <p class="micro">Darmowa wycena • Bez ukrytych opłat • Szybki kontakt po wysłaniu formularza</p>
-    </div>
+    </section>
 
-    <div class="right" aria-hidden="true">
-      <video class="vid" muted loop playsinline preload="none"
-             poster="assets/img/hero-poster.webp">
-        <source src="assets/media/hero.mp4" type="video/mp4">
-      </video>
-      <div class="overlay"></div>
-    </div>
-
-    <div class="coach" id="coachBar" aria-live="polite">
-      <div class="step active"><span class="dot"></span> <span>Krok 1: <strong>Kliknij „Wyceń transport teraz”</strong></span></div>
-      <div class="step"><span class="dot"></span> <span>Krok 2: <strong>Wpisz trasę i dane ładunku</strong> (palety, waga, wymiary)</span></div>
-      <div class="step"><span class="dot"></span> <span>Krok 3: <strong>Wyślij zapytanie</strong> — oddzwonimy i potwierdzimy odbiór</span></div>
-    </div>
-  </div>
-
-  <div class="steps">
-    <h3>Jak działamy – 3 kroki</h3>
-    <div class="grid" id="gridSteps">
-      <div class="k"><div class="num">1</div><strong>Zgłoszenie</strong><p>Podaj skąd–dokąd, waga/wymiary, preferowana godzina odbioru.</p></div>
-      <div class="k"><div class="num">2</div><strong>Odbiór</strong><p>Podstawiamy busa/TIR. Kierowca pomaga w załadunku i dokumentach.</p></div>
-      <div class="k"><div class="num">3</div><strong>Dostawa</strong><p>Door‑to‑door, śledzenie drogi i potwierdzenie po rozładunku.</p></div>
-    </div>
-  </div>
-
-  <script>
-    (function(){
-      const sec   = document.getElementById('kras-hero');
-      const vid   = sec.querySelector('.vid');
-      const cta   = sec.querySelector('#ctaMain');
-      const nudge = sec.querySelector('#ctaNudge');
-      const coach = sec.querySelector('#coachBar');
-      const steps = coach.querySelectorAll('.step');
-      const isMobile = matchMedia('(max-width: 700px)').matches;
-
-      const lazyVideo = () => {
-        if (!vid) return;
-        const delay = isMobile ? 6000 : 700;
-        setTimeout(() => {
-          vid.load();
-          vid.oncanplay = () => { vid.classList.add('active'); vid.play().catch(()=>{}); };
-        }, delay);
-      };
-      if ('IntersectionObserver' in window) {
-        const io = new IntersectionObserver(e => {
-          if (e[0].isIntersecting) { lazyVideo(); io.disconnect(); }
-        }, { threshold: .2 });
-        io.observe(sec);
-      } else { lazyVideo(); }
-
-      const fab = sec.querySelector('#khFab'), sb = sec.querySelector('#khSidebar');
-      if (fab) fab.addEventListener('click', () => sb.classList.toggle('open'));
-
-      const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (!reduce && 'IntersectionObserver' in window) {
-        let ticking = false;
-        const setY = () => {
-          const r = sec.getBoundingClientRect(), vh = innerHeight || 1;
-          const p = (r.top + r.height/2)/vh;
-          const y = (0.5 - Math.min(Math.max(p,0),1)) * 22;
-          sec.style.setProperty('--parY', y.toFixed(2)+'px'); ticking=false;
-        };
-        const onScroll = () => { if(!ticking){ requestAnimationFrame(setY); ticking = true; } };
-        const watch = new IntersectionObserver((en)=>{
-          if(en[0].isIntersecting){ addEventListener('scroll', onScroll, {passive:true}); onScroll(); }
-          else { removeEventListener('scroll', onScroll); sec.style.removeProperty('--parY'); }
-        }, {threshold:0});
-        watch.observe(sec);
-      }
-
-      let i = 0, loop = setInterval(()=>{ i=(i+1)%steps.length; steps.forEach((s,j)=>s.classList.toggle('active',j===i)); }, 2600);
-      const stopCoach = () => { if(nudge) nudge.style.display='none'; clearInterval(loop); steps.forEach((s,j)=>s.classList.toggle('active', j===2)); };
-      cta.addEventListener('mouseenter', ()=> nudge && (nudge.style.display='none'));
-      cta.addEventListener('click', stopCoach);
-
-      const g = document.getElementById('gridSteps');
-      if('IntersectionObserver' in window && g){
-        const cards = g.querySelectorAll('.k');
-        const go = new IntersectionObserver((e)=>{
-          if(e[0].isIntersecting){
-            cards.forEach((el,idx)=> setTimeout(()=> el.classList.add('active'), idx*220));
-            go.disconnect();
-          }
-        },{threshold:.2});
-        go.observe(g);
-      }
-    })();
-  </script>
-</section>
-<!-- ========== koniec hero ========= -->
-
-<!-- ========== początek sekcji: USŁUGI (kafelki 1 rząd) ========= -->
-<section id="uslugi" class="section sec--delivery --line --u-full">
-  <div class="text">
-    <h2>Nasza oferta</h2>
-    <p>Transport ekspresowy i dedykowany: busy do 3,5 t oraz zestawy TIR. Polska i cała UE, 24/7, monitoring GPS, ubezpieczenie ładunku.</p>
-  </div>
-  <div class="cards cards--min-320" aria-label="Usługi">
-    <article class="smart-card"><div style="padding:16px"><h3>Transport krajowy</h3><p>Szybkie przewozy na terenie Polski.</p></div></article>
-    <article class="smart-card"><div style="padding:16px"><h3>Transport międzynarodowy</h3><p>Obsługa całej Europy.</p></div></article>
-    <article class="smart-card"><div style="padding:16px"><h3>Transport ekspresowy</h3><p>Dostawy nawet tego samego dnia.</p></div></article>
-    <article class="smart-card"><div style="padding:16px"><h3>Usługi dla firm</h3><p>Stałe kontrakty, indywidualne warunki.</p></div></article>
-  </div>
-</section>
-<!-- ========== koniec sekcji: USŁUGI ========= -->
-
-<!-- ========== początek: Dlaczego Kras‑Trans ========= -->
-<section class="section --dots --u-full" id="dlaczego">
-  <div class="text">
-    <h2>Dlaczego Kras‑Trans?</h2>
-  </div>
-  <div class="cards cards--min-320">
-    <article class="smart-card spotlight" data-elev="2"><div style="padding:16px"><h3>OC przewoźnika</h3><p>Ubezpieczenie ładunku w standardzie.</p></div></article>
-    <article class="smart-card"><div style="padding:16px"><h3>Dostawa w 24 h</h3><p>Ekspresowe terminy w PL i krajach ościennych.</p></div></article>
-    <article class="smart-card"><div style="padding:16px"><h3>Monitoring GPS</h3><p>Stały kontakt i śledzenie.</p></div></article>
-    <article class="smart-card"><div style="padding:16px"><h3>Doświadczenie</h3><p>10+ lat i setki zadowolonych klientów.</p></div></article>
-  </div>
-  <div class="text">
-    <div class="cta-row"><a href="#wycena" class="btn primary">Sprawdź wycenę 24/7 →</a></div>
-  </div>
-</section>
-<!-- ========== koniec: Dlaczego ========= -->
-
-<!-- ========== początek: Kierunki ========= -->
-<section id="kierunki" class="section sec--delivery --line --u-full">
-  <div class="text">
-    <h2>Ekspresowy transport w Europie i Polsce — nasze kierunki</h2>
-    <p><strong>Spedycja Kras‑Trans.</strong> Kliknij, aby zobaczyć wszystkie kraje.</p>
-    <div class="cta-row"><a class="btn-ghost" href="#uslugi">Lista krajów (wkrótce)</a></div>
-  </div>
-</section>
-<!-- ========== koniec: Kierunki ========= -->
-
-<!-- ========== początek: O nas ========= -->
-<section id="onas" class="section --dots --sep-inset">
-  <div class="text">
-    <h2>KRAS‑TRANS – ekspresowy transport busem towarów i TIR</h2>
-    <p>Jesteśmy licencjonowaną firmą transportową z Łodzi. Specjalizujemy się w ekspresowym transporcie busem do 3,5 t oraz TIR na trasach krajowych i UE. Usługi door‑to‑door, 24/7, monitoring GPS i pełne ubezpieczenie ładunku.</p>
-    <div class="cta-row"><a href="#wycena" class="btn primary">Zapytaj o wycenę ekspresowego transportu</a></div>
-  </div>
-</section>
-<!-- ========== koniec: O nas ========= -->
-
-<!-- ========== początek: Partnerzy / Opinie (placeholders) ========= -->
-<section class="section alt --wave --u-full" id="partnerzy">
-  <div class="text">
-    <h2>Nasi partnerzy biznesowi</h2>
-    <p>(Wgraj logotypy do <code>assets/img/</code> i podmień.)</p>
-  </div>
-  <div class="gallery">
-    <figure><img src="assets/img/partner-1.webp" alt="Partner 1"><figcaption class="sr-only">Partner 1</figcaption></figure>
-    <figure><img src="assets/img/partner-2.webp" alt="Partner 2"><figcaption class="sr-only">Partner 2</figcaption></figure>
-    <figure><img src="assets/img/partner-3.webp" alt="Partner 3"><figcaption class="sr-only">Partner 3</figcaption></figure>
-  </div>
-</section>
-<!-- ========== koniec: Partnerzy / Opinie ========= -->
-
-<!-- ========== początek: FAQ ========= -->
-<section id="faq" class="section sec--faq --dots --sep-inset">
-  <div class="text">
-    <h2>FAQ – najczęściej zadawane pytania</h2>
-    <div class="faq" aria-label="Pytania i odpowiedzi">
-      <details>
-        <summary>Co to jest ekspresowy transport busem do 3,5 t i TIR?</summary>
-        <p>Szybki przewóz towarów busem (do 3,5 t) lub TIR‑em z gwarancją dostawy w 24 h na terenie PL i głównych trasach UE.</p>
-      </details>
-      <details>
-        <summary>Jak szybko realizujecie ekspresowy transport?</summary>
-        <p>Standardowo w 24–48 h, w trybie ekspresowym często tego samego dnia.</p>
-      </details>
-      <details>
-        <summary>Ile kosztuje ekspresowy transport busem 3,5 t i TIR?</summary>
-        <p>Ceny od ok. 3,50 zł/km. Dokładna wycena online 24/7.</p>
-      </details>
-      <details>
-        <summary>Jak zamówić transport?</summary>
-        <p>Wypełnij formularz <a href="#wycena">„Wycena transportu”</a> lub zadzwoń <a href="tel:+48793927467">+48 793 927 467</a>.</p>
-      </details>
-    </div>
-  </div>
-</section>
-<!-- ========== koniec: FAQ ========= -->
-
-<!-- ========== początek: Kontakt / Wycena ========= -->
-<section id="wycena" class="section --line --u-full">
-  <div class="text">
-    <h2>Skontaktuj się z nami</h2>
-    <form class="smart-card" style="padding:16px" method="post" action="[TODO-APPS-SCRIPT-URL]">
-      <div class="cards cards--min-320">
-        <label class="smart-card" style="padding:10px"><span class="sr-only">Imię i nazwisko</span><input name="name" type="text" placeholder="Imię i nazwisko" required style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border)"></label>
-        <label class="smart-card" style="padding:10px"><span class="sr-only">Telefon</span><input name="phone" type="tel" placeholder="Telefon" required style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border)"></label>
-        <label class="smart-card" style="padding:10px"><span class="sr-only">E‑mail</span><input name="email" type="email" placeholder="E‑mail" required style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border)"></label>
+    <!-- Kontakt/Wycena -->
+    <section class="section --wave" id="wycena">
+      <div class="container text">
+        <h2>Skontaktuj się z nami</h2>
+        <form class="card" method="post" action="#">
+          <div class="pad">
+            <div class="cards">
+              <label class="card"><div class="pad"><input name="name" type="text" placeholder="Imię i nazwisko" required style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border)"></div></label>
+              <label class="card"><div class="pad"><input name="phone" type="tel" placeholder="Telefon" required style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border)"></div></label>
+              <label class="card"><div class="pad"><input name="email" type="email" placeholder="E-mail" required style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border)"></div></label>
+            </div>
+            <p><textarea name="message" placeholder="Treść zapytania" rows="4" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border)"></textarea></p>
+            <p><button class="btn primary" type="submit">Wyślij</button> <a class="btn" href="tel:+48793927467">Zadzwoń</a></p>
+          </div>
+        </form>
       </div>
-      <div style="margin-top:10px">
-        <textarea name="message" placeholder="Treść zapytania" rows="4" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border)"></textarea>
-      </div>
-      <div class="cta-row" style="margin-top:10px">
-        <button type="submit" class="btn primary" data-important="true">Wyślij</button>
-        <a href="tel:+48793927467" class="btn">Zadzwoń od razu: +48 793 927 467</a>
-        <a href="https://wa.me/48793927467" class="btn-ghost">WhatsApp</a>
-      </div>
-    </form>
-  </div>
-</section>
-<!-- ========== koniec: Kontakt / Wycena ========= -->
+    </section>
+  </main>
 
-<!-- ========== początek: Blog ========= -->
-<section id="blog" class="section alt --wave --u-full">
-  <div class="text"><h2>Porady i aktualności transportowe – blog</h2></div>
-  <div class="cards cards--min-320">
-    <article class="smart-card"><div style="padding:16px"><h3>Ekspresowy transport busem towarów i TIR – Kras‑Trans</h3><p>06/08/2025 • Strona główna • Transport ekspresowy bus</p></div></article>
-    <article class="smart-card"><div style="padding:16px"><h3>Usługi transportowe krajowe i międzynarodowe – przewodnik</h3><p>29/07/2025 • Strona główna • Profesjonalne usługi transportowe</p></div></article>
-    <article class="smart-card"><div style="padding:16px"><h3>Czy tani transport krajowy to zawsze dobry wybór?</h3><p>23/09/2024</p></div></article>
-    <article class="smart-card"><div style="padding:16px"><h3>Aktualności i innowacje w transporcie</h3><p>15/09/2024</p></div></article>
-  </div>
-</section>
-<!-- ========== koniec: Blog ========= -->
+  <!-- Dock mobilny -->
+  <nav class="bottom-bar" aria-label="Skróty">
+    <a href="#wycena">📦<span>Wycena</span></a>
+    <a href="#faq">❓<span>FAQ</span></a>
+    <a href="tel:+48793927467">📞<span>Telefon</span></a>
+    <a href="#kras-hero">⬆️<span>Góra</span></a>
+    <a href="/pl/transport-miedzynarodowy/">🌍<span>EU</span></a>
+  </nav>
 
-</main>
+  <footer class="site-footer">
+    <div class="container footer-grid" id="footer-columns"></div>
+    <div class="container"><small>© 2025 Kras-Trans • ul. Trzcinowa 14/11, 91-495 Łódź • <a href="tel:+48793927467">+48 793 927 467</a></small></div>
+  </footer>
 
-<!-- ========== początek footer ========= -->
-<footer class="section --dots" id="kontakt">
-  <div class="footer-grid">
-    <div>
-      <strong>Kras‑Trans</strong><br>
-      ul. Trzcinowa 14/11, 91‑495 Łódź • NIP: 726 266 23 03<br>
-      <a href="mailto:contact@kras-trans.eu">contact@kras-trans.eu</a> • <a href="tel:+48793927467">+48 793 927 467</a><br>
-      © 2025 Kras‑Trans. Wszelkie prawa zastrzeżone.
-    </div>
-    <div class="footer-links">
-      <a href="#uslugi">Usługi</a>
-      <a href="#flota">Flota</a>
-      <a href="#faq">FAQ</a>
-      <a href="#wycena">Wycena</a>
-    </div>
-  </div>
-</footer>
-<!-- ========== koniec footer ========= -->
-
-<!-- ======================= GLOBAL JS (v4) ======================= -->
-<script id="kras-global-js">
-/* =========================================================
-   ★ KRAS-TRANS • GLOBAL JS v4 • 2025-08-12
-   ========================================================= */
-const KRASCFG={FX_DELAY:2000,PARTICLES:true,PARTICLES_DENSITY:54,INTERACTIVE_LINES:true,PARALLAX_SIDES:true,THEME_STORAGE_KEY:'kras-theme',READING_STORAGE_KEY:'kras-reading'};
-const $=(s,c=document)=>c.querySelector(s), $$=(s,c=document)=>Array.from(c.querySelectorAll(s));
-const prefersReduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-function getAccentHex(){const probe=document.createElement('i');probe.style.color=getComputedStyle(document.documentElement).getPropertyValue('--accent')||'hsl(22 90% 55%)';document.body.appendChild(probe);const rgb=getComputedStyle(probe).color;document.body.removeChild(probe);const m=rgb.match(/\d+/g)||[255,170,0];const toHex=v=>('0'+Number(v).toString(16)).slice(-2);return `#${toHex(m[0])}${toHex(m[1])}${toHex(m[2])}`;}
-function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.defer=true;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
-function applyTheme(mode){const root=document.documentElement;if(mode){root.dataset.theme=mode;localStorage.setItem(KRASCFG.THEME_STORAGE_KEY,mode);}else{localStorage.removeItem(KRASCFG.THEME_STORAGE_KEY);root.removeAttribute('data-theme');}const dark=(mode?mode==='dark':matchMedia('(prefers-color-scheme: dark)').matches);['m-theme','d-theme'].forEach(id=>{const b=document.getElementById(id);if(b)b.setAttribute('aria-checked',dark?'true':'false');});}
-function initThemeSwitches(){applyTheme(localStorage.getItem(KRASCFG.THEME_STORAGE_KEY)); $$('.switch').forEach(sw=>sw.addEventListener('click',()=>{const cur=document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');applyTheme(cur==='dark'?'light':'dark');}));}
-function applyReadingMode(on){document.body.classList.toggle('reading',!!on);localStorage.setItem(KRASCFG.READING_STORAGE_KEY,on?'1':'0');}
-function initReadingToggle(){const btn=$('#reading-toggle');const saved=localStorage.getItem(KRASCFG.READING_STORAGE_KEY)==='1';applyReadingMode(saved);btn&&btn.addEventListener('click',()=>{const nv=!document.body.classList.contains('reading');applyReadingMode(nv);btn.setAttribute('aria-pressed',nv?'true':'false');});}
-function initParallaxSides(){if(prefersReduced||!KRASCFG.PARALLAX_SIDES)return;let ticking=false,lastY=0,doc=document.documentElement;const onScroll=()=>{lastY=doc.scrollTop||document.body.scrollTop||0;if(!ticking){requestAnimationFrame(()=>{const h=(doc.scrollHeight-doc.clientHeight)||1,p=lastY/h;const y=(p-.5)*30;document.documentElement.style.setProperty('--parallaxY',y.toFixed(2)+'px');ticking=false;});ticking=true;}};addEventListener('scroll',onScroll,{passive:true});onScroll();}
-function initInteractiveLines(){const body=document.body;if(!body.classList.contains('bg-lines')||prefersReduced||!KRASCFG.INTERACTIVE_LINES)return;body.classList.add('fx-pointer');const move=e=>{const x=(e.clientX/innerWidth*100).toFixed(2)+'%';const y=(e.clientY/innerHeight*100).toFixed(2)+'%';body.style.setProperty('--mx',x);body.style.setProperty('--my',y);};addEventListener('mousemove',move,{passive:true});}
-function ensureParticlesContainer(){let host=document.getElementById('particles-js');if(!host){host=document.createElement('div');host.id='particles-js';Object.assign(host.style,{position:'fixed',zIndex:'-1',top:0,left:0,width:'100vw',height:'100vh',pointerEvents:'none'});document.body.appendChild(host);}return host;}
-function initParticles(){if(!KRASCFG.PARTICLES||prefersReduced)return;const color=getAccentHex();ensureParticlesContainer();loadScript('https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js').then(()=>{if(!window.particlesJS)return;window.particlesJS('particles-js',{particles:{number:{value:KRASCFG.PARTICLES_DENSITY,density:{enable:true,value_area:800}},color:{value:color},shape:{type:'circle',stroke:{width:0,color:color}},opacity:{value:.42},size:{value:4,random:true},line_linked:{enable:true,distance:150,color:color,opacity:.33,width:1},move:{enable:true,speed:2.4,direction:'none',random:false,straight:false,out_mode:'out',bounce:false}},interactivity:{detect_on:'window',events:{onhover:{enable:true,mode:'repulse'},onclick:{enable:true,mode:'push'},resize:true},modes:{repulse:{distance:140,duration:.35},push:{particles_nb:3},bubble:{distance:240,size:30,duration:2,opacity:.8,speed:3}}},retina_detect:true});}).catch(()=>{});}
-function decorateSections(){const map=[{rx:/faq|pytania|questions/i,add:'sec--faq --dots --sep-inset'},{rx:/flota|fleet|pojazd/i,add:'sec--fleet --wave'},{rx:/dostaw|delivery|uslug|service/i,add:'sec--delivery --line'},{rx:/zauf|trust|opinie|reviews/i,add:'sec--trust --dots --sep-inset'}]; $$('section').forEach((sec,i)=>{const idc=(sec.id||'')+' '+(sec.className||''); map.forEach(m=>{if(m.rx.test(idc)) sec.classList.add(...m.add.split(' '));}); if(!sec.classList.contains('--line')&&!sec.classList.contains('--dots')&&!sec.classList.contains('--wave')){sec.classList.add(['--line','--dots','--wave'][i%3]);}});}
-function enhanceCTAs(){ $$('section .text').forEach(box=>{const btns=[...box.querySelectorAll('.btn, .btn-ghost')]; if(btns.length>=2 && !box.querySelector('.cta-row')){const row=document.createElement('div');row.className='cta-row';btns.slice(0,3).forEach(b=>row.appendChild(b)); box.insertBefore(row, box.firstElementChild?.nextElementSibling || null); }}); $$('[data-important="true"], .cta-important').forEach(el=> el.classList.add('btn--pulse')); }
-function enhanceFAQ(){ $$('.faq details').forEach(d=>{ d.addEventListener('toggle', ()=>{ if(d.open){ d.scrollIntoView({block:'nearest', behavior:prefersReduced?'auto':'smooth'}); } }); }); }
-function compactMobile(){ const mq=matchMedia('(max-width: 640px)'); const run=()=> document.body.classList.toggle('is-compact', mq.matches); mq.addEventListener?.('change',run); run(); }
-(function KRAS_BOOT(){
-  initThemeSwitches(); initReadingToggle(); compactMobile(); decorateSections(); enhanceCTAs(); enhanceFAQ();
-  const startFX=()=>{ document.documentElement.classList.add('fx-ready'); if(!prefersReduced){ if(KRASCFG.PARALLAX_SIDES) initParallaxSides(); if(KRASCFG.INTERACTIVE_LINES) initInteractiveLines(); if(KRASCFG.PARTICLES) initParticles(); }};
-  window.addEventListener('load', ()=>{ if('requestIdleCallback' in window){ requestIdleCallback(()=> startFX(), {timeout:KRASCFG.FX_DELAY}); } else { setTimeout(startFX,KRASCFG.FX_DELAY); }});
-})();
-</script>
-<!-- ======================= /GLOBAL JS ======================= -->
-
-<!-- JSON-LD (LocalBusiness – podstawowe) -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "LocalBusiness",
-  "name": "Kras-Trans",
-  "url": "https://kras-trans.eu/",
-  "telephone": "+48 793 927 467",
-  "address": { "@type": "PostalAddress", "streetAddress": "ul. Trzcinowa 14/11", "postalCode": "91-495", "addressLocality": "Łódź", "addressCountry": "PL" },
-  "areaServed": ["PL","DE","CZ","SK","NL","BE","FR","IT"],
-  "sameAs": ["https://www.instagram.com/kras_trans.express.eu","https://www.linkedin.com/company/kras-trans","https://www.facebook.com/share/sS2jgJPwdgvrF4az/?mibextid=LQQJ4d"]
-}
-</script>
-
+  <script src="assets/js/kras-global.js" defer></script>
+  <script src="assets/js/menu-builder.js" defer></script>
 </body>
 </html>
