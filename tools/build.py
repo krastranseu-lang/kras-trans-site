@@ -419,3 +419,21 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# --- ROOT index.html -> redirect to defaultLang (SEO-safe) ---
+def write_root_redirect(dist, default_lang="pl", site_url="https://kras-trans.com"):
+    root = dist / "index.html"
+    target = f"/{default_lang}/"
+    html = f"""<!doctype html><html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Kras-Trans</title>
+  <meta http-equiv="refresh" content="0; url={target}">
+  <link rel="canonical" href="{site_url}{target}">
+  <meta name="robots" content="noindex,follow">
+</head>
+<body>
+  <p>Przenoszę do <a href="{target}">{target}</a>…</p>
+  <script>location.replace("{target}")</script>
+</body></html>"""
+    root.write_text(html, "utf-8")
