@@ -29,13 +29,12 @@ jobs:
 
       - name: Fetch CMS JSON from Apps Script
         env:
-          APPS_URL: ${{ secrets.APPS_URL }}
-          APPS_KEY: ${{ secrets.APPS_KEY }}
+          APPS_URL: ${{ secrets.APPS_URL }}   # np. https://script.google.com/macros/s/AKfycb.../exec
+          APPS_KEY: ${{ secrets.APPS_KEY }}   # identyczny jak API_KEY w Apps Script (Właściwości skryptu)
         run: |
           mkdir -p data
           curl -fsSL "$APPS_URL?key=$APPS_KEY" -o data/cms.json
           test -s data/cms.json || (echo "CMS JSON missing" && exit 1)
-          # wymagamy ok:true
           [ "$(jq -r '.ok // empty' data/cms.json)" = "true" ] || (echo "Apps Script returned non-ok response" && cat data/cms.json && exit 1)
           echo "Updated: $(jq -r '.updated' data/cms.json)"
           echo "Pages:   $(jq -r '.pages | length' data/cms.json)"
@@ -45,10 +44,21 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Build site (HTML + sitemap/robots)
+      - name: Install build deps
         run: |
           python -m pip install --upgrade pip
           pip install Jinja2 markdown
+
+      - name: Sanity check (Jinja compile)
+        run: |
+          python - <<'PY'
+          from jinja2 import Environment, FileSystemLoader
+          e = Environment(loader=FileSystemLoader("templates"))
+          e.get_template("page.html")  # fail fast if jest błąd składni
+          PY
+
+      - name: Build site (HTML + sitemap/robots)
+        run: |
           python -u tools/build.py
 
       - name: Upload artifact
