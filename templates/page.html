@@ -1,46 +1,42 @@
 <!doctype html>
 <html lang="{{ page.lang or 'pl' }}">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <title>{{ head.title }}</title>
-  <meta name="description" content="{{ head.description }}">
-  <link rel="canonical" href="{{ head.canonical }}">
+  <meta name="description" content="{{ head.description }}" />
+  <link rel="canonical" href="{{ head.canonical }}" />
 
-  {# --- hreflang --- #}
+  {# --- HREFLANG --- #}
   {% if head.hreflangs %}
     {% for h in head.hreflangs %}
-      <link rel="alternate" hreflang="{{ h.lang }}" href="{{ h.url }}">
+      <link rel="alternate" hreflang="{{ h.lang }}" href="{{ h.url }}" />
     {% endfor %}
     {% if head.x_default %}
-      <link rel="alternate" hreflang="x-default" href="{{ head.x_default }}">
+      <link rel="alternate" hreflang="x-default" href="{{ head.x_default }}" />
     {% endif %}
   {% endif %}
 
-  {# --- Open Graph / Twitter --- #}
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="{{ head.og_title }}">
-  <meta property="og:description" content="{{ head.og_description }}">
-  <meta property="og:image" content="{{ head.og_image }}">
-  <meta name="twitter:card" content="summary_large_image">
+  {# --- OpenGraph --- #}
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="{{ head.og_title }}" />
+  <meta property="og:description" content="{{ head.og_description }}" />
+  <meta property="og:image" content="{{ head.og_image }}" />
 
-  <link rel="stylesheet" href="{{ site_url }}/static/css/site.css">
-  {% if page.lcp_image %}
-    <link rel="preload" as="image" href="{{ site_url }}/static/img/{{ page.lcp_image }}">
-  {% endif %}
+  <link rel="stylesheet" href="{{ site_url }}/static/css/site.css" />
+  {% if page.lcp_image %}<link rel="preload" as="image" href="{{ site_url }}/static/img/{{ page.lcp_image }}" />{% endif %}
 
-  {# --- JSON‑LD (Breadcrumbs + Organization/LocalBusiness/WebSite) --- #}
+  {# --- JSON-LD (Organization + Breadcrumbs) --- #}
   {% for ld in head.jsonld %}
     <script type="application/ld+json">{{ ld|tojson }}</script>
   {% endfor %}
-
-  <script src="{{ site_url }}/static/js/menu-builder.js" defer></script>
 </head>
+
 <body>
   <header class="site-header">
     <a href="{{ site_url }}/" class="brand">Kras-Trans</a>
-    <nav>
+    <nav class="nav">
       <a href="{{ site_url }}/#oferta">Oferta</a>
       <a href="{{ site_url }}/#kontakt">Kontakt</a>
       <a href="tel:+48793927467" class="btn">Zadzwoń 24/7</a>
@@ -51,15 +47,14 @@
     <section class="hero">
       <picture>
         {% if page.hero_image_mobile %}
-          <source media="(max-width: 600px)"
-                  srcset="{{ site_url }}/static/img/{{ page.hero_image_mobile }}">
+          <source media="(max-width: 600px)" srcset="{{ site_url }}/static/img/{{ page.hero_image_mobile }}" />
         {% endif %}
-        <img src="{{ site_url }}/static/img/{{ page.hero_image }}"
-             alt="{{ page.hero_alt or page.h1 or page.title }}"
-             width="1200" height="630"
-             loading="eager" fetchpriority="high">
+        <img
+          src="{{ site_url }}/static/img/{{ page.hero_image or 'placeholder-hero-desktop.webp' }}"
+          alt="{{ page.hero_alt or page.h1 or page.title }}"
+          width="1200" height="630"
+          loading="eager" fetchpriority="high" />
       </picture>
-
       <div class="hero-copy">
         <p class="eyebrow">Kras-Trans — transport ekspresowy</p>
         <h1>{{ page.h1 or page.title }}</h1>
@@ -76,20 +71,27 @@
       <article class="entry">{{ page.html | safe }}</article>
     {% endif %}
 
+    {% if head.jsonld and head.jsonld|length %}
+      <nav aria-label="breadcrumbs" class="breadcrumbs">
+        {# proste okruszki na podstawie JSON-LD, opcjonalnie można wyrenderować z kontekstu #}
+      </nav>
+    {% endif %}
+
     {% if related and related|length %}
       <section class="related">
         <h2>Powiązane strony</h2>
         <ul>
           {% for r in related %}
-            <li><a href="{{ site_url }}/{{ r.slug }}/">{{ r.title }}</a></li>
+            <li><a href="{{ site_url }}{{ '/' + r.slug if r.slug else '' }}/">{{ r.title }}</a></li>
           {% endfor %}
         </ul>
       </section>
     {% endif %}
   </main>
 
-  <footer class="site-footer">
-    © Kras-Trans — Ekspresowy transport 24/7
+  <footer class="site-footer" id="kontakt">
+    <p>© {{ (company[0].name if company else 'Kras-Trans') }} — Ekspresowy transport 24/7</p>
+    <p><a href="{{ site_url }}/download/site.zip">Pobierz snapshot strony (ZIP)</a></p>
   </footer>
 </body>
 </html>
