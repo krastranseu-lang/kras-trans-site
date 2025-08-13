@@ -3,28 +3,64 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <title>{{ head.title }}</title>
   <meta name="description" content="{{ head.description }}" />
   <link rel="canonical" href="{{ head.canonical }}" />
+
+  {# --- hreflang --- #}
   {% if head.hreflangs %}
     {% for alt in head.hreflangs %}
-      {% if alt.lang != (page.lang or 'pl') %}<link rel="alternate" hreflang="{{ alt.lang }}" href="{{ alt.url }}" />{% endif %}
+      {% set current_lang = (page.lang or 'pl') %}
+      {% if alt.lang != current_lang %}
+        <link rel="alternate" hreflang="{{ alt.lang }}" href="{{ alt.url }}" />
+      {% endif %}
     {% endfor %}
-    {% if head.x_default %}<link rel="alternate" hreflang="x-default" href="{{ head.x_default }}" />{% endif %}
+    {% if head.x_default %}
+      <link rel="alternate" hreflang="x-default" href="{{ head.x_default }}" />
+    {% endif %}
   {% endif %}
+
+  {# --- Open Graph --- #}
   <meta property="og:type" content="website" />
   <meta property="og:title" content="{{ head.og_title }}" />
   <meta property="og:description" content="{{ head.og_description }}" />
   <meta property="og:image" content="{{ head.og_image }}" />
+
+  {# --- Search Console (meta verification) --- #}
+  {% if head.gsc_meta %}
+    <meta name="google-site-verification" content="{{ head.gsc_meta }}">
+  {% endif %}
+
+  {# --- CSS --- #}
   <link rel="stylesheet" href="{{ site_url }}/static/css/site.css" />
-  {% if page.lcp_image %}<link rel="preload" as="image" href="{{ site_url }}/static/img/{{ page.lcp_image }}">{% endif %}
+
+  {# --- Preload LCP image (ostrożnie: tylko jeśli jest zdefiniowane) --- #}
+  {% if page.lcp_image %}
+    <link rel="preload" as="image" href="{{ site_url }}/static/img/{{ page.lcp_image }}">
+  {% endif %}
+
+  {# --- JSON-LD --- #}
   {% for ld in head.jsonld %}
     <script type="application/ld+json">{{ ld|tojson }}</script>
   {% endfor %}
-    {{ head.extra_head | safe }}
+
+  {# --- Google Analytics 4 (opcjonalnie) --- #}
+  {% if head.ga_id %}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ head.ga_id }}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '{{ head.ga_id }}');
+    </script>
+  {% endif %}
+
+  {# miejsce na ewentualne dodatkowe head-y w przyszłości #}
+  {{ head.extra_head | safe }}
 </head>
 <body>
-  <header class="site-header">
+  <header class="site-header" role="banner">
     <a href="{{ site_url }}/" class="brand">Kras-Trans</a>
     <nav class="nav" aria-label="Menu główne">
       <!-- menu zbuduje JS z assets/js/menu.js -->
@@ -32,11 +68,13 @@
     </nav>
   </header>
 
-  <main class="content">
-    <section class="hero" id="kras-hero">
+  <main class="content" id="main">
+    <section class="hero" id="kras-hero" aria-label="Hero">
       <picture>
         {% if page.hero_image_mobile %}
-          <source media="(max-width: 600px)" srcset="{{ site_url }}/static/img/{{ page.hero_image_mobile }}">
+          <source
+            media="(max-width: 600px)"
+            srcset="{{ site_url }}/static/img/{{ page.hero_image_mobile }}">
         {% endif %}
         <img
           src="{{ site_url }}/static/img/{{ page.hero_image or 'hero.svg' }}"
@@ -44,11 +82,12 @@
           width="1200" height="630"
           loading="eager" fetchpriority="high">
       </picture>
+
       <div class="hero-copy">
         <p class="eyebrow">Kras-Trans — transport ekspresowy</p>
         <h1>{{ page.h1 or page.title }}</h1>
         {% if page.lead %}<p class="lead">{{ page.lead }}</p>{% endif %}
-        <p>
+        <p class="cta">
           <a class="btn" href="tel:+48793927467">Zadzwoń 24/7</a>
           <a class="btn ghost" href="{{ site_url }}/wycena/">Wycena</a>
         </p>
@@ -60,11 +99,14 @@
       <article class="entry">{{ page.html | safe }}</article>
     {% endif %}
 
+    {# --- Breadcrumbs (jeśli w JSON-LD jest BreadcrumbList) --- #}
     {% set crumbs = [] %}
     {% for ld in head.jsonld %}
-      {% if ld['@type'] == 'BreadcrumbList' %}{% set crumbs = ld.itemListElement %}{% endif %}
+      {% if ld['@type'] == 'BreadcrumbList' %}
+        {% set crumbs = ld.itemListElement %}
+      {% endif %}
     {% endfor %}
-    {% if crumbs %}
+    {% if crumbs and crumbs|length %}
       <nav aria-label="breadcrumb" class="breadcrumbs">
         <ul>
           {% for c in crumbs %}
@@ -74,12 +116,25 @@
       </nav>
     {% endif %}
 
+    {# --- Powiązane strony (linki poprawione) --- #}
     {% if related and related|length %}
       <section class="related">
         <h2>Powiązane strony</h2>
         <ul>
           {% for r in related %}
-            <li><a href="{{ site_url }}{{ r.url }}">{{ r.title }}</a></li>
+            {# Jeżeli builder nie podał gotowego r.url, wyliczamy z lang/slug (ten sam język co bieżąca strona). #}
+            {% set rlang = r.lang or page.lang or 'pl' %}
+            {% set rslug = r.slug or '' %}
+            {% if not r.url %}
+              {% if rslug in ['', 'home'] %}
+                {% set rurl = site_url ~ '/' ~ rlang ~ '/' %}
+              {% else %}
+                {% set rurl = site_url ~ '/' ~ rlang ~ '/' ~ rslug ~ '/' %}
+              {% endif %}
+            {% else %}
+              {% set rurl = r.url %}
+            {% endif %}
+            <li><a href="{{ rurl }}">{{ r.title or r.h1 or r.slug }}</a></li>
           {% endfor %}
         </ul>
       </section>
