@@ -18,17 +18,19 @@
     {% endif %}
   {% endif %}
 
+  {# --- Open Graph / Twitter --- #}
   <meta property="og:type" content="website">
   <meta property="og:title" content="{{ head.og_title }}">
   <meta property="og:description" content="{{ head.og_description }}">
   <meta property="og:image" content="{{ head.og_image }}">
+  <meta name="twitter:card" content="summary_large_image">
 
   <link rel="stylesheet" href="{{ site_url }}/static/css/site.css">
   {% if page.lcp_image %}
     <link rel="preload" as="image" href="{{ site_url }}/static/img/{{ page.lcp_image }}">
   {% endif %}
 
-  {# --- JSON-LD --- #}
+  {# --- JSON‑LD (Breadcrumbs + Organization/LocalBusiness) --- #}
   {% for ld in head.jsonld %}
     <script type="application/ld+json">{{ ld|tojson }}</script>
   {% endfor %}
@@ -48,7 +50,9 @@
   <main class="content">
     <section class="hero">
       <picture>
-        <source media="(max-width: 600px)" srcset="{{ site_url }}/static/img/{{ page.hero_image_mobile }}">
+        {% if page.hero_image_mobile %}
+          <source media="(max-width: 600px)" srcset="{{ site_url }}/static/img/{{ page.hero_image_mobile }}">
+        {% endif %}
         <img
           src="{{ site_url }}/static/img/{{ page.hero_image }}"
           alt="{{ page.hero_alt or page.h1 or page.title }}"
@@ -76,7 +80,7 @@
         <h2>Powiązane strony</h2>
         <ul>
           {% for r in related %}
-            <li><a href="{{ site_url }}{{ r.slug }}">{{ r.title }}</a></li>
+            <li><a href="{{ site_url }}/{{ r.slug }}/">{{ r.title }}</a></li>
           {% endfor %}
         </ul>
       </section>
