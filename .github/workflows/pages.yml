@@ -107,17 +107,18 @@ jobs:
           PY
 
       # === BUDOWANIE STRONY ===
-      - name: Build site (HTML + sitemap/robots + ZIP)
-        env:
-          # Preferuj Repository Variables; jeśli nie ustawione – użyj sensownych domyślnych
-          SITE_URL: ${{ vars.SITE_URL || 'https://kras-trans.com' }}
-          DEFAULT_LANG: ${{ vars.DEFAULT_LANG || 'pl' }}
-          BRAND: ${{ vars.BRAND || 'Kras-Trans' }}
-          GA_ID: ${{ vars.GA_ID || 'G-5FYE42J3BE' }}
-          GSC_VERIFICATION: ${{ vars.GSC_VERIFICATION || 'Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y' }}
-          CNAME: ${{ vars.CNAME || 'kras-trans.com' }}
-        run: |
-          python -u tools/build.py
+      - name: Build site (HTML + sitemap/robots)
+  env:
+    SITE_URL: https://kras-trans.com
+    DEFAULT_LANG: pl
+    BRAND: "Kras-Trans"
+    GA_ID: "G-5FYE42J3BE"
+    GSC_VERIFICATION: "Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y"
+    CNAME: kras-trans.com
+  run: |
+    python -m pip install --upgrade pip
+    pip install Jinja2 markdown beautifulsoup4 lxml
+    python -u tools/build.py
 
       # === AUDYT (nie blokuje wdrożenia) ===
       - name: Run audit (non-blocking)
