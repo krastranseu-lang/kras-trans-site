@@ -3,20 +3,37 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <title>{{ head.title }}</title>
   <meta name="description" content="{{ head.description }}">
   <link rel="canonical" href="{{ head.canonical }}">
+
+  {# --- hreflang --- #}
+  {% if head.hreflangs %}
+    {% for h in head.hreflangs %}
+      <link rel="alternate" hreflang="{{ h.lang }}" href="{{ h.url }}">
+    {% endfor %}
+    {% if head.x_default %}
+      <link rel="alternate" hreflang="x-default" href="{{ head.x_default }}">
+    {% endif %}
+  {% endif %}
 
   <meta property="og:type" content="website">
   <meta property="og:title" content="{{ head.og_title }}">
   <meta property="og:description" content="{{ head.og_description }}">
   <meta property="og:image" content="{{ head.og_image }}">
 
-  <!-- KLUCZOWE: pełna ścieżka do CSS -->
   <link rel="stylesheet" href="{{ site_url }}/static/css/site.css">
-  <link rel="preload" as="image" href="{{ site_url }}/static/img/{{ page.lcp_image }}">
+  {% if page.lcp_image %}
+    <link rel="preload" as="image" href="{{ site_url }}/static/img/{{ page.lcp_image }}">
+  {% endif %}
 
-  <script type="application/ld+json">{{ head.jsonld|tojson }}</script>
+  {# --- JSON-LD --- #}
+  {% for ld in head.jsonld %}
+    <script type="application/ld+json">{{ ld|tojson }}</script>
+  {% endfor %}
+
+  <script src="{{ site_url }}/static/js/menu-builder.js" defer></script>
 </head>
 <body>
   <header class="site-header">
@@ -59,7 +76,7 @@
         <h2>Powiązane strony</h2>
         <ul>
           {% for r in related %}
-            <li><a href="{{ site_url }}/{{ r.slug }}/">{{ r.title }}</a></li>
+            <li><a href="{{ site_url }}{{ r.slug }}">{{ r.title }}</a></li>
           {% endfor %}
         </ul>
       </section>
