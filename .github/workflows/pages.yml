@@ -22,20 +22,51 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install jq
+      - name: Install jq + zip
         run: |
           sudo apt-get update
           sudo apt-get install -y jq zip
 
-      - name: Fetch CMS JSON from Apps Script
+      # === POBRANIE CMS Z APPS SCRIPT (odporne na timeouty/redirecty) ===
+      - name: Fetch CMS JSON from Apps Script (robust)
         env:
           APPS_URL: ${{ secrets.APPS_URL }}   # np. https://script.google.com/macros/s/AKfycb.../exec
-          APPS_KEY: ${{ secrets.APPS_KEY }}   # identyczny jak API_KEY we Właściwościach skryptu
+          APPS_KEY: ${{ secrets.APPS_KEY }}   # IDENTYCZNY jak API_KEY w Apps Script → Właściwości skryptu
         run: |
+          set -euo pipefail
           mkdir -p data
-          curl -fsSL "$APPS_URL?key=$APPS_KEY" -o data/cms.json
-          test -s data/cms.json || (echo "CMS JSON missing" && exit 1)
-          [ "$(jq -r '.ok // empty' data/cms.json)" = "true" ] || (echo "Apps Script returned non-ok response" && cat data/cms.json && exit 1)
+
+          # (opcjonalnie) szybka walidacja formatu URL
+          echo "$APPS_URL" | grep -Eq '^https://script\.google\.com/macros/s/.+/(exec|dev)$' || {
+            echo "WARN: APPS_URL wygląda nietypowo. Upewnij się, że to /exec lub /dev z 'Deploy' Web App'."
+          }
+
+          ATTEMPTS=5
+          i=1
+          while [ $i -le $ATTEMPTS ]; do
+            echo "Fetch attempt $i/$ATTEMPTS…"
+            HTTP_CODE=$(curl \
+              --silent --show-error --location \
+              --retry 5 --retry-delay 2 --retry-all-errors \
+              --connect-timeout 20 --max-time 60 \
+              --write-out "%{http_code}" \
+              --output data/cms.json \
+              "$APPS_URL?key=$APPS_KEY" || true)
+
+            if [ "$HTTP_CODE" = "200" ] && jq -e '.ok==true' data/cms.json >/dev/null 2>&1; then
+              break
+            fi
+
+            echo "HTTP=$HTTP_CODE; response head:"
+            head -c 400 data/cms.json || true
+            echo
+            sleep $((2*i))
+            i=$((i+1))
+          done
+
+          test -s data/cms.json || (echo "CMS JSON missing (empty file)"; exit 1)
+          jq -e '.ok==true' data/cms.json >/dev/null || (echo "Apps Script returned non-ok response"; cat data/cms.json; exit 1)
+
           echo "Updated: $(jq -r '.updated' data/cms.json)"
           echo "Pages:   $(jq -r '.pages | length' data/cms.json)"
 
