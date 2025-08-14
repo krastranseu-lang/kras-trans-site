@@ -585,3 +585,33 @@
 if (document.fonts && document.fonts.ready) {
   document.fonts.ready.then(()=> equalizeCards());
 }
+/* === NAV: zaznacz aktywną pozycję === */
+function setActiveNav(){
+  const cur = location.pathname.replace(/\/+$/,''); // bez końcowego /
+  document.querySelectorAll('#site-nav a[href^="/"]').forEach(a=>{
+    const href = a.getAttribute('href').replace(/\/+$/,'');
+    if (href && href === cur) a.setAttribute('aria-current','page');
+  });
+}
+
+/* === Mobile: chowaj header przy scrollu w dół === */
+function initHideHeaderOnScroll(){
+  const header = document.querySelector('.site-header');
+  if(!header) return;
+  let lastY = window.scrollY, hidden = false;
+  const onScroll = ()=>{
+    if (window.innerWidth > 900) { header.classList.remove('is-hidden'); return; }
+    const y = window.scrollY;
+    const down = y > lastY + 10;
+    const up   = y < lastY - 10;
+    if (down && y > 60 && !hidden){ header.classList.add('is-hidden'); hidden = true; }
+    else if (up && hidden){ header.classList.remove('is-hidden'); hidden = false; }
+    lastY = y;
+  };
+  window.addEventListener('scroll', onScroll, {passive:true});
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  setActiveNav();
+  initHideHeaderOnScroll();
+});
