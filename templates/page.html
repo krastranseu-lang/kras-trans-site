@@ -4,16 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0b0f17">
-
-  {# ------ Bezpieczne aliasy ------ #}
   {% set strings = strings or {} %}
   {% set _title = page.seo_title or page.title or page.h1 or 'Kras-Trans' %}
   {% set _desc  = page.meta_desc  or page.description or page.lead or 'Transport i spedycja — Polska & UE' %}
-
   <title>{{ _title }}</title>
   <meta name="description" content="{{ _desc }}">
 
-  {# ------ Canonical + hreflang ------ #}
+  {# Canonical + hreflang #}
   {% set _lang  = (page.lang or 'pl')|lower %}
   {% set _slug  = page.slug or '' %}
   {% set _path  = '/' ~ _lang ~ '/' ~ (_slug ~ ('/' if _slug)) %}
@@ -27,240 +24,240 @@
   {% endfor %}
   <link rel="alternate" hreflang="x-default" href="{{ _canon }}">
 
-  {# ------ OpenGraph / Twitter ------ #}
+  {# OG/Twitter #}
   {% set ogimg = page.og_image or page.hero_image or 'assets/media/og-default.webp' %}
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="{{ _title }}">
-  <meta property="og:description" content="{{ _desc }}">
-  <meta property="og:url" content="{{ _canon }}">
+  <meta property="og:type" content="website"><meta property="og:title" content="{{ _title }}">
+  <meta property="og:description" content="{{ _desc }}"><meta property="og:url" content="{{ _canon }}">
   <meta property="og:image" content="{{ _site ~ '/' ~ ogimg|replace('^/','') }}">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="{{ _title }}">
-  <meta name="twitter:description" content="{{ _desc }}">
+  <meta name="twitter:title" content="{{ _title }}"><meta name="twitter:description" content="{{ _desc }}">
   <meta name="twitter:image" content="{{ _site ~ '/' ~ ogimg|replace('^/','') }}">
 
-  {# ------ Google Search Console (jeśli podane w ENV) ------ #}
-  {% if GSC_VERIFICATION %}
-    <meta name="google-site-verification" content="{{ GSC_VERIFICATION }}">
-  {% endif %}
-
-  {# ------ Wydajność: fonty + CSS ------ #}
+  {# Wydajność #}
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable-Italic.woff2" crossorigin>
   <link rel="stylesheet" href="/assets/css/kras-global.css">
 
+  <!-- Drobny CSS komponentowy: 3D kafelki, nawigacja, split-hero (korzysta ze zmiennych z kras-global.css) -->
   <style>
-    /* drobny helper dostępności */
-    .visually-hidden{position:absolute!important;clip:rect(1px,1px,1px,1px);clip-path:inset(50%);height:1px;width:1px;overflow:hidden;white-space:nowrap}
+    .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    .header-grid{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:10px 0}
+    .nav-shell{display:flex;justify-content:center;align-items:center;gap:14px}
+    .nav-list{display:flex;gap:10px;overflow:auto hidden;scroll-snap-type:x proximity}
+    .nav-list>li{position:relative;flex:0 0 auto}
+    .nav-list a{padding:8px 10px;border-radius:10px}
+    .nav-list a:hover{background:color-mix(in oklab,var(--ink) 6%,transparent)}
+    .has-sub>button.nav-toggle{display:inline-flex;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--card);font-weight:700}
+    .sub{position:absolute;left:0;top:calc(100% + 8px);min-width:220px;padding:8px;border:1px solid var(--border);background:var(--card);border-radius:12px;box-shadow:var(--shadow-1)}
+    .sub a{display:block;padding:8px;border-radius:8px}
+    .sub a:hover{background:color-mix(in oklab,var(--ink) 6%,transparent)}
+    .nav-langs{display:flex;gap:6px;overflow:auto hidden}
+    .nav-langs a.lang{display:inline-grid;grid-auto-flow:column;align-items:center;gap:6px;padding:6px 8px;border-radius:12px;border:1px solid var(--border);background:var(--card)}
+    .lang .flag{width:18px;height:12px;border-radius:2px;display:block;background-size:cover;background-position:center}
+    /* flagi: wrzuć pliki do /assets/media/flags/<code>.svg */
+    .lang[data-lang=pl] .flag{background-image:url(/assets/media/flags/pl.svg)}
+    .lang[data-lang=en] .flag{background-image:url(/assets/media/flags/en.svg)}
+    .lang[data-lang=de] .flag{background-image:url(/assets/media/flags/de.svg)}
+    .lang[data-lang=fr] .flag{background-image:url(/assets/media/flags/fr.svg)}
+    .lang[data-lang=it] .flag{background-image:url(/assets/media/flags/it.svg)}
+    .lang[data-lang=ua] .flag{background-image:url(/assets/media/flags/ua.svg)}
+    .lang[data-lang=ru] .flag{background-image:url(/assets/media/flags/ru.svg)}
+
+    /* HERO 21:9 – bez stałego tła */
+    .hero{position:relative;inline-size:100%;aspect-ratio:21/9;min-block-size:clamp(340px, calc(100vw*9/21), 86svh);overflow:hidden;background:transparent}
+    .hero-wrap{display:grid;grid-template-columns:1.1fr 1fr;gap:clamp(16px,3vw,28px);align-items:center}
+    @media (max-width:900px){.hero-wrap{grid-template-columns:1fr}}
+    .hero-media{width:100%;height:100%;object-fit:cover;border-radius:12px;opacity:0;transition:opacity .3s}
+    .hero-media.active{opacity:1}
+    .hero .claim{display:inline-block;background:rgba(22,37,58,.88);color:#fff;padding:.5em 1.1em;border-radius:10px;text-transform:uppercase;font-weight:700;margin-bottom:1.2em;font-size:clamp(11px,1.6vw,13px)}
+
+    /* SPLIT-HERO (OFERTA → rail w tym samym miejscu) */
+    .split-hero{position:relative;height:140vh;overflow:clip}
+    .split-hero__sticky{position:sticky;top:calc(54px + 1svh);display:grid;place-items:center;min-height:clamp(340px,58vh,680px);padding-block:clamp(18px,4vh,32px)}
+    .split-hero__stack{--stack-h:clamp(140px,14vw,220px);width:min(var(--offer-maxw,860px),92vw);height:var(--stack-h);margin-inline:auto;position:relative;container-type:inline-size}
+    .split-hero__stack>*{position:absolute;inset:0}
+    .split-hero__title{opacity:calc(1 - var(--p,0));transition:opacity .2s linear}
+    .title-half{display:grid;place-items:center;line-height:1;text-transform:uppercase;font-weight:900;font-size:clamp(36px,16cqw,96px);letter-spacing:.04em;color:var(--ink)}
+    .title-left{clip-path:inset(0 50% 0 0);transform:translateX(calc(-50cqw * var(--p,0)))}
+    .title-right{clip-path:inset(0 0 0 50%);transform:translateX(calc( 50cqw * var(--p,0)))}
+    .split-hero__rail{display:grid;grid-auto-flow:column;grid-auto-columns:clamp(220px,42cqw,360px);gap:16px;overflow-x:auto;padding:6px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;align-items:stretch;height:100%;opacity:var(--p,0);transform:translateY(calc(14px * (1 - var(--p,0))));transition:opacity .2s linear,transform .2s ease;pointer-events:none}
+    .split-hero__rail>*{scroll-snap-align:start}
+    @media (prefers-reduced-motion:reduce){.title-left,.title-right{transform:none!important}.split-hero__title{opacity:0!important}.split-hero__rail{opacity:1!important;transform:none!important;pointer-events:auto!important}}
+
+    /* KAFELKI 3D – spójna baza + 3 warianty (inne w każdej sekcji) */
+    .card3d{position:relative;border-radius:18px;border:1px solid var(--border);background:var(--card);box-shadow:var(--shadow-1);overflow:hidden;transform-style:preserve-3d;transition:transform .25s ease, filter .25s ease}
+    .card3d .pad{padding:16px}
+    .card3d:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+    /* wariant A: glass‑edge */
+    .card3d--glass::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:conic-gradient(from 220deg, color-mix(in oklab,var(--accent) 45%,transparent), transparent 65%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.7}
+    /* wariant B: ring */
+    .card3d--ring::after{content:"";position:absolute;inset:-20% -30%;background:radial-gradient(60% 40% at 50% 50%, color-mix(in oklab,var(--accent) 35%,transparent), transparent 60%);filter:blur(24px);opacity:.5;pointer-events:none}
+    /* wariant C: neon‑edge */
+    .card3d--neon{box-shadow:0 10px 24px hsl(var(--accent-hue) 90% 55% / .08), inset 0 0 0 1px color-mix(in oklab,var(--accent) 26%,transparent)}
+    @media (hover:hover){
+      .card3d:hover{transform:translateY(-4px) rotateX(1.2deg) rotateY(.8deg)}
+    }
+
+    /* PROGRES przyciski */
+    .btn--progress{position:relative}
+    .btn--progress .btn__spinner{position:absolute;inset:auto 12px auto auto;display:inline-block;width:18px;height:18px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;opacity:0;transform:scale(.8);transition:opacity .15s ease}
+    .btn--progress.is-loading .btn__spinner{opacity:1;animation:spin .7s linear infinite}
+    .btn--progress .btn__check{position:absolute;inset:auto 12px auto auto;opacity:0;transform:scale(.6);transition:transform .2s, opacity .2s}
+    .btn--progress.is-success .btn__check{opacity:1;transform:scale(1)}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* „sekcje” – separator falą (SVG morph) */
+    .sep{height:80px;margin-top:8px;color:var(--divider)}
   </style>
 </head>
+
 <body>
-  <!-- Tło: siatka + canvas „patyczki” (bez obrazków) -->
+  <!-- globalne tła (krata + patyczki) – zero obrazków -->
   <div id="bg-grid" aria-hidden="true"></div>
   <canvas id="bg-canvas" aria-hidden="true"></canvas>
 
-  <!-- ===== HEADER (sticky) ===== -->
+  <!-- ===== HEADER ===== -->
   <header class="site-header" role="banner">
     <div class="container header-grid">
-      <!-- Logo / brand -->
       <a class="brand" href="/">{{ (company and company[0].name) or strings.brand or 'Kras-Trans' }}</a>
 
-      <!-- HAK DLA MENU: pusty nav, JS go wypełni i zdejmie 'hidden' -->
-      <nav id="site-nav" class="nav" aria-label="{{ strings.nav_main or 'Główna nawigacja' }}" hidden></nav>
+      <!-- Hak – JS zbuduje menu i pokaże -->
+      <nav id="site-nav" class="nav-shell" aria-label="{{ strings.nav_main or 'Główna nawigacja' }}" hidden></nav>
 
-      <!-- CTA + przełącznik trybów: system -> dark -> light -> paper -->
       <div class="header-actions">
-        <button id="theme-toggle" class="icon-btn theme-toggle" type="button"
-                aria-label="{{ strings.theme_toggle or 'Zmień motyw' }}"
-                aria-pressed="false" title="Motyw">
-          <span class="sun" aria-hidden="true"></span>
-          <span class="moon" aria-hidden="true"></span>
-          <span class="paper" aria-hidden="true"></span>
+        <button id="theme-toggle" class="icon-btn theme-toggle" type="button" aria-label="{{ strings.theme_toggle or 'Zmień motyw' }}">
+          <span class="sun" aria-hidden="true"></span><span class="moon" aria-hidden="true"></span><span class="paper" aria-hidden="true"></span>
         </button>
-        <a class="btn primary btn--shine" href="tel:{{ (company and company[0].telephone) or strings.phone or '+48793927467' }}">
-          {{ strings.cta_call or 'Zadzwoń 24/7' }}
-        </a>
+        <a class="btn primary btn--shine" href="tel:{{ (company and company[0].telephone) or strings.phone or '+48793927467' }}">{{ strings.cta_call or 'Zadzwoń 24/7' }}</a>
       </div>
     </div>
   </header>
 
-  <main id="main" class="content" role="main">
-    <!-- ===== HERO (bez stałego tła, 21:9) ===== -->
-    <section class="hero" id="hero" aria-label="{{ strings.hero_aria or 'Hero' }}">
-      <div class="container hero-wrap">
-        <div class="hero-copy">
-          <span class="claim">{{ page.claim or strings.claim or 'Kompleksowe usługi transportowe' }}</span>
-          <h1>{{ page.h1 or page.title or 'Transport — Polska & Europa' }}</h1>
-          {% if page.lead %}<p>{{ page.lead }}</p>{% endif %}
+  <!-- ===== HERO 21:9 ===== -->
+  <section class="hero" id="hero" aria-label="{{ strings.hero_aria or 'Hero' }}">
+    <div class="container hero-wrap">
+      <div class="hero-copy">
+        <span class="claim">{{ page.claim or strings.claim or 'Kompleksowe usługi transportowe' }}</span>
+        <h1>{{ page.h1 or page.title or 'Transport — Polska & Europa' }}</h1>
+        {% if page.lead %}<p>{{ page.lead }}</p>{% endif %}
+        <p>
+          <a class="btn primary" href="#kontakt">{{ strings.hero_cta_primary or 'Wycena 15 min' }}</a>
+          <a class="btn" href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">{{ strings.hero_cta_secondary or 'Zadzwoń' }}</a>
+        </p>
+      </div>
+
+      {% if page.hero_video %}
+        <video class="hero-media" muted loop playsinline preload="none" poster="{{ page.hero_poster or 'assets/media/hero.webp' }}" width="1680" height="720">
+          <source src="{{ page.hero_video }}" type="video/mp4">
+        </video>
+      {% elif page.hero_image %}
+        <img class="hero-media" src="{{ page.hero_image }}" alt="{{ page.hero_alt or page.h1 or page.title }}" width="1680" height="720" fetchpriority="high">
+      {% else %}
+        <img class="hero-media" src="/assets/media/hero.webp" alt="{{ page.h1 or page.title }}" width="1680" height="720" fetchpriority="high">
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- ===== OFERTA (napis → rail kafelków w tym samym miejscu) ===== -->
+  <section class="split-hero split-hero--narrow" id="offer-reveal" aria-label="{{ strings.offers_aria or 'Nasza oferta' }}">
+    <div class="split-hero__sticky">
+      <div class="split-hero__stack">
+        <div class="split-hero__title" aria-hidden="true">
+          <span class="title-half title-left">{{ strings.offer_big or 'Oferta' }}</span>
+          <span class="title-half title-right">{{ strings.offer_big or 'Oferta' }}</span>
+        </div>
+        <h1 class="sr-only">{{ strings.offer_big or 'Oferta' }}</h1>
+        <div class="split-hero__rail" role="list" aria-label="{{ strings.offers_list or 'Usługi (przesuń w bok na telefonie)' }}">
+          {% for o in offers or [] %}
+          <a role="listitem" class="card3d card3d--glass" href="{{ o.href or ('/' ~ _lang ~ '/uslugi/') }}">
+            <img src="{{ o.img or '/assets/media/offers/placeholder.webp' }}" alt="{{ o.img_alt or o.title }}" width="{{ o.img_w or 1280 }}" height="{{ o.img_h or 720 }}" loading="lazy" decoding="async">
+            <div class="pad">
+              <strong>{{ o.title or 'Usługa' }}</strong>
+              {% if o.desc %}<div class="muted">{{ o.desc }}</div>{% endif %}
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SEKCJA: Co robimy (inne 3D) ===== -->
+  <section class="section --line" id="co-robimy">
+    <div class="container text"><h2>{{ strings.what_title or 'Co robimy' }}</h2></div>
+    <div class="container cards cards--wrap" data-equalize="true">
+      {% for s in services or [] %}
+      <article class="card3d card3d--ring"><div class="pad">
+        <h3>{{ s.title or 'Transport międzynarodowy' }}</h3>
+        {% if s.desc %}<p>{{ s.desc }}</p>{% endif %}
+        {% if s.href %}<p><a class="btn" href="{{ s.href }}">{{ s.cta or strings.read_more or 'Sprawdź' }}</a></p>{% endif %}
+      </div></article>
+      {% endfor %}
+    </div>
+    <div class="sep sep--morph" aria-hidden="true"></div>
+  </section>
+
+  <!-- ===== SEKCJA: Dlaczego my (inne 3D) ===== -->
+  <section class="section --dots" id="dlaczego-my">
+    <div class="container text"><h2>{{ strings.why_title or 'Dlaczego my' }}</h2></div>
+    <div class="container cards cards--wrap" data-equalize="true">
+      {% for f in features or [] %}
+      <article class="card3d card3d--neon"><div class="pad">
+        <h3>{{ f.title or '24/7' }}</h3>
+        {% if f.desc %}<p>{{ f.desc }}</p>{% endif %}
+      </div></article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- ===== FAQ ===== -->
+  {% set page_faq = (faq or []) | selectattr('lang','equalto',_lang) | selectattr('page','equalto',samekey) | list %}
+  {% if page_faq|length %}
+  <section class="section --line" id="faq" aria-label="{{ strings.faq_aria or 'Najczęstsze pytania' }}">
+    <div class="container text"><h2>{{ strings.faq_title or 'FAQ' }}</h2></div>
+    <div class="container cards cards--wrap" data-equalize="true">
+      {% for f in page_faq %}
+      <details class="card3d"><div class="pad">
+        <summary><strong>{{ f.question }}</strong></summary>
+        <p>{{ f.answer }}</p>
+      </div></details>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ===== KONTAKT ===== -->
+  <section class="section" id="kontakt" data-section="contact" aria-label="{{ strings.contact_aria or 'Kontakt i wycena' }}">
+    <div class="container text">
+      <h2>{{ strings.contact_title or 'Skontaktuj się z nami' }}</h2>
+      {% if strings.contact_desc %}<p>{{ strings.contact_desc }}</p>{% endif %}
+    </div>
+    <div class="container">
+      <form class="card3d" method="post" action="{{ LEAD_ACTION or '/lead' }}" data-ajax="true">
+        <div class="pad">
+          <div class="cards cards--wrap" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
+            <label class="card"><div class="pad"><input name="name" type="text" placeholder="{{ strings.form_name or 'Imię i nazwisko' }}" required></div></label>
+            <label class="card"><div class="pad"><input name="phone" type="tel" placeholder="{{ strings.form_phone or 'Telefon' }}" required></div></label>
+            <label class="card"><div class="pad"><input name="email" type="email" placeholder="E-mail" required></div></label>
+          </div>
+          <p><textarea name="message" placeholder="{{ strings.form_message or 'Treść zapytania' }}" rows="4" style="width:100%"></textarea></p>
           <p>
-            <a class="btn primary" href="#kontakt">{{ strings.hero_cta_primary or 'Wycena 15 min' }}</a>
-            <a class="btn" href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">{{ strings.hero_cta_secondary or 'Zadzwoń' }}</a>
+            <button class="btn primary btn--progress" type="submit" data-progress>
+              <span class="btn__label">{{ strings.form_submit or 'Wyślij' }}</span>
+              <span class="btn__spinner" aria-hidden="true"></span>
+              <span class="btn__check" aria-hidden="true">✓</span>
+            </button>
+            <a class="btn" href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">{{ strings.cta_call_short or 'Zadzwoń' }}</a>
           </p>
         </div>
-
-        {% if page.hero_video %}
-          <video class="hero-media" muted loop playsinline preload="none"
-                 poster="{{ page.hero_poster or 'assets/media/hero.webp' }}"
-                 width="1680" height="720">
-            <source src="{{ page.hero_video }}" type="video/mp4">
-          </video>
-        {% elif page.hero_image %}
-          <img class="hero-media" src="{{ page.hero_image }}"
-               alt="{{ page.hero_alt or page.h1 or page.title }}"
-               width="1680" height="720" fetchpriority="high">
-        {% else %}
-          <img class="hero-media" src="/assets/media/hero.webp"
-               alt="{{ page.h1 or page.title }}" width="1680" height="720" fetchpriority="high">
-        {% endif %}
-      </div>
-    </section>
-
-    <!-- ===== OFERTA (kafelki z Arkusza; mobilnie poziomy scroll) ===== -->
-    <section class="section --line" id="oferta" data-section="offers" aria-label="{{ strings.offers_aria or 'Nasza oferta' }}">
-      <div class="container text">
-        <h2>{{ strings.offers_title or 'Nasza oferta' }}</h2>
-        {% if strings.offers_desc %}<p>{{ strings.offers_desc }}</p>{% endif %}
-      </div>
-
-      {% set offers_blocks = (blocks or [])
-        | selectattr('block','equalto','offer')
-        | selectattr('lang','equalto',_lang)
-        | selectattr('page','equalto',samekey)
-        | list %}
-      {% set offers_pages = (pages or [])
-        | selectattr('type','equalto','service')
-        | selectattr('lang','equalto',_lang)
-        | list %}
-      {% set offers = offers_blocks if offers_blocks|length else offers_pages %}
-
-      {% if offers|length %}
-      <div class="container cards tilt-cards cards--wrap cards--scroll" data-equalize="true"
-           aria-label="{{ strings.offers_list or 'Usługi (przesuń w bok na telefonie)' }}"
-           style="content-visibility:auto;contain-intrinsic-size:1px 1200px">
-        {% for it in offers|sort(attribute='order') %}
-          {% set url = it.href or it.url or ('/' ~ _lang ~ '/' ~ (it.slug or '') ~ '/') %}
-          <article class="card offer">
-            <div class="pad">
-              <h3>{{ it.title or it.h1 or it.seo_title or it.slug }}</h3>
-              {% if it.desc or it.lead or it.meta_desc %}
-                <p>{{ it.desc or it.lead or it.meta_desc }}</p>
-              {% endif %}
-              {% if url %}<a class="btn" href="{{ url }}">{{ it.cta or strings.read_more or 'Poznaj usługę' }}</a>{% endif %}
-            </div>
-          </article>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      <div class="sep sep--morph" data-morph="wave-2" aria-hidden="true"></div>
-    </section>
-
-    <!-- ===== FAQ (z Arkusza) ===== -->
-    {% set page_faq = (faq or [])
-      | selectattr('lang','equalto',_lang)
-      | selectattr('page','equalto',samekey)
-      | list %}
-    {% if page_faq|length %}
-    <section class="section --dots" id="faq" aria-label="{{ strings.faq_aria or 'Najczęstsze pytania' }}">
-      <div class="container text"><h2>{{ strings.faq_title or 'FAQ — najczęstsze pytania' }}</h2></div>
-      <div class="container cards cards--wrap" data-equalize="true">
-        {% for f in page_faq %}
-          <details class="card"><div class="pad">
-            <summary><strong>{{ f.question }}</strong></summary>
-            <p>{{ f.answer }}</p>
-          </div></details>
-        {% endfor %}
-      </div>
-    </section>
-    {% endif %}
-
-    <!-- ===== KONTAKT (bez stałego tła; przycisk spinner→check) ===== -->
-    <section class="section" id="kontakt" data-section="contact" aria-label="{{ strings.contact_aria or 'Kontakt i wycena' }}">
-      <div class="container text">
-        <h2>{{ strings.contact_title or 'Skontaktuj się z nami' }}</h2>
-        {% if strings.contact_desc %}<p>{{ strings.contact_desc }}</p>{% endif %}
-      </div>
-
-      <div class="container">
-        <form class="card" method="post" action="{{ LEAD_ACTION or '/lead' }}" data-ajax="true">
-          <div class="pad">
-            <div class="cards cards--wrap" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
-              <label class="card"><div class="pad"><input name="name"  type="text"  placeholder="{{ strings.form_name or 'Imię i nazwisko' }}" required></div></label>
-              <label class="card"><div class="pad"><input name="phone" type="tel"   placeholder="{{ strings.form_phone or 'Telefon' }}" required></div></label>
-              <label class="card"><div class="pad"><input name="email" type="email" placeholder="E-mail" required></div></label>
-            </div>
-            <p><textarea name="message" placeholder="{{ strings.form_message or 'Treść zapytania' }}" rows="4" style="width:100%"></textarea></p>
-            <p>
-              <button class="btn primary btn--progress" type="submit" data-progress>
-                <span class="btn__label">{{ strings.form_submit or 'Wyślij' }}</span>
-                <span class="btn__spinner" aria-hidden="true"></span>
-                <span class="btn__check"   aria-hidden="true">✓</span>
-              </button>
-              <a class="btn" href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">{{ strings.cta_call_short or 'Zadzwoń' }}</a>
-            </p>
-          </div>
-        </form>
-      </div>
-    </section>
-
-    <!-- ===== SLOT NA WIDŻETY Z ZEWN. SERWERA =====
-         Jak użyć:
-         - Ustaw data-embed-src="https://twoj-serwer/widget.html" (lub .json z HTML)
-         - Ładuje się leniwie, dopiero gdy sekcja wejdzie w viewport.
-         - Dla bezpiecznych skryptów użyj sandboxowanego <iframe> (patrz przykład 2).
-    -->
-    <section class="section --line" id="widgets" aria-label="Widżety">
-      <div class="container text"><h2>{{ strings.widgets_title or 'Dodatkowe moduły' }}</h2></div>
-
-      <div class="container cards cards--wrap">
-        <!-- Przykład 1: wstrzyknięcie czystego HTML z Twojego serwera -->
-        <article class="card"><div class="pad">
-          <h3>Widget HTML (fetch & sanitize)</h3>
-          <div class="embed" data-embed-src="https://example.com/widgets/kierunki.html"></div>
-        </div></article>
-
-        <!-- Przykład 2: osadzony iframe (sandboks) -->
-        <article class="card"><div class="pad">
-          <h3>Mapa kierunków (iframe)</h3>
-          <div class="iframe-wrap" style="aspect-ratio:16/9">
-            <iframe
-              loading="lazy"
-              src="https://example.com/widgets/mapa.html"
-              title="Kierunki"
-              style="width:100%;height:100%;border:0;border-radius:12px"
-              sandbox="allow-scripts allow-same-origin"
-              referrerpolicy="no-referrer">
-            </iframe>
-          </div>
-        </div></article>
-      </div>
-    </section>
-
-    <!-- ===== POWIĄZANE ===== -->
-    {% set related = (pages or [])
-      | selectattr('lang','equalto',_lang)
-      | selectattr('parentSlug','equalto',page.parentSlug)
-      | rejectattr('slugKey','equalto',samekey)
-      | list %}
-    {% if related|length %}
-    <section class="section --line" id="related">
-      <div class="container text"><h2>{{ strings.related_title or 'Powiązane strony' }}</h2></div>
-      <div class="container cards cards--wrap">
-        {% for r in related[:6] %}
-          <article class="card"><div class="pad">
-            <h3><a href="/{{ _lang }}/{{ r.slug }}/">{{ r.h1 or r.title or r.seo_title }}</a></h3>
-            {% if r.meta_desc %}<p>{{ r.meta_desc }}</p>{% endif %}
-          </div></article>
-        {% endfor %}
-      </div>
-    </section>
-    {% endif %}
-  </main>
+      </form>
+    </div>
+  </section>
 
   <!-- ===== FOOTER + dock mobilny ===== -->
   <footer class="site-footer" role="contentinfo">
-    <div class="container footer-grid" id="footer-columns">
+    <div class="container footer-grid">
       <div>
         <strong>{{ (company and company[0].name) or 'Kras-Trans' }}</strong><br>
         {% if company and company[0].streetAddress %}{{ company[0].streetAddress }}{% endif %}
@@ -284,61 +281,23 @@
     <a href="/{{ _lang }}/transport-miedzynarodowy/">🌍<span>EU</span></a>
   </nav>
 
-  {# ------ JSON-LD: Organization + WebPage + Breadcrumbs (+ FAQ jeśli jest) ------ #}
-  <script type="application/ld+json">
-  {
-    "@context":"https://schema.org",
-    "@graph":[
-      {
-        "@type":"Organization",
-        "name":"{{ (company and company[0].name) or 'Kras-Trans' }}",
-        {% if company and company[0].url %}"url":"{{ company[0].url }}",{% endif %}
-        {% if company and company[0].telephone %}"telephone":"{{ company[0].telephone }}",{% endif %}
-        "logo":"{{ _site }}/assets/media/og-default.webp"
-      },
-      {
-        "@type":"WebPage",
-        "name":"{{ _title }}",
-        "url":"{{ _canon }}",
-        "inLanguage":"{{ _lang }}"
-      },
-      {
-        "@type":"BreadcrumbList",
-        "itemListElement":[
-          { "@type":"ListItem","position":1,"name":"Home","item":"{{ _site }}/{{ _lang }}/" }
-          {% if page.parentSlug %}, { "@type":"ListItem","position":2,"name":"{{ page.parentSlug }}","item":"{{ _site }}/{{ _lang }}/{{ page.parentSlug }}/" }{% endif %},
-          { "@type":"ListItem","position":{{ 3 if page.parentSlug else 2 }},"name":"{{ page.h1 or page.title or page.seo_title or _slug }}","item":"{{ _canon }}" }
-        ]
-      }
-      {% if page_faq|length %},
-      {
-        "@type":"FAQPage",
-        "mainEntity":[
-          {% for f in page_faq -%}
-          { "@type":"Question","name":"{{ f.question }}","acceptedAnswer":{"@type":"Answer","text":"{{ f.answer }}"} }{{ "," if not loop.last else "" }}
-          {%- endfor %}
-        ]
-      }
-      {% endif %}
-    ]
-  }
-  </script>
+  <!-- JSON-LD (Org/WebPage/Breadcrumbs/FAQ) – jak wcześniej -->
+  <script type="application/ld+json">{ "@context":"https://schema.org","@type":"WebPage","name":"{{ _title }}","url":"{{ _canon }}","inLanguage":"{{ _lang }}" }</script>
 
-  {# ------ JS: global + menu-builder ------ #}
-  <script src="/assets/js/kras-global.js" defer></script>
-
-  {# Jeśli w Arkuszu brak zakładki Nav dla danego języka, użyj prostego configu KRAS_NAV: #}
+  <!-- Konfiguracja menu (fallback, gdy arkusz nie dostarczy) -->
   {% set _nav_items = (nav or []) | selectattr('lang','equalto',_lang) | list %}
   {% if _nav_items|length == 0 %}
   <script>
     window.KRAS_NAV = {
       items: [
-        { label:"Oferta", href:"/{{ _lang }}/#oferta" },
+        { label:"Oferta", href:"/{{ _lang }}/#offer-reveal" },
         { label:"Usługi", href:"/{{ _lang }}/uslugi/", children:[
-          { label:"Express 3,5 t", href:"/{{ _lang }}/transport-ekspresowy/" },
-          { label:"Paletowy",     href:"/{{ _lang }}/transport-paletowy/" }
+          { label:"Krajowy", href:"/{{ _lang }}/transport-krajowy/" },
+          { label:"Międzynarodowy", href:"/{{ _lang }}/transport-miedzynarodowy/" },
+          { label:"Ekspres 3,5 t", href:"/{{ _lang }}/transport-ekspresowy/" },
+          { label:"Paletowy", href:"/{{ _lang }}/transport-paletowy/" }
         ]},
-        { label:"FAQ",     href:"/{{ _lang }}/#faq" },
+        { label:"FAQ", href:"/{{ _lang }}/#faq" },
         { label:"Kontakt", href:"/{{ _lang }}/#kontakt" }
       ],
       langs: [
@@ -350,43 +309,41 @@
   </script>
   {% endif %}
 
-  <script src="/assets/js/menu-builder.js" defer></script>
+  <!-- Global + builder -->
+  <script defer src="/assets/js/kras-global.js"></script>
+  <script defer src="/assets/js/menu-builder.js"></script>
 
-  {# ------ GA4 po onload (mniejszy wpływ na LCP/INP) ------ #}
-  {% if GA_ID %}
+  <!-- Minimalne „wklejki” jeśli czegoś nie masz w globalu -->
   <script>
-    window.addEventListener('load', function(){
-      var s=document.createElement('script');
-      s.src='https://www.googletagmanager.com/gtag/js?id={{ GA_ID }}';
-      s.async=true; document.head.appendChild(s);
-      window.dataLayer=window.dataLayer||[]; function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config','{{ GA_ID }}',{'transport_type':'beacon','anonymize_ip':true});
-    }, { once:true });
-  </script>
-  {% endif %}
-
-  {# ------ Leniwe dociąganie widżetów do [data-embed-src] (jeśli nie masz tego w kras-global.js) ------ #}
-  <script>
+    // Split-hero – ustaw p (0→1) tylko gdy sekcja w zasięgu; klik aktywne od p>0.15
     (function(){
-      const els = document.querySelectorAll('[data-embed-src]');
-      if(!('IntersectionObserver' in window) || !els.length) return;
-      const io = new IntersectionObserver((entries)=>{
-        entries.forEach(async e=>{
-          if(!e.isIntersecting) return;
-          const box = e.target; io.unobserve(box);
-          const url = box.getAttribute('data-embed-src');
-          try{
-            const res = await fetch(url, { credentials:'omit' });
-            const html = await res.text();
-            // prosta dezynfekcja: usuwamy <script>
-            const tmp = document.createElement('div'); tmp.innerHTML = html;
-            tmp.querySelectorAll('script').forEach(s=>s.remove());
-            box.innerHTML = tmp.innerHTML;
-          }catch(_){ box.innerHTML = '<p class="muted">Nie udało się wczytać modułu.</p>'; }
-        });
-      }, { rootMargin:'200px 0px' });
-      els.forEach(el=>io.observe(el));
+      const host=document.getElementById('offer-reveal'); if(!host) return;
+      const sticky=host.querySelector('.split-hero__sticky'); const rail=host.querySelector('.split-hero__rail');
+      if(matchMedia('(prefers-reduced-motion: reduce)').matches){ host.style.setProperty('--p',1); rail.style.pointerEvents='auto'; return; }
+      const calc=()=>{ const r=host.getBoundingClientRect(); const full=(host.offsetHeight-sticky.offsetHeight)||1;
+        const passed=Math.min(Math.max(-r.top,0), full); const p=Math.min(Math.max(passed/full,0),1);
+        host.style.setProperty('--p', p.toFixed(4)); rail.style.pointerEvents = p>0.15?'auto':'none'; };
+      let ticking=false; const onScroll=()=>{ if(ticking) return; ticking=true; requestAnimationFrame(()=>{ ticking=false; calc(); }); };
+      const io=new IntersectionObserver(e=>{ if(e[0].isIntersecting){ addEventListener('scroll', onScroll, {passive:true}); addEventListener('resize', onScroll); calc(); }
+        else{ removeEventListener('scroll', onScroll); removeEventListener('resize', onScroll); } }); io.observe(host);
+    })();
+
+    // Tilt 3D – subtelny, tylko pointer precyzyjny; kolory z :root
+    (function(){
+      if(!matchMedia('(hover:hover)').matches) return;
+      document.addEventListener('pointermove', e=>{
+        const el = e.target.closest('.card3d'); if(!el) return;
+        const r = el.getBoundingClientRect(), x = (e.clientX - r.left)/r.width, y = (e.clientY - r.top)/r.height;
+        el.style.transform = `rotateX(${(0.8 - y*1.6).toFixed(2)}deg) rotateY(${(x*1.6 - 0.8).toFixed(2)}deg) translateY(-2px)`;
+      });
+      document.addEventListener('pointerleave', e=>{ const el=e.target.closest('.card3d'); if(el) el.style.transform=''; }, true);
+    })();
+
+    // Theme-color meta aktualizacja po zmianie motywu
+    (function(){
+      const m=document.querySelector('meta[name="theme-color"]'); if(!m) return;
+      const apply=()=>{ const bg=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(); if(bg) m.setAttribute('content', bg); };
+      new MutationObserver(apply).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']}); apply();
     })();
   </script>
 </body>
