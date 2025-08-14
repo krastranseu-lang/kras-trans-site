@@ -1,6 +1,9 @@
 <!doctype html>
 <html lang="{{ page.lang or DEFAULT_LANG }}">
 <head>
+  {% if page.hero_image %}
+<link rel="preload" as="image" href="{{ page.hero_image }}" imagesrcset="{{ page.hero_image }} 1680w" fetchpriority="high">
+{% endif %}
   {# ========= BASIC ========= #}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -205,30 +208,20 @@
     </section>
 
     {# ========= KIERUNKI / MAPA ========= #}
-    <section class="section" id="kierunki" aria-label="{{ strings.routes_aria or 'Kierunki i specjalizacje' }}">
-      <div class="container text">
-        <h2>{{ strings.routes_title or 'Kierunki i specjalizacje' }}</h2>
-        {% if strings.routes_desc %}<p>{{ strings.routes_desc }}</p>{% endif %}
-      </div>
+<section class="section --line" id="kierunki" aria-label="Kierunki i specjalizacje">
+  <div class="container text">
+    <h2>{{ strings.routes_title or 'Kierunki i specjalizacje' }}</h2>
+    {% if strings.routes_desc %}<p>{{ strings.routes_desc }}</p>{% endif %}
+  </div>
 
-      <div class="container">
-        <div class="chips scroll-x" aria-label="{{ strings.routes_tags or 'Lista kierunków' }}">
-          {% for r in (routes or []) | selectattr('lang','equalto',_lang) | sort(attribute='order') | list %}
-            <a class="chip" href="{{ r.href or ('/' ~ _lang ~ '/trasa/' ~ (r.slug or '')) }}/">
-              {{ r.label or r.name }}
-            </a>
-          {% endfor %}
-        </div>
-
-        {# Własna mapa (jeżeli jest w assets) #}
-        <div class="map-embed">
-          <iframe src="/assets/media/mapa-kierunkow-kras-trans.html"
-                  title="{{ strings.routes_map_title or 'Mapa kierunków' }}"
-                  loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-        </div>
-      </div>
-    </section>
-
+  <div class="container">
+    <div class="map-embed">
+      <iframe src="/assets/media/mapa-kierunkow-kras-trans.html"
+              title="Mapa kierunków" loading="lazy"
+              width="100%" height="100%" style="border:0; aspect-ratio: 16 / 10;"></iframe>
+    </div>
+  </div>
+</section>
     {# ========= FAQ (pewny render z fallbackiem 'global') ========= #}
     {% set faq_all = faq or [] %}
     {% set page_faq = faq_all
