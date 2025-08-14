@@ -13,8 +13,7 @@
   {# Canonical + hreflang #}
   {% set _lang = page.lang or 'pl' %}
   {% set _slug = page.slug or '' %}
-  {% set _path = '/' ~ _lang ~ '/' ~ (_slug ~ ('/' if _slug)) %}
-  {% set _canon = (SITE_URL or site_url or 'https://kras-trans.com') ~ _path %}
+{% set _path = '/' ~ _lang ~ '/' ~ (_slug ~ '/' if _slug else '') %}  {% set _canon = (SITE_URL or site_url or 'https://kras-trans.com') ~ _path %}
   <link rel="canonical" href="{{ _canon }}">
   {% set samekey = page.slugKey or page.slug or 'home' %}
   {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
@@ -136,37 +135,27 @@
     </section>
 
     <!-- OFERTA (kafelki – mobilny poziomy scroll; CTA różne) -->
-    <section class="section --line" id="oferta" data-section="offers" aria-label="{{ strings.offers_aria or 'Nasza oferta' }}">
-      <div class="container text">
-        <h2>{{ strings.offers_title or 'Nasza oferta' }}</h2>
-        {% if strings.offers_desc %}<p>{{ strings.offers_desc }}</p>{% endif %}
-      </div>
-
-      {% set offers = (blocks or [])
-          | selectattr('block','equalto','offer')
-          | selectattr('lang','equalto',_lang)
-          | list %}
-      {% if offers|length == 0 %}
-        {% set offers = (pages or [])
-            | selectattr('type','equalto','service')
-            | selectattr('lang','equalto',_lang)
-            | list %}
-      {% endif %}
-
-      {% if offers|length %}
-      <div class="container cards tilt-cards cards--wrap cards--scroll" data-equalize="true">
-        {% for it in offers|sort(attribute='order')[:8] %}
-          {% set url = it.href or it.url or ('/' ~ _lang ~ '/' ~ (it.slug or '') ~ '/') %}
-          <article class="card offer">
-            <div class="pad">
-              <h3>{{ it.title or it.h1 or it.seo_title or it.slug }}</h3>
-              <p>{{ it.desc or it.lead or it.meta_desc }}</p>
-              <a class="btn" href="{{ url }}">{{ it.cta or it.cta_text or strings.offer_cta or 'Sprawdź termin i cenę' }}</a>
-            </div>
-          </article>
-        {% endfor %}
-      </div>
-      {% endif %}
+{% if offers|length %}
+{% set offers_sorted = offers|sort(attribute='order') %}
+<div class="container cards tilt-cards cards--wrap cards--scroll" data-equalize="true">
+  {% for it in offers_sorted %}
+    {% if loop.index0 < 8 %}
+      {% set url = it.href or it.url or ('/' ~ _lang ~ '/' ~ ((it.slug or '') ~ '/' if it.slug else '')) %}
+      <article class="card offer">
+        <div class="pad">
+          <h3>{{ it.title or it.h1 or it.seo_title or it.slug }}</h3>
+          {% if it.desc or it.lead or it.meta_desc %}
+            <p>{{ it.desc or it.lead or it.meta_desc }}</p>
+          {% endif %}
+          {% if url %}
+            <a class="btn" href="{{ url }}">{{ it.cta or it.cta_text or strings.offer_cta or 'Sprawdź termin i cenę' }}</a>
+          {% endif %}
+        </div>
+      </article>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
     </section>
 
     <!-- „Dlaczego my” (proof points) -->
