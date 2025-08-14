@@ -28,8 +28,9 @@
   <meta property="og:title" content="{{ _title }}">
   <meta property="og:description" content="{{ _desc }}">
   <meta property="og:url" content="{{ _canon }}">
-  <meta property="og:image" content="{{ (SITE_URL or site_url or 'https://kras-trans.com') ~ '/' ~ ogimg|replace('^/','') }}">
-  <meta name="twitter:card" content="summary_large_image">
+{% set _og = ogimg or 'assets/media/og-default.webp' %}
+{% if _og and _og[0]=='/' %}{% set _og = _og[1:] %}{% endif %}
+<meta property="og:image" content="{{ (SITE_URL or site_url or 'https://kras-trans.com') ~ '/' ~ _og }}">  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ _title }}">
   <meta name="twitter:description" content="{{ _desc }}">
   <meta name="twitter:image" content="{{ (SITE_URL or site_url or 'https://kras-trans.com') ~ '/' ~ ogimg|replace('^/','') }}">
