@@ -3,10 +3,9 @@ Markdown>=3.6,<3.7
 requests>=2.32.3,<2.33
 python-slugify>=8.0.4,<9.0
 beautifulsoup4>=4.12.3,<4.13
-# lxml 4.9.4 ma świetne, szerokie wheel’e; 5.2 bywa kapryśny na niektórych runnerach
+# lxml 4.9.4 ma świetne, szerokie wheel'e; 5.x bywa kapryśny na niektórych runnerach
 lxml>=4.9.4,<5.3
-
-# (jeśli korzystasz z nowego build.py – dołóż poniższe)
+# --- dodatki wymagane przez nowy build.py ---
 Pillow>=10.3.0,<11.0
 PyYAML>=6.0.1,<7.0
 htmlmin>=0.1.12
