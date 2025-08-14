@@ -304,3 +304,14 @@
     ? document.addEventListener("DOMContentLoaded", init)
     : init();
 })();
+/* Mega-menu: klik na mobile/touch przełącza aria-expanded */
+document.querySelectorAll('.nav .has-children > a').forEach(a=>{
+  const li = a.parentElement;
+  a.addEventListener('click', (e)=>{
+    if (matchMedia('(hover: none)').matches) { // mobile
+      e.preventDefault();
+      const exp = li.getAttribute('aria-expanded') === 'true';
+      li.setAttribute('aria-expanded', exp ? 'false' : 'true');
+    }
+  });
+});
