@@ -222,36 +222,23 @@
     </div>
   </div>
 </section>
-    {# ========= FAQ (pewny render z fallbackiem 'global') ========= #}
-    {% set faq_all = faq or [] %}
-    {% set page_faq = faq_all
-      | selectattr('lang','equalto',_lang)
-      | selectattr('publish','equalto','TRUE')
-      | selectattr('page','equalto',samekey)
-      | sort(attribute='order')
-      | list %}
-
-    {% if page_faq|length == 0 %}
-      {% set page_faq = faq_all
-        | selectattr('lang','equalto',_lang)
-        | selectattr('publish','equalto','TRUE')
-        | selectattr('page','equalto','global')
-        | sort(attribute='order')
-        | list %}
-    {% endif %}
-
-{% if faq and faq|length %}
+{# ==== FAQ (Arkusz FAQ → page_faq) ==== #}
+{% if page_faq|length %}
 <section class="section --dots" id="faq" aria-label="{{ strings.faq_aria or 'Najczęstsze pytania' }}">
-  <div class="container text"><h2>{{ strings.faq_title or 'FAQ — najczęstsze pytania' }}</h2></div>
+  <div class="container text">
+    <h2>{{ strings.faq_title or 'FAQ — najczęstsze pytania' }}</h2>
+  </div>
+
   <div class="container cards cards--wrap" data-equalize="true">
-    {% for f in faq | sort(attribute='order') %}
-      <details class="card">
-        <summary><strong>{{ f.question }}</strong></summary>
-        <div class="pad"><p>{{ f.answer }}</p></div>
-      </details>
+    {% for f in page_faq %}
+    <details class="card faq-card">
+      <summary><strong>{{ f.question }}</strong></summary>
+      <div class="pad"><p>{{ f.answer }}</p></div>
+    </details>
     {% endfor %}
   </div>
-  <p class="container"><a class="btn" href="/{{ (page.lang or 'pl') }}/faq/">{{ strings.faq_more or 'Pokaż więcej pytań' }}</a></p>
+
+  <p class="container"><a class="btn" href="/{{ _lang }}/#faq">{{ strings.faq_more or 'Pokaż więcej pytań' }}</a></p>
 </section>
 {% endif %}
     
