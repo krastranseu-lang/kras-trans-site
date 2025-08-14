@@ -581,3 +581,7 @@
     ? document.addEventListener("DOMContentLoaded", init)
     : init();
 })();
+// Po załadowaniu fontów przelicz równe wysokości
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(()=> equalizeCards());
+}
