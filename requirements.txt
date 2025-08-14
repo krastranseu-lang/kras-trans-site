@@ -4,10 +4,8 @@ requests>=2.32
 python-slugify>=8.0
 beautifulsoup4>=4.12
 lxml>=5.2
-
-# Dodatki potrzebne buildowi:
-Pillow>=10.3.0        # obrazy WebP/AVIF + wymiary
-PyYAML>=6.0.1         # jeśli używasz YAML w data/
-htmlmin>=0.1.12       # minifikacja HTML
-rcssmin>=1.1.1        # minifikacja CSS
-jsmin>=3.0.1          # minifikacja JS
+Pillow>=10.3.0
+PyYAML>=6.0.1
+htmlmin>=0.1.12
+rcssmin>=1.1.1
+jsmin>=3.0.1
