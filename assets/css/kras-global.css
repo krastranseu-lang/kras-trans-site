@@ -384,7 +384,25 @@ p, .card{ overflow-wrap:anywhere; hyphens:auto }
   background: color-mix(in oklab, var(--ink) 10%, transparent);
   font-weight: 800;
 }
-
+/* Mega menu */
+.nav{ position: relative }
+.nav ul.nav-list > li{ position:relative }
+.nav a.has-children::after{
+  content:"▾"; margin-left:.45em; font-size:.9em; opacity:.9;
+}
+.nav .mega{
+  position:absolute; left:0; right:0; top:calc(100% + 10px);
+  display:none; padding:16px; border:1px solid var(--border);
+  border-radius:14px; background:var(--card); box-shadow:var(--shadow-2);
+}
+.nav .mega .col{ display:grid; gap:8px; min-width:220px }
+.nav .mega .grid{ display:grid; grid-template-columns:repeat(2,minmax(220px,1fr)); gap:16px }
+@media (max-width: 900px){
+  .nav .mega{ position:static; display:none; margin-top:8px; }
+  .nav .mega .grid{ grid-template-columns:1fr }
+}
+.nav li[aria-expanded="true"] > .mega{ display:block }
+.nav ul.nav-list > li:hover > .mega{ display:block } /* desktop hover */
 
 
 
