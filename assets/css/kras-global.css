@@ -403,3 +403,12 @@ p, .card{ overflow-wrap:anywhere; hyphens:auto }
 }
 .nav li[aria-expanded="true"] > .mega{ display:block }
 .nav ul.nav-list > li:hover > .mega{ display:block } /* desktop hover */
+
+/* cienkie cienie po bokach, gdy lista ma overflow-x */
+.nav-list{ position:relative }
+.nav-list.shadow-left::before,
+.nav-list.shadow-right::after{
+  content:""; position:absolute; top:0; bottom:0; width:24px; pointer-events:none;
+}
+.nav-list.shadow-left::before{ left:0; background:linear-gradient(90deg, color-mix(in oklab, var(--bg) 0%, transparent) 0, color-mix(in oklab, var(--bg) 96%, transparent) 90%) }
+.nav-list.shadow-right::after{ right:0; background:linear-gradient(270deg, color-mix(in oklab, var(--bg) 0%, transparent) 0, color-mix(in oklab, var(--bg) 96%, transparent) 90%) }
