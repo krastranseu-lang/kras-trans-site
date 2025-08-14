@@ -1,499 +1,402 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """
-Kras-Trans static site builder (GitHub Pages)
-- Jinja2 templates
-- Assets copy + cache-busting (?v=hash)
-- i18n folders (/pl/, /en/, …)
-- hreflang/canonical/OG/JSON-LD
-- GA4 + GSC verification (ENV)
-- AutoLinks (smart internal linking)
-- sitemap.xml, robots.txt, 404.html
-- root index.html -> /{DEFAULT_LANG}/
-- nav.json (for menu.js)
-- seo_stats.json (word counts, headings, links)
-- ZIP snapshot (/download/site.zip)
+Kras-Trans • build.py (FULL)
+-----------------------------------------
+• Czyta data/cms.json (Apps Script)
+• Generuje: /index.html (redirect), /{lang}/… (strony), /sitemap*.xml, /robots.txt, /404.html, /download/site.zip, /CNAME
+• Kopiuje /assets i /static
+• SEO: canonical, hreflang, OG, JSON-LD (Organization/WebPage/Breadcrumb)
+• Strings: zakładka "Strings" -> słownik dla Jinja
+• Autolinking (bezpieczny; whitelist z arkusza; limitowane)
+• Related (tagi + override)
+• GA4 (opóźnione) + Search Console meta
 """
 
-from __future__ import annotations
-import os, re, json, shutil, hashlib, zipfile, textwrap
-from pathlib import Path
+import os, re, io, json, shutil, zipfile, time, hashlib, pathlib
 from datetime import datetime, timezone
 from urllib.parse import urljoin
-from typing import Dict, Any, List, Tuple
 
+# --- Zewnętrzne biblioteki (z requirements.txt: Jinja2, markdown, beautifulsoup4, lxml) ---
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markdown import markdown
-from bs4 import BeautifulSoup   # requirements: beautifulsoup4
-from slugify import slugify      # requirements: python-slugify
+from bs4 import BeautifulSoup
 
-# --------------------------------------------------------------------------------------
-# CONFIG (from ENV or sane defaults)
-# --------------------------------------------------------------------------------------
-ROOT = Path(__file__).resolve().parents[1]          # repo root
+# --- Ścieżki ---
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+DATA = ROOT / "data" / "cms.json"
 DIST = ROOT / "dist"
-ASSETS_SRC = ROOT / "assets"
-TEMPLATES = ROOT / "templates"
-DATA_JSON = ROOT / "data" / "cms.json"
+TPLS = ROOT / "templates"
+ASSETS = ROOT / "assets"
+STATIC = ROOT / "static"
 
-SITE_URL = os.getenv("SITE_URL", "https://kras-trans.com").rstrip("/")
-DEFAULT_LANG = os.getenv("DEFAULT_LANG", "pl").lower()
-BRAND = os.getenv("BRAND", "Kras-Trans")
-GA_ID = os.getenv("GA_ID", "")  # np. G-XXXX
-GSC_VERIFICATION = os.getenv("GSC_VERIFICATION", "")
-CNAME = os.getenv("CNAME", "kras-trans.com")
+# --- ENV / stałe projektu ---
+SITE_URL         = os.getenv("SITE_URL", "https://kras-trans.com").rstrip("/")
+DEFAULT_LANG     = os.getenv("DEFAULT_LANG", "pl").lower()
+BRAND            = os.getenv("BRAND", "Kras-Trans")
+GA_ID            = os.getenv("GA_ID", "")  # GA4 measurement id (opcjonalnie)
+GSC_VERIFICATION = os.getenv("GSC_VERIFICATION", "")  # meta Google Search Console (opcjonalnie)
+CNAME_TARGET     = os.getenv("CNAME", "kras-trans.com")
 
-# Jeden LCP na stronę — klucz (pole) z CMS, który traktujemy jako hero-image
-LCP_KEY = "lcp_image"  # w Pages CSV: lcp_image = nazwa pliku w assets/media lub static/img
+# --- Helpery ---
+def t(v): 
+    return "" if v is None else str(v).strip()
 
-# --------------------------------------------------------------------------------------
-# UTILS
-# --------------------------------------------------------------------------------------
-def read_json(p: Path) -> Dict[str, Any]:
-    if not p.exists():
-        raise FileNotFoundError(f"Brak pliku {p}")
-    with p.open("r", encoding="utf-8") as f:
-        return json.load(f)
+def to_bool(v):
+    s = str(v).strip().lower()
+    return s in ("true", "1", "yes", "y", "tak")
 
-def ensure_dir(p: Path) -> None:
-    p.mkdir(parents=True, exist_ok=True)
+def csv_list(v):
+    return [x.strip() for x in t(v).split(",") if x and x.strip()]
 
-def file_hash(p: Path) -> str:
+def norm_slug(s):
+    s = t(s).strip("/")
+    return s
+
+def now_iso():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+def out_path_for(lang, slug):
+    """Zwraca ścieżkę na dysku dla danej strony."""
+    lang = (lang or DEFAULT_LANG).lower()
+    slug = norm_slug(slug)
+    if slug in ("", "home"):
+        return DIST / lang / "index.html"
+    return DIST / lang / slug / "index.html"
+
+def url_for(lang, slug):
+    """Zwraca absolutny URL dla strony."""
+    lang = (lang or DEFAULT_LANG).lower()
+    slug = norm_slug(slug)
+    if slug in ("", "home"):
+        return f"{SITE_URL}/{lang}/"
+    return f"{SITE_URL}/{lang}/{slug}/"
+
+def ensure_dir(p: pathlib.Path):
+    p.parent.mkdir(parents=True, exist_ok=True)
+
+def file_hash(path: pathlib.Path) -> str:
+    if not path.exists():
+        return ""
     h = hashlib.sha1()
-    with p.open("rb") as f:
-        for chunk in iter(lambda: f.read(1024 * 256), b""):
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()[:10]
 
-def copy_assets() -> Dict[str, str]:
-    """Kopiuje assets/ do dist/assets/ i zwraca mapę {rel_path: hash} do wersjonowania."""
+# --- Czytanie CMS ---
+if not DATA.exists():
+    raise SystemExit("Brak data/cms.json — upewnij się, że krok 'Fetch CMS JSON' zadziałał.")
+
+with open(DATA, "r", encoding="utf-8") as f:
+    CMS = json.load(f)
+
+PAGES    = CMS.get("pages", []) or []
+FAQ      = CMS.get("faq", []) or []
+MEDIA    = CMS.get("media", []) or []
+COMPANY  = CMS.get("company", []) or []
+REDIRS   = CMS.get("redirects", []) or []
+BLOCKS   = CMS.get("blocks", []) or []
+NAV      = CMS.get("nav", []) or []
+TEMPLS   = CMS.get("templates", []) or []
+STR_ROWS = CMS.get("strings", []) or []
+ROUTES   = CMS.get("routes", []) or []
+PLACES   = CMS.get("places", []) or []
+BLOG     = CMS.get("blog", []) or []     # opcjonalnie
+REVIEWS  = CMS.get("reviews", []) or []  # opcjonalnie
+
+# --- Strings: arkusz "Strings" -> dict {key: value} per lang ---
+def build_strings(rows, lang):
+    """
+    Obsługuje układ:
+      key | pl | en | ...
+    lub
+      key | value
+    """
     out = {}
-    if not ASSETS_SRC.exists():
-        return out
-    dst = DIST / "assets"
-    if dst.exists():
-        shutil.rmtree(dst)
-    shutil.copytree(ASSETS_SRC, dst)
-    for p in dst.rglob("*"):
-        if p.is_file():
-            rel = str(p.relative_to(DIST)).replace("\\", "/")
-            out[rel] = file_hash(p)
+    lang = (lang or DEFAULT_LANG).lower()
+    for r in rows or []:
+        key = t(r.get("key") or r.get("id") or r.get("slug"))
+        if not key:
+            continue
+        val = r.get(lang) or r.get("value") or r.get("val") or ""
+        out[key] = t(val)
     return out
 
-def versioned(url_path: str, manifest: Dict[str, str]) -> str:
-    """Dodaje ?v=hash jeśli plik jest w manifeście."""
-    key = url_path.lstrip("/")
-    h = manifest.get(key)
-    return f"/{key}?v={h}" if h else f"/{key}"
-
-def minify_html(html: str) -> str:
-    """Zachowawcza minifikacja (bez <pre>/<code>)."""
-    # usuń komentarze (poza <!--[if ...]>), whitespace między tagami, wiele spacji
-    # wydziel <pre|code> blokowo
-    placeholders = {}
-    def stash(m):
-        k = f"__PRE{i[0]}__"
-        placeholders[k] = m.group(0)
-        i[0] += 1
-        return k
-    i = [0]
-    html = re.sub(r"<!--(?!\[if).*?-->", "", html, flags=re.S)
-    html = re.sub(r">\s+<", "><", html)
-    # stasz pre/code
-    html = re.sub(r"(<pre[\s\S]*?</pre>|<code[\s\S]*?</code>)", stash, html, flags=re.I)
-    html = re.sub(r"\s{2,}", " ", html)
-    for k, v in placeholders.items():
-        html = html.replace(k, v)
-    return html.strip()
-
-def md_to_html(md: str) -> str:
-    return markdown(md or "", extensions=["extra", "sane_lists", "toc", "smarty"])
-
-def utcnow_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-def write_file(path: Path, content: str, binary: bool = False) -> None:
-    ensure_dir(path.parent)
-    mode = "wb" if binary else "w"
-    with path.open(mode, encoding=None if binary else "utf-8") as f:
-        f.write(content)
-
-def zip_dir(src: Path, zip_path: Path) -> None:
-    ensure_dir(zip_path.parent)
-    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as z:
-        for p in src.rglob("*"):
-            if p.is_file():
-                z.write(p, p.relative_to(src))
-
-# --------------------------------------------------------------------------------------
-# LOAD CMS
-# --------------------------------------------------------------------------------------
-if not DATA_JSON.exists():
-    raise SystemExit("Brak data/cms.json – workflow powinien go pobrać z Apps Script.")
-CMS = read_json(DATA_JSON)
-
-PAGES: List[Dict[str, Any]] = CMS.get("pages", [])
-FAQ: List[Dict[str, Any]]   = CMS.get("faq", [])
-MEDIA = CMS.get("media", [])
-COMPANY = CMS.get("company", [])
-REDIRECTS = CMS.get("redirects", [])
-BLOCKS = CMS.get("blocks", [])
-NAV = CMS.get("nav", [])
-TEMPLATES_DATA = CMS.get("templates", [])
-STRINGS = CMS.get("strings", [])
-ROUTES = CMS.get("routes", [])
-PLACES = CMS.get("places", [])
-BLOG = CMS.get("blog", [])
-CATEGORIES = CMS.get("categories", [])
-AUTHORS = CMS.get("authors", [])
-CASESTUDIES = CMS.get("caseStudies", [])
-REVIEWS = CMS.get("reviews", [])
-LOCATIONS = CMS.get("locations", [])
-JOBS = CMS.get("jobs", [])
-AUTOLINKS = CMS.get("autolinks", CMS.get("AutoLinks", []))  # różne nazwy zakładki
-
-# szybkie lookupy
-pages_by_slugkey: Dict[Tuple[str, str], Dict[str, Any]] = {}
-for p in PAGES:
-    lang = (p.get("lang") or DEFAULT_LANG).lower()
-    slugKey = (p.get("slugKey") or p.get("slug") or "").strip() or "home"
-    pages_by_slugkey[(slugKey, lang)] = p
-
-# --------------------------------------------------------------------------------------
-# JINJA
-# --------------------------------------------------------------------------------------
+# --- Jinja ---
 env = Environment(
-    loader=FileSystemLoader(str(TEMPLATES)),
-    autoescape=select_autoescape(["html"]),
-    trim_blocks=True, lstrip_blocks=True,
+    loader=FileSystemLoader(str(TPLS)),
+    autoescape=select_autoescape(["html", "xml"])
 )
+env.filters["markdown"] = lambda s: markdown(s or "", extensions=["extra", "sane_lists"])
+env.filters["tojson"] = lambda obj: json.dumps(obj, ensure_ascii=False)
 
-# dostępne globalnie w template
-env.globals.update({
-    "site_url": SITE_URL,
-    "brand": BRAND,
-    "now": utcnow_iso,
-})
+# --- Przygotowanie DIST ---
+def clean_dist():
+    shutil.rmtree(DIST, ignore_errors=True)
+    DIST.mkdir(parents=True, exist_ok=True)
 
-# --------------------------------------------------------------------------------------
-# NAV JSON (dla assets/js/menu.js) + pomocnicze
-# --------------------------------------------------------------------------------------
-def build_nav_json() -> Dict[str, Any]:
-    """Zwraca strukturę menu (lang->items) i zapisuje do dist/assets/data/nav.json."""
-    out_by_lang: Dict[str, List[Dict[str, Any]]] = {}
-    for item in NAV:
-        lang = (item.get("lang") or DEFAULT_LANG).lower()
-        label = item.get("label") or item.get("title") or ""
-        url = item.get("url") or ""
-        if not label or not url:
-            continue
-        out_by_lang.setdefault(lang, []).append({
-            "label": label.strip(),
-            "url": url.strip(),
-        })
-    data = {"nav": out_by_lang, "updated": utcnow_iso()}
-    path = DIST / "assets" / "data" / "nav.json"
-    write_file(path, json.dumps(data, ensure_ascii=False, indent=2))
+def copy_static():
+    """Kopiuje assets/ i static/ do dist/ (z cache-bustingiem w linkach robimy w szablonie, jeśli potrzeba)"""
+    if ASSETS.exists():
+        shutil.copytree(ASSETS, DIST / "assets", dirs_exist_ok=True)
+    if STATIC.exists():
+        shutil.copytree(STATIC, DIST / "static", dirs_exist_ok=True)
+
+# --- GA4 / GSC dodatki do <head> ---
+def head_extra_html():
+    bits = []
+    if GSC_VERIFICATION:
+        bits.append(f'<meta name="google-site-verification" content="{GSC_VERIFICATION}">')
+    if GA_ID:
+        bits.append('''<script>
+  window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);}
+  setTimeout(function(){
+    var s=document.createElement('script'); s.async=1; s.src='https://www.googletagmanager.com/gtag/js?id=' + %s;
+    document.head.appendChild(s);
+    gtag('js', new Date()); gtag('config', %s, { 'anonymize_ip': true });
+  }, 1800);
+</script>''' % (json.dumps(GA_ID), json.dumps(GA_ID)))
+    return "\n".join(bits)
+
+# --- JSON-LD (Organization, WebPage, Breadcrumb) ---
+def org_jsonld():
+    c = (COMPANY[0] if COMPANY else {}) or {}
+    name = t(c.get("name") or c.get("legal_name") or BRAND)
+    tel  = t(c.get("telephone") or c.get("phone"))
+    tax  = t(c.get("nip") or c.get("taxid") or c.get("tax_id"))
+    same = list(filter(None, csv_list(c.get("same_as") or c.get("sameAs") or "")))
+    data = {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": name,
+        "url": SITE_URL,
+    }
+    if tel: data["telephone"] = tel
+    if tax: data["taxID"] = tax
+    if same: data["sameAs"] = same
+    logo = t(c.get("logo") or "")
+    if logo:
+        data["logo"] = urljoin(SITE_URL + "/", norm_slug(logo))
     return data
 
-# --------------------------------------------------------------------------------------
-# HEAD/HREFLANG/JSON-LD
-# --------------------------------------------------------------------------------------
-def build_hreflangs(page: Dict[str, Any]) -> Tuple[List[Dict[str, str]], str]:
-    """Zwraca (hreflangs, x_default_url). Wymaga slugKey, alt języki."""
-    slugKey = (page.get("slugKey") or page.get("slug") or "").strip() or "home"
-    alts = []
-    x_default = ""
-    langs_seen = set()
-    for (k, lang), p in pages_by_slugkey.items():
-        if k != slugKey:
-            continue
-        url = page_url(p)
-        alts.append({"lang": lang, "url": urljoin(SITE_URL + "/", url.lstrip("/"))})
-        langs_seen.add(lang)
-    if DEFAULT_LANG in langs_seen:
-        x_default = urljoin(SITE_URL + "/", page_url(page).lstrip("/"))
-    return alts, x_default
-
-def breadcrumb_jsonld(page: Dict[str, Any], url_abs: str) -> Dict[str, Any]:
-    # Z prostego łańcucha: /{lang}/{parentSlug?}/{slug?}/
-    parts = [x for x in page_url(page).strip("/").split("/") if x]
-    item_list = []
-    trail = "/"
-    pos = 1
-    for part in parts:
-        trail = f"{trail}{part}/"
-        item_list.append({
-            "@type": "ListItem",
-            "position": pos,
-            "name": part.replace("-", " ").title(),
-            "item": urljoin(SITE_URL + "/", trail),
-        })
-        pos += 1
+def breadcrumb_jsonld(crumbs):
     return {
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
-        "itemListElement": item_list or [{
-            "@type": "ListItem",
-            "position": 1,
-            "name": BRAND,
-            "item": SITE_URL + "/",
-        }],
+        "itemListElement": [
+            {"@type":"ListItem","position":i+1,"name":c["name"],"item":c["item"]}
+            for i, c in enumerate(crumbs)
+        ]
     }
 
-def organization_jsonld() -> Dict[str, Any]:
-    c = COMPANY[0] if COMPANY else {}
+def webpage_jsonld(title, description, url):
     return {
         "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": c.get("name") or c.get("legal_name") or BRAND,
-        "url": SITE_URL + "/",
-        "telephone": c.get("telephone") or c.get("phone") or "+48 793 927 467",
-        "address": {
-            "@type": "PostalAddress",
-            "streetAddress": c.get("street") or "",
-            "postalCode": c.get("postal") or "",
-            "addressLocality": c.get("city") or "",
-            "addressCountry": c.get("country") or "PL",
-        },
-        "logo": urljoin(SITE_URL + "/", "assets/media/logo.png"),
+        "@type": "WebPage",
+        "name": title,
+        "url": url,
+        "description": description
     }
 
-def page_url(page: Dict[str, Any]) -> str:
-    """Buduje URL względny strony (z językiem)."""
-    lang = (page.get("lang") or DEFAULT_LANG).lower()
-    slug = (page.get("slug") or "").strip()
-    ic = (page.get("ic") or "").lower()
-    # home
-    is_home = (page.get("type") or "").lower() == "home" or ic.startswith("ho") or slug in ("", "/", "home")
-    if is_home:
-        return f"/{lang}/"
-    # parent
-    parent = (page.get("parentSlug") or "").strip().strip("/")
-    path_parts = [lang]
-    if parent:
-        path_parts.append(parent)
-    if slug:
-        path_parts.append(slug.strip("/"))
-    return "/" + "/".join(path_parts) + "/"
+# --- Hreflang: grupowanie wg slugKey (jeśli jest), inaczej po slug ---
+def group_pages_for_hreflang(pages):
+    groups = {}
+    for p in pages:
+        key = t(p.get("slugKey") or p.get("slug") or p.get("ic") or p.get("page_ref") or "")
+        if not key:
+            key = f"page-{id(p)}"
+        groups.setdefault(key, []).append(p)
+    return groups
 
-def page_title(page: Dict[str, Any]) -> str:
-    return page.get("seo_title") or page.get("title") or f"{BRAND}"
-
-def page_description(page: Dict[str, Any]) -> str:
-    return page.get("meta_desc") or page.get("description") or page.get("lead") or ""
-
-# --------------------------------------------------------------------------------------
-# SMART AUTOLINKS
-# --------------------------------------------------------------------------------------
-def compile_autolinks(items: List[Dict[str, Any]]) -> List[Tuple[re.Pattern, str]]:
-    compiled = []
-    for it in items or []:
-        term = (it.get("term") or it.get("anchor") or "").strip()
-        url = (it.get("url") or "").strip()
-        if not term or not url:
+# --- Related: po tagach + override ---
+def build_related(p, pages, max_items=6):
+    if t(p.get("related_override")):
+        # ręczna lista slugów
+        slugs = csv_list(p.get("related_override"))
+        rel = []
+        want = set([norm_slug(s) for s in slugs])
+        for q in pages:
+            if norm_slug(q.get("slug")) in want and q is not p:
+                rel.append(q)
+        return rel[:max_items]
+    # tagi
+    tags = set([x.lower() for x in csv_list(p.get("tags"))])
+    scored = []
+    for q in pages:
+        if q is p: 
             continue
-        # whole word, case-insensitive
-        pat = re.compile(rf"(?<![/\w-])({re.escape(term)})(?![^<]*?>)", re.I)
-        compiled.append((pat, url))
-    return compiled
+        t2 = set([x.lower() for x in csv_list(q.get("tags"))])
+        score = len(tags & t2)
+        if score > 0:
+            scored.append((score, q))
+    scored.sort(key=lambda x: (-x[0], t(x[1].get("title"))))
+    return [q for _, q in scored[:max_items]]
 
-def apply_autolinks(html: str, links: List[Tuple[re.Pattern, str]], max_links: int = 6) -> str:
-    """Podlinkowuje terminy w tekstach (poza <a>, <script>, <style>)."""
-    if not links or max_links <= 0:
+# --- Autolinking HTML (delikatny, sekcje, limit 1-2 linki/sekcję) ---
+def autolink_html(html, whitelist=None, per_section_limit=2):
+    """
+    whitelist: lista dictów { 'phrase': 'transport paletowy', 'href': '/pl/transport-paletowy/' }
+    Nie linkuje wewnątrz <a>, <h1-6>, <code/pre>, <script/style>, <nav>, <header>, <footer>.
+    """
+    if not html or not whitelist:
         return html
+
     soup = BeautifulSoup(html, "lxml")
-    used = 0
+    bad = set(["a","code","pre","script","style","nav","header","footer"])
+    blocks = soup.find_all(True, recursive=True)
+
+    # przygotowanie regexów
+    rules = []
+    for w in whitelist:
+        phrase = t(w.get("phrase"))
+        href   = t(w.get("href"))
+        if not phrase or not href:
+            continue
+        # whole word-ish, case-insensitive
+        rx = re.compile(r"(?i)(?<![A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż0-9])(" + re.escape(phrase) + r")(?![A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż0-9])")
+        rules.append((rx, href))
+    if not rules:
+        return html
 
     def process_node(node):
-        nonlocal used
-        if used >= max_links:
-            return
-        if node.name in ("a", "script", "style"):
-            return
-        # teksty
-        if isinstance(node, str):
-            text = str(node)
-            for pat, url in links:
-                if used >= max_links:
-                    break
-                m = pat.search(text)
-                if not m:
+        # ograniczamy linkowanie per blok
+        made = 0
+        for child in list(node.children):
+            if getattr(child, "name", None):
+                # pomijamy "złe" tagi lub tagi nagłówków
+                if child.name in bad or re.match(r"h[1-6]", child.name or ""):
                     continue
-                start, end = m.span(1)
-                before, hit, after = text[:start], text[start:end], text[end:]
-                a = soup.new_tag("a", href=url)
-                a.string = hit
-                new_nodes = [before, a, after]
-                parent = node.parent
-                node.replace_with(*new_nodes)
-                used += 1
-                return  # przerwij – kontynuuj na nowych węzłach
-        else:
-            for child in list(node.children):
-                if used >= max_links:
-                    break
+                # wgłąb
                 process_node(child)
+            else:
+                # text node
+                txt = str(child)
+                new_frag = txt
+                for rx, href in rules:
+                    if made >= per_section_limit:
+                        break
+                    # tylko pierwsze dopasowanie per sekcja na frazę
+                    new_frag, n = rx.subn(rf'<a href="{href}">\1</a>', new_frag, count=1)
+                    if n > 0:
+                        made += 1
+                if new_frag != txt:
+                    child.replace_with(BeautifulSoup(new_frag, "lxml"))
+        return
 
-    process_node(soup.body or soup)
+    for el in blocks:
+        process_node(el)
     return str(soup)
 
-AUTO_LINKS_COMPILED = compile_autolinks(AUTOLINKS)
+# --- HEAD (canonical, hreflang, OG, JSON-LD) ---
+def build_head(page, all_pages, strings, site_url=SITE_URL):
+    lang = (page.get("lang") or DEFAULT_LANG).lower()
+    slug = norm_slug(page.get("slug"))
+    url  = url_for(lang, slug if slug not in ("home","") else "")
+    title = t(page.get("seo_title") or page.get("title") or BRAND)
+    desc  = t(page.get("meta_desc") or page.get("description") or "")
+    ogimg = t(page.get("og_image") or page.get("og_image_url") or "")
+    if not ogimg:
+        # fallback globalny (możesz umieścić share.jpg w static/img/)
+        ogimg = f"{SITE_URL}/static/img/share.jpg"
 
-# --------------------------------------------------------------------------------------
-# RENDER
-# --------------------------------------------------------------------------------------
-def render_one(page: Dict[str, Any], manifest: Dict[str, str]) -> Tuple[str, str]:
-    """Renderuje jedną stronę i zwraca (rel_url, html_min)."""
-    # markdown -> html
-    body_html = md_to_html(page.get("body_md") or "")
-    # autolinkowanie
-    max_out = int(page.get("max_outlinks") or 6)
-    body_html = apply_autolinks(body_html, AUTO_LINKS_COMPILED, max_links=max_out)
+    # hreflang grupą
+    groups = group_pages_for_hreflang(all_pages)
+    key = t(page.get("slugKey") or page.get("slug") or page.get("ic") or page.get("page_ref") or "")
+    hreflangs = []
+    x_default = ""
+    if key and key in groups:
+        for p2 in groups[key]:
+            lg = (p2.get("lang") or DEFAULT_LANG).lower()
+            sl = norm_slug(p2.get("slug"))
+            hreflangs.append({"lang": lg, "url": url_for(lg, sl if sl not in ("home","") else "")})
+        # heurystyka x-default = default lang
+        x_default = url_for(DEFAULT_LANG, norm_slug(page.get("slug")) if slug not in ("home","") else "")
 
-    url_rel = page_url(page)
-    url_abs = urljoin(SITE_URL + "/", url_rel.lstrip("/"))
-    title = page_title(page)
-    desc = page_description(page)
+    # breadcrumbs: Home -> (opcjonalnie parent) -> current
+    crumbs = [{"name": BRAND, "item": f"{SITE_URL}/{lang}/"}]
+    parent_slug = t(page.get("parentSlug") or "")
+    if parent_slug:
+        crumbs.append({"name": t(page.get("parentTitle") or parent_slug.replace("-"," ").title()),
+                       "item": f"{SITE_URL}/{lang}/{norm_slug(parent_slug)}/"})
+    crumbs.append({"name": t(page.get("title") or title), "item": url})
 
-    hreflangs, x_default = build_hreflangs(page)
+    jsonld = [org_jsonld(), webpage_jsonld(title, desc, url), breadcrumb_jsonld(crumbs)]
 
-    # hero / LCP
-    hero_alt = page.get("hero_alt") or page.get("h1") or page.get("title") or BRAND
-    hero = page.get("hero_image") or ""
-    hero_m = page.get("hero_image_mobile") or ""
-    lcp = page.get(LCP_KEY) or hero or ""
-
-    # JSON-LD
-    jsonld = [breadcrumb_jsonld(page, url_abs), organization_jsonld()]
-    # dodatkowe typy
-    for t in (page.get("structured_data_types") or []):
-        if t.lower() == "webpage":
-            jsonld.append({"@context": "https://schema.org", "@type": "WebPage", "name": title, "url": url_abs})
-
-    # og:image (fallback logo)
-    og_image = urljoin(SITE_URL + "/", (hero or "assets/media/og-default.jpg").lstrip("/"))
-
-    # dodatkowe head (GA + GSC + CSS z assets)
-    extra_head = []
-    if GSC_VERIFICATION:
-        extra_head.append(f'<meta name="google-site-verification" content="{GSC_VERIFICATION}">')
-    # wersjonowany CSS
-    css_href = versioned("assets/css/kras-global.css", manifest)
-    extra_head.append(f'<link rel="stylesheet" href="{css_href}">')
-    # preloading hero (ostrożnie – tylko jeśli lcp)
-    if lcp:
-        pre = ("assets/media/" + lcp) if not lcp.startswith(("http://", "https://", "/")) else lcp.lstrip("/")
-        extra_head.append(f'<link rel="preload" as="image" href="{versioned(pre, manifest)}">')
-    # GA4
-    if GA_ID:
-        extra_head.append(textwrap.dedent(f"""
-        <!-- Google tag (gtag.js) -->
-        <script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
-        <script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments);}}
-        gtag('js', new Date()); gtag('config','{GA_ID}',{{ 'anonymize_ip': true, 'allow_ad_personalization_signals': false }});</script>
-        """).strip())
-
-    head = {
+    return {
         "title": title,
-        "description": desc[:300],
-        "canonical": url_abs,
+        "description": desc,
+        "canonical": url,
+        "og_title": title,
+        "og_description": desc,
+        "og_image": ogimg,
+        "jsonld": jsonld,
         "hreflangs": hreflangs,
         "x_default": x_default,
-        "og_title": title,
-        "og_description": desc[:300],
-        "og_image": og_image,
-        "jsonld": jsonld,
-        "extra_head": "\n".join(extra_head),
+        "extra_head": head_extra_html()
     }
 
-    # related (po tagach)
-    tags = [t.strip() for t in (page.get("tags") or []) if t.strip()]
-    related = []
-    if tags:
-        for p in PAGES:
-            if p is page:
-                continue
-            if not p.get("publish", True):
-                continue
-            if (p.get("lang") or DEFAULT_LANG).lower() != (page.get("lang") or DEFAULT_LANG).lower():
-                continue
-            ptags = set([t.strip() for t in (p.get("tags") or []) if t.strip()])
-            if ptags & set(tags):
-                related.append({"title": p.get("title") or p.get("seo_title") or "", "url": page_url(p)})
-            if len(related) >= 6:
-                break
+# --- Render strony pojedynczej ---
+def render_page(page, all_pages, strings):
+    lang = (page.get("lang") or DEFAULT_LANG).lower()
+    slug = norm_slug(page.get("slug"))
+    path = out_path_for(lang, slug if slug not in ("home","") else "")
+    ensure_dir(path)
 
-    # h1
-    h1 = page.get("h1") or page.get("title") or title
+    # body_md -> HTML
+    body_md = page.get("body_md") or page.get("body") or page.get("html") or ""
+    body_html = markdown(body_md, extensions=["extra", "sane_lists"])
 
-    # dane do template
+    # autolink: whitelist z arkusza NAV/ROUTES albo z 'anchor_text_suggestions'
+    wl = []
+    for n in NAV or []:
+        ph = t(n.get("phrase") or n.get("anchor") or "")
+        href = t(n.get("href") or n.get("url") or "")
+        if ph and href:
+            wl.append({"phrase": ph, "href": href})
+    for r in ROUTES or []:
+        ph = t(r.get("phrase") or r.get("anchor") or "")
+        href = t(r.get("href") or r.get("url") or "")
+        if ph and href:
+            wl.append({"phrase": ph, "href": href})
+    for ph in csv_list(page.get("anchor_text_suggestions")):
+        # automatycznie linkujemy do samej strony (jeśli nie zdefiniowano w NAV)
+        wl.append({"phrase": ph, "href": url_for(lang, slug)})
+
+    body_html = autolink_html(body_html, wl, per_section_limit=2)
+
+    # related
+    related = build_related(page, [q for q in all_pages if to_bool(q.get("publish", True))])
+
+    head = build_head(page, all_pages, strings)
+
+    # wybór szablonu
+    tpl_name = t(page.get("template") or "page.html")
+    if not (TPLS / tpl_name).exists():
+        tpl_name = "page.html"
+
     ctx = {
         "site_url": SITE_URL,
         "brand": BRAND,
-        "page": page,
-        "head": head,
-        "faq": [f for f in FAQ if (f.get("lang") or DEFAULT_LANG).lower() == (page.get("lang") or DEFAULT_LANG).lower()],
+        "updated": now_iso(),
         "company": COMPANY,
+        "nav": NAV,
+        "page": page,
+        "page_html": body_html,
+        "faq": [f for f in FAQ if t(f.get("slug")) == slug or t(f.get("page")) == slug],
         "related": related,
-        "hero_alt": hero_alt,
-        "hero_image": hero,
-        "hero_image_mobile": hero_m,
-        "lcp_image": lcp,
-        "h1": h1,
+        "media": MEDIA,
+        "head": head,
+        "strings": strings
     }
+    html = env.get_template(tpl_name).render(**ctx)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(html)
+    return path
 
-    # wybór szablonu
-    tpl_name = (page.get("template") or "page").strip()
-    if not (TEMPLATES / f"{tpl_name}.html").exists():
-        tpl_name = "page"
-    tpl = env.get_template(f"{tpl_name}.html")
-    html = tpl.render(**ctx)
-    html = minify_html(html)
-
-    return url_rel, html
-
-# --------------------------------------------------------------------------------------
-# SITEMAP / ROBOTS / 404 / ROOT REDIRECT
-# --------------------------------------------------------------------------------------
-def write_sitemap(published: List[Tuple[str, str]]):
-    # published: list[(url_rel, lastmod_iso)]
-    items = []
-    for url_rel, lastmod in published:
-        loc = urljoin(SITE_URL + "/", url_rel.lstrip("/"))
-        items.append(f"<url><loc>{loc}</loc><lastmod>{lastmod}</lastmod></url>")
-    xml = '<?xml version="1.0" encoding="UTF-8"?>\n' \
-          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + \
-          "\n".join(items) + "\n</urlset>"
-    write_file(DIST / "sitemap.xml", xml)
-
-def write_robots():
-    lines = [
-        "User-agent: *",
-        "Disallow:",
-        f"Sitemap: {SITE_URL}/sitemap.xml",
-    ]
-    write_file(DIST / "robots.txt", "\n".join(lines) + "\n")
-
-def write_404(manifest: Dict[str, str]):
-    # proste 404 (używa tego samego CSS)
-    css_href = versioned("assets/css/kras-global.css", manifest)
-    html = f"""<!doctype html><html lang="{DEFAULT_LANG}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>404 — Nie znaleziono | {BRAND}</title>
-<link rel="stylesheet" href="{css_href}">
-<meta name="robots" content="noindex,follow">
-</head>
-<body>
-<main class="content" style="min-height:60vh;padding:2rem 1rem;max-width:64rem;margin:auto;text-align:center">
-  <h1>404 — Nie znaleziono</h1>
-  <p>Ups! Tej strony nie ma. Wróć do <a href="/{DEFAULT_LANG}/">strony głównej</a>.</p>
-</main>
-</body></html>"""
-    write_file(DIST / "404.html", minify_html(html))
-
-def write_root_redirect(default_lang: str = DEFAULT_LANG):
+# --- Specjalne pliki ---
+def write_root_redirect(default_lang=DEFAULT_LANG):
+    p = DIST / "index.html"
     target = f"/{default_lang}/"
     html = f"""<!doctype html><html lang="en">
 <head>
@@ -504,148 +407,132 @@ def write_root_redirect(default_lang: str = DEFAULT_LANG):
   <meta name="robots" content="noindex,follow">
 </head>
 <body>
-  <p>Przenoszę do <a href="{target}">{target}</a>…</p>
-  <script>location.replace("{target}")</script>
+  <p>Redirecting to <a href="{target}">{target}</a>…</p>
+  <script>location.replace("{target}");</script>
 </body></html>"""
-    write_file(DIST / "index.html", html)
+    with open(p, "w", encoding="utf-8") as f:
+        f.write(html)
 
-# --------------------------------------------------------------------------------------
-# SEO STATS
-# --------------------------------------------------------------------------------------
-def compute_seo_stats(html: str) -> Dict[str, Any]:
-    soup = BeautifulSoup(html, "lxml")
-    text = soup.get_text(" ", strip=True)
-    words = [w for w in re.findall(r"\w{2,}", text, flags=re.I)]
-    headings = {f"h{i}": len(soup.select(f"h{i}")) for i in range(1, 7)}
-    links_internal = 0
-    links_external = 0
-    for a in soup.select("a[href]"):
-        href = a["href"]
-        if href.startswith(("http://", "https://")) and (SITE_URL not in href):
-            links_external += 1
-        else:
-            links_internal += 1
-    return {
-        "word_count": len(words),
-        "headings": headings,
-        "links_internal": links_internal,
-        "links_external": links_external,
-    }
+def write_cname():
+    (DIST / "CNAME").write_text(CNAME_TARGET.strip() + "\n", "utf-8")
 
-# --------------------------------------------------------------------------------------
-# MAIN BUILD
-# --------------------------------------------------------------------------------------
-def main():
-    # clean
-    if DIST.exists():
-        shutil.rmtree(DIST)
-    ensure_dir(DIST)
+def write_404():
+    p = DIST / "404.html"
+    html = f"""<!doctype html><html lang="{DEFAULT_LANG}">
+<head>
+  <meta charset="utf-8">
+  <title>404 — {BRAND}</title>
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="canonical" href="{SITE_URL}/404.html">
+  <style>body{{font:16px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:4rem;color:#222}}a{{color:#06f}}</style>
+</head>
+<body>
+  <h1>Nie znaleziono strony</h1>
+  <p>Wróć na <a href="{SITE_URL}/">stronę główną</a>.</p>
+</body></html>"""
+    with open(p, "w", encoding="utf-8") as f:
+        f.write(html)
 
-    # copy assets (+ manifest z hashami)
-    manifest = copy_assets()
+def write_robots():
+    robots = f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n"
+    (DIST / "robots.txt").write_text(robots, "utf-8")
 
-    # optional CNAME
-    if CNAME:
-        write_file(DIST / "CNAME", CNAME.strip() + "\n")
+# --- Sitemaps: index + cząstkowe (pages + blog) ---
+def write_sitemaps(generated_urls, blog_urls=None):
+    blog_urls = blog_urls or []
+    ts = now_iso()
+    def make(urls):
+        body = "\n".join([f"<url><loc>{u}</loc><lastmod>{ts}</lastmod></url>" for u in sorted(set(urls))])
+        return f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{body}\n</urlset>\n'
 
-    # nav.json
-    build_nav_json()
+    # pages
+    (DIST / "sitemap-pages.xml").write_text(make(generated_urls), "utf-8")
+    # blog (jeśli jest)
+    if blog_urls:
+        (DIST / "sitemap-blog.xml").write_text(make(blog_urls), "utf-8")
 
-    # render pages
-    published = []
-    seo_stats = {}
-    for page in PAGES:
-        if page.get("publish") is False:
-            continue
-        url_rel, html = render_one(page, manifest)
-        out_path = DIST / url_rel.strip("/")
-        if url_rel.endswith("/"):
-            out_path = out_path / "index.html"
-        write_file(out_path, html)
-        published.append((url_rel, utcnow_iso()))
-        seo_stats[url_rel] = compute_seo_stats(html)
+    # index
+    parts = [f"<sitemap><loc>{SITE_URL}/sitemap-pages.xml</loc><lastmod>{ts}</lastmod></sitemap>"]
+    if blog_urls:
+        parts.append(f"<sitemap><loc>{SITE_URL}/sitemap-blog.xml</loc><lastmod>{ts}</lastmod></sitemap>")
+    idx = f'<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + "\n".join(parts) + "\n</sitemapindex>\n"
+    (DIST / "sitemap.xml").write_text(idx, "utf-8")
 
-    # blog index + posts (jeśli są) – fallback do page.html
-    # (dla pełnej wersji zrób własne blog_* szablony)
-    if BLOG:
-        lang_groups: Dict[str, List[Dict[str, Any]]] = {}
-        for post in BLOG:
-            if post.get("publish") is False:
+# --- SNAPSHOT ZIP ---
+def write_snapshot_zip():
+    dst_dir = DIST / "download"
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    zip_path = dst_dir / "site.zip"
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as z:
+        for p in DIST.rglob("*"):
+            if p.is_dir():
                 continue
-            lang = (post.get("lang") or DEFAULT_LANG).lower()
-            lang_groups.setdefault(lang, []).append(post)
+            rel = p.relative_to(DIST)
+            # nie pakujemy ZIP-a w ZIP
+            if str(rel).startswith("download/"):
+                continue
+            z.write(p, rel)
+    return zip_path
 
-        for lang, posts in lang_groups.items():
-            # posty
-            for post in posts:
-                p = {
-                    "lang": lang,
-                    "slug": post.get("slug") or slugify(post.get("title") or "") or "",
-                    "title": post.get("title") or "",
-                    "seo_title": post.get("seo_title") or post.get("title") or "",
-                    "meta_desc": post.get("meta_desc") or post.get("excerpt") or "",
-                    "body_md": post.get("body_md") or "",
-                    "template": "blog_post" if (TEMPLATES / "blog_post.html").exists() else "page",
-                    "tags": post.get("tags") or [],
-                    "parentSlug": "blog",
-                }
-                url_rel, html = render_one(p, manifest)
-                out_path = DIST / url_rel.strip("/")
-                if url_rel.endswith("/"):
-                    out_path = out_path / "index.html"
-                write_file(out_path, html)
-                published.append((url_rel, utcnow_iso()))
-                seo_stats[url_rel] = compute_seo_stats(html)
+# --- Główne wykonanie ---
+def main():
+    clean_dist()
+    copy_static()
 
-            # index
-            tpl_name = "blog_index" if (TEMPLATES / "blog_index.html").exists() else "page"
-            tpl = env.get_template(f"{tpl_name}.html")
-            url_rel = f"/{lang}/blog/"
-            ctx = {
-                "site_url": SITE_URL,
-                "brand": BRAND,
-                "page": {"lang": lang, "title": "Blog", "h1": "Blog", "lead": "", "tags": []},
-                "head": {
-                    "title": f"Blog | {BRAND}",
-                    "description": f"Nowości i porady transportowe — {BRAND}.",
-                    "canonical": urljoin(SITE_URL + "/", url_rel.lstrip("/")),
-                    "hreflangs": [],
-                    "x_default": "",
-                    "og_title": f"Blog | {BRAND}",
-                    "og_description": f"Nowości i porady transportowe — {BRAND}.",
-                    "og_image": urljoin(SITE_URL + "/", "assets/media/og-default.jpg"),
-                    "jsonld": [organization_jsonld()],
-                    "extra_head": f'<link rel="stylesheet" href="{versioned("assets/css/kras-global.css", manifest)}">',
-                },
-                "posts": posts,
-                "company": COMPANY,
-                "related": [],
-                "hero_alt": "Blog",
-                "hero_image": "",
-                "hero_image_mobile": "",
-                "lcp_image": "",
-                "h1": "Blog",
+    # użyte języki
+    langs = sorted(set([(t(p.get("lang")) or DEFAULT_LANG).lower() for p in PAGES if to_bool(p.get("publish", True))] + [DEFAULT_LANG]))
+
+    # Strings per lang
+    strings_cache = { lg: build_strings(STR_ROWS, lg) for lg in langs }
+
+    # Render stron
+    generated_urls = []
+    published_pages = [p for p in PAGES if to_bool(p.get("publish", True))]
+    for p in published_pages:
+        lg = (p.get("lang") or DEFAULT_LANG).lower()
+        sdict = strings_cache.get(lg, {})
+        path = render_page(p, PAGES, sdict)
+        # URL do sitemap
+        slug = norm_slug(p.get("slug"))
+        generated_urls.append(url_for(lg, slug if slug not in ("home","") else ""))
+
+    # (opcjonalnie) blog
+    blog_urls = []
+    if BLOG:
+        for post in BLOG:
+            if not to_bool(post.get("publish", True)):
+                continue
+            lg = (post.get("lang") or DEFAULT_LANG).lower()
+            slug = norm_slug(post.get("slug") or post.get("id"))
+            # minimalny render, fallback page.html
+            page_like = {
+                "lang": lg,
+                "slug": slug,
+                "title": t(post.get("title")),
+                "seo_title": t(post.get("seo_title") or post.get("title")),
+                "meta_desc": t(post.get("meta_desc") or post.get("description")),
+                "body_md": t(post.get("body_md") or post.get("body") or ""),
+                "template": t(post.get("template") or "blog_post.html"),
+                "tags": post.get("tags") or ""
             }
-            html = minify_html(tpl.render(**ctx))
-            out_path = DIST / lang / "blog" / "index.html"
-            write_file(out_path, html)
-            published.append((url_rel, utcnow_iso()))
-            seo_stats[url_rel] = compute_seo_stats(html)
+            sdict = strings_cache.get(lg, {})
+            render_page(page_like, PAGES, sdict)
+            blog_urls.append(url_for(lg, slug))
 
-    # sitemap / robots / 404 / root
-    write_sitemap(published)
-    write_robots()
-    write_404(manifest)
+    # Specjalne pliki
     write_root_redirect(DEFAULT_LANG)
+    write_404()
+    write_robots()
+    write_cname()
+    write_sitemaps(generated_urls, blog_urls)
 
-    # SEO stats JSON
-    write_file(DIST / "assets" / "data" / "seo_stats.json", json.dumps(seo_stats, ensure_ascii=False, indent=2))
+    # Snapshot
+    write_snapshot_zip()
 
-    # snapshot ZIP
-    zip_dir(DIST, DIST / "download" / "site.zip")
+    # Podsumowanie
+    print(f"[OK] Pages: {len(generated_urls)} | Blog: {len(blog_urls)} | Langs: {', '.join(langs)}")
+    print(f"[OK] Dist: {DIST}")
+    return 0
 
-    print(f"OK — zbudowano {len(published)} URL-i. Dist: {DIST}")
-
-# --------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
