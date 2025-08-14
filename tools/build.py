@@ -104,6 +104,10 @@ ROUTES   = CMS.get("routes", []) or []
 PLACES   = CMS.get("places", []) or []
 BLOG     = CMS.get("blog", []) or []     # opcjonalnie
 REVIEWS  = CMS.get("reviews", []) or []  # opcjonalnie
+AUTHORS  = CMS.get("authors", [])
+CATEGORIES = CMS.get("categories", [])
+JOBS       = CMS.get("jobs", [])
+
 
 # --- Strings: arkusz "Strings" -> dict {key: value} per lang ---
 def build_strings(rows, lang):
@@ -388,6 +392,11 @@ def render_page(page, all_pages, strings):
         "media": MEDIA,
         "head": head,
         "strings": strings
+        "blog": BLOG,
+        "authors": AUTHORS,
+        "categories": CATEGORIES,
+        "reviews": REVIEWS,
+        "jobs": JOBS,
     }
     html = env.get_template(tpl_name).render(**ctx)
     with open(path, "w", encoding="utf-8") as f:
