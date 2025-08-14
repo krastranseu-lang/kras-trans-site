@@ -362,3 +362,18 @@ label.card > .pad{ padding:0 }
 
 /* ---------------- Drobne utility ---------------- */
 .iframe-wrap{ width:100%; height:auto }
+/* Dock nie zasłania treści i ładne kotwice sekcji */
+:root{ --sticky:72px }
+.section{ scroll-margin-top: var(--sticky) }
+@media(max-width:900px){
+  html{ scroll-padding-bottom: 90px }
+  body{ padding-bottom: 90px }
+}
+/* Lepsze łamanie i zero „ucięć” */
+h1,h2{ text-wrap: balance }
+p, .card{ overflow-wrap:anywhere; hyphens:auto }
+
+
+
+
+
