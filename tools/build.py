@@ -1,702 +1,463 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
-Kras-Trans — Smart Build MAX
-Autor: dla Ilji
+Kras-Trans • Static build (PRO)
+- Czyta data/cms.json (Apps Script)
+- Renderuje Jinja2 (templates/*.html)
+- Kopiuje /assets -> /dist
+- Post-processing HTML (lazy img, noopener, minify light)
+- Autolinkowanie (whitelist) z arkusza AutoLinks
+- Quality gates (rozmiary, H1/alt/canonical, link-check)
+- Generuje sitemap.xml, robots.txt, CNAME, 404.html, snapshot ZIP
 
-NOWOŚCI (2 & 3):
-- [UX/UI] Auto CSS: płynna typografia, tokeny odstępów, line-clamp kart, prefers-reduced-motion, utilities.
-- [UX/UI] Wymuszanie kontraktu sekcji (H2 + container), heurystyki kart (różnice wysokości -> sugestie).
-- [Perf] Preload hero (as=image + imagesrcset/imagesizes) i priority hints.
-- [Perf] Generatory AVIF/WEBP + srcset/sizes + width/height, lazy/decoding; fallback gdy AVIF niewspierane.
-- [Perf] (Opcjonalnie) RUN_CRITICAL=1 -> npx critical (inline critical CSS do <head>).
-
-Logi:
-- dist/build-report.html   — raport do podglądu w przeglądarce
-- dist/logs/build.log      — log tekstowy
-- dist/logs/build.json     — log strukturalny (np. dla CI)
-
-Zachowanie:
-- WARN nie zatrzymuje builda (chyba że STRICT=1).
-- FAIL zapisze pliki i raport, a na końcu da exit 1 (chyba że CONTINUE_ON_FAIL=1).
-
-ENV:
-  SITE_URL="https://kras-trans.com"
-  RUN_CRITICAL=1     # inline critical CSS (wymaga Node i 'critical')
-  RUN_LHCI=1         # Lighthouse CI (opcjonalnie)
-  RUN_AXE=1          # axe-core (opcjonalnie, wymaga podania URL serwowanej dist/)
-  RUN_VR=1           # Playwright Visual Regression (opcjonalnie)
-  STRICT=1           # traktuj WARN jak FAIL
-  CONTINUE_ON_FAIL=1 # nie przerywaj nawet przy FAIL
+ENV (opcjonalne):
+  SITE_URL, DEFAULT_LANG, BRAND, CNAME, STRICT (1/0)
 """
 
-import os, sys, re, json, gzip, shutil, hashlib, time, subprocess, base64
+from __future__ import annotations
+import os, sys, re, json, gzip, io, shutil, zipfile, hashlib, html
 from pathlib import Path
-from typing import Dict, Any, List, Tuple, Optional
-from urllib.parse import urlparse
+from datetime import datetime, timezone
+from typing import Dict, List, Any
+from urllib.parse import urljoin
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-from bs4 import BeautifulSoup
+from jinja2 import Environment, FileSystemLoader, StrictUndefined, TemplateNotFound
+from bs4 import BeautifulSoup, NavigableString
+from slugify import slugify
 
-# Opcjonalne formaty obrazów
-try:
-    from PIL import Image
-except Exception:
-    Image = None
-
-# Parsery danych
-try:
-    import yaml
-except Exception:
-    yaml = None
-
-# Minifikatory
-try:
-    import htmlmin
-except Exception:
-    htmlmin = None
-try:
-    from rcssmin import cssmin
-except Exception:
-    cssmin = None
-try:
-    from jsmin import jsmin
-except Exception:
-    jsmin = None
-
-ROOT = Path(__file__).parent.resolve()
-SRC  = ROOT
-TPL  = SRC / "templates"
-DATA = SRC / "data"
-ASSETS = SRC / "assets"
+# === ŚCIEŻKI
+ROOT = Path(__file__).resolve().parents[1]
+DATA = ROOT / "data" / "cms.json"
+TPLS = ROOT / "templates"
+ASSETS = ROOT / "assets"
 DIST = ROOT / "dist"
-LOGS = DIST / "logs"
 
+# === ENV
 SITE_URL = os.getenv("SITE_URL", "https://kras-trans.com").rstrip("/")
-RUN_CRIT = os.getenv("RUN_CRITICAL","0") in ("1","true","TRUE")
-RUN_LHCI = os.getenv("RUN_LHCI","0") in ("1","true","TRUE")
-RUN_AXE  = os.getenv("RUN_AXE","0")  in ("1","true","TRUE")
-RUN_VR   = os.getenv("RUN_VR","0")   in ("1","true","TRUE")
-STRICT   = os.getenv("STRICT","0")   in ("1","true","TRUE")
-NOFAIL   = os.getenv("CONTINUE_ON_FAIL","0") in ("1","true","TRUE")
+DEFAULT_LANG = (os.getenv("DEFAULT_LANG") or "pl").lower()
+BRAND = os.getenv("BRAND", "Kras-Trans")
+CNAME_TARGET = os.getenv("CNAME", "").strip()
+STRICT = int(os.getenv("STRICT", "1"))
 
-# White-lista hostów (iframe + fetch)
-ALLOWED_WIDGET_HOSTS = {
-    "www.google.com", "calendar.google.com",
-    "www.youtube.com", "player.vimeo.com",
-    "maps.google.com", "www.openstreetmap.org",
-    # dopisz swoje hosty:
-    "kras-trans.com", "www.kras-trans.com",
-    "widgets.kras-trans.com", "cdn.kras-trans.com"
-}
+# === PROGI / BUDŻETY (możesz dopasować)
+BUDGET_HTML_GZIP = 40 * 1024   # 40 KB .gz
+MAX_AUTOLINKS_PER_SECTION = 2  # bezpieczeństwo
 
-# Budżety (gzip)
-BUDGETS = {
-    "html_gzip_kb": 40,
-    "css_critical_gzip_kb": 50,
-    "js_init_gzip_kb": 70,
-    "hero_img_kb": 180,
-}
+# === POMOCNICZE
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
-# Obrazy: warianty
-IMG_SIZES = [320, 480, 640, 800, 1024, 1280, 1600]
-IMG_QUAL  = 82
+def t(x: Any) -> str:
+    """Bezpieczny tekst."""
+    if x is None: return ""
+    if isinstance(x, (int, float)): return str(x)
+    return str(x).strip()
 
-REPORTS: List[Tuple[str,str]] = []
-FAIL_HAPPENED = False
+def gz_size(data: bytes) -> int:
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode="wb") as gzf:
+        gzf.write(data)
+    return len(buf.getvalue())
 
-# ---------------- log/raport ----------------
-def _ensure_dirs():
-    DIST.mkdir(parents=True, exist_ok=True)
-    LOGS.mkdir(parents=True, exist_ok=True)
+def mkdirp(p: Path):
+    p.parent.mkdir(parents=True, exist_ok=True)
 
-def log(kind: str, msg: str):
-    global FAIL_HAPPENED
-    k = kind.upper()
-    if k == "FAIL":
-        FAIL_HAPPENED = True
-    REPORTS.append((k, msg))
-    prefix = {"OK":"✅","WARN":"⚠️","FAIL":"❌"}.get(k,"•")
-    print(f"{prefix} {msg}")
+# === LOGOWANIE PROBLEMÓW
+ISSUES: List[Dict[str, str]] = []
+def warn(path: str, msg: str):
+    ISSUES.append({"level":"warn", "path":path, "msg":msg})
+def fail(path: str, msg: str):
+    ISSUES.append({"level":"error", "path":path, "msg":msg})
 
-def write_logs():
-    rows = "\n".join(f"<tr class='{k.lower()}'><td>{k}</td><td>{msg}</td></tr>" for k,msg in REPORTS)
-    (DIST/"build-report.html").write_text(f"""<!doctype html>
-<html lang="pl"><meta charset="utf-8">
-<title>Build Report</title>
-<style>
-body{{font:14px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:24px;max-width:1200px;margin:auto}}
-table{{border-collapse:collapse;width:100%;border:1px solid #e5e7eb}}
-td,th{{border-top:1px solid #e5e7eb;padding:8px 10px;vertical-align:top}}
-td:first-child{{width:90px;text-transform:uppercase;font-weight:700;letter-spacing:.03em}}
-tr:nth-child(even){{background:#fafafa}}
-.ok{{color:#0a7}} .warn{{color:#c80}} .fail{{color:#d33}}
-</style>
-<h1>Raport builda</h1>
-<table><tbody>
-{rows}
-</tbody></table>
-</html>""", encoding="utf-8")
-    (LOGS/"build.log").write_text("\n".join(f"[{k}] {m}" for k,m in REPORTS), encoding="utf-8")
-    (LOGS/"build.json").write_text(json.dumps(REPORTS, ensure_ascii=False, indent=2), encoding="utf-8")
+# === WSTRZYMANIE, JEŚLI BRAKUJE CMS
+if not DATA.exists():
+    raise SystemExit("Brak data/cms.json – upewnij się, że krok 'Fetch CMS JSON' działa.")
 
-# ---------------- utils ----------------
-def gzip_size_bytes(p: Path) -> int:
-    if not p.exists(): return 0
-    with open(p, "rb") as f:
-        return len(gzip.compress(f.read()))
+# === WCZYTANIE CMS
+with open(DATA, "r", encoding="utf-8") as f:
+    CMS = json.load(f)
 
-def is_external_url(href: str) -> bool:
-    try:
-        u = urlparse(href)
-        return bool(u.scheme and u.netloc)
-    except Exception:
-        return False
+# Sekcje (z bezpiecznym fallbackiem)
+PAGES      = CMS.get("pages", []) or []
+FAQ        = CMS.get("faq", []) or []
+MEDIA      = CMS.get("media", []) or []
+COMPANY    = CMS.get("company", []) or []
+REDIRECTS  = CMS.get("redirects", []) or []
+BLOCKS     = CMS.get("blocks", []) or []
+NAV        = CMS.get("nav", []) or []
+TEMPLS_CMS = CMS.get("templates", []) or []
+STR_ROWS   = CMS.get("strings", []) or []
+ROUTES     = CMS.get("routes", []) or []
+PLACES     = CMS.get("places", []) or []
+BLOG       = CMS.get("blog", []) or []
+REVIEWS    = CMS.get("reviews", []) or []
+AUTHORS    = CMS.get("authors", []) or []
+CATEGORIES = CMS.get("categories", []) or []
+JOBS       = CMS.get("jobs", []) or []
+AUTOLINKS  = CMS.get("autolinks", []) or []
 
-def host_of(url: str) -> str:
-    try:
-        return (urlparse(url).hostname or "").lower()
-    except Exception:
-        return ""
+# === STRINGS: arkusz "Strings" -> dict per lang
+def build_strings(rows: List[dict], lang: str) -> Dict[str, str]:
+    out: Dict[str,str] = {}
+    for r in rows or []:
+        key = t(r.get("key") or r.get("id") or r.get("slug"))
+        if not key: continue
+        val = r.get(lang) or r.get("value") or r.get("val") or ""
+        out[key] = t(val)
+    return out
 
-def tojson(v: Any) -> str:
-    return json.dumps(v, ensure_ascii=False)
+# === TEMPLATE MAP
+def template_for(page: dict) -> str:
+    """Dobiera plik szablonu: explicit -> wg type -> fallback 'page.html'."""
+    name = t(page.get("template"))
+    if name and (TPLS / name).exists():
+        return name
+    # mapowanie wg CMS.templates (type -> file)
+    ptype = t(page.get("type")).lower() or "page"
+    for row in TEMPLS_CMS:
+        if t(row.get("type")).lower() == ptype:
+            fname = t(row.get("file")) or ""
+            if fname and (TPLS / fname).exists():
+                return fname
+    # fallback
+    return "page.html"
 
-# ---------------- data ----------------
-def load_data() -> Dict[str, Any]:
-    ctx: Dict[str, Any] = {}
-    if not DATA.exists():
-        log("WARN", "Brak katalogu data/ – wyrenderuję stronę domyślną /pl/")
-        return ctx
-    for p in DATA.rglob("*"):
-        if p.suffix.lower() in (".json",".yml",".yaml"):
-            try:
-                with p.open("r", encoding="utf-8") as f:
-                    obj = json.load(f) if p.suffix.lower()==".json" else (yaml and yaml.safe_load(f))
-                if obj is None and p.suffix.lower()!=".json":
-                    log("WARN", f"Brak PyYAML – pomijam {p.name}")
-                    continue
-                ctx[p.stem] = obj
-            except Exception as e:
-                log("FAIL", f"Błąd danych {p.relative_to(DATA)}: {e}")
-    return ctx
+# === Jinja ENV
+env = Environment(
+    loader=FileSystemLoader(TPLS),
+    autoescape=False,  # kontrolujemy ręcznie
+    trim_blocks=True,
+    lstrip_blocks=True,
+)
 
-# ---------------- render ----------------
-def render_site(context: Dict[str, Any]):
-    env = Environment(
-        loader=FileSystemLoader(str(TPL)),
-        autoescape=select_autoescape(["html"]),
-        trim_blocks=True, lstrip_blocks=True
-    )
-    env.filters["tojson"] = tojson
-    env.globals["SITE_URL"] = SITE_URL
-    env.globals["ALLOWED_WIDGET_HOSTS"] = ALLOWED_WIDGET_HOSTS
-    env.globals["now"] = time.strftime("%Y-%m-%d")
+env.filters["slug"] = lambda s: slugify(t(s))
+env.filters["json"] = lambda o: json.dumps(o, ensure_ascii=False)
 
-    pages = context.get("pages") or []
-    if not isinstance(pages, list) or not pages:
-        pages = [{"lang":"pl","slug":"","template":"page.html","slugKey":"home"}]
+# === SPRZĄTANIE DIST
+if DIST.exists(): shutil.rmtree(DIST)
+DIST.mkdir(parents=True, exist_ok=True)
 
-    copy_assets_minify_sri()
+# === KOPIOWANIE ASSETS (jeśli są)
+if ASSETS.exists():
+    shutil.copytree(ASSETS, DIST / "assets")
 
-    for page in pages:
-        lang = (page.get("lang") or "pl").lower()
-        slug = page.get("slug") or ""
-        tpl_name = page.get("template") or "page.html"
-        out_dir = DIST / lang / (slug if slug else "")
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out_file = out_dir / "index.html"
+# === ZBIÓR DOKOŃCZONYCH ŚCIEŻEK / URLI
+built_files: List[Path] = []
+built_urls:  List[str] = []
 
-        html = env.get_template(tpl_name).render(
-            **dict(context, page=page, samekey=page.get("slugKey") or slug or "home")
-        )
-
-        html = postprocess_html(html, out_dir)  # + auto-fixes + preload hero
-        out_file.write_text(html, encoding="utf-8")
-        log("OK", f"Wygenerowano {out_file.relative_to(DIST)}")
-
-    generate_sitemap_and_robots(pages)
-
-# ---------------- assets: copy + minify + SRI ----------------
-def copy_assets_minify_sri():
-    if ASSETS.exists():
-        shutil.copytree(ASSETS, DIST / "assets", dirs_exist_ok=True)
-        log("OK","Skopiowano /assets")
-    else:
-        log("WARN","Brak assets/")
-
-    # minify CSS/JS lokalnych
-    for css in (DIST/"assets").rglob("*.css"):
-        if cssmin:
-            try: css.write_text(cssmin(css.read_text(encoding="utf-8")), encoding="utf-8")
-            except Exception as e: log("WARN", f"CSS minify {css.name}: {e}")
-    for js in (DIST/"assets").rglob("*.js"):
-        if jsmin:
-            try: js.write_text(jsmin(js.read_text(encoding="utf-8")), encoding="utf-8")
-            except Exception as e: log("WARN", f"JS minify {js.name}: {e}")
-
-    # mapa SRI dla lokalnych CSS/JS/WOFF2 (BASE64!)
-    sri_map = {}
-    for p in list((DIST/"assets").rglob("*.css")) + list((DIST/"assets").rglob("*.js")) + list((DIST/"assets").rglob("*.woff2")):
-        try:
-            sri_map["/" + str(p.relative_to(DIST)).replace("\\","/")] = calc_sri(p)
-        except Exception as e:
-            log("WARN", f"SRI {p.name}: {e}")
-    (DIST/"sri-map.json").write_text(json.dumps(sri_map, ensure_ascii=False, indent=2), encoding="utf-8")
-    log("OK","Obliczono SRI")
-
-def calc_sri(path: Path) -> str:
-    h = hashlib.sha384()
-    with open(path, "rb") as f:
-        h.update(f.read())
-    return "sha384-" + base64.b64encode(h.digest()).decode()
-
-# ---------------- images helpers ----------------
-def local_image_path(src_url: str, page_dir: Path) -> Optional[Path]:
-    if is_external_url(src_url): return None
-    src = src_url.split("?")[0].split("#")[0]
-    return ((ROOT / src.lstrip("/")) if src.startswith("/") else (page_dir / src).resolve())
-
-def generate_responsive_images(img_path: Path) -> Tuple[List[str], List[str], Optional[str], Tuple[int,int]]:
-    """Return (srcset_avif, srcset_webp, smallest_webp, (orig_w,h))"""
-    if Image is None or not img_path.exists(): return [], [], None, (0,0)
-    try:
-        im = Image.open(img_path)
-    except Exception:
-        return [], [], None, (0,0)
-    width, height = im.size
-    sizes = [w for w in IMG_SIZES if w <= width] or [width]
-    avif, webp = [], []
-    smallest_webp = None
-
-    out_base = DIST / img_path.relative_to(ROOT).parent
-    out_base.mkdir(parents=True, exist_ok=True)
-
-    for fmt in ("AVIF","WEBP"):
-        for w in sizes:
-            h = int(max(1, round(height * (w/width))))
-            try:
-                im2 = im.copy().resize((w,h), Image.LANCZOS)
-            except Exception:
-                continue
-            out = out_base / f"{img_path.stem}-{w}.{ 'avif' if fmt=='AVIF' else 'webp' }"
-            try:
-                if fmt == "AVIF":
-                    try:
-                        im2.save(out, format="AVIF", quality=IMG_QUAL, effort=4)
-                        avif.append("/" + str(out.relative_to(DIST)).replace("\\","/") + f" {w}w")
-                    except Exception:
-                        if not avif: log("WARN","AVIF niedostępny – użyję tylko WEBP")
-                else:
-                    im2.save(out, format="WEBP", quality=IMG_QUAL, method=6)
-                    u = "/" + str(out.relative_to(DIST)).replace("\\","/") + f" {w}w"
-                    webp.append(u)
-                    if w == min(sizes) and smallest_webp is None:
-                        smallest_webp = u.split()[0]
-            except Exception:
-                continue
-
-    return avif, webp, smallest_webp, (width, height)
-
-# ---------------- auto CSS (UX/UI) ----------------
-AUTO_CSS_PATH = Path("assets/css/auto-fixes.css")
-
-def generate_auto_css() -> str:
-    """Lekki, uniwersalny pakiet płynnej typografii + utilities."""
-    return """
-/* ======== auto-fixes.css (gen by build) ======== */
-:root{
-  --maxw:1200px;
-  --space-1:clamp(4px,0.2rem + 0.2vw,8px);
-  --space-2:clamp(8px,0.4rem + 0.3vw,12px);
-  --space-3:clamp(12px,0.6rem + 0.5vw,16px);
-  --space-4:clamp(16px,0.8rem + 0.8vw,24px);
-  --space-5:clamp(24px,1rem + 1.2vw,32px);
-  --space-6:clamp(32px,1.25rem + 2vw,56px);
-  --radius-2:12px;
-  --shadow-1:0 1px 2px rgba(0,0,0,.06),0 3px 8px rgba(0,0,0,.10);
-  --shadow-2:0 12px 30px rgba(0,0,0,.18);
-}
-
-html{font-size:clamp(15px,0.6vw + 14px,18px);line-height:1.5;text-size-adjust:100%}
-h1{font-size:clamp(28px,3.2vw,44px);line-height:1.15}
-h2{font-size:clamp(22px,2.4vw,32px);line-height:1.2;margin:0 0 var(--space-3)}
-h3{font-size:clamp(18px,1.6vw,24px);line-height:1.25}
-p{max-width:75ch}
-
-.section{padding:var(--space-6) 0}
-.container.text{max-width:var(--maxw);margin:0 auto;padding:0 var(--space-4)}
-
-/* karty: wyrównanie wysokości opisów */
-.cards .card{border-radius:var(--radius-2); box-shadow:var(--shadow-1);}
-.cards .card .pad{display:flex;flex-direction:column;height:100%}
-.cards .card p{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;-webkit-line-clamp:3}
-
-/* prefers-reduced-motion: mniej animacji */
-@media (prefers-reduced-motion: reduce){
-  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;scroll-behavior:auto !important}
-}
-
-/* drobne utilities */
-.center{margin-left:auto;margin-right:auto}
-.stack>*+*{margin-top:var(--space-3)}
-.line-clamp-2{-webkit-line-clamp:2}
-.line-clamp-3{-webkit-line-clamp:3}
-.line-clamp-4{-webkit-line-clamp:4}
-
-/* hero obraz: zapobiegnij CLS (fallback gdy HTML nie ma width/height) */
-.hero-media{aspect-ratio:21/9;display:block;border-radius:var(--radius-2)}
-"""
-
-def ensure_auto_css_and_link(soup: BeautifulSoup):
-    """Zapisuje auto-fixes.css do dist i podłącza <link> w <head> z SRI."""
-    css_text = generate_auto_css()
-    out_css = DIST / AUTO_CSS_PATH
-    out_css.parent.mkdir(parents=True, exist_ok=True)
-    out_css.write_text(css_text, encoding="utf-8")
-
-    # Minify + SRI
-    if cssmin:
-        try: out_css.write_text(cssmin(out_css.read_text(encoding="utf-8")), encoding="utf-8")
-        except Exception: pass
-    sri = calc_sri(out_css)
-    href = "/" + str(out_css.relative_to(DIST)).replace("\\","/")
-
-    head = soup.head or soup.find("head")
-    if not head: return
-    # Jeżeli już istnieje taki link — pomiń
-    for l in head.find_all("link", rel=True, href=True):
-        if l["href"] == href: return
-    # Wstrzyknij <link> za istniejącym głównym stylem
-    link = soup.new_tag("link", rel="stylesheet", href=href)
-    link["integrity"] = sri
-    link["crossorigin"] = "anonymous"
-    head.append(link)
-
-# ---------------- HTML postprocess ----------------
-def postprocess_html(html: str, page_dir: Path) -> str:
-    soup = BeautifulSoup(html, "html.parser")
-
-    # 1) IMG: wymiary, srcset/sizes, wydajność + hero preload
-    hero_preload = None  # (href, imagesrcset, imagesizes)
-    hero_done = False
-
-    for img in list(soup.find_all("img")):
-        src = img.get("src")
-        if not src: 
+# === AUTOLINKI (reguły per lang)
+def build_autolink_rules(lang: str):
+    rules = []
+    for r in AUTOLINKS or []:
+        if t(r.get("enabled") or r.get("is_enabled") or "TRUE").upper() != "TRUE":
             continue
+        if (t(r.get("lang")) or DEFAULT_LANG).lower() != lang.lower():
+            continue
+        anchor = t(r.get("anchor") or r.get("kw") or "")
+        href   = t(r.get("href") or r.get("url") or "")
+        if not anchor or not href: continue
+        limit  = int(r.get("limit") or 2)
+        rules.append({"anchor": anchor, "href": href, "limit": limit, "count": 0})
+    return rules
 
-        # Atrybuty wydajności
-        img.setdefault("loading", "lazy")
-        img.setdefault("decoding", "async")
+def apply_autolinks(soup: BeautifulSoup, lang: str):
+    """Delikatne, bezpieczne autolinki w <p> (z pominięciem już zalinkowanych)."""
+    rules = build_autolink_rules(lang)
+    if not rules: return
+    # skanuj same tekstowe węzły, omijaj <a> i nagłówki
+    for p in soup.find_all(["p", "li"]):
+        for node in list(p.descendants):
+            if not isinstance(node, NavigableString): continue
+            if node.parent.name in ("a", "script", "style"): continue
+            txt = str(node)
+            if not txt or len(txt) < 3: continue
+            changed = False
+            for r in rules:
+                if r["count"] >= r["limit"]: continue
+                # słowo graniczne, case-insensitive
+                pat = re.compile(rf"(?i)\b({re.escape(r['anchor'])})\b")
+                # jeśli węzeł ma już <a>, pomijamy
+                if pat.search(txt):
+                    new_html = pat.sub(rf'<a href="{html.escape(r["href"])}">\1</a>', txt, count=1)
+                    if new_html != txt:
+                        new_frag = BeautifulSoup(new_html, "lxml").body
+                        # podmień bez utraty reszty
+                        node.replace_with(new_frag.decode_contents())
+                        r["count"] += 1
+                        changed = True
+                if r["count"] >= r["limit"]:  # drobny speedup
+                    continue
+            if changed:
+                # przejdź dalej w tym <p>
+                continue
 
-        is_hero = "hero-media" in (img.get("class") or [])
-        if is_hero and not hero_done:
-            img["fetchpriority"] = "high"
-            img["loading"] = "eager"
+# === POST-PROCESSING HTML
+def postprocess_html(raw_html: str, lang: str, canon_url: str, out_path: Path) -> str:
+    soup = BeautifulSoup(raw_html, "lxml")
 
-        p = local_image_path(src, page_dir)
-        if p and p.exists():
-            # Wymiary
-            if Image:
-                try:
-                    with Image.open(p) as im:
-                        w,h = im.size
-                        img.setdefault("width", str(w))
-                        img.setdefault("height", str(h))
-                except Exception:
-                    pass
+    # 1) IMG: lazy + decoding (poza LCP/hero)
+    for i, img in enumerate(soup.find_all("img")):
+        classes = " ".join(img.get("class", [])).lower()
+        if "hero-media" in classes or img.get("fetchpriority") == "high":
+            # zostaw LCP
+            pass
+        else:
+            img["loading"] = img.get("loading", "lazy")
+            img["decoding"] = img.get("decoding", "async")
+        # alt safety
+        if not img.get("alt"): img["alt"] = ""
 
-            # picture + srcset
-            avif, webp, smallest_webp, _orig = generate_responsive_images(p)
-            if (avif or webp) and (img.parent and img.parent.name != "picture"):
-                picture = soup.new_tag("picture")
-                if avif:
-                    s = soup.new_tag("source")
-                    s["type"] = "image/avif"
-                    s["srcset"] = ", ".join(sorted(avif, key=lambda x:int(x.split()[-1][:-1])))
-                    s["sizes"] = "(max-width: 1200px) 100vw, 1200px"
-                    picture.append(s)
-                if webp:
-                    s = soup.new_tag("source")
-                    s["type"] = "image/webp"
-                    s["srcset"] = ", ".join(sorted(webp, key=lambda x:int(x.split()[-1][:-1])))
-                    s["sizes"] = "(max-width: 1200px) 100vw, 1200px"
-                    picture.append(s)
-                    img["srcset"] = s["srcset"]
-                    img["sizes"]  = s["sizes"]
-                if smallest_webp:
-                    img["src"] = smallest_webp
-                img.wrap(picture)
-
-                if is_hero and not hero_done:
-                    hero_preload = (smallest_webp or img["src"], img.get("srcset",""), img.get("sizes","(max-width: 1200px) 100vw, 1200px"))
-                    hero_done = True
-
-    # 1b) PRELOAD HERO
-    if hero_preload:
-        href, imagesrcset, imagesizes = hero_preload
-        head = soup.head or soup.find("head")
-        if head:
-            # Jeśli nie ma istniejącego preloadu na ten href
-            has = any(l.get("rel")==["preload"] and l.get("as")=="image" for l in head.find_all("link"))
-            if not has:
-                l = soup.new_tag("link", rel="preload")
-                l["as"] = "image"
-                l["href"] = href
-                if imagesrcset:
-                    l["imagesrcset"] = imagesrcset
-                    l["imagesizes"]  = imagesizes
-                head.append(l)
-                log("OK","Dodano preload hero image")
-
-    # 2) SRI: wstaw integrity dla lokalnych CSS/JS (z dist/sri-map.json)
-    sri_map = {}
-    try:
-        sri_map = json.loads((DIST/"sri-map.json").read_text(encoding="utf-8"))
-    except Exception:
-        pass
-    for tag in soup.find_all(["script","link"]):
-        if tag.name == "script" and tag.get("src"):
-            href = tag["src"]
-            if not is_external_url(href) and href in sri_map:
-                tag["integrity"]   = sri_map[href]
-                tag["crossorigin"] = "anonymous"
-        if tag.name == "link" and tag.get("href"):
-            rel = " ".join(tag.get("rel") or [])
-            if ("stylesheet" in rel) or ("preload" in rel and tag.get("as")=="font"):
-                href = tag["href"]
-                if not is_external_url(href) and href in sri_map:
-                    tag["integrity"]   = sri_map[href]
-                    tag["crossorigin"] = "anonymous"
-
-    # 3) Linki zewnętrzne: bezpieczeństwo
-    for a in soup.find_all("a", href=True):
-        if is_external_url(a["href"]) and a.get("target") == "_blank":
+    # 2) target=_blank -> rel=noopener
+    for a in soup.find_all("a"):
+        if a.get("target") == "_blank":
             rel = set((a.get("rel") or []))
-            rel.update(["noopener","noreferrer"])
-            a["rel"] = " ".join(rel)
+            rel.add("noopener")
+            a["rel"] = " ".join(sorted(rel))
 
-    # 4) JSON-LD sanity
-    for sc in soup.find_all("script", attrs={"type":"application/ld+json"}):
-        try:
-            data = json.loads(sc.string or "{}")
-            _validate_jsonld(data)
-        except Exception as e:
-            log("WARN", f"JSON-LD parse: {e}")
+    # 3) canonical (jeśli brak) – do <head>
+    if not soup.find("link", rel=lambda x: (x or "").lower()=="canonical"):
+        head = soup.find("head")
+        if head:
+            link_tag = soup.new_tag("link", rel="canonical", href=canon_url)
+            head.append(link_tag)
 
-    # 5) Whitelist widgetów
-    for iframe in soup.find_all("iframe", src=True):
-        host = host_of(iframe["src"])
-        if host and host not in ALLOWED_WIDGET_HOSTS:
-            log("FAIL", f"IFRAME host '{host}' nie jest na ALLOWED_WIDGET_HOSTS")
-    for emb in soup.select("[data-embed-src]"):
-        host = host_of(emb.get("data-embed-src",""))
-        if host and host not in ALLOWED_WIDGET_HOSTS:
-            log("FAIL", f"Widget host '{host}' nie jest na ALLOWED_WIDGET_HOSTS")
+    # 4) autolinki (delikatne)
+    apply_autolinks(soup, lang)
 
-    # 6) A11y/HTML + kontrakt sekcji
-    _a11y_min_checks(soup)
-    _hreflang_sanity(soup)
-    _section_contract_checks(soup)
+    # 5) Lekka minifikacja (bezpieczna)
+    html_out = soup.decode()
+    html_out = re.sub(r">\s+<", "><", html_out)  # usuń nadmiar białych znaków między tagami
+    html_out = re.sub(r"\s{2,}", " ", html_out)  # skompresuj spacje
 
-    # 7) Link checker (wewnętrzne)
-    _link_checker(soup)
+    # 6) Budżet HTML (.gz)
+    gz = gz_size(html_out.encode("utf-8"))
+    if gz > BUDGET_HTML_GZIP:
+        warn(str(out_path), f"HTML gzip {gz}B > budżet {BUDGET_HTML_GZIP}B")
 
-    # 8) Auto CSS (UX/UI 2): płynna typografia, line-clamp, utilities
-    ensure_auto_css_and_link(soup)
+    # 7) H1 / canonical sanity
+    h1s = BeautifulSoup(html_out, "lxml").find_all("h1")
+    if len(h1s) != 1:
+        warn(str(out_path), f"Nieprawidłowa liczba <h1>: {len(h1s)} (powinno być 1)")
 
-    # 9) Minifikacja HTML
-    out_html = str(soup)
-    if htmlmin:
-        try:
-            out_html = htmlmin.minify(out_html, remove_comments=True, remove_optional_attribute_quotes=False)
-        except Exception as e:
-            log("WARN", f"HTML minify: {e}")
-    return out_html
+    return html_out
 
-# ---------------- walidatory ----------------
-def _validate_jsonld(data: Any):
-    def ensure(obj, key, path):
-        if key not in obj or obj[key] in (None,"",[],{}):
-            raise ValueError(f"Brak '{key}' w JSON-LD ({path})")
+# === ZBIERANIE WEWNĘTRZNYCH LINKÓW (po renderze sprawdzimy)
+INTERNAL_HREFS: Dict[str, List[str]] = {}
 
-    if isinstance(data, dict) and data.get("@type"):
-        t = data["@type"]
-        if t == "FAQPage":
-            ensure(data,"mainEntity","FAQPage")
-        elif t == "BlogPosting":
-            for k in ("headline","mainEntityOfPage","publisher"):
-                ensure(data,k,"BlogPosting")
-        elif t == "Product":
-            ensure(data,"aggregateRating","Product")
-        elif t == "JobPosting":
-            ensure(data,"title","JobPosting")
-    elif isinstance(data, dict) and data.get("@graph"):
-        for n in data["@graph"]:
-            if isinstance(n, dict) and n.get("@type"):
-                _validate_jsonld(n)
+# === RENDER STRON
+site_urls_for_sitemap: List[str] = []
 
-def _a11y_min_checks(soup: BeautifulSoup):
-    h1 = soup.find_all("h1")
-    if len(h1)!=1: log("WARN", f"H1 na stronie: {len(h1)} (zalecane: 1)")
-    for img in soup.find_all("img"):
-        if not img.has_attr("alt"):
-            log("WARN","<img> bez alt")
-    for nav in soup.find_all("nav"):
-        if not nav.get("aria-label"):
-            log("WARN","<nav> bez aria-label")
+strings_cache: Dict[str, Dict[str,str]] = {}
 
-def _hreflang_sanity(soup: BeautifulSoup):
-    alts = soup.find_all("link", attrs={"rel":"alternate"})
-    langs = [a.get("hreflang") for a in alts if a.get("hreflang")]
-    if "x-default" not in langs: log("WARN","Brak hreflang='x-default'")
-    hrefs = [a.get("href") for a in alts if a.get("href")]
-    if len(hrefs) != len(set(hrefs)): log("WARN","Duplikaty linków hreflang")
+def strings_for(lang: str) -> Dict[str,str]:
+    if lang not in strings_cache:
+        strings_cache[lang] = build_strings(STR_ROWS, lang)
+    return strings_cache[lang]
 
-def _section_contract_checks(soup: BeautifulSoup):
-    """Lekki kontrakt: każda <section> powinna mieć H2 w .container.text."""
-    for sec in soup.find_all("section"):
-        title_ok = bool(sec.select_one(".container.text h2"))
-        if not title_ok:
-            sec_id = sec.get("id") or "(bez id)"
-            log("WARN", f"Sekcja {sec_id}: brak H2 w .container.text")
+for page in PAGES:
+    lang = (t(page.get("lang")) or DEFAULT_LANG).lower()
+    slug = t(page.get("slug")) or ""
+    # output path /pl/slug/index.html (home: /pl/index.html)
+    out_dir = DIST / lang / slug
+    if slug == "" or slug == "/":
+        out_dir = DIST / lang
+    out_path = out_dir / "index.html"
+    mkdirp(out_path)
 
-def _link_checker(soup: BeautifulSoup):
+    # canonical
+    path_part = (f"/{lang}/" + (f"{slug}/" if slug else ""))
+    canon_url = SITE_URL + path_part
+
+    # template
+    tpl_name = template_for(page)
+
+    # related w ramach parentSlug
+    samekey = t(page.get("slugKey") or page.get("slug") or "home")
+    related = [p for p in PAGES
+               if (t(p.get("lang")) or DEFAULT_LANG).lower()==lang
+               and t(p.get("parentSlug"))==t(page.get("parentSlug"))
+               and t(p.get("slugKey") or p.get("slug")) != samekey][:12]
+
+    # strings
+    strings = strings_for(lang)
+
+    # HEAD (mini kontekst do <head>, jeśli w szablonie używasz)
+    head = {
+        "canonical": canon_url,
+        "site_url": SITE_URL,
+        "brand": BRAND,
+        "updated": now_iso()
+    }
+
+    # body_html – jeśli w CMS masz plain markdown/html
+    body_html = t(page.get("page_html") or page.get("body_html") or page.get("body") or "")
+
+    # FAQ przywiązane do tej strony (slug/page) + język
+    page_slug = t(page.get("slug"))
+    page_faq = [f for f in FAQ
+                if (t(f.get("lang")) or lang).lower()==lang
+                and (t(f.get("slug"))==page_slug or t(f.get("page"))==page_slug)]
+
+    ctx = {
+        "site_url": SITE_URL,
+        "brand": BRAND,
+        "updated": now_iso(),
+        "company": COMPANY,
+        "nav": NAV,
+        "page": page,
+        "page_html": body_html,
+        "faq": page_faq,
+        "related": related,
+        "media": MEDIA,
+        "head": head,
+        "strings": strings,
+        "blog": BLOG,
+        "authors": AUTHORS,
+        "categories": CATEGORIES,
+        "reviews": REVIEWS,
+        "jobs": JOBS,
+        "blocks": BLOCKS,
+        "routes": ROUTES,
+        "places": PLACES,
+        "default_lang": DEFAULT_LANG
+    }
+
+    try:
+        tmpl = env.get_template(tpl_name)
+    except TemplateNotFound:
+        tmpl = env.get_template("page.html")
+
+    raw_html = tmpl.render(**ctx)
+    html_out = postprocess_html(raw_html, lang, canon_url, out_path)
+    out_path.write_text(html_out, encoding="utf-8")
+    built_files.append(out_path)
+    built_urls.append(canon_url)
+    site_urls_for_sitemap.append(canon_url)
+
+    # zbierz linki wewnętrzne do późniejszego sprawdzenia
+    soup = BeautifulSoup(html_out, "lxml")
+    hrefs = []
     for a in soup.find_all("a", href=True):
         href = a["href"]
-        if href.startswith("#"):
-            anchor = href[1:]
-            if anchor and not soup.find(id=anchor):
-                log("WARN", f"Anchor #{anchor} może nie istnieć")
-            continue
-        if is_external_url(href): continue
-        clean = href.split("?")[0].split("#")[0]
-        target = (DIST / clean.lstrip("/")).resolve()
-        if target.is_dir():
-            if not (target/"index.html").exists():
-                log("WARN", f"Link {href} -> katalog bez index.html")
-        elif not target.exists():
-            if not (DIST / clean.lstrip("/")).exists():
-                log("WARN", f"Brak zasobu: {href}")
+        if href.startswith("/") and not href.startswith("//"):
+            # zignoruj #kotwice na tej samej stronie
+            if "#" in href:
+                href = href.split("#", 1)[0]
+            hrefs.append(href)
+    INTERNAL_HREFS[str(out_path)] = hrefs
 
-# ---------------- sitemap/robots ----------------
-def generate_sitemap_and_robots(pages: List[Dict[str,Any]]):
-    urls = []
-    for p in pages:
-        lang = (p.get("lang") or "pl").lower()
-        slug = p.get("slug") or ""
-        urls.append(f"{SITE_URL}/{lang}/" + (f"{slug}/" if slug else ""))
-    urls = sorted(set(urls))
+# === REDIRECTY (proste “hopki” HTML + JS)
+def write_redirect(from_path: str, to: str):
+    # z wejścia "/pl/stare/" -> zapis /dist/pl/stare/index.html
+    p = DIST / from_path.strip("/").rstrip("/") / "index.html"
+    mkdirp(p)
+    target = to if to.startswith("http") else urljoin(SITE_URL + "/", to.strip("/")) + "/"
+    html = f"""<!doctype html><html lang="{DEFAULT_LANG}">
+<head>
+<meta charset="utf-8"><meta name="robots" content="noindex,follow">
+<link rel="canonical" href="{target}">
+</head>
+<body>
+<p>Redirecting to <a href="{target}">{target}</a>.</p>
+<script>location.replace("{target}");</script>
+</body></html>"""
+    p.write_text(html, encoding="utf-8")
+    built_files.append(p)
+
+for r in REDIRECTS:
+    src = t(r.get("from") or r.get("src") or "")
+    dst = t(r.get("to") or r.get("dst") or "")
+    if not src or not dst: continue
+    write_redirect(src, dst)
+
+# === 404
+def write_404():
+    p = DIST / "404.html"
+    html = f"""<!doctype html><html lang="{DEFAULT_LANG}">
+<head><meta charset="utf-8"><title>404 — {BRAND}</title>
+<meta name="robots" content="noindex,follow">
+<link rel="canonical" href="{SITE_URL}/404.html">
+<style>body{{font:16px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:3rem;color:#eaeef3;background:#0b0f17}}a{{color:#ff8a1f}}</style>
+</head><body><h1>Nie znaleziono strony</h1>
+<p><a href="{SITE_URL}/{DEFAULT_LANG}/">Wróć na stronę główną</a></p></body></html>"""
+    p.write_text(html, encoding="utf-8")
+    built_files.append(p)
+
+write_404()
+
+# === CNAME
+if CNAME_TARGET:
+    (DIST / "CNAME").write_text(CNAME_TARGET.strip()+"\n", encoding="utf-8")
+
+# === SITEMAP
+def write_sitemap(urls: List[str]):
     sm = ['<?xml version="1.0" encoding="UTF-8"?>',
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    for u in urls:
-        sm += ["<url>", f"<loc>{u}</loc>", f"<lastmod>{time.strftime('%Y-%m-%d')}</lastmod>", "</url>"]
-    sm += ["</urlset>"]
-    (DIST/"sitemap.xml").write_text("\n".join(sm), encoding="utf-8")
-    (DIST/"robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n", encoding="utf-8")
-    log("OK","Wygenerowano sitemap.xml + robots.txt")
+    now = datetime.utcnow().date().isoformat()
+    for u in sorted(set(urls)):
+        sm.append(f"<url><loc>{html.escape(u)}</loc><lastmod>{now}</lastmod></url>")
+    sm.append("</urlset>")
+    (DIST / "sitemap.xml").write_text("\n".join(sm), encoding="utf-8")
 
-# ---------------- budżety ----------------
-def budgets_and_report():
-    for p in DIST.rglob("*.html"):
-        kb = gzip_size_bytes(p)/1024.0
-        if kb > BUDGETS["html_gzip_kb"]:
-            log("WARN", f"HTML {p.relative_to(DIST)} = {kb:.1f} KB gzip (> {BUDGETS['html_gzip_kb']} KB)")
-    crit = list(DIST.rglob("*critical*.css"))
-    if crit:
-        total = sum(gzip_size_bytes(x) for x in crit)/1024.0
-        if total > BUDGETS["css_critical_gzip_kb"]:
-            log("WARN", f"Critical CSS = {total:.1f} KB gzip (> {BUDGETS['css_critical_gzip_kb']} KB)")
-    init_js = list(DIST.rglob("*init*.js")) + list(DIST.rglob("kras-global.js"))
-    if init_js:
-        total = sum(gzip_size_bytes(x) for x in init_js)/1024.0
-        if total > BUDGETS["js_init_gzip_kb"]:
-            log("WARN", f"Init JS = {total:.1f} KB gzip (> {BUDGETS['js_init_gzip_kb']} KB)")
-    heros = list(DIST.rglob("assets/media/hero*"))
-    if heros:
-        biggest = max(heros, key=lambda p: p.stat().st_size)
-        kb = biggest.stat().st_size/1024.0
-        if kb > BUDGETS["hero_img_kb"]:
-            log("WARN", f"Hero {biggest.name} = {kb:.0f} KB (> {BUDGETS['hero_img_kb']} KB)")
+write_sitemap(site_urls_for_sitemap)
 
-# ---------------- opcjonalne narzędzia Node ----------------
-def run_critical_inline():
-    if not RUN_CRIT:
-        log("OK","Critical CSS pominięty (RUN_CRITICAL=1 aby włączyć)")
-        return
-    # Podejdź per plik HTML – critical sam inline'uje i zapisuje
-    htmls = list(DIST.rglob("*.html"))
-    if not htmls:
-        return
-    for h in htmls:
-        rel = "/" + str(h.relative_to(DIST)).replace("\\","/")
-        try:
-            subprocess.run([
-                "npx","critical",
-                "--inline","--rebase",
-                "--base", str(DIST),
-                "--src",  rel,
-                "--target", rel,
-                "--width","1300","--height","900"
-            ], check=True)
-            log("OK", f"Critical CSS inline: {rel}")
-        except Exception as e:
-            log("WARN", f"critical ({rel}): {e}")
+# === ROBOTS
+(DIST / "robots.txt").write_text(
+    "User-agent: *\nAllow: /\n" + f"Sitemap: {SITE_URL}/sitemap.xml\n",
+    encoding="utf-8"
+)
 
-def run_lhci():
-    if not RUN_LHCI:
-        log("OK","LHCI pominięty (RUN_LHCI=1 aby włączyć)")
-        return
-    try:
-        subprocess.run(["npx","@lhci/cli","autorun","--config=./lighthouserc.json"], check=True)
-        log("OK","Lighthouse CI zakończony")
-    except Exception as e:
-        log("WARN", f"LHCI błąd/niedostępny: {e}")
-
-def run_axe():
-    if not RUN_AXE:
-        log("OK","axe-core pominięty (RUN_AXE=1 aby włączyć)")
-        return
-    try:
-        subprocess.run(["npx","axe","http://localhost:4173/pl/","--quiet"], check=True)
-        log("OK","axe-core zakończony")
-    except Exception as e:
-        log("WARN", f"axe-core błąd: {e}")
-
-def run_visual():
-    if not RUN_VR:
-        log("OK","Playwright VR pominięty (RUN_VR=1 aby włączyć)")
-        return
-    try:
-        subprocess.run(["npx","playwright","test","-c","playwright.config.ts"], check=True)
-        log("OK","Playwright VR zakończony")
-    except Exception as e:
-        log("WARN", f"Playwright błąd: {e}")
-
-# ---------------- CLI ----------------
-def clean():
-    if DIST.exists(): shutil.rmtree(DIST)
-    _ensure_dirs()
-
-def build():
-    clean()
-    ctx = load_data()
-    render_site(ctx)
-    budgets_and_report()
-    write_logs()
-    run_critical_inline()
-    run_lhci(); run_axe(); run_visual()
-
-    if FAIL_HAPPENED or (STRICT and any(k=="WARN" for k,_ in REPORTS)):
-        if NOFAIL:
-            log("WARN","Były błędy/ostrzeżenia, ale CONTINUE_ON_FAIL=1 – nie przerywam.")
-        else:
-            sys.exit(1)
-
-if __name__ == "__main__":
-    cmd = sys.argv[1] if len(sys.argv)>1 else "build"
-    if cmd=="clean": clean()
-    elif cmd=="build": build()
+# === LINK-CHECK (wewnętrzne hrefy -> czy plik istnieje w dist)
+# zbuduj zbiór dostępnych ścieżek względnych
+available: set[str] = set()
+for f in built_files:
+    rel = "/" + str(f.relative_to(DIST)).replace("\\", "/")
+    # /pl/slug/index.html -> /pl/slug/ i /pl/
+    if rel.endswith("/index.html"):
+        available.add(rel[:-10])  # katalog
+        available.add(rel)        # plik
     else:
-        print("Użycie: python build.py [build|clean]")
+        available.add(rel)
+
+for src_file, hrefs in INTERNAL_HREFS.items():
+    for href in hrefs:
+        # mapuj href na potencjalny plik
+        # /pl/aaa/  -> /pl/aaa/index.html
+        want1 = href if href.endswith(".html") else href.rstrip("/") + "/index.html"
+        want2 = href.rstrip("/") + "/"
+        if want1 not in available and want2 not in available:
+            warn(src_file, f"Wewnętrzny link nie znaleziony w dist: {href}")
+
+# === SNAPSHOT ZIP
+def zip_dist():
+    zpath = DIST / "download" / "site.zip"
+    zpath.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zpath, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for p in DIST.rglob("*"):
+            if p.is_dir(): continue
+            # nie pakuj samego zipa w zipie
+            if p == zpath: continue
+            zf.write(p, p.relative_to(DIST))
+zip_dist()
+
+# === ZAPISZ LOG
+def write_issues():
+    if not ISSUES:
+        (DIST / "build_ok.txt").write_text("OK " + now_iso(), encoding="utf-8")
+        return
+    lines = []
+    for it in ISSUES:
+        lines.append(f"[{it['level'].upper()}] {it['path']}: {it['msg']}")
+    (DIST / "issues.log").write_text("\n".join(lines), encoding="utf-8")
+write_issues()
+
+# === WYJŚCIE
+errors = [x for x in ISSUES if x["level"] == "error"]
+if errors and STRICT:
+    print("\n".join(f"[ERROR] {e['path']}: {e['msg']}" for e in errors))
+    raise SystemExit(1)
+else:
+    for it in ISSUES:
+        print(f"[{it['level'].upper()}] {it['path']}: {it['msg']}")
+    print("Build finished:", len(built_files), "files")
