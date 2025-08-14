@@ -1,350 +1,355 @@
 <!doctype html>
-<html lang="{{ page.lang or 'pl' }}">
+<html lang="{{ (page.lang if page is defined and page.lang is defined else 'pl') }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0b0f17">
 
-  {% set _title = page.seo_title or page.title or page.h1 or 'Kras-Trans' %}
-  {% set _desc  = page.meta_desc or page.description or page.lead or 'Transport i spedycja — Polska & UE' %}
+  {# — Tytuł/opis (bezpiecznie z fallbackami) — #}
+  {% set _title = (page.seo_title if page is defined and page.seo_title else (page.title if page is defined and page.title else (page.h1 if page is defined and page.h1 else 'Kras-Trans'))) %}
+  {% set _desc  = (page.meta_desc if page is defined and page.meta_desc else (page.description if page is defined and page.description else (page.lead if page is defined and page.lead else 'Transport i spedycja — Polska & UE'))) %}
   <title>{{ _title }}</title>
   <meta name="description" content="{{ _desc }}">
 
-  {# Canonical + hreflang #}
-  {% set _lang = page.lang or 'pl' %}
-  {% set _slug = page.slug or '' %}
-{% set _path = '/' ~ _lang ~ '/' ~ (_slug ~ '/' if _slug else '') %}  {% set _canon = (SITE_URL or site_url or 'https://kras-trans.com') ~ _path %}
+  {# — Canonical + hreflang — #}
+  {% set _lang = (page.lang if page is defined and page.lang else 'pl') %}
+  {% set _slug = (page.slug if page is defined and page.slug else '') %}
+  {% set _path = '/' ~ _lang ~ '/' ~ (_slug ~ '/' if _slug else '') %}
+  {% set _site = (SITE_URL if SITE_URL is defined and SITE_URL else (site_url if site_url is defined and site_url else 'https://kras-trans.com')) %}
+  {% set _canon = _site ~ _path %}
   <link rel="canonical" href="{{ _canon }}">
-  {% set samekey = page.slugKey or page.slug or 'home' %}
-  {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
-    {% set _altpath = '/' ~ (alt.lang or 'pl') ~ '/' ~ (alt.slug or '') ~ '/' %}
-    <link rel="alternate" hreflang="{{ (alt.lang or 'pl')|lower }}" href="{{ (SITE_URL or site_url or 'https://kras-trans.com') ~ _altpath }}">
+  {% set samekey = (page.slugKey if page is defined and page.slugKey else (page.slug if page is defined and page.slug else 'home')) %}
+  {% set _pages = (pages if pages is defined else []) %}
+  {% for alt in _pages | selectattr('slugKey','equalto',samekey) | list %}
+    {% set _altpath = '/' ~ (alt.lang or 'pl') ~ '/' ~ ((alt.slug or '') ~ '/' if alt.slug else '') %}
+    <link rel="alternate" hreflang="{{ (alt.lang or 'pl')|lower }}" href="{{ _site ~ _altpath }}">
   {% endfor %}
   <link rel="alternate" hreflang="x-default" href="{{ _canon }}">
 
-  {# OpenGraph / Twitter #}
-  {% set ogimg = page.og_image or page.hero_image or 'assets/media/og-default.webp' %}
+  {# — OpenGraph / Twitter — #}
+  {% set ogimg = (page.og_image if page is defined and page.og_image else (page.hero_image if page is defined and page.hero_image else 'assets/media/og-default.webp')) %}
+  {% set _og = ogimg or 'assets/media/og-default.webp' %}
+  {% if _og and _og[0]=='/' %}{% set _og = _og[1:] %}{% endif %}
   <meta property="og:type" content="website">
   <meta property="og:title" content="{{ _title }}">
   <meta property="og:description" content="{{ _desc }}">
   <meta property="og:url" content="{{ _canon }}">
-{% set _og = ogimg or 'assets/media/og-default.webp' %}
-{% if _og and _og[0]=='/' %}{% set _og = _og[1:] %}{% endif %}
-<meta property="og:image" content="{{ (SITE_URL or site_url or 'https://kras-trans.com') ~ '/' ~ _og }}">  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:image" content="{{ _site ~ '/' ~ _og }}">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ _title }}">
   <meta name="twitter:description" content="{{ _desc }}">
-  <meta name="twitter:image" content="{{ (SITE_URL or site_url or 'https://kras-trans.com') ~ '/' ~ ogimg|replace('^/','') }}">
+  <meta name="twitter:image" content="{{ _site ~ '/' ~ _og }}">
 
-  {# GSC (opcjonalnie) #}
-  {% if GSC_VERIFICATION %}<meta name="google-site-verification" content="{{ GSC_VERIFICATION }}">{% endif %}
+  {# — GSC (opcjonalnie) — #}
+  {% if GSC_VERIFICATION is defined and GSC_VERIFICATION %}<meta name="google-site-verification" content="{{ GSC_VERIFICATION }}">{% endif %}
 
-  {# Performance: fonts & CSS #}
+  {# — Performance: fonts & CSS — #}
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable-Italic.woff2" crossorigin>
   <link rel="stylesheet" href="/assets/css/kras-global.css">
 
-  <style>.visually-hidden{position:absolute!important;clip:rect(1px,1px,1px,1px);clip-path:inset(50%);height:1px;width:1px;overflow:hidden;white-space:nowrap}</style>
+  <style>
+    .visually-hidden{position:absolute!important;clip:rect(1px,1px,1px,1px);clip-path:inset(50%);height:1px;width:1px;overflow:hidden;white-space:nowrap}
+  </style>
 </head>
 <body>
-  <!-- tło: siatka + canvas (bez obrazków) -->
+  <!-- tło: siatka + canvas „patyczki” (bez obrazków) -->
   <div id="bg-grid" aria-hidden="true"></div>
   <canvas id="bg-canvas" aria-hidden="true"></canvas>
 
-  <!-- ===== HEADER (sticky) ===== -->
+  {# ================= HEADER (sticky) ================= #}
+  {% set _company = (company if company is defined and company else []) %}
+  {% set brand_name = (_company[0].name if _company and _company[0].name else (strings.brand if strings is defined and strings.brand is defined else 'Kras-Trans')) %}
   <header class="site-header" role="banner">
     <div class="container header-grid">
-      <a class="brand" href="/">{{ (company and company[0].name) or strings.brand or 'Kras-Trans' }}</a>
+      <a class="brand" href="/">{{ brand_name }}</a>
 
-      <nav id="site-nav" class="nav" aria-label="{{ strings.nav_main or 'Główna nawigacja' }}">
+      {# — NAV: z arkusza, fallback jeśli brak — #}
+      {% set _nav = (nav if nav is defined else []) %}
+      {% set nav_items = _nav | selectattr('lang','equalto',_lang) | list %}
+      {% if nav_items|length == 0 %}
+        {% set nav_items = [
+          {'label':'Oferta','href':'/' ~ _lang ~ '/#oferta'},
+          {'label':'Kierunki','href':'/' ~ _lang ~ '/kierunki/'},
+          {'label':'Blog','href':'/' ~ _lang ~ '/blog/'},
+          {'label':'Kontakt','href':'/' ~ _lang ~ '/#kontakt'}
+        ] %}
+      {% endif %}
+
+      <nav id="site-nav" class="nav" aria-label="{{ (strings.nav_main if strings is defined and strings.nav_main is defined else 'Główna nawigacja') }}">
         <ul class="nav-list">
-          {# stałe z arkusza Nav (dla danego języka) #}
-          {% set nav_items = (nav or []) | selectattr('lang','equalto',_lang) | sort(attribute='order') | list %}
           {% for item in nav_items %}
-            <li>
-              <a href="{{ item.href }}">{{ item.label }}</a>
-            </li>
+            <li><a href="{{ item.href }}">{{ item.label }}</a></li>
           {% endfor %}
         </ul>
-
-        <ul class="nav-langs" aria-label="{{ strings.nav_langs or 'Języki' }}">
-          {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
-            {% set _lp = '/' ~ (alt.lang or 'pl') ~ '/' ~ (alt.slug or '') ~ '/' %}
-            <li><a href="{{ _lp }}" hreflang="{{ (alt.lang or 'pl')|lower }}">{{ (alt.lang or 'PL')|upper }}</a></li>
+        <ul class="nav-langs" aria-label="{{ (strings.nav_langs if strings is defined and strings.nav_langs is defined else 'Języki') }}">
+          {% for alt in _pages | selectattr('slugKey','equalto',samekey) | list %}
+            {% set _altpath = '/' ~ (alt.lang or 'pl') ~ '/' ~ ((alt.slug or '') ~ '/' if alt.slug else '') %}
+            <li><a href="{{ _altpath }}" hreflang="{{ (alt.lang or 'pl')|lower }}">{{ (alt.lang or 'PL')|upper }}</a></li>
           {% endfor %}
         </ul>
       </nav>
 
       <div class="header-actions">
-        <button id="theme-toggle" class="icon-btn theme-toggle" type="button"
-                aria-label="{{ strings.theme_toggle or 'Zmień motyw' }}" aria-pressed="false" title="Motyw">
+        <button id="theme-toggle" class="icon-btn theme-toggle" type="button" aria-label="{{ (strings.theme_toggle if strings is defined and strings.theme_toggle is defined else 'Zmień motyw') }}" aria-pressed="false" title="Motyw">
           <span class="sun" aria-hidden="true"></span>
           <span class="moon" aria-hidden="true"></span>
           <span class="paper" aria-hidden="true"></span>
         </button>
-        <a class="btn primary btn--shine" href="tel:{{ (company and company[0].telephone) or strings.phone or '+48793927467' }}">
-          {{ strings.cta_call or 'Zadzwoń 24/7' }}
-        </a>
+        {% set tel = (_company[0].telephone if _company and _company[0].telephone else '+48793927467') %}
+        <a class="btn primary btn--shine" href="tel:{{ tel }}">{{ (strings.cta_call if strings is defined and strings.cta_call is defined else 'Zadzwoń 24/7') }}</a>
       </div>
     </div>
   </header>
 
-  <!-- ===== MAIN ===== -->
-  <main id="main" role="main">
-
-    <!-- HERO 21:9 (bez stałego tła) -->
-    <section class="hero" id="hero" aria-label="{{ strings.hero_aria or 'Hero' }}">
+  <main id="main" class="content" role="main">
+    {# ================= HERO ================= #}
+    <section class="hero" id="hero" aria-label="{{ (strings.hero_aria if strings is defined and strings.hero_aria is defined else 'Hero') }}">
       <div class="container hero-wrap">
         <div class="hero-copy">
-          <span class="claim">{{ page.claim or strings.claim or 'Kompleksowe usługi transportowe' }}</span>
-
-          <h1>
-            {{ page.h1 or 'Kras-Trans — transport ekspresowy 3,5 t i TIR (Polska & Europa)' }}
-          </h1>
-
-          {% if page.lead %}<p>{{ page.lead }}</p>{% endif %}
-
-          <p class="hero-cta-row">
-            <a id="hero-quote-btn" class="btn primary" href="#kontakt">{{ strings.hero_cta_primary or 'Wyceń transport teraz' }}</a>
-            <a class="btn" href="tel:{{ (company and company[0].telephone) or '+48 793 927 467' }}">{{ strings.hero_cta_secondary or 'Zadzwoń 24/7' }}</a>
+          <span class="claim">{{ (page.claim if page is defined and page.claim else (strings.claim if strings is defined and strings.claim is defined else 'Kompleksowe usługi transportowe')) }}</span>
+          <h1>{{ (page.h1 if page is defined and page.h1 else (page.title if page is defined and page.title else 'Transport — Polska & Europa')) }}</h1>
+          {% if page is defined and page.lead %}<p>{{ page.lead }}</p>{% endif %}
+          <p>
+            <a class="btn primary" href="#kontakt">{{ (strings.hero_cta_primary if strings is defined and strings.hero_cta_primary is defined else 'Wycena 15 min') }}</a>
+            <a class="btn" href="tel:{{ tel }}">{{ (strings.hero_cta_secondary if strings is defined and strings.hero_cta_secondary is defined else 'Zadzwoń') }}</a>
           </p>
 
-          <!-- 3 kroki + dymek wskazujący CTA -->
-          <div class="cta-steps">
-            <ol class="steps">
-              <li><strong>{{ strings.step1 or 'Krok 1:' }}</strong> {{ strings.step1_txt or 'Kliknij „Wyceń transport teraz”.' }}</li>
-              <li><strong>{{ strings.step2 or 'Krok 2:' }}</strong> {{ strings.step2_txt or 'Wpisz trasę i dane ładunku (palety, waga, wymiary).' }}</li>
-              <li><strong>{{ strings.step3 or 'Krok 3:' }}</strong> {{ strings.step3_txt or 'Wyślij zapytanie — oddzwonimy i potwierdzimy odbiór.' }}</li>
-            </ol>
-            <p class="micro-note">{{ strings.step_note or 'Darmowa wycena • Bez ukrytych opłat • Szybki kontakt po wysłaniu formularza' }}</p>
-            <div class="pointer-bubble" data-pointer="#hero-quote-btn" aria-hidden="true"><span>{{ strings.start_here or 'Start tutaj' }}</span></div>
+          {# Kroki (mikro-onboarding) — chmurka nad CTA #}
+          <div class="card" style="margin-top:10px;max-width:520px">
+            <div class="pad">
+              <strong>{{ (strings.steps_title if strings is defined and strings.steps_title is defined else 'Jak to działa?') }}</strong>
+              <ol style="margin:.6rem 0 0 1.2rem">
+                <li>Kliknij „<a href="#kontakt">Wyceń transport teraz</a>”.</li>
+                <li>Wpisz trasę i dane ładunku.</li>
+                <li>Wyślij – oddzwonimy i potwierdzimy odbiór.</li>
+              </ol>
+              <small style="display:block;margin-top:.6rem;color:var(--muted)">Darmowa wycena • Bez ukrytych opłat • Szybki kontakt po wysłaniu formularza</small>
+            </div>
           </div>
         </div>
 
-        {% if page.hero_video %}
+        {% if page is defined and page.hero_video %}
           <video class="hero-media" muted loop playsinline preload="none"
-                 poster="{{ page.hero_poster or '/assets/media/hero.webp' }}"
+                 poster="{{ page.hero_poster or 'assets/media/hero.webp' }}"
                  width="1680" height="720">
             <source src="{{ page.hero_video }}" type="video/mp4">
           </video>
-        {% else %}
-          <img class="hero-media" src="{{ page.hero_image or '/assets/media/hero.webp' }}"
+        {% elif page is defined and page.hero_image %}
+          <img class="hero-media" src="{{ page.hero_image }}"
                alt="{{ page.hero_alt or page.h1 or page.title }}"
                width="1680" height="720" fetchpriority="high">
+        {% else %}
+          <img class="hero-media" src="/assets/media/hero.webp"
+               alt="{{ (page.h1 if page is defined and page.h1 else _title) }}" width="1680" height="720" fetchpriority="high">
         {% endif %}
       </div>
     </section>
 
-    <!-- OFERTA (kafelki – mobilny poziomy scroll; CTA różne) -->
-{% if offers|length %}
-{% set offers_sorted = offers|sort(attribute='order') %}
-<div class="container cards tilt-cards cards--wrap cards--scroll" data-equalize="true">
-  {% for it in offers_sorted %}
-    {% if loop.index0 < 8 %}
-      {% set url = it.href or it.url or ('/' ~ _lang ~ '/' ~ ((it.slug or '') ~ '/' if it.slug else '')) %}
-      <article class="card offer">
-        <div class="pad">
-          <h3>{{ it.title or it.h1 or it.seo_title or it.slug }}</h3>
-          {% if it.desc or it.lead or it.meta_desc %}
-            <p>{{ it.desc or it.lead or it.meta_desc }}</p>
-          {% endif %}
-          {% if url %}
-            <a class="btn" href="{{ url }}">{{ it.cta or it.cta_text or strings.offer_cta or 'Sprawdź termin i cenę' }}</a>
-          {% endif %}
+    {# ================= OFERTA (kafelki; mobilnie scroll w bok) ================= #}
+    {% set _blocks  = (blocks  if blocks  is defined else []) %}
+    {% set _services_pages = _pages | selectattr('type','equalto','service') | selectattr('lang','equalto',_lang) | list %}
+    {% set offers_blocks = _blocks | selectattr('block','equalto','offer') | selectattr('lang','equalto',_lang) | selectattr('page','equalto',samekey) | list %}
+    {% set offers = offers_blocks if offers_blocks|length else _services_pages %}
+
+    <section class="section --line" id="oferta" data-section="offers" aria-label="{{ (strings.offers_aria if strings is defined and strings.offers_aria is defined else 'Nasza oferta') }}">
+      <div class="container text">
+        <h2>{{ (strings.offers_title if strings is defined and strings.offers_title is defined else 'Nasza oferta') }}</h2>
+        {% if strings is defined and strings.offers_desc is defined and strings.offers_desc %}<p>{{ strings.offers_desc }}</p>{% endif %}
+      </div>
+
+      {% if offers|length %}
+        {% set offers_sorted = offers|sort(attribute='order') %}
+        <div class="container cards tilt-cards cards--wrap cards--scroll" data-equalize="true" aria-label="{{ (strings.offers_list if strings is defined and strings.offers_list is defined else 'Lista usług') }}">
+          {% for it in offers_sorted %}
+            {% if loop.index0 < 8 %}
+              {% set url = it.href or it.url or ('/' ~ _lang ~ '/' ~ ((it.slug or '') ~ '/' if it.slug else '')) %}
+              <article class="card offer">
+                <div class="pad">
+                  <h3>{{ it.title or it.h1 or it.seo_title or it.slug }}</h3>
+                  {% if it.desc or it.lead or it.meta_desc %}
+                    <p>{{ it.desc or it.lead or it.meta_desc }}</p>
+                  {% endif %}
+                  {% if url %}
+                    <a class="btn" href="{{ url }}">{{ it.cta or it.cta_text or (strings.offer_cta if strings is defined and strings.offer_cta is defined else 'Sprawdź termin i cenę') }}</a>
+                  {% endif %}
+                </div>
+              </article>
+            {% endif %}
+          {% endfor %}
         </div>
-      </article>
-    {% endif %}
-  {% endfor %}
-</div>
-{% endif %}
-    </section>
+      {% endif %}
 
-    <!-- „Dlaczego my” (proof points) -->
-    <section class="section alt" id="dlaczego-my">
-      <div class="container text">
-        <h2>{{ strings.why_title or 'Dlaczego firmy wybierają Kras-Trans' }}</h2>
-      </div>
-      <div class="container cards cards--wrap tilt-cards" data-equalize="true">
-        <article class="card"><div class="pad"><h3>{{ strings.why_gps or 'Real-time GPS' }}</h3><p>{{ strings.why_gps_txt or 'Śledzenie ładunku na bieżąco.' }}</p></div></article>
-        <article class="card"><div class="pad"><h3>{{ strings.why_ins or 'Ubezpieczenie OCP' }}</h3><p>{{ strings.why_ins_txt or 'Bezpieczna odpowiedzialność przewoźnika.' }}</p></div></article>
-        <article class="card"><div class="pad"><h3>{{ strings.why_fast or 'Same-day / overnight' }}</h3><p>{{ strings.why_fast_txt or 'Ekspresowe dostawy w PL i UE.' }}</p></div></article>
-        <article class="card"><div class="pad"><h3>{{ strings.why_sla or 'SLA i stała obsługa' }}</h3><p>{{ strings.why_sla_txt or 'Opiekun 24/7 + szybka wycena.' }}</p></div></article>
-      </div>
-    </section>
-
-    <!-- KIERUNKI (Twoja mapa) -->
-    <section class="section --wave" id="kierunki" aria-label="{{ strings.routes_aria or 'Kierunki i specjalizacje' }}">
-      <div class="container text">
-        <h2>{{ strings.routes_title or 'Kierunki i specjalizacje' }}</h2>
-        <p>{{ strings.routes_desc or 'Europa: PL, DE, CZ, SK, AT, Benelux, IT, FR, ES…' }}</p>
-      </div>
-      <div class="container">
-        <iframe src="/assets/media/mapa-kierunkow-kras-trans.html"
-                title="Mapa kierunków Kras-Trans" loading="lazy" width="100%" height="480"
-                style="border:0;background:transparent"></iframe>
-        <p class="text" style="text-align:center;margin-top:8px">
-          <a class="btn" href="/{{ _lang }}/kierunki/">{{ strings.routes_cta or 'Zobacz trasy i terminy' }}</a>
-        </p>
-      </div>
       <div class="sep sep--morph" data-morph="wave-2" aria-hidden="true"></div>
     </section>
 
-    <!-- BLOG — Q&A (pytanie → kliknij, pokaż odpowiedź) -->
-    <section class="section --dots" id="blog-qa" aria-label="{{ strings.blog_qa_aria or 'Poradniki i odpowiedzi' }}">
+    {# ================= KIERUNKI / MAPA ================= #}
+    <section class="section" id="kierunki">
       <div class="container text">
-        <h2>
-          <span class="typed" data-words="Transport ekspresowy;Transport paletowy;Transport międzynarodowy"></span>
-          — {{ strings.blog_qa_title or 'pytania i szybkie odpowiedzi' }}
-        </h2>
-        <p>{{ strings.blog_qa_lead or 'Najszybciej odpowiadamy na to, o co klienci pytają najczęściej.' }}</p>
-      </div>
-      <div class="container cards cards--wrap" data-equalize="true">
-        {% for p in (blog or []) | selectattr('lang','equalto',_lang) | sort(attribute='date', reverse=True)[:6] %}
-          <details class="card"><div class="pad">
-            <summary><strong>{{ p.q or p.title }}</strong></summary>
-            <p>{{ p.a or p.lead }}</p>
-            <p><a class="btn" href="/{{ _lang }}/blog/{{ p.slug }}/">{{ strings.read_more or 'Czytaj więcej' }}</a></p>
-          </div></details>
-        {% else %}
-          <details class="card"><div class="pad">
-            <summary><strong>{{ strings.fallback_q1 or 'Jak szybko zorganizujecie transport?' }}</strong></summary>
-            <p>{{ strings.fallback_a1 or 'Zwykle w 15–20 minut potwierdzamy odbiór w dużych miastach.' }}</p>
-          </div></details>
-          <details class="card"><div class="pad">
-            <summary><strong>{{ strings.fallback_q2 or 'Jak wygląda monitoring ładunku?' }}</strong></summary>
-            <p>{{ strings.fallback_a2 or 'Otrzymujesz dostęp do linku z pozycją GPS i statusami.' }}</p>
-          </div></details>
-        {% endfor %}
-      </div>
-    </section>
-
-    <!-- FAQ (siatka 2–3 w rzędzie) -->
-    {% set page_faq = (faq or [])
-        | selectattr('lang','equalto',_lang)
-        | selectattr('page','equalto',samekey)
-        | list %}
-    {% if page_faq|length %}
-    <section class="section" id="faq" aria-label="{{ strings.faq_aria or 'Najczęstsze pytania' }}">
-      <div class="container text">
-        <h2>{{ strings.faq_title or 'FAQ — najczęstsze pytania' }}</h2>
-        <p class="muted">{{ strings.faq_sub or 'Masz inne pytanie? Zobacz pełne FAQ.' }}</p>
-      </div>
-      <div class="container cards cards--wrap faq-grid" data-equalize="true">
-        {% for f in page_faq[:6] %}
-          <details class="card"><div class="pad">
-            <summary><strong>{{ f.question }}</strong></summary>
-            <p>{{ f.answer }}</p>
-            <p class="muted small">{{ strings.faq_footer or 'Więcej odpowiedzi w pełnym FAQ.' }}</p>
-          </div></details>
-        {% endfor %}
-      </div>
-      <p class="text" style="text-align:center">
-        <a class="btn" href="/{{ _lang }}/faq/">{{ strings.faq_all or 'Zobacz wszystkie pytania' }}</a>
-      </p>
-    </section>
-    {% endif %}
-
-    <!-- KONTAKT / WYCENA -->
-    <section class="section" id="kontakt" data-section="contact" aria-label="{{ strings.contact_aria or 'Kontakt i wycena' }}">
-      <div class="container text">
-        <h2>{{ strings.contact_title or 'Skontaktuj się z nami' }}</h2>
-        <p>{{ strings.contact_desc or 'Odpowiadamy 24/7. Najszybciej przez formularz lub telefon.' }}</p>
+        <h2>{{ (strings.routes_title if strings is defined and strings.routes_title is defined else 'Kierunki i specjalizacje') }}</h2>
+        <p>{{ (strings.routes_desc if strings is defined and strings.routes_desc is defined else 'Polska, Niemcy, Czechy, Słowacja, Beneluks, Włochy, Francja, Hiszpania.') }}</p>
       </div>
       <div class="container">
-        <form class="card" method="post" action="{{ LEAD_ACTION or '/lead' }}" data-ajax="true">
+        <iframe
+          src="/assets/media/mapa-kierunkow-kras-trans.html"
+          loading="lazy" decoding="async"
+          width="100%" height="420" style="border:0;display:block;border-radius:12px;background:transparent"
+          referrerpolicy="no-referrer"
+          sandbox="allow-same-origin allow-scripts">
+        </iframe>
+      </div>
+    </section>
+
+    {# ================= BLOG (podgląd 6 wpisów) ================= #}
+    {% set _blog = (blog if blog is defined else []) %}
+    {% set _blog_lang = _blog | selectattr('lang','equalto',_lang) | list %}
+    {% if _blog_lang|length %}
+      {% set _blog_sorted = _blog_lang | sort(attribute='order') %}
+      <section class="section alt --dots" id="blog">
+        <div class="container text"><h2>{{ (strings.blog_title if strings is defined and strings.blog_title is defined else 'Poradniki i aktualności') }}</h2></div>
+        <div class="container cards cards--wrap cards--scroll" data-equalize="true">
+          {% for p in _blog_sorted %}
+            {% if loop.index0 < 6 %}
+              {% set href = '/' ~ _lang ~ '/' ~ ((p.slug or '') ~ '/' if p.slug else '') %}
+              <article class="card">
+                <div class="pad">
+                  <h3><a href="{{ href }}">{{ p.h1 or p.title or p.seo_title }}</a></h3>
+                  {% if p.meta_desc %}<p>{{ p.meta_desc }}</p>{% endif %}
+                  <a class="btn" href="{{ href }}">{{ (strings.read_more if strings is defined and strings.read_more is defined else 'Czytaj dalej') }}</a>
+                </div>
+              </article>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    {# ================= FAQ (dla tej strony) ================= #}
+    {% set _faq_all = (faq if faq is defined else []) %}
+    {% set page_faq = _faq_all | selectattr('lang','equalto',_lang) | selectattr('page','equalto',samekey) | list %}
+    {% if page_faq|length %}
+      <section class="section --dots" id="faq" aria-label="{{ (strings.faq_aria if strings is defined and strings.faq_aria is defined else 'Najczęstsze pytania') }}">
+        <div class="container text"><h2>{{ (strings.faq_title if strings is defined and strings.faq_title is defined else 'FAQ — najczęstsze pytania') }}</h2></div>
+        <div class="container cards cards--wrap" data-equalize="true">
+          {% for f in page_faq %}
+            <details class="card"><div class="pad">
+              <summary><strong>{{ f.question }}</strong></summary>
+              <p>{{ f.answer }}</p>
+            </div></details>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    {# ================= KONTAKT ================= #}
+    <section class="section" id="kontakt" data-section="contact" aria-label="{{ (strings.contact_aria if strings is defined and strings.contact_aria is defined else 'Kontakt i wycena') }}">
+      <div class="container text">
+        <h2>{{ (strings.contact_title if strings is defined and strings.contact_title is defined else 'Skontaktuj się z nami') }}</h2>
+        {% if strings is defined and strings.contact_desc is defined and strings.contact_desc %}<p>{{ strings.contact_desc }}</p>{% endif %}
+      </div>
+
+      <div class="container">
+        <form class="card" method="post" action="{{ (LEAD_ACTION if LEAD_ACTION is defined and LEAD_ACTION else '/lead') }}" data-ajax="true">
           <div class="pad">
             <div class="cards cards--wrap" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
-              <label class="card"><div class="pad"><input name="name" type="text" placeholder="{{ strings.form_name or 'Imię i nazwisko' }}" required></div></label>
-              <label class="card"><div class="pad"><input name="phone" type="tel" placeholder="{{ strings.form_phone or 'Telefon' }}" required></div></label>
+              <label class="card"><div class="pad"><input name="name" type="text" placeholder="{{ (strings.form_name if strings is defined and strings.form_name is defined else 'Imię i nazwisko') }}" required></div></label>
+              <label class="card"><div class="pad"><input name="phone" type="tel" placeholder="{{ (strings.form_phone if strings is defined and strings.form_phone is defined else 'Telefon') }}" required></div></label>
               <label class="card"><div class="pad"><input name="email" type="email" placeholder="E-mail" required></div></label>
             </div>
-            <p><textarea name="message" placeholder="{{ strings.form_message or 'Opis ładunku / trasy' }}" rows="4" style="width:100%"></textarea></p>
+            <p><textarea name="message" placeholder="{{ (strings.form_message if strings is defined and strings.form_message is defined else 'Treść zapytania') }}" rows="4" style="width:100%"></textarea></p>
             <p>
               <button class="btn primary btn--progress" type="submit" data-progress>
-                <span class="btn__label">{{ strings.form_submit or 'Wyślij i odbierz wycenę' }}</span>
+                <span class="btn__label">{{ (strings.form_submit if strings is defined and strings.form_submit is defined else 'Wyślij') }}</span>
                 <span class="btn__spinner" aria-hidden="true"></span>
                 <span class="btn__check" aria-hidden="true">✓</span>
               </button>
-              <span class="muted small" style="margin-left:.8rem">{{ strings.form_note or 'Darmowa wycena • Bez ukrytych opłat' }}</span>
+              <a class="btn" href="tel:{{ tel }}">{{ (strings.cta_call_short if strings is defined and strings.cta_call_short is defined else 'Zadzwoń') }}</a>
             </p>
           </div>
         </form>
       </div>
     </section>
 
-    <!-- Panel boczny (quick actions) -->
-    <aside class="side-panel" aria-label="Szybkie akcje">
-      <ul>
-        <li><a href="#oferta">📦 {{ strings.quick_services or 'Usługi' }}</a></li>
-        <li><a href="#kierunki">🗺️ {{ strings.quick_routes or 'Kierunki' }}</a></li>
-        <li><a href="#faq">❓ FAQ</a></li>
-        <li><a href="#kontakt">☎️ {{ strings.quick_contact or 'Kontakt' }}</a></li>
-        <li><a href="tel:{{ (company and company[0].telephone) or '+48 793 927 467' }}">📞 {{ strings.quick_call or 'Zadzwoń 24/7' }}</a></li>
-      </ul>
-    </aside>
-
+    {# ================= POWIĄZANE ================= #}
+    {% set related = _pages
+      | selectattr('lang','equalto',_lang)
+      | selectattr('parentSlug','equalto', (page.parentSlug if page is defined and page.parentSlug else None))
+      | rejectattr('slugKey','equalto',samekey)
+      | list %}
+    {% if related|length %}
+      <section class="section --line" id="related">
+        <div class="container text"><h2>{{ (strings.related_title if strings is defined and strings.related_title is defined else 'Powiązane strony') }}</h2></div>
+        <div class="container cards cards--wrap">
+          {% set _rel_sorted = related|sort(attribute='order') %}
+          {% for r in _rel_sorted %}
+            {% if loop.index0 < 6 %}
+              <article class="card"><div class="pad">
+                <h3><a href="/{{ _lang }}/{{ r.slug }}/">{{ r.h1 or r.title or r.seo_title }}</a></h3>
+                {% if r.meta_desc %}<p>{{ r.meta_desc }}</p>{% endif %}
+              </div></article>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
   </main>
 
-  <!-- ===== FOOTER ===== -->
+  {# ================= FOOTER + dock mobilny ================= #}
   <footer class="site-footer" role="contentinfo">
     <div class="container footer-grid" id="footer-columns">
       <div>
-        <strong>{{ (company and company[0].name) or 'Kras-Trans' }}</strong><br>
-        {% if company and company[0].streetAddress %}{{ company[0].streetAddress }}{% endif %}
-        {% if company and company[0].postalCode %}, {{ company[0].postalCode }}{% endif %}
-        {% if company and company[0].addressLocality %} {{ company[0].addressLocality }}{% endif %}<br>
-        <a href="tel:{{ (company and company[0].telephone) or '+48 793 927 467' }}">{{ (company and company[0].telephone) or '+48 793 927 467' }}</a>
+        <strong>{{ brand_name }}</strong><br>
+        {% if _company and _company[0].streetAddress %}{{ _company[0].streetAddress }}{% endif %}
+        {% if _company and _company[0].postalCode %}, {{ _company[0].postalCode }}{% endif %}
+        {% if _company and _company[0].addressLocality %} {{ _company[0].addressLocality }}{% endif %}<br>
+        <a href="tel:{{ tel }}">{{ tel }}</a>
       </div>
-      <nav class="footer-links" aria-label="{{ strings.nav_footer or 'Nawigacja w stopce' }}">
-        {% for item in nav_items[:8] %}<a href="{{ item.href }}">{{ item.label }}</a>{% endfor %}
+      <nav class="footer-links" aria-label="{{ (strings.nav_footer if strings is defined and strings.nav_footer is defined else 'Nawigacja w stopce') }}">
+        {% for item in nav_items %}
+          {% if loop.index0 < 8 %}<a href="{{ item.href }}">{{ item.label }}</a>{% endif %}
+        {% endfor %}
       </nav>
     </div>
-    <div class="container"><small>© {{ (now or '')[:4] or '' }} {{ (company and company[0].name) or 'Kras-Trans' }}</small></div>
+    <div class="container"><small>© {{ (updated if updated is defined else '')[:4] }} {{ brand_name }}</small></div>
   </footer>
 
-  <!-- dock mobilny -->
   <nav class="bottom-bar" aria-label="Skróty">
-    <a href="#kontakt">📦<span>{{ strings.short_quote or 'Wycena' }}</span></a>
+    <a href="#kontakt">📦<span>{{ (strings.short_quote if strings is defined and strings.short_quote is defined else 'Wycena') }}</span></a>
     <a href="#faq">❓<span>FAQ</span></a>
-    <a href="tel:{{ (company and company[0].telephone) or '+48 793 927 467' }}">📞<span>{{ strings.short_call or 'Telefon' }}</span></a>
-    <a href="#hero">⬆️<span>{{ strings.short_top or 'Góra' }}</span></a>
+    <a href="tel:{{ tel }}">📞<span>{{ (strings.short_call if strings is defined and strings.short_call is defined else 'Telefon') }}</span></a>
+    <a href="#hero">⬆️<span>{{ (strings.short_top if strings is defined and strings.short_top is defined else 'Góra') }}</span></a>
     <a href="/{{ _lang }}/transport-miedzynarodowy/">🌍<span>EU</span></a>
   </nav>
 
-  {# JSON-LD: Organization + WebPage + Breadcrumbs #}
+  {# — JSON-LD podstawowy — #}
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
     "@graph":[
       {
         "@type":"Organization",
-        "name":"{{ (company and company[0].name) or 'Kras-Trans' }}",
-        {% if company and company[0].url %}"url":"{{ company[0].url }}",{% endif %}
-        {% if company and company[0].telephone %}"telephone":"{{ company[0].telephone }}",{% endif %}
-        "logo":"{{ (SITE_URL or site_url or 'https://kras-trans.com') }}/assets/media/og-default.webp"
+        "name":"{{ brand_name }}",
+        "logo":"{{ _site }}/assets/media/og-default.webp"{% if _company and _company[0].url %},
+        "url":"{{ _company[0].url }}"{% endif %}{% if tel %},
+        "telephone":"{{ tel }}"{% endif %}
       },
       {
         "@type":"WebPage",
         "name":"{{ _title }}",
         "url":"{{ _canon }}",
         "inLanguage":"{{ _lang }}"
-      },
-      {
-        "@type":"BreadcrumbList",
-        "itemListElement":[
-          { "@type":"ListItem","position":1,"name":"Home","item":"{{ (SITE_URL or site_url or 'https://kras-trans.com') }}/{{ _lang }}/" }
-        ]
       }
     ]
   }
   </script>
 
-  <!-- JS: global + menu-builder -->
+  {# — JS: global + menu-builder — #}
   <script src="/assets/js/kras-global.js" defer></script>
   <script src="/assets/js/menu-builder.js" defer></script>
 
-  <!-- GA4 po onload (mniejszy wpływ na LCP/INP) -->
-  {% if GA_ID %}
+  {# — GA4 po onload (aby LCP/INP nie cierpiały) — #}
+  {% if GA_ID is defined and GA_ID %}
   <script>
     window.addEventListener('load',function(){
       var s=document.createElement('script');
