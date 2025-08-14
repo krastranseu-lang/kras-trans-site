@@ -403,6 +403,3 @@ p, .card{ overflow-wrap:anywhere; hyphens:auto }
 }
 .nav li[aria-expanded="true"] > .mega{ display:block }
 .nav ul.nav-list > li:hover > .mega{ display:block } /* desktop hover */
-
-
-
