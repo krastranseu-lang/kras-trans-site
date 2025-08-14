@@ -4,98 +4,89 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0b0f17">
+
+  {# ------ Bezpieczne aliasy ------ #}
+  {% set strings = strings or {} %}
   {% set _title = page.seo_title or page.title or page.h1 or 'Kras-Trans' %}
-  {% set _desc  = page.meta_desc or page.description or page.lead or 'Transport i spedycja — Polska & UE' %}
+  {% set _desc  = page.meta_desc  or page.description or page.lead or 'Transport i spedycja — Polska & UE' %}
+
   <title>{{ _title }}</title>
   <meta name="description" content="{{ _desc }}">
 
-  {# --- Canonical + hreflang --- #}
-  {% set _lang = page.lang or 'pl' %}
-  {% set _slug = page.slug or '' %}
-  {% set _path = '/' ~ _lang ~ '/' ~ (_slug ~ ('/' if _slug)) %}
-  {% set _canon = (SITE_URL or site_url or 'https://kras-trans.com') ~ _path %}
+  {# ------ Canonical + hreflang ------ #}
+  {% set _lang  = (page.lang or 'pl')|lower %}
+  {% set _slug  = page.slug or '' %}
+  {% set _path  = '/' ~ _lang ~ '/' ~ (_slug ~ ('/' if _slug)) %}
+  {% set _site  = SITE_URL or site_url or 'https://kras-trans.com' %}
+  {% set _canon = _site ~ _path %}
   <link rel="canonical" href="{{ _canon }}">
   {% set samekey = page.slugKey or page.slug or 'home' %}
   {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
-    {% set _altpath = '/' ~ (alt.lang or 'pl') ~ '/' ~ (alt.slug or '') ~ '/' %}
-    <link rel="alternate" hreflang="{{ (alt.lang or 'pl')|lower }}" href="{{ (SITE_URL or site_url or 'https://kras-trans.com') ~ _altpath }}">
+    {% set _altpath = '/' ~ (alt.lang or 'pl')|lower ~ '/' ~ (alt.slug or '') ~ '/' %}
+    <link rel="alternate" hreflang="{{ (alt.lang or 'pl')|lower }}" href="{{ _site ~ _altpath }}">
   {% endfor %}
   <link rel="alternate" hreflang="x-default" href="{{ _canon }}">
 
-  {# --- OpenGraph / Twitter --- #}
+  {# ------ OpenGraph / Twitter ------ #}
   {% set ogimg = page.og_image or page.hero_image or 'assets/media/og-default.webp' %}
   <meta property="og:type" content="website">
   <meta property="og:title" content="{{ _title }}">
   <meta property="og:description" content="{{ _desc }}">
   <meta property="og:url" content="{{ _canon }}">
-  <meta property="og:image" content="{{ (SITE_URL or site_url or 'https://kras-trans.com') ~ '/' ~ ogimg|replace('^/','') }}">
+  <meta property="og:image" content="{{ _site ~ '/' ~ ogimg|replace('^/','') }}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ _title }}">
   <meta name="twitter:description" content="{{ _desc }}">
-  <meta name="twitter:image" content="{{ (SITE_URL or site_url or 'https://kras-trans.com') ~ '/' ~ ogimg|replace('^/','') }}">
+  <meta name="twitter:image" content="{{ _site ~ '/' ~ ogimg|replace('^/','') }}">
 
-  {# --- GSC --- #}
-  {% if GSC_VERIFICATION %}<meta name="google-site-verification" content="{{ GSC_VERIFICATION }}">{% endif %}
+  {# ------ Google Search Console (jeśli podane w ENV) ------ #}
+  {% if GSC_VERIFICATION %}
+    <meta name="google-site-verification" content="{{ GSC_VERIFICATION }}">
+  {% endif %}
 
-  {# --- performance: fonts & CSS --- #}
+  {# ------ Wydajność: fonty + CSS ------ #}
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable-Italic.woff2" crossorigin>
   <link rel="stylesheet" href="/assets/css/kras-global.css">
 
-  {# --- critical inline helpers (tiny) --- #}
   <style>
+    /* drobny helper dostępności */
     .visually-hidden{position:absolute!important;clip:rect(1px,1px,1px,1px);clip-path:inset(50%);height:1px;width:1px;overflow:hidden;white-space:nowrap}
   </style>
 </head>
 <body>
-  <!-- tło: siatka + canvas „patyczki” (bez obrazków) -->
+  <!-- Tło: siatka + canvas „patyczki” (bez obrazków) -->
   <div id="bg-grid" aria-hidden="true"></div>
   <canvas id="bg-canvas" aria-hidden="true"></canvas>
 
-  <!-- ======== HEADER (sticky) ======== -->
+  <!-- ===== HEADER (sticky) ===== -->
   <header class="site-header" role="banner">
     <div class="container header-grid">
+      <!-- Logo / brand -->
       <a class="brand" href="/">{{ (company and company[0].name) or strings.brand or 'Kras-Trans' }}</a>
 
-      <nav id="site-nav" class="nav" aria-label="{{ strings.nav_main or 'Główna nawigacja' }}">
-        <ul class="nav-list">
-          {# z arkusza Nav; fallback jeśli brak #}
-          {% set nav_items = (nav or []) | selectattr('lang','equalto',_lang) | list %}
-          {% if nav_items|length == 0 %}
-            {% set nav_items = [
-              {'label':'Oferta','href':'/' ~ _lang ~ '/oferta/'},
-              {'label':'Kierunki','href':'/' ~ _lang ~ '/kierunki/'},
-              {'label':'Blog','href':'/' ~ _lang ~ '/blog/'},
-              {'label':'Kontakt','href':'/' ~ _lang ~ '/kontakt/'}
-            ] %}
-          {% endif %}
-          {% for item in nav_items %}
-            <li><a href="{{ item.href }}">{{ item.label }}</a></li>
-          {% endfor %}
-        </ul>
+      <!-- HAK DLA MENU: pusty nav, JS go wypełni i zdejmie 'hidden' -->
+      <nav id="site-nav" class="nav" aria-label="{{ strings.nav_main or 'Główna nawigacja' }}" hidden></nav>
 
-        <ul class="nav-langs" aria-label="{{ strings.nav_langs or 'Języki' }}">
-          {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
-            {% set _altpath = '/' ~ (alt.lang or 'pl') ~ '/' ~ (alt.slug or '') ~ '/' %}
-            <li><a href="{{ _altpath }}" hreflang="{{ (alt.lang or 'pl')|lower }}">{{ (alt.lang or 'PL')|upper }}</a></li>
-          {% endfor %}
-        </ul>
-      </nav>
-
+      <!-- CTA + przełącznik trybów: system -> dark -> light -> paper -->
       <div class="header-actions">
-        <button id="theme-toggle" class="icon-btn theme-toggle" type="button" aria-label="{{ strings.theme_toggle or 'Zmień motyw' }}" aria-pressed="false" title="Motyw">
+        <button id="theme-toggle" class="icon-btn theme-toggle" type="button"
+                aria-label="{{ strings.theme_toggle or 'Zmień motyw' }}"
+                aria-pressed="false" title="Motyw">
           <span class="sun" aria-hidden="true"></span>
           <span class="moon" aria-hidden="true"></span>
           <span class="paper" aria-hidden="true"></span>
         </button>
-        <a class="btn primary btn--shine" href="tel:{{ (company and company[0].telephone) or strings.phone or '+48793927467' }}">{{ strings.cta_call or 'Zadzwoń 24/7' }}</a>
+        <a class="btn primary btn--shine" href="tel:{{ (company and company[0].telephone) or strings.phone or '+48793927467' }}">
+          {{ strings.cta_call or 'Zadzwoń 24/7' }}
+        </a>
       </div>
     </div>
   </header>
 
   <main id="main" class="content" role="main">
-    <!-- ======== HERO (bez stałego tła) ======== -->
+    <!-- ===== HERO (bez stałego tła, 21:9) ===== -->
     <section class="hero" id="hero" aria-label="{{ strings.hero_aria or 'Hero' }}">
       <div class="container hero-wrap">
         <div class="hero-copy">
@@ -108,7 +99,6 @@
           </p>
         </div>
 
-        {# video lub obraz LCP; żadnego stałego tła #}
         {% if page.hero_video %}
           <video class="hero-media" muted loop playsinline preload="none"
                  poster="{{ page.hero_poster or 'assets/media/hero.webp' }}"
@@ -126,7 +116,7 @@
       </div>
     </section>
 
-    <!-- ======== OFERTA / KAFELKI (Arkusz: Blocks → block=offer; fallback: Pages type=service) ======== -->
+    <!-- ===== OFERTA (kafelki z Arkusza; mobilnie poziomy scroll) ===== -->
     <section class="section --line" id="oferta" data-section="offers" aria-label="{{ strings.offers_aria or 'Nasza oferta' }}">
       <div class="container text">
         <h2>{{ strings.offers_title or 'Nasza oferta' }}</h2>
@@ -145,7 +135,9 @@
       {% set offers = offers_blocks if offers_blocks|length else offers_pages %}
 
       {% if offers|length %}
-      <div class="container cards tilt-cards cards--wrap cards--scroll" data-equalize="true" aria-label="{{ strings.offers_list or 'Lista usług (przesuń w bok na telefonie)' }}">
+      <div class="container cards tilt-cards cards--wrap cards--scroll" data-equalize="true"
+           aria-label="{{ strings.offers_list or 'Usługi (przesuń w bok na telefonie)' }}"
+           style="content-visibility:auto;contain-intrinsic-size:1px 1200px">
         {% for it in offers|sort(attribute='order') %}
           {% set url = it.href or it.url or ('/' ~ _lang ~ '/' ~ (it.slug or '') ~ '/') %}
           <article class="card offer">
@@ -164,7 +156,7 @@
       <div class="sep sep--morph" data-morph="wave-2" aria-hidden="true"></div>
     </section>
 
-    <!-- ======== FAQ (z Arkusza FAQ) ======== -->
+    <!-- ===== FAQ (z Arkusza) ===== -->
     {% set page_faq = (faq or [])
       | selectattr('lang','equalto',_lang)
       | selectattr('page','equalto',samekey)
@@ -183,7 +175,7 @@
     </section>
     {% endif %}
 
-    <!-- ======== KONTAKT (bez stałego tła) ======== -->
+    <!-- ===== KONTAKT (bez stałego tła; przycisk spinner→check) ===== -->
     <section class="section" id="kontakt" data-section="contact" aria-label="{{ strings.contact_aria or 'Kontakt i wycena' }}">
       <div class="container text">
         <h2>{{ strings.contact_title or 'Skontaktuj się z nami' }}</h2>
@@ -194,8 +186,8 @@
         <form class="card" method="post" action="{{ LEAD_ACTION or '/lead' }}" data-ajax="true">
           <div class="pad">
             <div class="cards cards--wrap" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
-              <label class="card"><div class="pad"><input name="name" type="text" placeholder="{{ strings.form_name or 'Imię i nazwisko' }}" required></div></label>
-              <label class="card"><div class="pad"><input name="phone" type="tel" placeholder="{{ strings.form_phone or 'Telefon' }}" required></div></label>
+              <label class="card"><div class="pad"><input name="name"  type="text"  placeholder="{{ strings.form_name or 'Imię i nazwisko' }}" required></div></label>
+              <label class="card"><div class="pad"><input name="phone" type="tel"   placeholder="{{ strings.form_phone or 'Telefon' }}" required></div></label>
               <label class="card"><div class="pad"><input name="email" type="email" placeholder="E-mail" required></div></label>
             </div>
             <p><textarea name="message" placeholder="{{ strings.form_message or 'Treść zapytania' }}" rows="4" style="width:100%"></textarea></p>
@@ -203,7 +195,7 @@
               <button class="btn primary btn--progress" type="submit" data-progress>
                 <span class="btn__label">{{ strings.form_submit or 'Wyślij' }}</span>
                 <span class="btn__spinner" aria-hidden="true"></span>
-                <span class="btn__check" aria-hidden="true">✓</span>
+                <span class="btn__check"   aria-hidden="true">✓</span>
               </button>
               <a class="btn" href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">{{ strings.cta_call_short or 'Zadzwoń' }}</a>
             </p>
@@ -212,7 +204,40 @@
       </div>
     </section>
 
-    <!-- ======== POWIĄZANE (z tego samego parentSlug) ======== -->
+    <!-- ===== SLOT NA WIDŻETY Z ZEWN. SERWERA =====
+         Jak użyć:
+         - Ustaw data-embed-src="https://twoj-serwer/widget.html" (lub .json z HTML)
+         - Ładuje się leniwie, dopiero gdy sekcja wejdzie w viewport.
+         - Dla bezpiecznych skryptów użyj sandboxowanego <iframe> (patrz przykład 2).
+    -->
+    <section class="section --line" id="widgets" aria-label="Widżety">
+      <div class="container text"><h2>{{ strings.widgets_title or 'Dodatkowe moduły' }}</h2></div>
+
+      <div class="container cards cards--wrap">
+        <!-- Przykład 1: wstrzyknięcie czystego HTML z Twojego serwera -->
+        <article class="card"><div class="pad">
+          <h3>Widget HTML (fetch & sanitize)</h3>
+          <div class="embed" data-embed-src="https://example.com/widgets/kierunki.html"></div>
+        </div></article>
+
+        <!-- Przykład 2: osadzony iframe (sandboks) -->
+        <article class="card"><div class="pad">
+          <h3>Mapa kierunków (iframe)</h3>
+          <div class="iframe-wrap" style="aspect-ratio:16/9">
+            <iframe
+              loading="lazy"
+              src="https://example.com/widgets/mapa.html"
+              title="Kierunki"
+              style="width:100%;height:100%;border:0;border-radius:12px"
+              sandbox="allow-scripts allow-same-origin"
+              referrerpolicy="no-referrer">
+            </iframe>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <!-- ===== POWIĄZANE ===== -->
     {% set related = (pages or [])
       | selectattr('lang','equalto',_lang)
       | selectattr('parentSlug','equalto',page.parentSlug)
@@ -233,7 +258,7 @@
     {% endif %}
   </main>
 
-  <!-- ======== FOOTER + dock mobilny ======== -->
+  <!-- ===== FOOTER + dock mobilny ===== -->
   <footer class="site-footer" role="contentinfo">
     <div class="container footer-grid" id="footer-columns">
       <div>
@@ -244,6 +269,7 @@
         <a href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">{{ (company and company[0].telephone) or '+48 793 927 467' }}</a>
       </div>
       <nav class="footer-links" aria-label="{{ strings.nav_footer or 'Nawigacja w stopce' }}">
+        {% set nav_items = (nav or []) | selectattr('lang','equalto',_lang) | list %}
         {% for item in nav_items[:8] %}<a href="{{ item.href }}">{{ item.label }}</a>{% endfor %}
       </nav>
     </div>
@@ -258,7 +284,7 @@
     <a href="/{{ _lang }}/transport-miedzynarodowy/">🌍<span>EU</span></a>
   </nav>
 
-  {# --- JSON-LD: Organization + WebPage + Breadcrumbs --- #}
+  {# ------ JSON-LD: Organization + WebPage + Breadcrumbs (+ FAQ jeśli jest) ------ #}
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
@@ -268,7 +294,7 @@
         "name":"{{ (company and company[0].name) or 'Kras-Trans' }}",
         {% if company and company[0].url %}"url":"{{ company[0].url }}",{% endif %}
         {% if company and company[0].telephone %}"telephone":"{{ company[0].telephone }}",{% endif %}
-        "logo":"{{ (SITE_URL or site_url or 'https://kras-trans.com') }}/assets/media/og-default.webp"
+        "logo":"{{ _site }}/assets/media/og-default.webp"
       },
       {
         "@type":"WebPage",
@@ -279,29 +305,89 @@
       {
         "@type":"BreadcrumbList",
         "itemListElement":[
-          { "@type":"ListItem","position":1,"name":"Home","item":"{{ (SITE_URL or site_url or 'https://kras-trans.com') }}/{{ _lang }}/" },
-          {% if page.parentSlug %}{ "@type":"ListItem","position":2,"name":"{{ page.parentSlug }}","item":"{{ (SITE_URL or site_url or 'https://kras-trans.com') }}/{{ _lang }}/{{ page.parentSlug }}/" },{% endif %}
-          { "@type":"ListItem","position":3,"name":"{{ page.h1 or page.title or page.seo_title or _slug }}","item":"{{ _canon }}" }
+          { "@type":"ListItem","position":1,"name":"Home","item":"{{ _site }}/{{ _lang }}/" }
+          {% if page.parentSlug %}, { "@type":"ListItem","position":2,"name":"{{ page.parentSlug }}","item":"{{ _site }}/{{ _lang }}/{{ page.parentSlug }}/" }{% endif %},
+          { "@type":"ListItem","position":{{ 3 if page.parentSlug else 2 }},"name":"{{ page.h1 or page.title or page.seo_title or _slug }}","item":"{{ _canon }}" }
         ]
       }
+      {% if page_faq|length %},
+      {
+        "@type":"FAQPage",
+        "mainEntity":[
+          {% for f in page_faq -%}
+          { "@type":"Question","name":"{{ f.question }}","acceptedAnswer":{"@type":"Answer","text":"{{ f.answer }}"} }{{ "," if not loop.last else "" }}
+          {%- endfor %}
+        ]
+      }
+      {% endif %}
     ]
   }
   </script>
 
-  {# --- JS: global + menu-builder (masz te pliki) --- #}
+  {# ------ JS: global + menu-builder ------ #}
   <script src="/assets/js/kras-global.js" defer></script>
-  <script src="/assets/js/menu-builder.js" defer></script>
 
-  {# --- GA4 ładowane po onload (mniejszy wpływ na LCP/INP) --- #}
-  {% if GA_ID %}
+  {# Jeśli w Arkuszu brak zakładki Nav dla danego języka, użyj prostego configu KRAS_NAV: #}
+  {% set _nav_items = (nav or []) | selectattr('lang','equalto',_lang) | list %}
+  {% if _nav_items|length == 0 %}
   <script>
-    window.addEventListener('load',function(){
-      var s=document.createElement('script');
-      s.src='https://www.googletagmanager.com/gtag/js?id={{ GA_ID }}'; s.async=true; document.head.appendChild(s);
-      window.dataLayer=window.dataLayer||[]; function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date()); gtag('config','{{ GA_ID }}',{'transport_type':'beacon','anonymize_ip':true});
-    }, {once:true});
+    window.KRAS_NAV = {
+      items: [
+        { label:"Oferta", href:"/{{ _lang }}/#oferta" },
+        { label:"Usługi", href:"/{{ _lang }}/uslugi/", children:[
+          { label:"Express 3,5 t", href:"/{{ _lang }}/transport-ekspresowy/" },
+          { label:"Paletowy",     href:"/{{ _lang }}/transport-paletowy/" }
+        ]},
+        { label:"FAQ",     href:"/{{ _lang }}/#faq" },
+        { label:"Kontakt", href:"/{{ _lang }}/#kontakt" }
+      ],
+      langs: [
+        {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list -%}
+        { code:"{{ (alt.lang or 'pl')|lower }}", label:"{{ (alt.lang or 'PL')|upper }}", href:"/{{ (alt.lang or 'pl')|lower }}/{{ alt.slug or '' }}/" }{{ "," if not loop.last else "" }}
+        {%- endfor %}
+      ]
+    };
   </script>
   {% endif %}
+
+  <script src="/assets/js/menu-builder.js" defer></script>
+
+  {# ------ GA4 po onload (mniejszy wpływ na LCP/INP) ------ #}
+  {% if GA_ID %}
+  <script>
+    window.addEventListener('load', function(){
+      var s=document.createElement('script');
+      s.src='https://www.googletagmanager.com/gtag/js?id={{ GA_ID }}';
+      s.async=true; document.head.appendChild(s);
+      window.dataLayer=window.dataLayer||[]; function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config','{{ GA_ID }}',{'transport_type':'beacon','anonymize_ip':true});
+    }, { once:true });
+  </script>
+  {% endif %}
+
+  {# ------ Leniwe dociąganie widżetów do [data-embed-src] (jeśli nie masz tego w kras-global.js) ------ #}
+  <script>
+    (function(){
+      const els = document.querySelectorAll('[data-embed-src]');
+      if(!('IntersectionObserver' in window) || !els.length) return;
+      const io = new IntersectionObserver((entries)=>{
+        entries.forEach(async e=>{
+          if(!e.isIntersecting) return;
+          const box = e.target; io.unobserve(box);
+          const url = box.getAttribute('data-embed-src');
+          try{
+            const res = await fetch(url, { credentials:'omit' });
+            const html = await res.text();
+            // prosta dezynfekcja: usuwamy <script>
+            const tmp = document.createElement('div'); tmp.innerHTML = html;
+            tmp.querySelectorAll('script').forEach(s=>s.remove());
+            box.innerHTML = tmp.innerHTML;
+          }catch(_){ box.innerHTML = '<p class="muted">Nie udało się wczytać modułu.</p>'; }
+        });
+      }, { rootMargin:'200px 0px' });
+      els.forEach(el=>io.observe(el));
+    })();
+  </script>
 </body>
 </html>
