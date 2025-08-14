@@ -5,13 +5,11 @@ on:
   push:
     branches: [ main ]
 
-# uprawnienia dla Pages (nowy model z id-token)
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# jedna instancja na raz
 concurrency:
   group: "pages"
   cancel-in-progress: true
@@ -23,18 +21,26 @@ jobs:
     timeout-minutes: 30
 
     env:
-      # stałe projektu (możesz nadpisać przy kroku Build)
+      # --- Konfiguracja projektu (możesz nadpisać w kroku Build) ---
       SITE_URL: https://kras-trans.com
       DEFAULT_LANG: pl
       BRAND: "Kras-Trans"
       GA_ID: "G-5FYE42J3BE"
       GSC_VERIFICATION: "Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y"
       CNAME: kras-trans.com
+      # --- Ścieżka do skryptu builda (zmień jeśli build.py w root) ---
+      BUILD_SCRIPT: tools/build.py
+      # --- Opcjonalne integracje (0 = wyłączone) ---
+      RUN_CRITICAL: '0'
+      RUN_LHCI: '0'
+      RUN_AXE: '0'
+      RUN_VR: '0'
+      # --- Build policy (na produkcji zwykle STRICT=0; CI przerwie tylko na FAIL) ---
+      STRICT: '0'
+      CONTINUE_ON_FAIL: '0'
 
     steps:
-      # ————————————————————————————————
       # 0) Repo
-      # ————————————————————————————————
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -46,17 +52,16 @@ jobs:
           echo "Actor: $GITHUB_ACTOR"
           echo "Ref: $GITHUB_REF"
 
-      # ————————————————————————————————
-      # 1) Narzędzia systemowe
-      # ————————————————————————————————
-      - name: Install jq + zip + tree
+      # 1) Narzędzia systemowe (jq, zip, tree + liby pod lxml/Pillow)
+      - name: Install OS deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq zip tree
+          sudo apt-get install -y jq zip tree \
+            libxml2-dev libxslt1-dev zlib1g-dev \
+            libjpeg-dev libpng-dev libfreetype6-dev \
+            pkg-config build-essential
 
-      # ————————————————————————————————
-      # 2) Wstępna walidacja sekretów (czy nie puste)
-      # ————————————————————————————————
+      # 2) Preflight sekretów Apps Script
       - name: Preflight secrets check
         env:
           APPS_URL: ${{ secrets.APPS_URL }}
@@ -67,22 +72,14 @@ jobs:
           test -n "${APPS_KEY:-}" || { echo "::error::Missing secret APPS_KEY"; exit 1; }
           echo "APPS_URL/KEY present ✓"
 
-      # ————————————————————————————————
-      # 3) Pobranie CMS z Apps Script (odporne)
-      # ————————————————————————————————
-      - name: Fetch CMS JSON from Apps Script (robust)
+      # 3) Pobierz CMS JSON z Apps Script (odpornie)
+      - name: Fetch CMS JSON from Apps Script
         env:
           APPS_URL: ${{ secrets.APPS_URL }}
           APPS_KEY: ${{ secrets.APPS_KEY }}
         run: |
           set -euo pipefail
           mkdir -p data
-
-          # mała walidacja formatu URL (informacyjnie)
-          echo "$APPS_URL" | grep -Eq '^https://script\.google\.com/macros/s/.+/(exec|dev)$' || {
-            echo "::warning::APPS_URL nie wygląda na /exec ani /dev Web App — sprawdź w Apps Script › Deployments."
-          }
-
           ATTEMPTS=5
           i=1
           while [ $i -le $ATTEMPTS ]; do
@@ -93,26 +90,17 @@ jobs:
               --write-out "%{http_code}" \
               --output data/cms.json \
               "$APPS_URL?key=$APPS_KEY" || true)
-
             if [ "$HTTP_CODE" = "200" ] && jq -e '.ok==true and (.pages|type=="array")' data/cms.json >/dev/null 2>&1; then
-              echo "CMS OK ✓"
-              break
-            fi
-
-            echo "HTTP=$HTTP_CODE"; echo "Head of response:"; head -c 600 data/cms.json || true; echo
-            sleep $((2*i))
-            i=$((i+1))
+              echo "CMS OK ✓"; break; fi
+            echo "HTTP=$HTTP_CODE"; head -c 600 data/cms.json || true; echo
+            sleep $((2*i)); i=$((i+1))
           done
-
           test -s data/cms.json || { echo "::error::CMS JSON missing/empty"; exit 1; }
           jq -e '.ok==true' data/cms.json >/dev/null || { echo "::error::CMS .ok != true"; cat data/cms.json; exit 1; }
-
           echo "Updated: $(jq -r '.updated // "n/a"' data/cms.json)"
           echo "Pages:   $(jq -r '.pages | length' data/cms.json)"
 
-      # ————————————————————————————————
-      # 4) Zapis kopii cms.json jako artefakt
-      # ————————————————————————————————
+      # 4) Artefakt z CMS (dla debug)
       - name: Keep a copy of cms.json (artifact)
         uses: actions/upload-artifact@v4
         with:
@@ -121,55 +109,52 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      # ————————————————————————————————
-      # 5) Python + cache pip
-      # ————————————————————————————————
+      # 5) Python 3.11 + pip cache
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.11'
           cache: 'pip'
 
+      # 6) Instalacja Python deps (preferuj wheel'e)
       - name: Install build deps (requirements.txt)
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
+            pip install --prefer-binary --no-compile -r requirements.txt
           else
-            # awaryjnie — minimalny zestaw
-            pip install Jinja2>=3.1 Markdown>=3.6 python-slugify requests beautifulsoup4 lxml
+            pip install --prefer-binary --no-compile Jinja2 Markdown python-slugify requests beautifulsoup4 lxml Pillow PyYAML htmlmin rcssmin jsmin
           fi
-          python -c "import jinja2, markdown, bs4, lxml, slugify, requests; print('Python deps OK ✓')"
+          python - <<'PY'
+          import jinja2, markdown, bs4, lxml, slugify, requests, PIL, yaml, htmlmin
+          print("Python deps OK ✓")
+          PY
 
-      # ————————————————————————————————
-      # 6) Sanity check — szablony Jinja
-      # ————————————————————————————————
+      # 7) (Opcjonalnie) Node narzędzia – tylko gdy RUN_* aktywne
+      - name: Setup Node (optional tools)
+        if: ${{ env.RUN_CRITICAL == '1' || env.RUN_LHCI == '1' || env.RUN_AXE == '1' || env.RUN_VR == '1' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Node tools (conditional)
+        if: ${{ env.RUN_CRITICAL == '1' || env.RUN_LHCI == '1' || env.RUN_AXE == '1' || env.RUN_VR == '1' }}
+        run: |
+          npm i -D critical @lhci/cli @axe-core/cli @playwright/test serve
+
+      # 8) Sanity check – szablony Jinja (page.html musi istnieć)
       - name: Sanity check (templates compile)
         run: |
           python - <<'PY'
           from jinja2 import Environment, FileSystemLoader
-          import os, sys
           env = Environment(loader=FileSystemLoader("templates"))
-          # lista priorytetowych — reszta może być fallbackiem na page.html
-          must = ["page.html"]
-          optional = [
-              "blog_index.html","blog_post.html",
-              "case_index.html","case_item.html",
-              "reviews.html","location.html",
-              "jobs_index.html","job_item.html"
-          ]
-          for t in must:
-              env.get_template(t)
-          for t in optional:
-              try: env.get_template(t)
-              except: pass
+          env.get_template("page.html")
           print("Templates OK ✓")
           PY
 
-      # ————————————————————————————————
-      # 7) Build
-      # ————————————————————————————————
-      - name: Build site (HTML + sitemap/robots + ZIP)
+      # 9) Build
+      - name: Build site (HTML + sitemap/robots)
         env:
           SITE_URL: ${{ env.SITE_URL }}
           DEFAULT_LANG: ${{ env.DEFAULT_LANG }}
@@ -177,27 +162,45 @@ jobs:
           GA_ID: ${{ env.GA_ID }}
           GSC_VERIFICATION: ${{ env.GSC_VERIFICATION }}
           CNAME: ${{ env.CNAME }}
+          RUN_CRITICAL: ${{ env.RUN_CRITICAL }}
+          RUN_LHCI: ${{ env.RUN_LHCI }}
+          RUN_AXE: ${{ env.RUN_AXE }}
+          RUN_VR: ${{ env.RUN_VR }}
+          STRICT: ${{ env.STRICT }}
+          CONTINUE_ON_FAIL: ${{ env.CONTINUE_ON_FAIL }}
         run: |
           set -euo pipefail
-          python -u tools/build.py
+          python -u "$BUILD_SCRIPT"
           echo "Built tree:"
           tree -a dist | sed -e 's/^/  /'
 
-      # ————————————————————————————————
-      # 8) Smoke-test dist (pl/home, sitemap, robots)
-      # ————————————————————————————————
+      # 10) Smoke test dist
       - name: Smoke test dist
         run: |
           set -e
           test -f dist/sitemap.xml || { echo "::error::Missing dist/sitemap.xml"; exit 1; }
           test -f dist/robots.txt  || { echo "::error::Missing dist/robots.txt";  exit 1; }
-          # Home po polsku (root redirect generujemy jako /index.html → /pl/)
           test -f dist/pl/index.html || { echo "::error::Missing dist/pl/index.html (home)"; exit 1; }
           echo "Smoke tests OK ✓"
 
-      # ————————————————————————————————
-      # 9) Snapshot ZIP + dodatkowe artefakty
-      # ————————————————————————————————
+      # 11) Artefakt: raport builda + logi
+      - name: Upload build report
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-report
+          path: |
+            dist/build-report.html
+            dist/logs/build.log
+            dist/logs/build.json
+          if-no-files-found: warn
+          retention-days: 10
+
+      # 12) Snapshot ZIP (dla Twojego kroku uploadu)
+      - name: Create site snapshot (ZIP)
+        run: |
+          mkdir -p dist/download
+          (cd dist && zip -q -r download/site.zip .)
+
       - name: Upload site snapshot (ZIP)
         uses: actions/upload-artifact@v4
         with:
@@ -206,9 +209,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      # ————————————————————————————————
-      # 10) Artefakt do Pages
-      # ————————————————————————————————
+      # 13) Artefakt do Pages
       - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v3
         with:
@@ -222,11 +223,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # Configure Pages (ustawia środowisko i token OIDC)
       - name: Configure Pages
         uses: actions/configure-pages@v5
-
-      # Publikacja artefaktu z joba build
       - id: deployment
         name: Deploy
         uses: actions/deploy-pages@v4
