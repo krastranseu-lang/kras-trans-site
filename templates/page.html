@@ -75,78 +75,68 @@
   <canvas id="bg-canvas" aria-hidden="true"></canvas>
 
   {# ========= HEADER ========= #}
-  <header class="site-header" role="banner">
-    <div class="container header-grid">
-      <a class="brand" href="/{{ _lang }}/">
-        {{ (company and company[0].name) or strings.brand or 'Kras-Trans' }}
-      </a>
+<header class="site-header" role="banner">
+  <div class="container header-grid">
+    {# LOGO #}
+    <a class="brand" href="/{{ (page.lang or 'pl') }}/" aria-label="{{ brand or 'Kras-Trans' }}">
+      <img
+        src="{{ _base }}/assets/media/logo-firma-transportowa-kras-trans.png"
+        width="160" height="40" alt="{{ brand or 'Kras-Trans' }}"
+        decoding="async" fetchpriority="high">
+    </a>
 
-      <nav id="site-nav" class="nav" aria-label="{{ strings.nav_main or 'Główna nawigacja' }}">
-        <ul class="nav-list">
-          {# Fallback z Arkusza Nav; jeśli brak – budujemy minimalne menu #}
-          {% set nav_items = (nav or []) | selectattr('lang','equalto',_lang) | sort(attribute='order') | list %}
-          {% if nav_items|length == 0 %}
-            {% set nav_items = [
-              {'label':'Oferta','href':'/' ~ _lang ~ '/#oferta'},
-              {'label':'Usługi','href':'/' ~ _lang ~ '/uslugi/'},
-              {'label':'FAQ','href':'/' ~ _lang ~ '/#faq'},
-              {'label':'Kontakt','href':'/' ~ _lang ~ '/#kontakt'}
-            ] %}
-          {% endif %}
-          {% for item in nav_items %}
-            <li><a href="{{ item.href }}">{{ item.label }}</a></li>
+    {# MENU GŁÓWNE #}
+    <nav id="site-nav" class="nav" aria-label="{{ strings.nav_main or 'Główna nawigacja' }}">
+      {% set menu = (nav or []) | selectattr('lang','equalto',_lang) | sort(attribute='order') | list %}
+      {% if menu|length == 0 %}
+        {% set menu = [
+          {'label':'Oferta','href':'/' ~ _lang ~ '/#oferta','order':10},
+          {'label':'Usługi','href':'/' ~ _lang ~ '/uslugi/','order':20},
+          {'label':'Transport paletowy','href':'/' ~ _lang ~ '/transport-paletowy/','order':30},
+          {'label':'Transport do Niemiec','href':'/' ~ _lang ~ '/transport-do-niemiec/','order':40},
+          {'label':'Express 3,5 t','href':'/' ~ _lang ~ '/express-35t/','order':50},
+          {'label':'Flota','href':'/' ~ _lang ~ '/flota/','order':60},
+          {'label':'Praca','href':'/' ~ _lang ~ '/praca/','order':70},
+          {'label':'FAQ','href':'/' ~ _lang ~ '/#faq','order':80},
+          {'label':'Blog','href':'/' ~ _lang ~ '/blog/','order':90},
+          {'label':'Kontakt','href':'/' ~ _lang ~ '/#kontakt','order':100}
+        ] %}
+      {% endif %}
+      <ul class="nav-list">
+        {% for it in menu %}
+          <li><a href="{{ it.href }}">{{ it.label }}</a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+
+    {# AKCJE W NAGŁÓWKU: motyw + telefon + języki #}
+    <div class="header-actions">
+      <button id="theme-toggle" class="icon-btn theme-toggle"
+              type="button"
+              aria-label="{{ strings.theme_toggle or 'Zmień motyw' }}"
+              aria-pressed="false" title="Motyw">◐</button>
+
+      {% set tel = (company and company[0].telephone) or strings.phone or '+48793927467' %}
+      <a class="btn primary btn--shine" href="tel:{{ tel }}">{{ strings.cta_call or 'Zadzwoń 24/7' }}</a>
+
+      {# języki: generujemy po tym samym slugKey (jest już w <head> jako hreflang) #}
+      {% set samekey = page.slugKey or page.slug or 'home' %}
+      {% set alts = (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
+      <div class="lang-switch">
+        <button class="pill" type="button" aria-haspopup="listbox" aria-expanded="false">
+          {{ _lang|upper }} ▾
+        </button>
+        <ul class="lang-menu" role="listbox">
+          {% for alt in alts %}
+            {% set _altpath = '/' ~ (alt.lang or 'pl') ~ '/' ~ (alt.slug or '') ~ '/' %}
+            <li><a href="{{ _altpath }}" hreflang="{{ (alt.lang or 'pl')|lower }}">{{ (alt.lang or 'pl')|upper }}</a></li>
           {% endfor %}
         </ul>
-
-        {# === LANG SWITCHER (Maersk-like) === #}
-{% set _lang = page.lang or default_lang or 'pl' %}
-{% set samekey = page.slugKey or page.slug or 'home' %}
-{% set ALL_LANGS = ['pl','en','de','fr','it','ua','ru'] %}
-{% set FLAG = {'pl':'🇵🇱','en':'🇬🇧','de':'🇩🇪','fr':'🇫🇷','it':'🇮🇹','ua':'🇺🇦','ru':'🇷🇺'} %}
-{% set LABEL = {'pl':'Polski','en':'English','de':'Deutsch','fr':'Français','it':'Italiano','ua':'Українська','ru':'Русский'} %}
-
-<div class="lang-switcher" id="lang-switcher" data-open="0">
-  <button id="langBtn" class="lang-btn" type="button"
-          aria-haspopup="true" aria-expanded="false" aria-controls="langMenu">
-    <span class="flag">{{ FLAG.get(_lang,'🌐') }}</span>
-    <span class="code">{{ _lang|upper }}</span>
-    <svg class="chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-      <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>
-  </button>
-
-  <div id="langMenu" class="lang-menu" role="menu" aria-label="Wybierz język">
-    {% set siblings = (pages or [])|selectattr('slugKey','equalto',samekey)|list %}
-    {% for c in ALL_LANGS %}
-      {% set target = (siblings|selectattr('lang','equalto',c)|list|first) %}
-      {% set url = '/' ~ c ~ '/' ~ ((target and target.slug) or '') ~ '/' %}
-      <a role="menuitem"
-         class="lang-item{% if not target %} is-disabled{% endif %}{% if c==_lang %} is-current{% endif %}"
-         {% if target %}href="{{ url }}"{% else %}tabindex="-1"{% endif %}
-         hreflang="{{ c }}" data-lang="{{ c }}">
-        <span class="flag">{{ FLAG.get(c,'🌐') }}</span>
-        <span class="label">{{ LABEL.get(c,c|upper) }}</span>
-      </a>
-    {% endfor %}
-  </div>
-</div>
-{# === /LANG SWITCHER === #}
-      
-
-      <div class="header-actions">
-        <button id="theme-toggle" class="icon-btn theme-toggle" type="button"
-                aria-label="{{ strings.theme_toggle or 'Zmień motyw' }}" aria-pressed="false" title="Motyw">
-          <span class="sun" aria-hidden="true"></span>
-          <span class="moon" aria-hidden="true"></span>
-          <span class="paper" aria-hidden="true"></span>
-        </button>
-        <a class="btn primary btn--shine" href="tel:{{ (company and company[0].telephone) or strings.phone or '+48793927467' }}">
-          {{ strings.cta_call or 'Zadzwoń 24/7' }}
-        </a>
       </div>
     </div>
-  </header>
-
+  </div>
+</header>
+  
   <main id="main" class="content" role="main">
     {# ========= HERO ========= #}
     <section class="hero" id="hero" aria-label="{{ strings.hero_aria or 'Hero' }}">
