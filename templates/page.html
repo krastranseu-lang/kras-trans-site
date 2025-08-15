@@ -4,6 +4,13 @@
   {% if page.hero_image %}
 <link rel="preload" as="image" href="{{ page.hero_image }}" imagesrcset="{{ page.hero_image }} 1680w" fetchpriority="high">
 {% endif %}
+{# --- Icons --- #}
+<link rel="icon" type="image/png" sizes="32x32"  href="/assets/media/ikona-transport-logistyka-europa-32.png">
+<link rel="icon" type="image/png" sizes="64x64"  href="/assets/media/ikona-transport-logistyka-europa-64.png">
+<link rel="icon" type="image/png" sizes="128x128" href="/assets/media/ikona-transport-logistyka-europa-128.png">
+<link rel="icon" type="image/png" sizes="256x256" href="/assets/media/ikona-transport-logistyka-europa-256.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/assets/media/ikona-transport-logistyka-europa-512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/media/ikona-transport-logistyka-europa-256.png">
   {# ========= BASIC ========= #}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -84,15 +91,40 @@
           {% endfor %}
         </ul>
 
-        <ul class="nav-langs" aria-label="{{ strings.nav_langs or 'Języki' }}">
-          {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
-            {% set alt_lang = (alt.lang or DEFAULT_LANG)|lower %}
-            {% set alt_slug = alt.slug or '' %}
-            {% set alt_url  = '/' ~ alt_lang ~ '/' ~ (alt_slug ~ ('/' if alt_slug)) %}
-            <li><a href="{{ alt_url }}" hreflang="{{ alt_lang }}">{{ (alt.lang or 'PL')|upper }}</a></li>
-          {% endfor %}
-        </ul>
-      </nav>
+        {# === LANG SWITCHER (Maersk-like) === #}
+{% set _lang = page.lang or default_lang or 'pl' %}
+{% set samekey = page.slugKey or page.slug or 'home' %}
+{% set ALL_LANGS = ['pl','en','de','fr','it','ua','ru'] %}
+{% set FLAG = {'pl':'🇵🇱','en':'🇬🇧','de':'🇩🇪','fr':'🇫🇷','it':'🇮🇹','ua':'🇺🇦','ru':'🇷🇺'} %}
+{% set LABEL = {'pl':'Polski','en':'English','de':'Deutsch','fr':'Français','it':'Italiano','ua':'Українська','ru':'Русский'} %}
+
+<div class="lang-switcher" id="lang-switcher" data-open="0">
+  <button id="langBtn" class="lang-btn" type="button"
+          aria-haspopup="true" aria-expanded="false" aria-controls="langMenu">
+    <span class="flag">{{ FLAG.get(_lang,'🌐') }}</span>
+    <span class="code">{{ _lang|upper }}</span>
+    <svg class="chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+      <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+  </button>
+
+  <div id="langMenu" class="lang-menu" role="menu" aria-label="Wybierz język">
+    {% set siblings = (pages or [])|selectattr('slugKey','equalto',samekey)|list %}
+    {% for c in ALL_LANGS %}
+      {% set target = (siblings|selectattr('lang','equalto',c)|list|first) %}
+      {% set url = '/' ~ c ~ '/' ~ ((target and target.slug) or '') ~ '/' %}
+      <a role="menuitem"
+         class="lang-item{% if not target %} is-disabled{% endif %}{% if c==_lang %} is-current{% endif %}"
+         {% if target %}href="{{ url }}"{% else %}tabindex="-1"{% endif %}
+         hreflang="{{ c }}" data-lang="{{ c }}">
+        <span class="flag">{{ FLAG.get(c,'🌐') }}</span>
+        <span class="label">{{ LABEL.get(c,c|upper) }}</span>
+      </a>
+    {% endfor %}
+  </div>
+</div>
+{# === /LANG SWITCHER === #}
+      
 
       <div class="header-actions">
         <button id="theme-toggle" class="icon-btn theme-toggle" type="button"
@@ -339,6 +371,9 @@
     <a href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">📞<span>{{ strings.short_call or 'Telefon' }}</span></a>
     <a href="#hero">⬆️<span>{{ strings.short_top or 'Góra' }}</span></a>
     <a href="/{{ _lang }}/transport-miedzynarodowy/">🌍<span>EU</span></a>
+    <a href="#langs" onclick="(function(){var b=document.getElementById('langBtn'); if(b){b.click();} })(); return false;">
+  🌐<span>Języki</span>
+</a>
   </nav>
 
   {# ========= JSON-LD ========= #}
