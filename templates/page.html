@@ -1,386 +1,139 @@
 <!doctype html>
-<html lang="{{ page.lang or DEFAULT_LANG }}">
+<html lang="{{ page.lang }}">
 <head>
-  {% if page.hero_image %}
-<link rel="preload" as="image" href="{{ page.hero_image }}" imagesrcset="{{ page.hero_image }} 1680w" fetchpriority="high">
-{% endif %}
-  {# ========= BASIC ========= #}
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0b0f17">
-
-  {# Bezpieczne tytuł/opis #}
-  {% set _title = page.seo_title or page.title or page.h1 or 'Kras-Trans' %}
-  {% set _desc  = page.meta_desc or page.description or page.lead or 'Transport i spedycja — Polska & UE' %}
-  <title>{{ _title }}</title>
-  <meta name="description" content="{{ _desc }}">
-
-  {# ========= CANONICAL + HREFLANG ========= #}
   {% set _lang = (page.lang or DEFAULT_LANG)|lower %}
   {% set _slug = page.slug or '' %}
-  {% set _base = (SITE_URL or site_url or 'https://kras-trans.com') %}
-  {% set _path = '/' ~ _lang ~ '/' ~ (_slug ~ ('/' if _slug)) %}
-  {% set _canon = _base ~ _path %}
+  {% set _base = site_url or SITE_URL or '' %}
+  {% set _canon = _base ~ '/' ~ _lang ~ '/' ~ (_slug ~ ('/' if _slug)) %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ page.seo_title }}</title>
+  <meta name="description" content="{{ page.meta_desc }}">
   <link rel="canonical" href="{{ _canon }}">
-
-  {% set samekey = page.slugKey or page.slug or 'home' %}
-  {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
-    {% set alt_lang = (alt.lang or DEFAULT_LANG)|lower %}
-    {% set alt_slug = alt.slug or '' %}
-    {% set alt_url  = _base ~ '/' ~ alt_lang ~ '/' ~ (alt_slug ~ ('/' if alt_slug)) %}
-    <link rel="alternate" hreflang="{{ alt_lang }}" href="{{ alt_url }}">
-  {% endfor %}
-  <link rel="alternate" hreflang="x-default" href="{{ _canon }}">
-
-  {# ========= OPEN GRAPH / TWITTER ========= #}
-  {% set ogimg = '/' ~ (page.og_image or page.hero_image or 'assets/media/og-default.webp') %}
   <meta property="og:type" content="website">
-  <meta property="og:title" content="{{ _title }}">
-  <meta property="og:description" content="{{ _desc }}">
+  <meta property="og:title" content="{{ page.seo_title }}">
+  <meta property="og:description" content="{{ page.meta_desc }}">
   <meta property="og:url" content="{{ _canon }}">
-  <meta property="og:image" content="{{ _base ~ ogimg }}">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="{{ _title }}">
-  <meta name="twitter:description" content="{{ _desc }}">
-  <meta name="twitter:image" content="{{ _base ~ ogimg }}">
-
-  {# ========= GSC (opcjonalnie) ========= #}
-  {% if GSC_VERIFICATION %}
-    <meta name="google-site-verification" content="{{ GSC_VERIFICATION }}">
-  {% endif %}
-
-  {# ========= ASSETS (tylko linki; bez inline CSS/JS) ========= #}
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable.woff2" crossorigin>
-  <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable-Italic.woff2" crossorigin>
+  <meta property="og:image" content="{{ page.og_image }}">
   <link rel="stylesheet" href="/assets/css/kras-global.css">
+  <link rel="stylesheet" href="/assets/css/kras-ui.css">
 </head>
-<body data-header-overlay="true">
-  {# tła #}
+<body>
   <div id="bg-grid" aria-hidden="true"></div>
   <canvas id="bg-canvas" aria-hidden="true"></canvas>
 
-  {# ========= HEADER ========= #}
-  <header class="site-header" role="banner">
-    <div class="container header-grid">
-      <a class="brand" href="/{{ _lang }}/">
-        {{ (company and company[0].name) or strings.brand or 'Kras-Trans' }}
-      </a>
-
-      <nav id="site-nav" class="nav" aria-label="{{ strings.nav_main or 'Główna nawigacja' }}">
-        <ul class="nav-list">
-          {# Fallback z Arkusza Nav; jeśli brak – budujemy minimalne menu #}
-          {% set nav_items = (nav or []) | selectattr('lang','equalto',_lang) | sort(attribute='order') | list %}
-          {% if nav_items|length == 0 %}
-            {% set nav_items = [
-              {'label':'Oferta','href':'/' ~ _lang ~ '/#oferta'},
-              {'label':'Usługi','href':'/' ~ _lang ~ '/uslugi/'},
-              {'label':'FAQ','href':'/' ~ _lang ~ '/#faq'},
-              {'label':'Kontakt','href':'/' ~ _lang ~ '/#kontakt'}
-            ] %}
-          {% endif %}
-          {% for item in nav_items %}
-            <li><a href="{{ item.href }}">{{ item.label }}</a></li>
-          {% endfor %}
-        </ul>
-
-        <ul class="nav-langs" aria-label="{{ strings.nav_langs or 'Języki' }}">
-          {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
-            {% set alt_lang = (alt.lang or DEFAULT_LANG)|lower %}
-            {% set alt_slug = alt.slug or '' %}
-            {% set alt_url  = '/' ~ alt_lang ~ '/' ~ (alt_slug ~ ('/' if alt_slug)) %}
-            <li><a href="{{ alt_url }}" hreflang="{{ alt_lang }}">{{ (alt.lang or 'PL')|upper }}</a></li>
-          {% endfor %}
-        </ul>
-      </nav>
-
-      <div class="header-actions">
-        <button id="theme-toggle" class="icon-btn theme-toggle" type="button"
-                aria-label="{{ strings.theme_toggle or 'Zmień motyw' }}" aria-pressed="false" title="Motyw">
-          <span class="sun" aria-hidden="true"></span>
-          <span class="moon" aria-hidden="true"></span>
-          <span class="paper" aria-hidden="true"></span>
-        </button>
-        <a class="btn primary btn--shine" href="tel:{{ (company and company[0].telephone) or strings.phone or '+48793927467' }}">
-          {{ strings.cta_call or 'Zadzwoń 24/7' }}
-        </a>
-      </div>
+  <header class="site-header">
+    <a class="brand" href="/{{ _lang }}/">{{ strings.brand }}</a>
+    <nav id="site-nav" class="nav" hidden></nav>
+    <div class="header-actions">
+      <button id="theme-toggle" type="button" aria-label="{{ strings.theme_toggle }}" aria-pressed="false"></button>
+      <a class="btn primary" href="#kontakt">{{ strings.cta_phone }}</a>
     </div>
   </header>
 
-  <main id="main" class="content" role="main">
-    {# ========= HERO ========= #}
-    <section class="hero" id="hero" aria-label="{{ strings.hero_aria or 'Hero' }}">
-      <div class="container hero-wrap">
-        <div class="hero-copy">
-          {% if page.claim or strings.claim %}
-            <span class="claim">{{ page.claim or strings.claim }}</span>
-          {% endif %}
-          <h1>{{ page.h1 or page.title or 'Transport — Polska & Europa' }}</h1>
-          {% if page.lead %}<p class="lead">{{ page.lead }}</p>{% endif %}
-
-          <p class="cta-row">
-            <a id="cta-quote" class="btn primary" href="#kontakt">
-              {{ strings.hero_cta_primary or 'Wyceń transport teraz' }}
-            </a>
-            <a class="btn" href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">
-              {{ strings.hero_cta_secondary or 'Zadzwoń' }}
-            </a>
-          </p>
-
-          <aside class="steps-bubble" aria-label="{{ strings.steps_label or 'Jak to działa' }}">
+  <section class="hero" id="hero">
+    <div class="hero-wrap">
+      <div class="hero-copy">
+        <h1>{{ page.h1 }}</h1>
+        {% if page.lead %}<p class="lead">{{ page.lead }}</p>{% endif %}
+        <div class="hero-buttons">
+          <a class="btn primary" href="#kontakt">{{ strings.cta_hero }}</a>
+          <div class="howto" hidden aria-live="polite">
             <ol>
-              <li>{{ strings.step1 or 'Krok 1: Kliknij „Wyceń transport teraz”.' }}</li>
-              <li>{{ strings.step2 or 'Krok 2: Podaj trasę i dane ładunku.' }}</li>
-              <li>{{ strings.step3 or 'Krok 3: Wyślij — oddzwonimy i potwierdzimy odbiór.' }}</li>
+              <li>{{ strings.how1 }}</li>
+              <li>{{ strings.how2 }}</li>
+              <li>{{ strings.how3 }}</li>
             </ol>
-            <small class="hint">
-              {{ strings.steps_hint or 'Darmowa wycena • Bez ukrytych opłat • Szybki kontakt po wysłaniu' }}
-            </small>
-          </aside>
-        </div>
-
-        {# Media: video lub obraz hero #}
-        <div class="hero-media">
-          {% if page.hero_video %}
-            <video muted loop playsinline preload="none"
-                   poster="{{ page.hero_poster or '/assets/media/hero.webp' }}"
-                   width="1680" height="720">
-              <source src="{{ page.hero_video }}" type="video/mp4">
-            </video>
-          {% elif page.hero_image %}
-            <img src="{{ page.hero_image }}" alt="{{ page.hero_alt or page.h1 or page.title }}"
-                 width="1680" height="720" fetchpriority="high">
-          {% else %}
-            <img src="/assets/media/hero.webp" alt="{{ page.h1 or page.title }}"
-                 width="1680" height="720" fetchpriority="high">
-          {% endif %}
+          </div>
         </div>
       </div>
-    </section>
-
-    {# ========= OFERTA / KAFELKI ========= #}
-    <section class="section --line" id="oferta" data-section="offers" aria-label="{{ strings.offers_aria or 'Nasza oferta' }}">
-      <div class="container text">
-        <h2>{{ strings.offers_title or 'Nasza oferta' }}</h2>
-        {% if strings.offers_desc %}<p>{{ strings.offers_desc }}</p>{% endif %}
-      </div>
-
-      {# 1) Blocks: block=offer (jeżeli są); 2) fallback: Pages type=service #}
-      {% set offers_blocks = (blocks or [])
-        | selectattr('block','equalto','offer')
-        | selectattr('lang','equalto',_lang)
-        | selectattr('page','equalto',samekey)
-        | sort(attribute='order')
-        | list %}
-
-      {% set offers_pages = (pages or [])
-        | selectattr('type','equalto','service')
-        | selectattr('lang','equalto',_lang)
-        | sort(attribute='order')
-        | list %}
-
-      {% set offers = offers_blocks if offers_blocks|length else offers_pages %}
-
-      {% if offers|length %}
-      <div class="container cards tilt-cards cards--wrap cards--scroll" data-equalize="true"
-           aria-label="{{ strings.offers_list or 'Lista usług (przesuń w bok na telefonie)' }}">
-        {% for it in offers %}
-          {% set url = it.href or it.url or ('/' ~ _lang ~ '/' ~ (it.slug or '') ~ '/') %}
-          <article class="card offer">
-            <div class="pad">
-              <h3>{{ it.title or it.h1 or it.seo_title or it.slug }}</h3>
-              {% if it.desc or it.lead or it.meta_desc %}
-                <p>{{ it.desc or it.lead or it.meta_desc }}</p>
-              {% endif %}
-              {% if url %}
-                <a class="btn" href="{{ url }}">
-                  {{ it.cta or strings.read_more or 'Poznaj usługę' }}
-                </a>
-              {% endif %}
-            </div>
-          </article>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      <div class="sep sep--morph" data-morph="wave-2" aria-hidden="true"></div>
-    </section>
-
-    {# ========= KIERUNKI / MAPA ========= #}
-<section class="section --line" id="kierunki" aria-label="Kierunki i specjalizacje">
-  <div class="container text">
-    <h2>{{ strings.routes_title or 'Kierunki i specjalizacje' }}</h2>
-    {% if strings.routes_desc %}<p>{{ strings.routes_desc }}</p>{% endif %}
-  </div>
-
-  <div class="container">
-    <div class="map-embed">
-      <iframe src="/assets/media/mapa-kierunkow-kras-trans.html"
-              title="Mapa kierunków" loading="lazy"
-              width="100%" height="100%" style="border:0; aspect-ratio: 16 / 10;"></iframe>
-    </div>
-  </div>
-</section>
-{% if faq and faq|length %}
-<section class="section --dots" id="faq" aria-label="{{ strings.faq_aria or 'Najczęstsze pytania' }}">
-  <div class="container text"><h2>{{ strings.faq_title or 'FAQ — najczęstsze pytania' }}</h2></div>
-  <div class="container cards cards--wrap" data-equalize="true">
-    {% for f in faq | sort(attribute='order') %}
-      <details class="card">
-        <summary><strong>{{ f.question }}</strong></summary>
-        <div class="pad"><p>{{ f.answer }}</p></div>
-      </details>
-    {% endfor %}
-  </div>
-  <p class="container"><a class="btn" href="/{{ (page.lang or 'pl') }}/faq/">{{ strings.faq_more or 'Pokaż więcej pytań' }}</a></p>
-</section>
-{% endif %}
-
-    {# ========= POWIĄZANE (ten sam parentSlug) ========= #}
-    {% set related = (pages or [])
-      | selectattr('lang','equalto',_lang)
-      | selectattr('parentSlug','equalto',page.parentSlug)
-      | rejectattr('slugKey','equalto',samekey)
-      | list %}
-    {% if related|length %}
-    <section class="section --line" id="related">
-      <div class="container text"><h2>{{ strings.related_title or 'Powiązane strony' }}</h2></div>
-      <div class="container cards cards--wrap">
-        {% for r in related[:6] %}
-          <article class="card"><div class="pad">
-            <h3><a href="/{{ _lang }}/{{ r.slug }}/">{{ r.h1 or r.title or r.seo_title }}</a></h3>
-            {% if r.meta_desc %}<p>{{ r.meta_desc }}</p>{% endif %}
-          </div></article>
-        {% endfor %}
-      </div>
-    </section>
-    {% endif %}
-{# ========= Panel boczny ========= #}
-<aside id="assist-panel" aria-label="Szybkie skróty">
-  <nav>
-    <a href="#kontakt">Wycena</a>
-    <a href="tel:+48793927467">Zadzwoń</a>
-    <a href="/{{ (page.lang or 'pl') }}/faq/">FAQ</a>
-    <button type="button" data-action="theme">Tryb</button>
-  </nav>
-</aside>
-    
-  </main>
-
-  {# ========= FOOTER (wersja 2025 – lekki układ) ========= #}
-  <footer class="site-footer" role="contentinfo">
-    <div class="footer-wrap container">
-      <section class="brand-col">
-        <strong>{{ (company and company[0].name) or 'Kras-Trans' }}</strong><br>
-        {% if company and company[0].streetAddress %}{{ company[0].streetAddress }}{% endif %}
-        {% if company and company[0].postalCode %}, {{ company[0].postalCode }}{% endif %}
-        {% if company and company[0].addressLocality %} {{ company[0].addressLocality }}{% endif %}<br>
-        <a class="tel" href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">
-          {{ (company and company[0].telephone) or '+48 793 927 467' }}</a><br>
-        {% if company and company[0].email %}
-          <a class="mail" href="mailto:{{ company[0].email }}">{{ company[0].email }}</a>
+      <div class="hero-media">
+        {% if page.hero_video %}
+        <video src="{{ page.hero_video }}" poster="{{ page.hero_image }}" aria-label="{{ page.hero_alt }}" playsinline muted loop></video>
+        {% elif page.hero_image %}
+        <img src="{{ page.hero_image }}" alt="{{ page.hero_alt }}">
         {% endif %}
-      </section>
-
-      <nav class="footer-col" aria-label="{{ strings.nav_footer or 'Nawigacja w stopce' }}">
-        <h4>{{ strings.nav_main or 'Nawigacja' }}</h4>
-        <div class="links">
-          {% set nav_items = (nav or []) | selectattr('lang','equalto',_lang) | sort(attribute='order') | list %}
-          {% for item in nav_items[:8] %}
-            <a href="{{ item.href }}">{{ item.label }}</a>
-          {% endfor %}
-        </div>
-      </nav>
-
-      <nav class="footer-col" aria-label="{{ strings.nav_services or 'Usługi' }}">
-        <h4>{{ strings.services or 'Usługi' }}</h4>
-        <div class="chips">
-          {% set services = (pages or [])
-            | selectattr('type','equalto','service')
-            | selectattr('lang','equalto',_lang)
-            | sort(attribute='order')
-            | list %}
-          {% for s in services[:10] %}
-            <a class="chip" href="/{{ _lang }}/{{ s.slug }}/">{{ s.h1 or s.title or s.seo_title }}</a>
-          {% endfor %}
-        </div>
-      </nav>
-
-      <nav class="footer-col" aria-label="{{ strings.nav_routes or 'Kierunki' }}">
-        <h4>{{ strings.routes or 'Kierunki' }}</h4>
-        <div class="chips scroll-x">
-          {% for r in (routes or []) | selectattr('lang','equalto',_lang) | sort(attribute='order') | list %}
-            <a class="chip" href="{{ r.href or ('/' ~ _lang ~ '/trasa/' ~ (r.slug or '')) }}/">
-              {{ r.label or r.name }}
-            </a>
-          {% endfor %}
-        </div>
-      </nav>
+      </div>
     </div>
+  </section>
 
-    <div class="container legal">
-      <small>© {{ (now or '')[:4] or '' }} {{ (company and company[0].name) or 'Kras-Trans' }}</small>
-      <div class="langs">
-        {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
-          {% set alt_lang = (alt.lang or DEFAULT_LANG)|lower %}
-          {% set alt_slug = alt.slug or '' %}
-          {% set alt_url  = '/' ~ alt_lang ~ '/' ~ (alt_slug ~ ('/' if alt_slug)) %}
-          <a href="{{ alt_url }}" hreflang="{{ alt_lang }}">{{ (alt.lang or 'PL')|upper }}</a>
+  <section class="section offer-reveal" id="oferta">
+    <div class="offer-stage">
+      <h2 class="offer-heading">{{ strings.offers_title }}</h2>
+      <div class="cards cards--scroll" data-equalize>
+        {% for it in offers %}
+        <article class="card offer">
+          {% if it.image %}<img src="{{ it.image }}" alt="{{ it.alt }}">{% endif %}
+          <div class="pad">
+            <h3>{{ it.h1 or it.title }}</h3>
+            {% if it.lead %}<p>{{ it.lead }}</p>{% endif %}
+            <a class="btn small" href="{{ it.href }}">{{ strings.more }}</a>
+          </div>
+        </article>
         {% endfor %}
       </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    {% for f in page_faq %}
+    <details>
+      <summary>{{ f.question }}</summary>
+      <div>{{ f.answer }}</div>
+    </details>
+    {% endfor %}
+  </section>
+
+  <section id="kontakt">
+    <form id="contact-form">
+      <input name="name" placeholder="{{ strings.form_name }}">
+      <button class="btn btn--progress" type="submit">{{ strings.form_send }}</button>
+    </form>
+  </section>
+
+  <footer>
+    <div class="foot-wrap">
+      <div class="foot-col">{{ company[0].name }}</div>
+      <div class="foot-col">{{ company[0].streetAddress }}</div>
     </div>
   </footer>
 
-  {# Dock (mobile skróty) #}
-  <nav class="bottom-bar" aria-label="Skróty">
-    <a href="#kontakt">📦<span>{{ strings.short_quote or 'Wycena' }}</span></a>
-    <a href="#faq">❓<span>FAQ</span></a>
-    <a href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">📞<span>{{ strings.short_call or 'Telefon' }}</span></a>
-    <a href="#hero">⬆️<span>{{ strings.short_top or 'Góra' }}</span></a>
-    <a href="/{{ _lang }}/transport-miedzynarodowy/">🌍<span>EU</span></a>
+  <nav class="bottom-dock" role="navigation" aria-label="{{ strings.nav_mobile }}">
+    <a class="dock-item home" href="/{{ _lang }}/" aria-label="{{ strings.nav_home }}">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9v9h-6v-6h-6v6H3z"/></svg>
+    </a>
+    <a class="dock-item cta" href="#kontakt" aria-label="{{ strings.nav_quote }}">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6.6 10.8a15 15 0 006.6 6.6l2.2-2.2a1 1 0 011.1-.2 11.4 11.4 0 003.5.6 1 1 0 011 1v3.5a1 1 0 01-1 1A17.5 17.5 0 012 6a1 1 0 011-1h3.5a1 1 0 011 1 11.4 11.4 0 00.6 3.5 1 1 0 01-.2 1.1z"/></svg>
+    </a>
+    <button class="dock-item menu" type="button" aria-label="{{ strings.nav_menu }}" aria-pressed="false">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
   </nav>
 
-  {# ========= JSON-LD ========= #}
+  <div id="neon-menu" class="neon" hidden>
+    <div class="neon-wrap" tabindex="-1">
+      <button class="neon-close" type="button" aria-label="{{ strings.nav_close }}"></button>
+      <nav class="neon-nav"></nav>
+    </div>
+  </div>
+
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
     "@graph":[
-      {
-        "@type":"Organization",
-        "name":"{{ (company and company[0].name) or 'Kras-Trans' }}",
-        {% if company and company[0].url %}"url":"{{ company[0].url }}",{% endif %}
-        {% if company and company[0].telephone %}"telephone":"{{ company[0].telephone }}",{% endif %}
-        "logo":"{{ _base }}/assets/media/og-default.webp"
-      },
-      {
-        "@type":"WebSite",
-        "name":"{{ (company and company[0].name) or 'Kras-Trans' }}",
-        "url":"{{ _base }}"
-      },
-      {
-        "@type":"WebPage",
-        "name":"{{ _title }}",
-        "url":"{{ _canon }}",
-        "inLanguage":"{{ _lang }}"
-      }{% if page_faq|length %},
-      {
-        "@type":"FAQPage",
-        "mainEntity":[
-          {% for f in page_faq %}
-          { "@type":"Question", "name": {{ f.question | tojson }},
-            "acceptedAnswer": { "@type":"Answer", "text": {{ f.answer | tojson }} } }{{ "," if not loop.last else "" }}
-          {% endfor %}
-        ]
-      }{% endif %}
+      {"@type":"Organization","name":"{{ company[0].name }}","telephone":"{{ company[0].telephone }}","address":{"@type":"PostalAddress","streetAddress":"{{ company[0].streetAddress }}"}},
+      {"@type":"WebPage","name":"{{ page.seo_title }}","url":"{{ _canon }}"},
+      {"@type":"BreadcrumbList","itemListElement":[]}
+      {% if page_faq|length %},
+      {"@type":"FAQPage","mainEntity":[{% for f in page_faq %}{"@type":"Question","name":"{{ f.question }}","acceptedAnswer":{"@type":"Answer","text":"{{ f.answer }}"}}{% if not loop.last %},{% endif %}{% endfor %}]}
+      {% endif %}
     ]
   }
   </script>
 
-  {# ========= JS – tylko referencje (bez kodu) ========= #}
+  <script>window.KRAS_NAV = {{ nav_json | tojson }};</script>
   <script src="/assets/js/kras-global.js" defer></script>
   <script src="/assets/js/menu-builder.js" defer></script>
-
-  {# GA4 po onload (ładowane w pliku globalnym – tu nic nie wstrzykujemy) #}
+  <script src="/assets/js/kras-ui.js" defer></script>
 </body>
 </html>
