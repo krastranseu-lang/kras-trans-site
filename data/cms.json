@@ -1,0 +1,32 @@
+{
+  "pages": [
+    {
+      "lang": "pl",
+      "slug": "",
+      "slugKey": "home",
+      "title": "Kras-Trans — Transport ekspresowy",
+      "meta_desc": "Profesjonalny transport ekspresowy.",
+      "page_html": "<p>Witamy na stronie Kras-Trans</p>"
+    }
+  ],
+  "company": [
+    {
+      "name": "Kras-Trans",
+      "telephone": "+48 123 456 789"
+    }
+  ],
+  "nav": [],
+  "strings": [],
+  "faq": [],
+  "media": [],
+  "redirects": [],
+  "blocks": [],
+  "routes": [],
+  "places": [],
+  "blog": [],
+  "reviews": [],
+  "authors": [],
+  "categories": [],
+  "jobs": [],
+  "autolinks": []
+}
