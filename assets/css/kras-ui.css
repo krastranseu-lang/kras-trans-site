@@ -83,8 +83,7 @@
   .dock-home span{mask-image:url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="black"><path d="M3 12l9-9 9 9v9h-6v-6h-6v6H3z"/></svg>');}
   .dock-quote span{mask-image:url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="black"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1.1-.2 11.4 11.4 0 0 0 3.5 1.6 1 1 0 0 1 1 1v3.5a1 1 0 0 1-1 1A17.5 17.5 0 0 1 2 6a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .6 3.5 1 1 0 0 1-.2 1.1z"/></svg>');}
   .dock-menu span{mask-image:url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="black"><path d="M3 6h18M3 12h18M3 18h18" stroke="black" stroke-width="2" stroke-linecap="round"/></svg>');}
-  .dock-btn.dock-menu{flex-basis:33%;}
-  .dock-btn.dock-quote{transform:translateY(-8px);}
+  .dock-btn.dock-quote{flex:1.4;transform:translateY(-8px);}
   .dock-btn em{font-style:normal;}
 
   .neon{position:fixed;inset:0;display:none;background:rgba(0,0,0,.8);backdrop-filter:blur(12px);align-items:center;justify-content:center;}
