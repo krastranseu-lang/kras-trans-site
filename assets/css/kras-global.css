@@ -151,7 +151,7 @@ body {
 .site-header{ position:sticky; top:0; z-index:50; backdrop-filter:saturate(1.2) blur(6px); background: color-mix(in srgb, var(--surface) 82%, transparent); border-bottom:1px solid color-mix(in srgb, var(--ring) 35%, transparent); }
 .header-grid{
   display:grid;
-  grid-template-columns:auto 1fr auto;
+  grid-template-columns:auto auto 1fr auto;
   align-items:center;
   column-gap: clamp(12px, 3vw, 32px);
   padding-block: 12px;
@@ -192,6 +192,18 @@ body {
   outline: 2px solid currentColor;
   outline-offset: 2px;
   border-radius:10px;
+}
+
+/* mobile toggle + overlay menu */
+.menu-toggle{ display:none; }
+.menu-toggle .bar{ width:18px; height:2px; background:currentColor; border-radius:1px; }
+.menu-toggle .bar + .bar{ margin-top:4px; }
+
+@media (max-width:900px){
+  .menu-toggle{ display:grid; row-gap:4px; }
+  .nav{ position:fixed; inset:0; background:var(--surface); transform:translateY(-100%); transition:transform .3s ease; padding:80px 24px 24px; }
+  .nav.is-open{ transform:translateY(0); }
+  .nav__list{ flex-direction:column; align-items:flex-start; gap:24px; margin:0; padding:0; overflow:auto; }
 }
 
 /* akcje w nagłówku */
