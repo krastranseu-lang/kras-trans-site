@@ -201,34 +201,35 @@ footer{ padding:40px 20px; color:var(--muted); border-top:1px solid var(--border
 <a href="#main" class="skip">Przejdź do treści</a>
 
 <!-- ========== sekcja header ========= -->
-<header class="header" role="banner" id="top">
-  <!-- ======= komp. header ======= -->
-  <div class="section" style="padding:12px 20px">
-    <nav class="text" style="max-width:none; display:flex; align-items:center; gap:14px; justify-content:space-between">
-      <div class="brand"><a href="#top" class="btn-ghost">Kras‑Trans</a></div>
+<header class="site-header" role="banner">
+  <div class="container header-grid">
+    <a href="/" class="brand">{{ brand }}</a>
 
-      <div class="menu" style="display:flex; gap:6px; flex-wrap:wrap">
-        <a href="#onas">O nas</a>
-        <a href="#kontakt">Kontakt</a>
-        <a href="#uslugi">Usługi Transportowe</a>
-        <a href="#flota">Flota</a>
-        <a href="#praca">Praca</a>
-        <a href="#faq">FAQ</a>
-        <a href="#blog">Blog</a>
-        <a href="#vanfit">VanFit</a>
-        <a href="#wycena" class="btn primary btn--pulse">Wycena 15 min</a>
-      </div>
-
-      <div style="display:flex; align-items:center; gap:8px">
-        <button class="switch" id="d-theme" type="button" aria-checked="false" aria-label="Przełącz motyw">
-          <span class="knob" aria-hidden="true"></span>
-        </button>
-        <button id="reading-toggle" class="btn-ghost" type="button" aria-pressed="false" title="Tryb czytania">Czytanie</button>
-        <a href="tel:+48793927467" class="btn">Zadzwoń</a>
-      </div>
+    {% set _lang = (page.lang or default_lang)|lower %}
+    {% set nav_items = [] %}
+    {% for item in nav %}
+      {% if (item.lang or default_lang)|lower == _lang %}
+        {% set _ = nav_items.append(item) %}
+      {% endif %}
+    {% endfor %}
+    <nav id="site-nav" class="nav" aria-label="{{ strings.nav_main }}">
+      {% if nav_items %}
+      <ul class="nav__list">
+        {% for item in nav_items %}
+        <li><a href="{{ item.href }}">{{ item.label }}</a></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
     </nav>
+
+    <div class="header-actions">
+      <button id="theme-toggle" class="icon-btn theme-toggle" aria-label="Przełącz motyw">
+        <span class="sun" aria-hidden="true"></span>
+        <span class="moon" aria-hidden="true"></span>
+      </button>
+      <a href="tel:+48793927467" class="btn primary">Zadzwoń 24/7</a>
+    </div>
   </div>
-  <!-- ======= koniec komp. header ======= -->
 </header>
 <!-- ========== koniec header ========= -->
 
