@@ -1,12 +1,6 @@
-# core
 jinja2==3.1.4
 beautifulsoup4==4.12.3
 markdown==3.6
-
-# utils używane w buildzie
 python-slugify==8.0.4
 requests==2.31.0
 Pillow==10.3.0
-
-# opcjonalnie (szybszy parser dla bs4 – można usunąć, jeśli sprawia kłopot)
-lxml==5.2.2
