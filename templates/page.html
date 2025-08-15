@@ -2,158 +2,141 @@
 <html lang="{{ page.lang or DEFAULT_LANG }}">
 <head>
   {% if page.hero_image %}
-<link rel="preload" as="image" href="{{ page.hero_image }}" imagesrcset="{{ page.hero_image }} 1680w" fetchpriority="high">
-{% endif %}
-{# --- Icons --- #}
-<link rel="icon" type="image/png" sizes="32x32"  href="/assets/media/ikona-transport-logistyka-europa-32.png">
-<link rel="icon" type="image/png" sizes="64x64"  href="/assets/media/ikona-transport-logistyka-europa-64.png">
-<link rel="icon" type="image/png" sizes="128x128" href="/assets/media/ikona-transport-logistyka-europa-128.png">
-<link rel="icon" type="image/png" sizes="256x256" href="/assets/media/ikona-transport-logistyka-europa-256.png">
-<link rel="icon" type="image/png" sizes="512x512" href="/assets/media/ikona-transport-logistyka-europa-512.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/assets/media/ikona-transport-logistyka-europa-256.png">
-  {# ========= BASIC ========= #}
+  <link rel="preload" as="image" href="{{ page.hero_image }}" imagesrcset="{{ page.hero_image }} 1680w" fetchpriority="high">
+  {% endif %}
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" sizes="32x32"  href="/assets/media/ikona-transport-logistyka-europa-32.png">
+  <link rel="icon" type="image/png" sizes="64x64"  href="/assets/media/ikona-transport-logistyka-europa-64.png">
+  <link rel="icon" type="image/png" sizes="128x128" href="/assets/media/ikona-transport-logistyka-europa-128.png">
+  <link rel="icon" type="image/png" sizes="256x256" href="/assets/media/ikona-transport-logistyka-europa-256.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/assets/media/ikona-transport-logistyka-europa-512.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/media/ikona-transport-logistyka-europa-256.png">
+
+  <!-- Basic -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0b0f17">
 
-  {# Bezpieczne tytuł/opis #}
   {% set _title = page.seo_title or page.title or page.h1 or 'Kras-Trans' %}
   {% set _desc  = page.meta_desc or page.description or page.lead or 'Transport i spedycja — Polska & UE' %}
   <title>{{ _title }}</title>
   <meta name="description" content="{{ _desc }}">
 
-{# --- Canonical + hreflang (safe dla StrictUndefined) --- #}
-{% set _lang  = page.lang or 'pl' %}
-{% set samekey = page.slugKey or page.slug or 'home' %}
-{% set _slug  = page.slug or '' %}
-{% set _path  = '/' ~ _lang ~ '/' ~ (_slug ~ ('/' if _slug)) %}
+  {# === Canonical + hreflang (bezpieczne, gdy SITE_URL nie istnieje) === #}
+  {% set _lang  = page.lang or 'pl' %}
+  {% set samekey = page.slugKey or page.slug or 'home' %}
+  {% set _slug  = page.slug or '' %}
+  {% set _path  = '/' ~ _lang ~ '/' ~ (_slug ~ ('/' if _slug)) %}
+  {% set _base = (SITE_URL if (SITE_URL is defined and SITE_URL) else (site_url if (site_url is defined and site_url) else 'https://kras-trans.com')) %}
+  {% set _canon = _base ~ _path %}
 
-{# baza absolutnego URL – nic nie wybuchnie, jeśli SITE_URL nie ma #}
-{% set _base = (SITE_URL if (SITE_URL is defined and SITE_URL) 
-  else (site_url if (site_url is defined and site_url) 
-  else 'https://kras-trans.com')) %}
-{% set _canon = _base ~ _path %}
+  <link rel="canonical" href="{{ _canon }}">
+  {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
+    {% set _altpath = '/' ~ (alt.lang or 'pl') ~ '/' ~ (alt.slug or '') ~ '/' %}
+    <link rel="alternate" hreflang="{{ (alt.lang or 'pl')|lower }}" href="{{ _base ~ _altpath }}">
+  {% endfor %}
+  <link rel="alternate" hreflang="x-default" href="{{ _canon }}">
 
-<link rel="canonical" href="{{ _canon }}">
-
-{% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
-  {% set _altpath = '/' ~ (alt.lang or 'pl') ~ '/' ~ (alt.slug or '') ~ '/' %}
-  <link rel="alternate" hreflang="{{ (alt.lang or 'pl')|lower }}" href="{{ _base ~ _altpath }}">
-{% endfor %}
-<link rel="alternate" hreflang="x-default" href="{{ _canon }}">
-
-{# obrazki OG/Twitter jako absolutne #}
-{% set ogimg = page.og_image or page.hero_image or 'assets/media/og-default.webp' %}
-<meta property="og:image" content="{{ _base ~ '/' ~ (ogimg|replace('^/','')) }}">
-<meta name="twitter:image" content="{{ _base ~ '/' ~ (ogimg|replace('^/','')) }}">
-  {# ========= OPEN GRAPH / TWITTER ========= #}
-  {% set ogimg = '/' ~ (page.og_image or page.hero_image or 'assets/media/og-default.webp') %}
+  {# OG/Twitter #}
+  {% set ogimg_rel = '/' ~ (page.og_image or page.hero_image or 'assets/media/og-default.webp') %}
   <meta property="og:type" content="website">
   <meta property="og:title" content="{{ _title }}">
   <meta property="og:description" content="{{ _desc }}">
   <meta property="og:url" content="{{ _canon }}">
-  <meta property="og:image" content="{{ _base ~ ogimg }}">
+  <meta property="og:image" content="{{ _base ~ ogimg_rel }}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ _title }}">
   <meta name="twitter:description" content="{{ _desc }}">
-  <meta name="twitter:image" content="{{ _base ~ ogimg }}">
+  <meta name="twitter:image" content="{{ _base ~ ogimg_rel }}">
 
-  {# ========= GSC (opcjonalnie) ========= #}
   {% if GSC_VERIFICATION %}
     <meta name="google-site-verification" content="{{ GSC_VERIFICATION }}">
   {% endif %}
 
-  {# ========= ASSETS (tylko linki; bez inline CSS/JS) ========= #}
+  <!-- Assets -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable-Italic.woff2" crossorigin>
   <link rel="stylesheet" href="/assets/css/kras-global.css">
 </head>
 <body data-header-overlay="true">
-  {# tła #}
+  <!-- Backgrounds -->
   <div id="bg-grid" aria-hidden="true"></div>
   <canvas id="bg-canvas" aria-hidden="true"></canvas>
 
-  {# ========= HEADER ========= #}
-<header class="site-header" role="banner">
-  <div class="container header-grid">
-    {# LOGO #}
-<a class="brand" href="/{{ _lang }}/" aria-label="{{ (company and company[0].name) or 'Kras-Trans' }}">
-  <img
-    class="brand__logo"
-    src="/assets/media/logo-firma-transportowa-kras-trans.png"
-    width="132" height="36"
-    alt="{{ (company and company[0].name) or 'Kras-Trans' }}"
-    fetchpriority="high" loading="eager">
-</a>
-    <img
-        src="{{ _base }}/assets/media/logo-firma-transportowa-kras-trans.png"
-        width="160" height="40" alt="{{ brand or 'Kras-Trans' }}"
-        decoding="async" fetchpriority="high">
-    </a>
+  {# =================== HEADER =================== #}
+  <header class="site-header" role="banner">
+    <div class="container header-grid">
+      <!-- LOGO -->
+      <a class="brand" href="/{{ _lang }}/" aria-label="{{ (company and company[0].name) or 'Kras-Trans' }}">
+        <img class="brand__logo"
+             src="/assets/media/logo-firma-transportowa-kras-trans.png"
+             width="160" height="40"
+             alt="{{ (company and company[0].name) or 'Kras-Trans' }}"
+             fetchpriority="high" loading="eager">
+      </a>
 
-    {# MENU GŁÓWNE #}
-    <nav id="site-nav" class="nav" aria-label="{{ strings.nav_main or 'Główna nawigacja' }}">
-      {% set menu = (nav or []) | selectattr('lang','equalto',_lang) | sort(attribute='order') | list %}
-      {% if menu|length == 0 %}
-        {% set menu = [
-          {'label':'Oferta','href':'/' ~ _lang ~ '/#oferta','order':10},
-          {'label':'Usługi','href':'/' ~ _lang ~ '/uslugi/','order':20},
-          {'label':'Transport paletowy','href':'/' ~ _lang ~ '/transport-paletowy/','order':30},
-          {'label':'Transport do Niemiec','href':'/' ~ _lang ~ '/transport-do-niemiec/','order':40},
-          {'label':'Express 3,5 t','href':'/' ~ _lang ~ '/express-35t/','order':50},
-          {'label':'Flota','href':'/' ~ _lang ~ '/flota/','order':60},
-          {'label':'Praca','href':'/' ~ _lang ~ '/praca/','order':70},
-          {'label':'FAQ','href':'/' ~ _lang ~ '/#faq','order':80},
-          {'label':'Blog','href':'/' ~ _lang ~ '/blog/','order':90},
-          {'label':'Kontakt','href':'/' ~ _lang ~ '/#kontakt','order':100}
-        ] %}
-      {% endif %}
-<details class="lang-switch">
-  <summary class="lang-pill" aria-label="{{ strings.nav_langs or 'Języki' }}">{{ (_lang|upper) }}</summary>
-  <ul class="lang-menu">
-    {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
-      {% set _altpath = '/' ~ (alt.lang or 'pl') ~ '/' ~ (alt.slug or '') ~ '/' %}
-      <li>
-        <a href="{{ _altpath }}"
-           hreflang="{{ (alt.lang or 'pl')|lower }}"
-           rel="alternate">{{ (alt.lang or 'PL')|upper }}</a>
-      </li>
-    {% endfor %}
-  </ul>
-</details>
-    </nav>
-
-    {# AKCJE W NAGŁÓWKU: motyw + telefon + języki #}
-    <div class="header-actions">
-      <button id="theme-toggle" class="icon-btn theme-toggle"
-              type="button"
-              aria-label="{{ strings.theme_toggle or 'Zmień motyw' }}"
-              aria-pressed="false" title="Motyw">◐</button>
-
-      {% set tel = (company and company[0].telephone) or strings.phone or '+48793927467' %}
-      <a class="btn primary btn--shine" href="tel:{{ tel }}">{{ strings.cta_call or 'Zadzwoń 24/7' }}</a>
-
-      {# języki: generujemy po tym samym slugKey (jest już w <head> jako hreflang) #}
-      {% set samekey = page.slugKey or page.slug or 'home' %}
-      {% set alts = (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
-      <div class="lang-switch">
-        <button class="pill" type="button" aria-haspopup="listbox" aria-expanded="false">
-          {{ _lang|upper }} ▾
-        </button>
-        <ul class="lang-menu" role="listbox">
-          {% for alt in alts %}
-            {% set _altpath = '/' ~ (alt.lang or 'pl') ~ '/' ~ (alt.slug or '') ~ '/' %}
-            <li><a href="{{ _altpath }}" hreflang="{{ (alt.lang or 'pl')|lower }}">{{ (alt.lang or 'pl')|upper }}</a></li>
+      <!-- NAV -->
+      <nav id="site-nav" class="nav" aria-label="{{ strings.nav_main or 'Główna nawigacja' }}">
+        {% set menu = (nav or []) | selectattr('lang','equalto',_lang) | sort(attribute='order') | list %}
+        {% if menu|length == 0 %}
+          {% set menu = [
+            {'label':'Oferta','href':'/' ~ _lang ~ '/#oferta','order':10},
+            {'label':'Usługi','href':'/' ~ _lang ~ '/uslugi/','order':20},
+            {'label':'Transport paletowy','href':'/' ~ _lang ~ '/transport-paletowy/','order':30},
+            {'label':'Transport do Niemiec','href':'/' ~ _lang ~ '/transport-do-niemiec/','order':40},
+            {'label':'Express 3,5 t','href':'/' ~ _lang ~ '/express-35t/','order':50},
+            {'label':'Flota','href':'/' ~ _lang ~ '/flota/','order':60},
+            {'label':'Praca','href':'/' ~ _lang ~ '/praca/','order':70},
+            {'label':'FAQ','href':'/' ~ _lang ~ '/#faq','order':80},
+            {'label':'Blog','href':'/' ~ _lang ~ '/blog/','order':90},
+            {'label':'Kontakt','href':'/' ~ _lang ~ '/#kontakt','order':100}
+          ] %}
+        {% endif %}
+        <ul class="nav__list">
+          {% for i in menu %}
+            <li><a href="{{ i.href }}">{{ i.label }}</a></li>
           {% endfor %}
         </ul>
+
+        <!-- Language pill (działa bez JS) -->
+        <details class="lang-switch" id="langs">
+          <summary class="lang-pill" aria-label="{{ strings.nav_langs or 'Języki' }}" id="langBtn">
+            {{ _lang|upper }} ▾
+          </summary>
+          <ul class="lang-menu">
+            {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
+              {% set _altpath = '/' ~ (alt.lang or 'pl') ~ '/' ~ (alt.slug or '') ~ '/' %}
+              <li>
+                <a href="{{ _altpath }}"
+                   hreflang="{{ (alt.lang or 'pl')|lower }}"
+                   rel="alternate">
+                   {{ (alt.lang or 'PL')|upper }}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </details>
+      </nav>
+
+      <!-- Header actions -->
+      <div class="header-actions">
+        <button id="theme-toggle" class="icon-btn theme-toggle" type="button"
+                aria-label="{{ strings.theme_toggle or 'Zmień motyw' }}"
+                aria-pressed="false" title="Motyw">◐</button>
+
+        {% set tel = (company and company[0].telephone) or strings.phone or '+48793927467' %}
+        <a class="btn primary btn--shine" href="tel:{{ tel }}">
+          {{ strings.cta_call or 'Zadzwoń 24/7' }}
+        </a>
       </div>
     </div>
-  </div>
-</header>
-  
+  </header>
+
   <main id="main" class="content" role="main">
-    {# ========= HERO ========= #}
+
+    {# =================== HERO =================== #}
     <section class="hero" id="hero" aria-label="{{ strings.hero_aria or 'Hero' }}">
       <div class="container hero-wrap">
         <div class="hero-copy">
@@ -167,9 +150,7 @@
             <a id="cta-quote" class="btn primary" href="#kontakt">
               {{ strings.hero_cta_primary or 'Wyceń transport teraz' }}
             </a>
-            <a class="btn" href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">
-              {{ strings.hero_cta_secondary or 'Zadzwoń' }}
-            </a>
+            <a class="btn" href="tel:{{ tel }}">{{ strings.hero_cta_secondary or 'Zadzwoń' }}</a>
           </p>
 
           <aside class="steps-bubble" aria-label="{{ strings.steps_label or 'Jak to działa' }}">
@@ -184,7 +165,6 @@
           </aside>
         </div>
 
-        {# Media: video lub obraz hero #}
         <div class="hero-media">
           {% if page.hero_video %}
             <video muted loop playsinline preload="none"
@@ -203,27 +183,24 @@
       </div>
     </section>
 
-    {# ========= OFERTA / KAFELKI ========= #}
-    <section class="section --line" id="oferta" data-section="offers" aria-label="{{ strings.offers_aria or 'Nasza oferta' }}">
+    {# =================== OFERTA =================== #}
+    <section class="section --line" id="oferta" data-section="offers"
+             aria-label="{{ strings.offers_aria or 'Nasza oferta' }}">
       <div class="container text">
         <h2>{{ strings.offers_title or 'Nasza oferta' }}</h2>
         {% if strings.offers_desc %}<p>{{ strings.offers_desc }}</p>{% endif %}
       </div>
 
-      {# 1) Blocks: block=offer (jeżeli są); 2) fallback: Pages type=service #}
+      {# 1) Blocks: block=offer (per page/lang); 2) fallback: Pages type=service #}
       {% set offers_blocks = (blocks or [])
         | selectattr('block','equalto','offer')
         | selectattr('lang','equalto',_lang)
         | selectattr('page','equalto',samekey)
-        | sort(attribute='order')
-        | list %}
-
+        | sort(attribute='order') | list %}
       {% set offers_pages = (pages or [])
         | selectattr('type','equalto','service')
         | selectattr('lang','equalto',_lang)
-        | sort(attribute='order')
-        | list %}
-
+        | sort(attribute='order') | list %}
       {% set offers = offers_blocks if offers_blocks|length else offers_pages %}
 
       {% if offers|length %}
@@ -251,37 +228,50 @@
       <div class="sep sep--morph" data-morph="wave-2" aria-hidden="true"></div>
     </section>
 
-    {# ========= KIERUNKI / MAPA ========= #}
-<section class="section --line" id="kierunki" aria-label="Kierunki i specjalizacje">
-  <div class="container text">
-    <h2>{{ strings.routes_title or 'Kierunki i specjalizacje' }}</h2>
-    {% if strings.routes_desc %}<p>{{ strings.routes_desc }}</p>{% endif %}
-  </div>
+    {# =================== KIERUNKI / MAPA =================== #}
+    <section class="section --line" id="kierunki" aria-label="{{ strings.routes_title or 'Kierunki i specjalizacje' }}">
+      <div class="container text">
+        <h2>{{ strings.routes_title or 'Kierunki i specjalizacje' }}</h2>
+        {% if strings.routes_desc %}<p>{{ strings.routes_desc }}</p>{% endif %}
+      </div>
 
-  <div class="container">
-    <div class="map-embed">
-      <iframe src="/assets/media/mapa-kierunkow-kras-trans.html"
-              title="Mapa kierunków" loading="lazy"
-              width="100%" height="100%" style="border:0; aspect-ratio: 16 / 10;"></iframe>
-    </div>
-  </div>
-</section>
-{% if faq and faq|length %}
-<section class="section --dots" id="faq" aria-label="{{ strings.faq_aria or 'Najczęstsze pytania' }}">
-  <div class="container text"><h2>{{ strings.faq_title or 'FAQ — najczęstsze pytania' }}</h2></div>
-  <div class="container cards cards--wrap" data-equalize="true">
-    {% for f in faq | sort(attribute='order') %}
-      <details class="card">
-        <summary><strong>{{ f.question }}</strong></summary>
-        <div class="pad"><p>{{ f.answer }}</p></div>
-      </details>
-    {% endfor %}
-  </div>
-  <p class="container"><a class="btn" href="/{{ (page.lang or 'pl') }}/faq/">{{ strings.faq_more or 'Pokaż więcej pytań' }}</a></p>
-</section>
-{% endif %}
+      <div class="container">
+        <div class="map-embed">
+          <iframe src="/assets/media/mapa-kierunkow-kras-trans.html"
+                  title="Mapa kierunków" loading="lazy"
+                  width="100%" height="100%" style="border:0; aspect-ratio: 16 / 10;"></iframe>
+        </div>
+      </div>
+    </section>
 
-    {# ========= POWIĄZANE (ten sam parentSlug) ========= #}
+    {# =================== BODY_MD / PAGE_HTML =================== #}
+    {% if page_html %}
+      <section class="section --dots" id="content">
+        <div class="container md">
+          {{ page_html | safe }}
+        </div>
+      </section>
+    {% endif %}
+
+    {# =================== FAQ =================== #}
+    {% if faq and faq|length %}
+    <section class="section --dots" id="faq" aria-label="{{ strings.faq_aria or 'Najczęstsze pytania' }}">
+      <div class="container text"><h2>{{ strings.faq_title or 'FAQ — najczęstsze pytania' }}</h2></div>
+      <div class="container cards cards--wrap" data-equalize="true">
+        {% for f in faq | sort(attribute='order') %}
+          <details class="card">
+            <summary><strong>{{ f.question }}</strong></summary>
+            <div class="pad"><p>{{ f.answer }}</p></div>
+          </details>
+        {% endfor %}
+      </div>
+      <p class="container">
+        <a class="btn" href="/{{ _lang }}/faq/">{{ strings.faq_more or 'Pokaż więcej pytań' }}</a>
+      </p>
+    </section>
+    {% endif %}
+
+    {# =================== POWIĄZANE =================== #}
     {% set related = (pages or [])
       | selectattr('lang','equalto',_lang)
       | selectattr('parentSlug','equalto',page.parentSlug)
@@ -300,19 +290,32 @@
       </div>
     </section>
     {% endif %}
-{# ========= Panel boczny ========= #}
-<aside id="assist-panel" aria-label="Szybkie skróty">
-  <nav>
-    <a href="#kontakt">Wycena</a>
-    <a href="tel:+48793927467">Zadzwoń</a>
-    <a href="/{{ (page.lang or 'pl') }}/faq/">FAQ</a>
-    <button type="button" data-action="theme">Tryb</button>
-  </nav>
-</aside>
-    
+
+    {# =================== PANEL BOCZNY =================== #}
+    <aside id="assist-panel" aria-label="Szybkie skróty">
+      <nav>
+        <a href="#kontakt">Wycena</a>
+        <a href="tel:{{ tel }}">Zadzwoń</a>
+        <a href="/{{ _lang }}/faq/">FAQ</a>
+        <button type="button" data-action="theme">Tryb</button>
+      </nav>
+    </aside>
+
+    {# =================== KONTAKT (anchor dla CTA) =================== #}
+    <section class="section contact" id="kontakt" aria-label="{{ strings.contact or 'Kontakt' }}">
+      <div class="container text">
+        <h2>{{ strings.contact_title or 'Transport Polska – Europa | Kras-Trans' }}</h2>
+        <p>
+          <a class="tel" href="tel:{{ tel }}">{{ tel }}</a>
+          {% if company and company[0].email %} •
+          <a class="mail" href="mailto:{{ company[0].email }}">{{ company[0].email }}</a>{% endif %}
+        </p>
+      </div>
+    </section>
+
   </main>
 
-  {# ========= FOOTER (wersja 2025 – lekki układ) ========= #}
+  {# =================== FOOTER =================== #}
   <footer class="site-footer" role="contentinfo">
     <div class="footer-wrap container">
       <section class="brand-col">
@@ -320,8 +323,7 @@
         {% if company and company[0].streetAddress %}{{ company[0].streetAddress }}{% endif %}
         {% if company and company[0].postalCode %}, {{ company[0].postalCode }}{% endif %}
         {% if company and company[0].addressLocality %} {{ company[0].addressLocality }}{% endif %}<br>
-        <a class="tel" href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">
-          {{ (company and company[0].telephone) or '+48 793 927 467' }}</a><br>
+        <a class="tel" href="tel:{{ tel }}">{{ tel }}</a><br>
         {% if company and company[0].email %}
           <a class="mail" href="mailto:{{ company[0].email }}">{{ company[0].email }}</a>
         {% endif %}
@@ -343,8 +345,7 @@
           {% set services = (pages or [])
             | selectattr('type','equalto','service')
             | selectattr('lang','equalto',_lang)
-            | sort(attribute='order')
-            | list %}
+            | sort(attribute='order') | list %}
           {% for s in services[:10] %}
             <a class="chip" href="/{{ _lang }}/{{ s.slug }}/">{{ s.h1 or s.title or s.seo_title }}</a>
           {% endfor %}
@@ -376,19 +377,17 @@
     </div>
   </footer>
 
-  {# Dock (mobile skróty) #}
+  {# =================== DOCK (mobile) =================== #}
   <nav class="bottom-bar" aria-label="Skróty">
     <a href="#kontakt">📦<span>{{ strings.short_quote or 'Wycena' }}</span></a>
     <a href="#faq">❓<span>FAQ</span></a>
-    <a href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">📞<span>{{ strings.short_call or 'Telefon' }}</span></a>
+    <a href="tel:{{ tel }}">📞<span>{{ strings.short_call or 'Telefon' }}</span></a>
     <a href="#hero">⬆️<span>{{ strings.short_top or 'Góra' }}</span></a>
     <a href="/{{ _lang }}/transport-miedzynarodowy/">🌍<span>EU</span></a>
-    <a href="#langs" onclick="(function(){var b=document.getElementById('langBtn'); if(b){b.click();} })(); return false;">
-  🌐<span>Języki</span>
-</a>
+    <a href="#langs" onclick="(function(){var b=document.getElementById('langBtn'); if(b){b.click();} })(); return false;">🌐<span>Języki</span></a>
   </nav>
 
-  {# ========= JSON-LD ========= #}
+  {# =================== JSON-LD =================== #}
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
@@ -410,11 +409,11 @@
         "name":"{{ _title }}",
         "url":"{{ _canon }}",
         "inLanguage":"{{ _lang }}"
-      }{% if page_faq|length %},
+      }{% if faq and faq|length %},
       {
         "@type":"FAQPage",
         "mainEntity":[
-          {% for f in page_faq %}
+          {% for f in faq %}
           { "@type":"Question", "name": {{ f.question | tojson }},
             "acceptedAnswer": { "@type":"Answer", "text": {{ f.answer | tojson }} } }{{ "," if not loop.last else "" }}
           {% endfor %}
@@ -424,14 +423,8 @@
   }
   </script>
 
-  {# ========= JS – tylko referencje (bez kodu) ========= #}
+  <!-- JS (references only) -->
   <script src="/assets/js/kras-global.js" defer></script>
   <script src="/assets/js/menu-builder.js" defer></script>
-
-  {# GA4 po onload (ładowane w pliku globalnym – tu nic nie wstrzykujemy) #}
-  <script src="{{ _base }}/assets/js/kras-global.js" defer></script>
-<script src="{{ _base }}/assets/js/menu-builder.js" defer></script>
-  <script src="{{ _base }}/assets/js/kras-global.js" defer></script>
-<script src="{{ _base }}/assets/js/menu-builder.js" defer></script>
 </body>
 </html>
