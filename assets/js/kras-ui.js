@@ -1,4 +1,5 @@
 (function(){
+  'use strict';
   const doc = document.documentElement;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const rIC = window.requestIdleCallback || function(cb){ setTimeout(cb,1); };
