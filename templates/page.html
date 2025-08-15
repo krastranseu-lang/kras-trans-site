@@ -78,8 +78,15 @@
 <header class="site-header" role="banner">
   <div class="container header-grid">
     {# LOGO #}
-    <a class="brand" href="/{{ (page.lang or 'pl') }}/" aria-label="{{ brand or 'Kras-Trans' }}">
-      <img
+<a class="brand" href="/{{ _lang }}/" aria-label="{{ (company and company[0].name) or 'Kras-Trans' }}">
+  <img
+    class="brand__logo"
+    src="/assets/media/logo-firma-transportowa-kras-trans.png"
+    width="132" height="36"
+    alt="{{ (company and company[0].name) or 'Kras-Trans' }}"
+    fetchpriority="high" loading="eager">
+</a>
+    <img
         src="{{ _base }}/assets/media/logo-firma-transportowa-kras-trans.png"
         width="160" height="40" alt="{{ brand or 'Kras-Trans' }}"
         decoding="async" fetchpriority="high">
@@ -102,11 +109,19 @@
           {'label':'Kontakt','href':'/' ~ _lang ~ '/#kontakt','order':100}
         ] %}
       {% endif %}
-      <ul class="nav-list">
-        {% for it in menu %}
-          <li><a href="{{ it.href }}">{{ it.label }}</a></li>
-        {% endfor %}
-      </ul>
+<details class="lang-switch">
+  <summary class="lang-pill" aria-label="{{ strings.nav_langs or 'Języki' }}">{{ (_lang|upper) }}</summary>
+  <ul class="lang-menu">
+    {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
+      {% set _altpath = '/' ~ (alt.lang or 'pl') ~ '/' ~ (alt.slug or '') ~ '/' %}
+      <li>
+        <a href="{{ _altpath }}"
+           hreflang="{{ (alt.lang or 'pl')|lower }}"
+           rel="alternate">{{ (alt.lang or 'PL')|upper }}</a>
+      </li>
+    {% endfor %}
+  </ul>
+</details>
     </nav>
 
     {# AKCJE W NAGŁÓWKU: motyw + telefon + języki #}
