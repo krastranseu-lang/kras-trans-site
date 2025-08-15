@@ -22,23 +22,30 @@
   <title>{{ _title }}</title>
   <meta name="description" content="{{ _desc }}">
 
-  {# ========= CANONICAL + HREFLANG ========= #}
-  {% set _lang = (page.lang or DEFAULT_LANG)|lower %}
-  {% set _slug = page.slug or '' %}
-  {% set _base = (SITE_URL or site_url or 'https://kras-trans.com') %}
-  {% set _path = '/' ~ _lang ~ '/' ~ (_slug ~ ('/' if _slug)) %}
-  {% set _canon = _base ~ _path %}
-  <link rel="canonical" href="{{ _canon }}">
+{# --- Canonical + hreflang (safe dla StrictUndefined) --- #}
+{% set _lang  = page.lang or 'pl' %}
+{% set samekey = page.slugKey or page.slug or 'home' %}
+{% set _slug  = page.slug or '' %}
+{% set _path  = '/' ~ _lang ~ '/' ~ (_slug ~ ('/' if _slug)) %}
 
-  {% set samekey = page.slugKey or page.slug or 'home' %}
-  {% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
-    {% set alt_lang = (alt.lang or DEFAULT_LANG)|lower %}
-    {% set alt_slug = alt.slug or '' %}
-    {% set alt_url  = _base ~ '/' ~ alt_lang ~ '/' ~ (alt_slug ~ ('/' if alt_slug)) %}
-    <link rel="alternate" hreflang="{{ alt_lang }}" href="{{ alt_url }}">
-  {% endfor %}
-  <link rel="alternate" hreflang="x-default" href="{{ _canon }}">
+{# baza absolutnego URL – nic nie wybuchnie, jeśli SITE_URL nie ma #}
+{% set _base = (SITE_URL if (SITE_URL is defined and SITE_URL) 
+  else (site_url if (site_url is defined and site_url) 
+  else 'https://kras-trans.com')) %}
+{% set _canon = _base ~ _path %}
 
+<link rel="canonical" href="{{ _canon }}">
+
+{% for alt in (pages or []) | selectattr('slugKey','equalto',samekey) | list %}
+  {% set _altpath = '/' ~ (alt.lang or 'pl') ~ '/' ~ (alt.slug or '') ~ '/' %}
+  <link rel="alternate" hreflang="{{ (alt.lang or 'pl')|lower }}" href="{{ _base ~ _altpath }}">
+{% endfor %}
+<link rel="alternate" hreflang="x-default" href="{{ _canon }}">
+
+{# obrazki OG/Twitter jako absolutne #}
+{% set ogimg = page.og_image or page.hero_image or 'assets/media/og-default.webp' %}
+<meta property="og:image" content="{{ _base ~ '/' ~ (ogimg|replace('^/','')) }}">
+<meta name="twitter:image" content="{{ _base ~ '/' ~ (ogimg|replace('^/','')) }}">
   {# ========= OPEN GRAPH / TWITTER ========= #}
   {% set ogimg = '/' ~ (page.og_image or page.hero_image or 'assets/media/og-default.webp') %}
   <meta property="og:type" content="website">
