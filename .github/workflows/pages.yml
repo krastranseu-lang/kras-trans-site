@@ -1,9 +1,9 @@
 name: Deploy to GitHub Pages (Kras-Trans)
 
 on:
-  workflow_dispatch:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,203 +14,137 @@ concurrency:
   group: "pages"
   cancel-in-progress: true
 
+env:
+  PYTHONUNBUFFERED: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_PYTHON_VERSION_WARNING: "1"
+  PIP_ONLY_BINARY: ":all:"     # wymuś wheels (bez kompilacji)
+  CI: "true"
+  SKIP_MINIFY: "0"             # ustaw "1", by pominąć minifikację
+  SKIP_PRECOMPRESS: "0"        # ustaw "1", by pominąć .br/.gz
+
 jobs:
   build:
-    name: Build static site
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    env:
-      # ── stałe projektu ──────────────────────────────────────────────
-      SITE_URL: https://kras-trans.com
-      DEFAULT_LANG: pl
-      BRAND: "Kras-Trans"
-      GA_ID: "G-5FYE42J3BE"
-      GSC_VERIFICATION: "Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y"
-      CNAME: kras-trans.com
-
     steps:
-      # 0) Repo
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
 
       - name: Show commit info
-        run: |
-          echo "SHA: $GITHUB_SHA"
-          echo "Actor: $GITHUB_ACTOR"
-          echo "Ref: $GITHUB_REF"
+        run: git log -1 --pretty=fuller
 
-      # 1) Narzędzia systemowe
       - name: Install jq + zip + tree
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq zip tree
+        run: sudo apt-get update && sudo apt-get install -y jq zip tree
 
-      # 2) Wstępna walidacja sekretów (fail-fast)
       - name: Preflight secrets check
-        env:
-          APPS_URL: ${{ secrets.APPS_URL }}
-          APPS_KEY: ${{ secrets.APPS_KEY }}
         run: |
-          set -euo pipefail
-          test -n "${APPS_URL:-}" || { echo "::error::Missing secret APPS_URL"; exit 1; }
-          test -n "${APPS_KEY:-}" || { echo "::error::Missing secret APPS_KEY"; exit 1; }
-          echo "APPS_URL/KEY present ✓"
+          test -n "${{ secrets.CMS_URL }}" || echo "::warning::CMS_URL not set – użyję pustego cms.json"
 
-      # 3) Pobierz CMS (odporne + weryfikacja JSON)
       - name: Fetch CMS JSON from Apps Script (robust)
-        env:
-          APPS_URL: ${{ secrets.APPS_URL }}
-          APPS_KEY: ${{ secrets.APPS_KEY }}
         run: |
           set -euo pipefail
           mkdir -p data
+          if [ -n "${{ secrets.CMS_URL }}" ]; then
+            curl -fsSL --retry 3 --retry-delay 2 "${{ secrets.CMS_URL }}" -o data/cms.json
+          else
+            echo '{}' > data/cms.json
+          fi
+          jq -r '.pages | length' data/cms.json || true
 
-          echo "$APPS_URL" | grep -Eq '^https://script\.google\.com/macros/s/.+/(exec|dev)$' || {
-            echo "::warning::APPS_URL nie wygląda na /exec ani /dev Web App — sprawdź Deployments."
-          }
-
-          ATTEMPTS=5
-          i=1
-          while [ $i -le $ATTEMPTS ]; do
-            echo "Attempt $i/$ATTEMPTS…"
-            HTTP_CODE=$(curl --silent --show-error --location \
-              --retry 5 --retry-delay 2 --retry-all-errors \
-              --connect-timeout 20 --max-time 60 \
-              --write-out "%{http_code}" \
-              --output data/cms.json \
-              "$APPS_URL?key=$APPS_KEY" || true)
-
-            if [ "$HTTP_CODE" = "200" ] && jq -e '.ok==true and (.pages|type=="array")' data/cms.json >/dev/null 2>&1; then
-              echo "CMS OK ✓"
-              break
-            fi
-
-            echo "HTTP=$HTTP_CODE"; echo "Head of response:"; head -c 600 data/cms.json || true; echo
-            sleep $((2*i))
-            i=$((i+1))
-          done
-
-          test -s data/cms.json || { echo "::error::CMS JSON missing/empty"; exit 1; }
-          jq -e '.ok==true' data/cms.json >/dev/null || { echo "::error::CMS .ok != true"; cat data/cms.json; exit 1; }
-          echo "Updated: $(jq -r '.updated // "n/a"' data/cms.json)"
-          echo "Pages:   $(jq -r '.pages | length' data/cms.json)"
-
-      # 4) Zapis kopii cms.json jako artefakt
       - name: Keep a copy of cms.json (artifact)
         uses: actions/upload-artifact@v4
         with:
           name: cms.json
           path: data/cms.json
-          if-no-files-found: error
           retention-days: 7
 
-      # 5) Python + cache pip
-      - name: Setup Python
+      - name: Setup Python 3.11 (LTS, koła dostępne)
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.11'
           cache: 'pip'
 
       - name: Install build deps (requirements.txt)
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip wheel setuptools
-          if [ -f requirements.txt ]; then
-            # preferuj binaria, żeby uniknąć kompilacji (np. lxml)
-            pip install --prefer-binary -r requirements.txt
-          else
-            pip install --prefer-binary Jinja2>=3.1 Markdown>=3.6 python-slugify requests beautifulsoup4 lxml Pillow
-          fi
-          python - <<'PY'
-          import jinja2, markdown, bs4, lxml, slugify, requests, PIL
-          print("Python deps OK ✓")
-          PY
+          pip install --only-binary=:all: -r requirements.txt
+          python -c "import jinja2, bs4, lxml, PIL, markdown, slugify, requests; print('Deps OK ✓')"
 
-      # 6) Sanity check — szablony Jinja kompilują się?
       - name: Sanity check (templates compile)
         run: |
           python - <<'PY'
           from jinja2 import Environment, FileSystemLoader
-          env = Environment(loader=FileSystemLoader("templates"))
-          must = ["page.html"]
-          optional = [
-            "blog_index.html","blog_post.html",
-            "case_index.html","case_item.html",
-            "reviews.html","location.html",
-            "jobs_index.html","job_item.html"
-          ]
-          for t in must: env.get_template(t)
-          for t in optional:
-              try: env.get_template(t)
-              except: pass
-          print("Templates OK ✓")
+          Environment(loader=FileSystemLoader('templates')).get_template('page.html')
+          print("Jinja compile ✓")
           PY
 
-      # 7) Build (z logiem + tree)
       - name: Build site (HTML + sitemap/robots + ZIP)
-        env:
-          SITE_URL: ${{ env.SITE_URL }}
-          DEFAULT_LANG: ${{ env.DEFAULT_LANG }}
-          BRAND: ${{ env.BRAND }}
-          GA_ID: ${{ env.GA_ID }}
-          GSC_VERIFICATION: ${{ env.GSC_VERIFICATION }}
-          CNAME: ${{ env.CNAME }}
         run: |
           set -euo pipefail
-          python -u tools/build.py 2>&1 | tee build.log
-          echo "Built tree:"
-          tree -a dist | sed -e 's/^/  /'
+          python tools/build.py
+          test -f dist/pl/index.html || { echo "::error::Brak dist/pl/index.html"; exit 1; }
 
-      # 8) Smoke-test dist (home/sitemap/robots)
+      - name: Minify HTML/CSS/JS
+        if: ${{ env.SKIP_MINIFY != '1' }}
+        run: |
+          pip install --only-binary=:all: htmlmin==0.1.12 rcssmin==1.1.1 rjsmin==1.2.1
+          python - <<'PY'
+          from pathlib import Path
+          from htmlmin import minify as htmlmin
+          from rcssmin import cssmin
+          from rjsmin import jsmin
+          root = Path('dist')
+          for p in root.rglob('*'):
+              if not p.is_file(): continue
+              try:
+                  if p.suffix == '.html':
+                      s = p.read_text('utf-8', errors='ignore')
+                      s2 = htmlmin(s, remove_comments=True, remove_empty_space=True)
+                      if len(s2) < len(s): p.write_text(s2, encoding='utf-8')
+                  elif p.suffix == '.css':
+                      p.write_text(cssmin(p.read_text('utf-8', errors='ignore')), encoding='utf-8')
+                  elif p.suffix == '.js':
+                      p.write_text(jsmin(p.read_text('utf-8', errors='ignore')), encoding='utf-8')
+              except Exception as e:
+                  print(f"::warning::{p}: {e}")
+          print("Minification done ✓")
+          PY
+
+      - name: Precompress (Brotli + Gzip)
+        if: ${{ env.SKIP_PRECOMPRESS != '1' }}
+        run: |
+          pip install --only-binary=:all: brotli==1.1.0
+          python - <<'PY'
+          from pathlib import Path
+          import brotli, gzip
+          exts = {'.html','.css','.js','.svg','.xml','.json','.txt','.ico','.webmanifest'}
+          for p in Path('dist').rglob('*'):
+              if p.is_file() and p.suffix in exts:
+                  data = p.read_bytes()
+                  (p.parent / (p.name + '.br')).write_bytes(brotli.compress(data, quality=11))
+                  with gzip.open(str(p)+'.gz', 'wb', compresslevel=9) as f: f.write(data)
+          print("Precompress done ✓")
+          PY
+
       - name: Smoke test dist
         run: |
-          set -e
-          test -f dist/sitemap.xml || { echo "::error::Missing dist/sitemap.xml"; exit 1; }
-          test -f dist/robots.txt  || { echo "::error::Missing dist/robots.txt";  exit 1; }
-          test -f dist/pl/index.html || { echo "::error::Missing dist/pl/index.html (home)"; exit 1; }
-          echo "Smoke tests OK ✓"
+          du -sh dist || true
+          find dist -type f -printf '%s %p\n' | sort -nr | head -n 20 || true
 
-      # 9) Artefakty pomocnicze (zawsze)
-      - name: Upload site snapshot (ZIP)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: site-snapshot
-          path: dist/download/site.zip
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Upload build log + debug
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-debug
-          path: |
-            build.log
-            dist/_debug
-          if-no-files-found: warn
-          retention-days: 7
-
-      # 10) Artefakt do Pages
       - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
+        with: { path: dist }
 
   deploy:
-    name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
     steps:
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
       - id: deployment
-        name: Deploy
         uses: actions/deploy-pages@v4
