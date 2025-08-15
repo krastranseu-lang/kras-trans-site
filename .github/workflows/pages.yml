@@ -1,62 +1,70 @@
 name: Deploy to GitHub Pages (Kras-Trans)
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: "pages"
   cancel-in-progress: true
 
-env:
-  PYTHONUNBUFFERED: "1"
-  PIP_DISABLE_PIP_VERSION_CHECK: "1"
-  PIP_NO_PYTHON_VERSION_WARNING: "1"
-  PIP_ONLY_BINARY: ":all:"     # wymuś wheels (bez kompilacji)
-  CI: "true"
-  SKIP_MINIFY: "0"             # ustaw "1", by pominąć minifikację
-  SKIP_PRECOMPRESS: "0"        # ustaw "1", by pominąć .br/.gz
-
 jobs:
   build:
+    name: Build static site
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      # 1) Skąd pobieramy CMS JSON
+      CMS_URL: ${{ secrets.SHEETS_JSON_URL }}
+
+      # 2) Na pierwszy test – bez minify i bez precompress
+      SKIP_MINIFY: "1"
+      SKIP_PRECOMPRESS: "1"
+
+      # 3) Opcjonalnie możesz nadpisać base URL (używane w <head>)
+      SITE_URL: https://kras-trans.com
+
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+      - name: Set up job
+        run: echo "START build"
+
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Show commit info
-        run: git log -1 --pretty=fuller
+        run: |
+          git log -1 --pretty=fuller --decorate
 
       - name: Install jq + zip + tree
         run: sudo apt-get update && sudo apt-get install -y jq zip tree
 
       - name: Preflight secrets check
         run: |
-          test -n "${{ secrets.CMS_URL }}" || echo "::warning::CMS_URL not set – użyję pustego cms.json"
+          test -n "${CMS_URL}" || echo "::warning::CMS_URL not set — użyję pustego cms.json"
 
       - name: Fetch CMS JSON from Apps Script (robust)
         run: |
-          set -euo pipefail
           mkdir -p data
-          if [ -n "${{ secrets.CMS_URL }}" ]; then
-            curl -fsSL --retry 3 --retry-delay 2 "${{ secrets.CMS_URL }}" -o data/cms.json
-          else
-            echo '{}' > data/cms.json
+          if [ -n "${CMS_URL}" ]; then
+            echo "Fetch ${CMS_URL}"
+            curl -fsSL "${CMS_URL}" -o data/cms.json
           fi
-          jq -r '.pages | length' data/cms.json || true
+          if [ ! -s data/cms.json ]; then
+            echo "::warning::Brak CMS_URL lub pusty plik — tworzę minimalny cms.json"
+            echo '{"ok":true,"pages":[]}' > data/cms.json
+          fi
+          echo "cms.json size: $(wc -c < data/cms.json) B"
 
       - name: Keep a copy of cms.json (artifact)
         uses: actions/upload-artifact@v4
         with:
           name: cms.json
           path: data/cms.json
-          retention-days: 7
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Setup Python 3.11 (LTS, koła dostępne)
         uses: actions/setup-python@v5
@@ -66,85 +74,63 @@ jobs:
 
       - name: Install build deps (requirements.txt)
         run: |
-          set -euo pipefail
-          python -m pip install --upgrade pip wheel setuptools
-          pip install --only-binary=:all: -r requirements.txt
-          python -c "import jinja2, bs4, lxml, PIL, markdown, slugify, requests; print('Deps OK ✓')"
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Sanity check (templates compile)
         run: |
           python - <<'PY'
-          from jinja2 import Environment, FileSystemLoader
-          Environment(loader=FileSystemLoader('templates')).get_template('page.html')
-          print("Jinja compile ✓")
+          from jinja2 import Environment, FileSystemLoader, select_autoescape
+          env = Environment(
+            loader=FileSystemLoader("templates"),
+            autoescape=select_autoescape(["html","xml"]),
+            trim_blocks=True, lstrip_blocks=True
+          )
+          # spróbuj załadować główny szablon
+          env.get_template("page.html")
+          print("Templates OK")
           PY
 
       - name: Build site (HTML + sitemap/robots + ZIP)
+        env:
+          SITE_URL: ${{ env.SITE_URL }}
+          SKIP_MINIFY: ${{ env.SKIP_MINIFY }}
+          SKIP_PRECOMPRESS: ${{ env.SKIP_PRECOMPRESS }}
         run: |
-          set -euo pipefail
-          python tools/build.py
-          test -f dist/pl/index.html || { echo "::error::Brak dist/pl/index.html"; exit 1; }
-
-      - name: Minify HTML/CSS/JS
-        if: ${{ env.SKIP_MINIFY != '1' }}
-        run: |
-          pip install --only-binary=:all: htmlmin==0.1.12 rcssmin==1.1.1 rjsmin==1.2.1
-          python - <<'PY'
-          from pathlib import Path
-          from htmlmin import minify as htmlmin
-          from rcssmin import cssmin
-          from rjsmin import jsmin
-          root = Path('dist')
-          for p in root.rglob('*'):
-              if not p.is_file(): continue
-              try:
-                  if p.suffix == '.html':
-                      s = p.read_text('utf-8', errors='ignore')
-                      s2 = htmlmin(s, remove_comments=True, remove_empty_space=True)
-                      if len(s2) < len(s): p.write_text(s2, encoding='utf-8')
-                  elif p.suffix == '.css':
-                      p.write_text(cssmin(p.read_text('utf-8', errors='ignore')), encoding='utf-8')
-                  elif p.suffix == '.js':
-                      p.write_text(jsmin(p.read_text('utf-8', errors='ignore')), encoding='utf-8')
-              except Exception as e:
-                  print(f"::warning::{p}: {e}")
-          print("Minification done ✓")
-          PY
-
-      - name: Precompress (Brotli + Gzip)
-        if: ${{ env.SKIP_PRECOMPRESS != '1' }}
-        run: |
-          pip install --only-binary=:all: brotli==1.1.0
-          python - <<'PY'
-          from pathlib import Path
-          import brotli, gzip
-          exts = {'.html','.css','.js','.svg','.xml','.json','.txt','.ico','.webmanifest'}
-          for p in Path('dist').rglob('*'):
-              if p.is_file() and p.suffix in exts:
-                  data = p.read_bytes()
-                  (p.parent / (p.name + '.br')).write_bytes(brotli.compress(data, quality=11))
-                  with gzip.open(str(p)+'.gz', 'wb', compresslevel=9) as f: f.write(data)
-          print("Precompress done ✓")
-          PY
+          python tools/build.py \
+            --site-url "${SITE_URL}" \
+            --skip-minify "${SKIP_MINIFY}" \
+            --skip-precompress "${SKIP_PRECOMPRESS}"
 
       - name: Smoke test dist
         run: |
-          du -sh dist || true
-          find dist -type f -printf '%s %p\n' | sort -nr | head -n 20 || true
+          test -f dist/pl/index.html || (echo "Error: Missing dist/pl/index.html (home)"; exit 1)
+          echo "Smoke test OK"
+          tree -L 2 dist || true
+
+      - name: Upload site snapshot (ZIP)
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-snapshot
+          path: dist.zip
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v3
-        with: { path: dist }
+        with:
+          path: dist
 
   deploy:
+    name: Deploy to GitHub Pages
     needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     permissions:
       pages: write
       id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
