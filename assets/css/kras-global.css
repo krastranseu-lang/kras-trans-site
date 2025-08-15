@@ -77,7 +77,7 @@
 /* Wspólne */
 * { box-sizing: border-box; }
 html, body { height: 100%; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; background: var(--bg); }
 body {
   margin: 0;
   font-family: var(--font-sans);
@@ -151,7 +151,7 @@ body {
 .site-header{ position:sticky; top:0; z-index:50; backdrop-filter:saturate(1.2) blur(6px); background: color-mix(in srgb, var(--surface) 82%, transparent); border-bottom:1px solid color-mix(in srgb, var(--ring) 35%, transparent); }
 .header-grid{
   display:grid;
-  grid-template-columns:auto 1fr auto;
+  grid-template-columns:auto auto 1fr auto;
   align-items:center;
   column-gap: clamp(12px, 3vw, 32px);
   padding-block: 12px;
@@ -194,6 +194,18 @@ body {
   border-radius:10px;
 }
 
+/* mobile toggle + overlay menu */
+.menu-toggle{ display:none; }
+.menu-toggle .bar{ width:18px; height:2px; background:currentColor; border-radius:1px; }
+.menu-toggle .bar + .bar{ margin-top:4px; }
+
+@media (max-width:900px){
+  .menu-toggle{ display:grid; row-gap:4px; }
+  .nav{ position:fixed; inset:0; background:var(--surface); transform:translateY(-100%); transition:transform .3s ease; padding:80px 24px 24px; }
+  .nav.is-open{ transform:translateY(0); }
+  .nav__list{ flex-direction:column; align-items:flex-start; gap:24px; margin:0; padding:0; overflow:auto; }
+}
+
 /* akcje w nagłówku */
 .header-actions{ display:flex; align-items:center; gap: 10px; }
 .icon-btn{
@@ -204,6 +216,7 @@ body {
 .theme-toggle{ position: relative; overflow: hidden; }
 .theme-toggle .sun, .theme-toggle .moon, .theme-toggle .paper{
   position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .25s ease;
+  background-repeat: no-repeat; background-position: center; background-size: 24px 24px;
 }
 [data-theme="light"] .theme-toggle .sun{ opacity: 1; }
 [data-theme="dark"] .theme-toggle .moon{ opacity: 1; }
@@ -216,6 +229,10 @@ body {
   radial-gradient(circle at 50% 50%, #9fb1d9 0 40%, transparent 50%); }
 .theme-toggle .paper{ background:
   linear-gradient(135deg, #f5ecd8 0 40%, #efe2c0 60% 100%); }
+
+/* naprzemienne tła sekcji */
+.section:nth-of-type(odd){ background: var(--surface); }
+.section:nth-of-type(even){ background: var(--surface-2); }
 
 /* =========================
    3) Hero

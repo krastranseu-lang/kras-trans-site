@@ -198,11 +198,14 @@ footer{ padding:40px 20px; color:var(--muted); border-top:1px solid var(--border
 </head>
 
 <body class="bg-lines">
-<a href="#main" class="skip">Przejdź do treści</a>
+<a href="#main" class="skip">{{ strings.skip_main or 'Skip to content' }}</a>
 
 <!-- ========== sekcja header ========= -->
 <header class="site-header" role="banner">
   <div class="container header-grid">
+    <button id="menu-toggle" class="icon-btn menu-toggle" aria-label="{{ strings.nav_toggle or 'Menu' }}" aria-expanded="false" aria-controls="site-nav">
+      <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+    </button>
     <a href="/" class="brand">{{ brand }}</a>
 
     {% set _lang = (page.lang or default_lang)|lower %}

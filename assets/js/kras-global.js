@@ -288,6 +288,19 @@
   }
 
   // ========================================================================
+  // Mobile menu toggle
+  // ========================================================================
+  function initMenuToggle(){
+    const btn = $("#menu-toggle");
+    const nav = $("#site-nav");
+    if (!btn || !nav) return;
+    on(btn, "click", () => {
+      const open = nav.classList.toggle("is-open");
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+  }
+
+  // ========================================================================
   // CTA: helper bubble with steps (once per session)
   // ========================================================================
   function initQuoteHelper(){
@@ -358,6 +371,7 @@
     initAjaxForms();
     initDock();
     initQuoteHelper();
+    initMenuToggle();
 
     // equalize again on resizes
     eqObserver.observe(document.body);
