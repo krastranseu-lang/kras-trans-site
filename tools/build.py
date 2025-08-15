@@ -230,7 +230,7 @@ def rewrite_img_srcset(tag, doc_lang: str):
         # posortuj rosnąco po szerokości
         variants.sort(key=lambda x: x[0])
         srcset = ", ".join([
-            f"/assets/media/responsive/{v[1].name} {w}w" for (w, v) in variants
+            f"/assets/media/responsive/{v.name} {w}w" for (w, v) in variants
         ])
         tag["srcset"] = srcset
         # sizes heurystyka
