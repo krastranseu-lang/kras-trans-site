@@ -39,6 +39,15 @@
   --shadow-1: 0 4px 18px rgba(0,0,0,.08);
   --shadow-2: 0 10px 40px rgba(0,0,0,.14);
 
+  --container-max: 1280px;
+  --container-x: 16px;
+  --container-x-md: 24px;
+  --container-x-lg: 32px;
+  --container-x-xl: 40px;
+  --nav-gap-min: 12px;
+  --nav-gap-max: 24px;
+  --tap-min: 44px;
+
   color-scheme: light dark;
 }
 
@@ -102,10 +111,14 @@ body {
 /* =========================
    1) Layout
    ========================= */
-.container {
-  width: min(1120px, 100% - 2*24px);
+.container{
+  max-width: var(--container-max);
   margin-inline: auto;
+  padding-inline: var(--container-x);
 }
+@media (min-width:600px){ .container{ padding-inline: var(--container-x-md); } }
+@media (min-width:900px){ .container{ padding-inline: var(--container-x-lg); } }
+@media (min-width:1200px){ .container{ padding-inline: var(--container-x-xl); } }
 
 .section {
   position: relative;
@@ -135,30 +148,51 @@ body {
 /* =========================
    2) Header (sticky, glass)
    ========================= */
-.site-header{
-  position: sticky; top: 0; z-index: 50;
-  backdrop-filter: saturate(120%) blur(10px);
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--ring) 35%, transparent);
-}
+.site-header{ position:sticky; top:0; z-index:50; backdrop-filter:saturate(1.2) blur(6px); background: color-mix(in srgb, var(--surface) 82%, transparent); border-bottom:1px solid color-mix(in srgb, var(--ring) 35%, transparent); }
 .header-grid{
-  display: grid; align-items: center; gap: 16px;
-  grid-template-columns: 1fr auto auto;
-  padding: 12px 0;
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  column-gap: clamp(12px, 3vw, 32px);
+  padding-block: 12px;
 }
 .brand{ font-weight: 700; text-decoration: none; color: var(--text); font-size: var(--fs-500); }
 
-.nav { display: flex; align-items: center; gap: 12px; }
-.nav-list, .nav-langs{
-  display: flex; gap: 8px; align-items: center; list-style: none; margin:0; padding:0;
+.nav{ overflow:hidden; }
+.nav__list{
+  display:flex; align-items:center;
+  gap: clamp(var(--nav-gap-min), 2vw, var(--nav-gap-max));
+  overflow:auto; white-space:nowrap;
+  margin-inline:-8px; padding-inline:8px;
+  scrollbar-width:none; -ms-overflow-style:none;
 }
-.nav a{
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 10px; border-radius: 10px; text-decoration: none;
+.nav__list::-webkit-scrollbar{ display:none; }
+.nav__list a{
+  display:inline-flex; align-items:center;
+  padding:10px 8px;
+  min-height: var(--tap-min);
+  line-height:1;
+  text-decoration:none;
+  white-space:nowrap;
   color: var(--text-2);
 }
-.nav a:hover{ background: var(--surface-2); color: var(--text); }
+.nav-langs{
+  display:flex; gap:8px; align-items:center; list-style:none; margin:0; padding:0;
+}
+.nav__list a:hover{ background: var(--surface-2); color: var(--text); }
 .nav .active > a{ color: var(--text); font-weight: 600; }
+
+.site-header .container{ scroll-padding-inline: 16px; }
+
+@media (pointer:coarse){
+  .nav__list a{ padding-inline:12px; }
+}
+
+.nav__list a:focus-visible{
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius:10px;
+}
 
 /* akcje w nagłówku */
 .header-actions{ display:flex; align-items:center; gap: 10px; }

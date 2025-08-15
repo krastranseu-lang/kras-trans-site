@@ -153,7 +153,7 @@
 
     // list
     const list = document.createElement("ul");
-    list.className = "nav-list";
+    list.className = "nav__list";
     list.setAttribute("role", "menubar");
     shell.appendChild(list);
     state.list = list;
@@ -233,7 +233,7 @@
       langWrap.appendChild(a);
     });
 
-    // overflow shadows on nav-list
+    // overflow shadows on nav__list
     attachOverflowShadows(list);
     nav.hidden = false;
   }
@@ -287,7 +287,7 @@
     // keyboard on menubar + submenus (delegated)
     state.nav.addEventListener("keydown", (e) => {
       const tgt = e.target;
-      const topItems = qsa(".nav-list > li > a, .nav-list > li > .nav-toggle", state.nav);
+      const topItems = qsa(".nav__list > li > a, .nav__list > li > .nav-toggle", state.nav);
       const idx = topItems.indexOf(tgt);
 
       // Menubar level
