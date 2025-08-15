@@ -2,390 +2,584 @@
 # -*- coding: utf-8 -*-
 
 """
-Statyczny build Kras-Trans:
-- Czyta data/cms.json (przygotowany przez Apps Script)
-- Renderuje Jinja2 (templates/*.html)
-- Obsługuje Markdown (body_md -> page_html)
-- Generuje sitemap.xml, robots.txt, 404, CNAME, redirect HTML
-- Zapisuje ctx-debug: dist/_debug/<lang>/<slug>/ctx.json (inspekcja co trafiło do szablonu)
+Kras-Trans • Static build PRO (lekki, bez headless)
+- Wejście: data/cms.json (Apps Script)
+- Szablony: templates/*.html (Jinja2)
+- Zasoby: /assets -> /dist/assets
+- Postprocessing: HTML min, autolinki, lazy/decoding, link-check
+- Obrazy: WEBP + srcset + width/height (Pillow)
+- SEO sanity: title/desc/H1/canonical/hreflang/JSON-LD
+- Budżety: HTML/CSS/JS (gzip)
+- Wyjście: sitemap.xml, robots.txt, 404, CNAME, snapshot ZIP
+- Indeksy: /{lang}/blog/, /{lang}/blog/kategoria/{cat}/, /{lang}/autor/{slug}/ (jeśli są dane)
+
+ENV (opcjonalne):
+  SITE_URL, DEFAULT_LANG, BRAND, CNAME, STRICT (1/0)
 """
 
 from __future__ import annotations
-import os, re, json, sys, shutil, zipfile, itertools
+import os, re, io, json, gzip, shutil, zipfile, html, base64, hashlib
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Dict, Any, List
-from urllib.parse import quote
+from typing import Dict, List, Any, Tuple
+from urllib.parse import urljoin
 
-# --- 3rd party ---
-from jinja2 import Environment, FileSystemLoader, StrictUndefined, TemplateNotFound
-from bs4 import BeautifulSoup
-try:
-    from markdown_it import MarkdownIt
-    from mdit_py_plugins.footnote import footnote_plugin
-    from mdit_py_plugins.anchors import anchors_plugin
-except Exception:
-    MarkdownIt = None
-try:
-    from unidecode import unidecode
-except Exception:
-    unidecode = None
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound
+from bs4 import BeautifulSoup, NavigableString
+from slugify import slugify
 
-# --- ścieżki ---
+# Pillow (obrazy)
+try:
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = 80_000_000  # safety
+except Exception:
+    Image = None
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ŚCIEŻKI / ENV
 ROOT   = Path(__file__).resolve().parents[1]
 DATA   = ROOT / "data" / "cms.json"
 TPLS   = ROOT / "templates"
+ASSETS = ROOT / "assets"
 DIST   = ROOT / "dist"
 
-# --- env / stałe ---
-SITE_URL       = os.getenv("SITE_URL", "https://kras-trans.com").rstrip("/")
-BRAND          = os.getenv("BRAND", "Kras-Trans")
-CNAME_TARGET   = os.getenv("CNAME_TARGET", "").strip()
-DEFAULT_LANG   = os.getenv("DEFAULT_LANG", "pl").lower()
-ROBOTS_INDEX   = os.getenv("ROBOTS_INDEX", "index,follow")  # lub "noindex,nofollow"
+SITE_URL      = os.getenv("SITE_URL", "https://kras-trans.com").rstrip("/")
+DEFAULT_LANG  = (os.getenv("DEFAULT_LANG") or "pl").lower()
+BRAND         = os.getenv("BRAND", "Kras-Trans")
+CNAME_TARGET  = os.getenv("CNAME", "").strip()
+STRICT        = int(os.getenv("STRICT", "1"))
 
-# ----------------- utils -----------------
+# Budżety (gzip)
+BUDGET_HTML_GZ = 40 * 1024  # 40KB
+BUDGET_CSS_GZ  = 120 * 1024 # 120KB  (całość CSS)
+BUDGET_JS_GZ   = 150 * 1024 # 150KB  (całość JS)
+
+# Obrazy
+RESP_WIDTHS = [480, 768, 1024, 1440, 1920]  # generujemy warianty do srcset
+WEBP_QUALITY = 82
+
+MAX_AUTOLINKS_PER_P_OR_LI = 2
+
+# ──────────────────────────────────────────────────────────────────────────────
 def now_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(timezone.utc).isoformat()
 
-def t(v) -> str:
-    return "" if v is None else str(v).strip()
+def t(x: Any) -> str:
+    if x is None: return ""
+    if isinstance(x, (int, float)): return str(x)
+    return str(x).strip()
 
-def to_bool(v) -> bool:
-    if isinstance(v, bool): return v
-    s = t(v).lower()
-    return s in ("1", "true", "yes", "y", "tak")
+def gz_size(b: bytes) -> int:
+    bio = io.BytesIO()
+    with gzip.GzipFile(fileobj=bio, mode="wb") as gz:
+        gz.write(b)
+    return len(bio.getvalue())
 
-def slugify(s: str) -> str:
-    s = t(s)
-    if not s: return ""
-    if unidecode:
-        s = unidecode(s)
-    s = re.sub(r"[^a-zA-Z0-9\-_]+", "-", s.strip().lower())
-    s = re.sub(r"-{2,}", "-", s).strip("-")
-    return s
+def mkdirp(p: Path):
+    p.parent.mkdir(parents=True, exist_ok=True)
 
-def site_url_for(lang: str, slug: str) -> str:
-    if slug:
-        return f"{SITE_URL}/{lang}/{slug}/"
-    return f"{SITE_URL}/{lang}/"
+ISSUES: List[Dict[str, str]] = []
+def warn(path: str, msg: str):
+    ISSUES.append({"level":"warn","path":path,"msg":msg})
+def fail(path: str, msg: str):
+    ISSUES.append({"level":"error","path":path,"msg":msg})
 
-def canonical_for(lang: str, slug: str) -> Dict[str, Any]:
-    return {"url": site_url_for(lang, slug), "site_url": SITE_URL}
-
-# ----------------- CMS load -----------------
+# ──────────────────────────────────────────────────────────────────────────────
+# CMS JSON
 if not DATA.exists():
-    raise SystemExit("Brak data/cms.json — upewnij się, że krok 'Fetch CMS JSON' działa.")
+    raise SystemExit("Brak data/cms.json (sprawdź krok 'Fetch CMS JSON').")
 
-with open(DATA, "r", encoding="utf-8") as f:
-    CMS = json.load(f)
+CMS = json.loads(DATA.read_text(encoding="utf-8"))
 
-PAGES     : List[Dict[str, Any]] = CMS.get("pages", []) or []
-FAQ       : List[Dict[str, Any]] = CMS.get("faq", []) or []
-MEDIA     : List[Dict[str, Any]] = CMS.get("media", []) or []
-COMPANY   : List[Dict[str, Any]] = CMS.get("company", []) or []
-REDIRS    : List[Dict[str, Any]] = CMS.get("redirects", []) or []
-BLOCKS    : List[Dict[str, Any]] = CMS.get("blocks", []) or []
-NAV       : List[Dict[str, Any]] = CMS.get("nav", []) or []
-TEMPLS    : List[Dict[str, Any]] = CMS.get("templates", []) or []
-STR_ROWS  : List[Dict[str, Any]] = CMS.get("strings", []) or []
-ROUTES    : List[Dict[str, Any]] = CMS.get("routes", []) or []
-PLACES    : List[Dict[str, Any]] = CMS.get("places", []) or []
-BLOG      : List[Dict[str, Any]] = CMS.get("blog", []) or []
-AUTHORS   : List[Dict[str, Any]] = CMS.get("authors", []) or []
-CATEGORIES: List[Dict[str, Any]] = CMS.get("categories", []) or []
-REVIEWS   : List[Dict[str, Any]] = CMS.get("reviews", []) or []
-JOBS      : List[Dict[str, Any]] = CMS.get("jobs", []) or []
+PAGES      = CMS.get("pages", []) or []
+FAQ        = CMS.get("faq", []) or []
+MEDIA      = CMS.get("media", []) or []
+COMPANY    = CMS.get("company", []) or []
+REDIRECTS  = CMS.get("redirects", []) or []
+BLOCKS     = CMS.get("blocks", []) or []
+NAV        = CMS.get("nav", []) or []
+TEMPLS_CMS = CMS.get("templates", []) or []
+STR_ROWS   = CMS.get("strings", []) or []
+ROUTES     = CMS.get("routes", []) or []
+PLACES     = CMS.get("places", []) or []
+BLOG       = CMS.get("blog", []) or []
+REVIEWS    = CMS.get("reviews", []) or []
+AUTHORS    = CMS.get("authors", []) or []
+CATEGORIES = CMS.get("categories", []) or []
+JOBS       = CMS.get("jobs", []) or []
+AUTOLINKS  = CMS.get("autolinks", []) or []
 
-# ----------------- strings per lang -----------------
-def build_strings(rows: List[Dict[str, Any]], lang: str) -> Dict[str, str]:
-    out = {}
-    for r in rows or []:
+# ──────────────────────────────────────────────────────────────────────────────
+# STRINGS
+def build_strings(rows: List[dict], lang: str) -> Dict[str,str]:
+    out: Dict[str,str] = {}
+    for r in rows:
         key = t(r.get("key") or r.get("id") or r.get("slug"))
-        if not key: 
-            continue
+        if not key: continue
         val = r.get(lang) or r.get("value") or r.get("val") or ""
         out[key] = t(val)
     return out
 
-# ----------------- markdown -----------------
-def md_to_html(md: str) -> str:
-    md = t(md)
-    if not md: return ""
-    if MarkdownIt:
-        mdx = (MarkdownIt("commonmark", {'linkify': True, 'typographer': True})
-               .use(footnote_plugin)
-               .use(anchors_plugin, permalink=True, permalinkBefore=True))
-        return mdx.render(md)
-    # prosty fallback
-    html = md.replace("\r\n", "\n")
-    html = re.sub(r"^### (.+)$", r"<h3>\1</h3>", html, flags=re.M)
-    html = re.sub(r"^## (.+)$",  r"<h2>\1</h2>", html, flags=re.M)
-    html = re.sub(r"^# (.+)$",   r"<h1>\1</h1>", html, flags=re.M)
-    html = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", html)
-    html = re.sub(r"\*(.+?)\*", r"<em>\1</em>", html)
-    html = re.sub(r"\n{2,}", r"</p><p>", f"<p>{html}</p>")
-    return html
+_strings_cache: Dict[str, Dict[str,str]] = {}
+def strings_for(lang: str) -> Dict[str,str]:
+    lang = (lang or DEFAULT_LANG).lower()
+    if lang not in _strings_cache:
+        _strings_cache[lang] = build_strings(STR_ROWS, lang)
+    return _strings_cache[lang]
 
-# ----------------- jinja env -----------------
+# ──────────────────────────────────────────────────────────────────────────────
+# TEMPLATE DOBÓR
+def template_for(page: dict) -> str:
+    name = t(page.get("template"))
+    if name and (TPLS / name).exists():
+        return name
+    ptype = t(page.get("type")).lower() or "page"
+    for row in TEMPLS_CMS:
+        if t(row.get("type")).lower() == ptype:
+            f = t(row.get("file"))
+            if f and (TPLS / f).exists(): return f
+    return "page.html"
+
 env = Environment(
-    loader=FileSystemLoader(str(TPLS)),
-    autoescape=True,
+    loader=FileSystemLoader(TPLS),
+    autoescape=False,
     trim_blocks=True,
     lstrip_blocks=True,
-    undefined=StrictUndefined,
 )
+env.filters["slug"] = lambda s: slugify(t(s))
+env.filters["json"] = lambda o: json.dumps(o, ensure_ascii=False)
 
-# dostępne filtry w szablonie
-env.filters["slugify"] = slugify
+# ──────────────────────────────────────────────────────────────────────────────
+# SPRZĄTANIE I KOPIOWANIE
+if DIST.exists(): shutil.rmtree(DIST)
+DIST.mkdir(parents=True, exist_ok=True)
+if ASSETS.exists():
+    shutil.copytree(ASSETS, DIST / "assets")
 
-# ----------------- pomocnicze -----------------
-def normalize_page(p: Dict[str, Any]) -> Dict[str, Any]:
-    p = dict(p)
-    p["lang"]    = t(p.get("lang") or DEFAULT_LANG).lower()
-    p["slug"]    = slugify(p.get("slug") or "")
-    p["slugKey"] = t(p.get("slugKey") or p["slug"] or "home")
-    p["type"]    = t(p.get("type") or "page")
-    p["publish"] = to_bool(p.get("publish", True))
-    return p
+built_files: List[Path] = []
+built_urls:  List[str] = []
+INTERNAL_HREFS: Dict[str, List[str]] = []
 
-PAGES = [normalize_page(p) for p in PAGES]
+# ──────────────────────────────────────────────────────────────────────────────
+# OBRAZY: warianty WEBP + wymiary
 
-# ================= render jednej strony =================
-def render_one(page: Dict[str, Any]) -> Path:
-    lang = page["lang"]
-    slug = page["slug"]
+def image_dims(p: Path) -> Tuple[int,int] | None:
+    if not Image: return None
+    try:
+        with Image.open(p) as im:
+            return im.width, im.height
+    except Exception:
+        return None
 
-    # HTML z body_md
-    body_html = md_to_html(page.get("body_md", ""))
+def ensure_webp_variants(src_path: Path) -> List[Tuple[int, Path]]:
+    """
+    Zwraca listę (width, path) WEBP dla danego obrazu.
+    Tworzy tylko do maksymalnej szerokości źródła.
+    """
+    out: List[Tuple[int, Path]] = []
+    if not Image: return out
+    try:
+        with Image.open(src_path) as im:
+            w0, h0 = im.width, im.height
+            base = src_path.stem
+            out_dir = (DIST / "assets" / "media" / "responsive")
+            out_dir.mkdir(parents=True, exist_ok=True)
+            for w in RESP_WIDTHS:
+                if w >= w0:  # nie powiększamy
+                    w = w0
+                h = int(h0 * (w / w0))
+                out_name = f"{base}-w{w}.webp"
+                out_path = out_dir / out_name
+                if not out_path.exists():
+                    rim = im.resize((w, h), Image.LANCZOS)
+                    rim.save(out_path, "WEBP", quality=WEBP_QUALITY, method=6)
+                out.append((w, out_path))
+                if w == w0: break
+    except Exception as e:
+        warn(str(src_path), f"WEBP gen fail: {e}")
+    return out
 
-    # related (prosto: to samo parentSlug i lang)
+def rewrite_img_srcset(tag, doc_lang: str):
+    """
+    Uzupełnia width/height, srcset + sizes, lazy/decoding.
+    Działa dla obrazów w /assets/(media|img)/.
+    """
+    src = t(tag.get("src"))
+    if not src.startswith("/assets/"): return
+    abs_src = DIST / src.lstrip("/")
+    if not abs_src.exists():
+        # gdyby w szablonie był relatywny ../ – spróbujmy doczepić od DIST
+        return
+
+    # wymiary
+    dims = image_dims(abs_src)
+    if dims:
+        w, h = dims
+        if not tag.get("width"):  tag["width"]  = str(w)
+        if not tag.get("height"): tag["height"] = str(h)
+
+    # hero – nie ruszamy fetchpriority
+    classes = " ".join(tag.get("class", [])).lower()
+    if "hero-media" not in classes:
+        tag["loading"]  = tag.get("loading", "lazy")
+        tag["decoding"] = tag.get("decoding", "async")
+
+    # srcset WEBP
+    variants = ensure_webp_variants(abs_src)
+    if variants:
+        # posortuj rosnąco po szerokości
+        variants.sort(key=lambda x: x[0])
+        srcset = ", ".join([
+            f"/assets/media/responsive/{v[1].name} {w}w" for (w, v) in variants
+        ])
+        tag["srcset"] = srcset
+        # sizes heurystyka
+        if "hero-media" in classes:
+            sizes = "100vw"
+        else:
+            sizes = "(max-width: 900px) 92vw, 50vw"
+        tag["sizes"] = tag.get("sizes", sizes)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# AUTOLINKI (whitelist)
+def build_autolink_rules(lang: str):
+    rules = []
+    for r in AUTOLINKS:
+        if (t(r.get("enabled")) or "TRUE").upper() != "TRUE": continue
+        if (t(r.get("lang")) or DEFAULT_LANG).lower() != (lang or DEFAULT_LANG).lower(): continue
+        anchor = t(r.get("anchor") or r.get("kw"))
+        href   = t(r.get("href") or r.get("url"))
+        limit  = int(r.get("limit") or MAX_AUTOLINKS_PER_P_OR_LI)
+        if anchor and href:
+            rules.append({"anchor":anchor, "href":href, "limit":limit})
+    return rules
+
+def apply_autolinks(soup: BeautifulSoup, lang: str):
+    rules = build_autolink_rules(lang)
+    if not rules: return
+    for el in soup.find_all(["p", "li"]):
+        done = 0
+        for node in list(el.descendants):
+            if done >= MAX_AUTOLINKS_PER_P_OR_LI: break
+            if not isinstance(node, NavigableString): continue
+            if node.parent.name in ("a", "script", "style"): continue
+            txt = str(node)
+            for r in rules:
+                if r["limit"] <= 0: continue
+                pat = re.compile(rf"(?i)\b({re.escape(r['anchor'])})\b")
+                if not pat.search(txt): continue
+                new_html = pat.sub(rf'<a href="{html.escape(r["href"])}">\1</a>', txt, count=1)
+                if new_html != txt:
+                    frag = BeautifulSoup(new_html, "lxml").body
+                    node.replace_with(frag.decode_contents())
+                    r["limit"] -= 1
+                    done += 1
+                    txt = new_html  # kontynuacja po podmianie
+
+# ──────────────────────────────────────────────────────────────────────────────
+# POSTPROCESS
+def postprocess_html(raw_html: str, lang: str, canon_url: str, out_path: Path) -> str:
+    soup = BeautifulSoup(raw_html, "lxml")
+
+    # 0) preload hero & fonty (jeśli są i brak w <head>)
+    head = soup.find("head")
+    if head:
+        # fonty Inter
+        if not soup.find("link", attrs={"rel":"preload","as":"font","href":"/assets/fonts/InterVariable.woff2"}):
+            l1 = soup.new_tag("link", rel="preload", as_="font", href="/assets/fonts/InterVariable.woff2", crossorigin=True)
+            head.append(l1)
+        if not soup.find("link", attrs={"rel":"preload","as":"font","href":"/assets/fonts/InterVariable-Italic.woff2"}):
+            l2 = soup.new_tag("link", rel="preload", as_="font", href="/assets/fonts/InterVariable-Italic.woff2", crossorigin=True)
+            head.append(l2)
+        # canonical (jeśli brak)
+        if not soup.find("link", rel=lambda x: (x or "").lower()=="canonical"):
+            head.append(soup.new_tag("link", rel="canonical", href=canon_url))
+
+    # 1) IMG: lazy/decoding + width/height + srcset/sizes
+    for img in soup.find_all("img"):
+        if not img.get("alt"): img["alt"] = ""
+        rewrite_img_srcset(img, lang)
+
+    # 2) target=_blank -> noopener
+    for a in soup.find_all("a"):
+        if a.get("target") == "_blank":
+            rel = set((a.get("rel") or []))
+            rel.add("noopener")
+            a["rel"] = " ".join(sorted(rel))
+
+    # 3) autolinki (delikatne)
+    apply_autolinks(soup, lang)
+
+    # 4) JSON-LD sanity (parsowalność)
+    for s in soup.find_all("script", type="application/ld+json"):
+        try:
+            json.loads(s.get_text() or "{}")
+        except Exception as e:
+            warn(str(out_path), f"JSON-LD parsing error: {e}")
+
+    # 5) lekka minifikacja
+    html_out = soup.decode()
+    html_out = re.sub(r">\s+<", "><", html_out)
+    html_out = re.sub(r"\s{2,}", " ", html_out)
+
+    # 6) budżet HTML gzip
+    if gz_size(html_out.encode("utf-8")) > BUDGET_HTML_GZ:
+        warn(str(out_path), f"HTML gzip > {BUDGET_HTML_GZ} B")
+
+    # 7) H1 i meta description/title
+    s2 = BeautifulSoup(html_out, "lxml")
+    h1s = s2.find_all("h1")
+    if len(h1s) != 1:
+        warn(str(out_path), f"Nieprawidłowa liczba <h1>: {len(h1s)}")
+    title = (s2.title.string if s2.title else "") or ""
+    if len(title) < 25 or len(title) > 70:
+        warn(str(out_path), f"TITLE {len(title)} znaków (zalec. 35–65)")
+    md = s2.find("meta", attrs={"name":"description"})
+    desc = (md["content"] if md and md.has_attr("content") else "")
+    if len(desc) < 50 or len(desc) > 170:
+        warn(str(out_path), f"Meta description {len(desc)} znaków (zalec. 80–160)")
+
+    return html_out
+
+# ──────────────────────────────────────────────────────────────────────────────
+# RENDER
+site_urls: List[str] = []
+def canon_for(lang: str, slug: str) -> str:
+    path = f"/{lang}/" + (f"{slug}/" if slug else "")
+    return SITE_URL + path
+
+for page in PAGES:
+    lang = (t(page.get("lang")) or DEFAULT_LANG).lower()
+    slug = t(page.get("slug"))
+    out_dir = DIST / lang / slug if slug else DIST / lang
+    out_path = out_dir / "index.html"
+    mkdirp(out_path)
+
+    tpl_name = template_for(page)
     samekey = t(page.get("slugKey") or page.get("slug") or "home")
-    related = []
-    for p in PAGES:
-        if p is page: 
-            continue
-        if t(p.get("lang")) == lang and t(p.get("parentSlug")) == t(page.get("parentSlug")):
-            related.append(p)
 
-    # alternatywne wersje (hreflang)
-    alts = [p for p in PAGES if t(p.get("slugKey")) == samekey]
-    hreflangs = [{
-        "lang": (p.get("lang") or DEFAULT_LANG).lower(),
-        "slug": t(p.get("slug") or ""),
-        "url": site_url_for((p.get("lang") or DEFAULT_LANG).lower(), t(p.get("slug") or "")),
-    } for p in alts]
+    related = [p for p in PAGES
+               if (t(p.get("lang")) or DEFAULT_LANG).lower()==lang
+               and t(p.get("parentSlug"))==t(page.get("parentSlug"))
+               and t(p.get("slugKey") or p.get("slug")) != samekey][:12]
 
-    # FAQ i bloki przypięte do tej strony
+    page_slug = t(page.get("slug"))
     page_faq = [f for f in FAQ
-                if t(f.get("lang") or DEFAULT_LANG).lower() == lang and
-                   (t(f.get("page")) == samekey or t(f.get("slug")) == slug)]
-    page_blocks = [b for b in BLOCKS
-                   if t(b.get("lang") or DEFAULT_LANG).lower() == lang and
-                      (t(b.get("page") or "") in (samekey, slug))]
-
-    # head/meta
-    _title = t(page.get("seo_title") or page.get("title") or page.get("h1") or BRAND)
-    _desc  = t(page.get("meta_desc") or page.get("description") or page.get("lead") or
-               "Transport i spedycja — Polska & UE")
-    ogimg  = t(page.get("og_image") or page.get("hero_image") or "assets/media/og-default.webp")
-    head = {
-        "title": _title,
-        "desc": _desc,
-        "og_image": ogimg,
-    }
-
-    # strings dla języka
-    strings = build_strings(STR_ROWS, lang)
-
-    # kontekst
-    canon = {"url": site_url_for(lang, slug), "site_url": SITE_URL, "brand": BRAND,
-             "updated": now_iso(), "hreflangs": hreflangs}
+                if (t(f.get("lang")) or lang).lower()==lang
+                and (t(f.get("page"))==page_slug or t(f.get("slug"))==page_slug)]
 
     ctx = {
         "site_url": SITE_URL,
         "brand": BRAND,
         "updated": now_iso(),
-
-        # pełny CMS (łatwa inspekcja)
-        "pages": PAGES,
-        "faq_all": FAQ,
-        "media": MEDIA,
         "company": COMPANY,
-        "redirects": REDIRS,
-        "blocks": BLOCKS,
         "nav": NAV,
-        "templates": TEMPLS,
-        "strings": strings,
-        "routes": ROUTES,
-        "places": PLACES,
+        "page": page,
+        "page_html": t(page.get("page_html") or page.get("body_html") or page.get("body") or ""),
+        "faq": page_faq,
+        "related": related,
+        "media": MEDIA,
+        "head": {"canonical": canon_for(lang, slug), "site_url": SITE_URL, "brand": BRAND, "updated": now_iso()},
+        "strings": strings_for(lang),
         "blog": BLOG,
         "authors": AUTHORS,
         "categories": CATEGORIES,
         "reviews": REVIEWS,
         "jobs": JOBS,
-
-        # bieżąca strona
-        "meta": canon,
-        "page": page,
-        "page_html": body_html,
-        "page_blocks": page_blocks,
-        "page_faq": page_faq,
-        "faq_count": len(page_faq),
-        "related": related,
-        "head": head,
+        "blocks": BLOCKS,
+        "routes": ROUTES,
+        "places": PLACES,
         "default_lang": DEFAULT_LANG,
     }
 
-    # wybór szablonu (fallback do page.html)
-    tpl_name = t(page.get("template") or "page.html")
     try:
         tmpl = env.get_template(tpl_name)
     except TemplateNotFound:
         tmpl = env.get_template("page.html")
 
-    raw_html = tmpl.render(**ctx)
+    raw = tmpl.render(**ctx)
+    final = postprocess_html(raw, lang, canon_for(lang, slug), out_path)
+    out_path.write_text(final, encoding="utf-8")
+    built_files.append(out_path)
+    site_urls.append(canon_for(lang, slug))
 
-    # postprocess: proste uporządkowanie linków relatywnych
-    html = postprocess_html(raw_html, lang)
+    # zbiór wewnętrznych linków
+    soup = BeautifulSoup(final, "lxml")
+    hrefs = []
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        if href.startswith("/") and not href.startswith("//"):
+            if "#" in href: href = href.split("#",1)[0]
+            hrefs.append(href.rstrip("/"))
+    INTERNAL_HREFS.append({"file": str(out_path), "hrefs": hrefs})
 
-    # ścieżka wyjściowa
-    out_dir = DIST / lang / (slug or "")
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "index.html"
-    out_path.write_text(html, encoding="utf-8")
+# ──────────────────────────────────────────────────────────────────────────────
+# REDIRECTS
+def write_redirect(src: str, dst: str):
+    p = DIST / src.strip("/").rstrip("/") / "index.html"
+    mkdirp(p)
+    target = dst if dst.startswith("http") else (SITE_URL.rstrip("/") + "/" + dst.strip("/") + "/")
+    htmlx = f"""<!doctype html><html lang="{DEFAULT_LANG}">
+<head><meta charset="utf-8"><meta name="robots" content="noindex,follow">
+<link rel="canonical" href="{target}"></head>
+<body><script>location.replace("{target}");</script>
+<p>Redirecting to <a href="{target}">{target}</a></p></body></html>"""
+    p.write_text(htmlx, encoding="utf-8"); built_files.append(p)
 
-    # --- ZAPIS DEBUG KONTEXTU (tu, PO renderze i zapisie HTML) ---
-    dbg_dir = DIST / "_debug" / lang / (slug or "home")
-    dbg_dir.mkdir(parents=True, exist_ok=True)
-    with open(dbg_dir / "ctx.json", "w", encoding="utf-8") as df:
-        json.dump(ctx, df, ensure_ascii=False, indent=2)
+for r in REDIRECTS:
+    src = t(r.get("from") or r.get("src")); dst = t(r.get("to") or r.get("dst"))
+    if src and dst: write_redirect(src, dst)
 
-    print(f"[OK] {out_path.relative_to(DIST)}")
-    return out_path
+# ──────────────────────────────────────────────────────────────────────────────
+# INDEKSY: BLOG / KATEGORIE / AUTORZY (prosty HTML, jeśli nie ma template)
+def write_blog_indexes():
+    by_lang: Dict[str, List[dict]] = {}
+    for post in BLOG:
+        lang = (t(post.get("lang")) or DEFAULT_LANG).lower()
+        by_lang.setdefault(lang, []).append(post)
 
-# ----------------- postprocess -----------------
-def postprocess_html(html: str, lang: str) -> str:
-    try:
-        soup = BeautifulSoup(html, "lxml")
-    except Exception:
-        return html
+    for lang, posts in by_lang.items():
+        base = DIST / lang / "blog"
+        (base).mkdir(parents=True, exist_ok=True)
+        # index
+        idx = base / "index.html"
+        posts_sorted = sorted(posts, key=lambda p: t(p.get("date") or ""), reverse=True)
+        items = "\n".join([f'<li><a href="/{lang}/{t(p.get("slug"))}/">{html.escape(t(p.get("title") or p.get("h1") or p.get("seo_title")))}'
+                           f'</a></li>' for p in posts_sorted])
+        idx.write_text(f"""<!doctype html><html lang="{lang}"><head>
+<meta charset="utf-8"><title>Blog — {BRAND}</title>
+<link rel="canonical" href="{SITE_URL}/{lang}/blog/"></head>
+<body><h1>Blog</h1><ul>{items}</ul></body></html>""", encoding="utf-8")
+        built_files.append(idx); site_urls.append(f"{SITE_URL}/{lang}/blog/")
 
-    # linki bezwzględne dla /{lang}/...
-    for a in soup.select("a[href]"):
-        href = a.get("href", "")
-        if href.startswith("#") or href.startswith("mailto:") or href.startswith("tel:"):
-            continue
-        if href.startswith("/") and not href.startswith(f"/{lang}/") and not re.match(r"^/\w{2}/", href):
-            a["href"] = f"/{lang}{href}"
+        # kategorie
+        by_cat: Dict[str, List[dict]] = {}
+        for p in posts:
+            cats = t(p.get("category") or p.get("categories") or "")
+            for c in [x.strip() for x in cats.split(",") if x.strip()]:
+                by_cat.setdefault(c, []).append(p)
+        for cat, plist in by_cat.items():
+            d = base / "kategoria" / slugify(cat)
+            d.mkdir(parents=True, exist_ok=True)
+            cat_url = f"{SITE_URL}/{lang}/blog/kategoria/{slugify(cat)}/"
+            li = "\n".join([f'<li><a href="/{lang}/{t(p.get("slug"))}/">{html.escape(t(p.get("title") or p.get("h1") or p.get("seo_title")))}'
+                            f'</a></li>' for p in plist])
+            (d / "index.html").write_text(
+                f"<!doctype html><html lang='{lang}'><head><meta charset='utf-8'><title>Blog: {html.escape(cat)} — {BRAND}</title>"
+                f"<link rel='canonical' href='{cat_url}'></head><body><h1>Kategoria: {html.escape(cat)}</h1><ul>{li}</ul></body></html>",
+                encoding="utf-8"
+            )
+            built_files.append(d / "index.html"); site_urls.append(cat_url)
 
-    return str(soup)
+        # autorzy
+        auth_map = {t(a.get("slug")): a for a in AUTHORS}
+        by_auth: Dict[str, List[dict]] = {}
+        for p in posts:
+            a = t(p.get("author") or p.get("author_slug"))
+            if a: by_auth.setdefault(a, []).append(p)
+        for a_slug, plist in by_auth.items():
+            a = auth_map.get(a_slug) or {}
+            d = DIST / lang / "autor" / a_slug
+            d.mkdir(parents=True, exist_ok=True)
+            a_url = f"{SITE_URL}/{lang}/autor/{a_slug}/"
+            li = "\n".join([f'<li><a href="/{lang}/{t(p.get("slug"))}/">{html.escape(t(p.get("title") or p.get("h1") or p.get("seo_title")))}'
+                            f'</a></li>' for p in plist])
+            (d / "index.html").write_text(
+                f"<!doctype html><html lang='{lang}'><head><meta charset='utf-8'><title>Autor: {html.escape(t(a.get('name') or a_slug))} — {BRAND}</title>"
+                f"<link rel='canonical' href='{a_url}'></head><body><h1>Autor: {html.escape(t(a.get('name') or a_slug))}</h1><ul>{li}</ul></body></html>",
+                encoding="utf-8"
+            )
+            built_files.append(d / "index.html"); site_urls.append(a_url)
 
-# ----------------- pozostałe artefakty -----------------
-def write_sitemap(urls: List[str]):
-    body = "\n".join(
-        f"  <url><loc>{quote(u, safe=':/?&%=#+,;@')}</loc><changefreq>weekly</changefreq></url>"
-        for u in urls
-    )
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-{body}
-</urlset>"""
-    (DIST / "sitemap.xml").write_text(xml, encoding="utf-8")
-    print("[OK] sitemap.xml")
+write_blog_indexes()
 
-def write_robots():
-    txt = f"""User-agent: *
-Allow: /
-Sitemap: {SITE_URL}/sitemap.xml
-
-# Generated at {now_iso()}
-"""
-    (DIST / "robots.txt").write_text(txt, encoding="utf-8")
-    print("[OK] robots.txt")
-
-def write_cname():
-    if not CNAME_TARGET:
-        return
-    (DIST / "CNAME").write_text(CNAME_TARGET.strip() + "\n", encoding="utf-8")
-    print(f"[OK] CNAME -> {CNAME_TARGET}")
-
+# ──────────────────────────────────────────────────────────────────────────────
+# 404 / CNAME / sitemap / robots
 def write_404():
-    html = f"""<!doctype html><html lang="{DEFAULT_LANG}">
+    p = DIST / "404.html"
+    p.write_text(f"""<!doctype html><html lang="{DEFAULT_LANG}">
 <head><meta charset="utf-8"><title>404 — {BRAND}</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>body{{font:16px/1.5 -apple-system,system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:4rem;color:#222}}
-a{{color:#06f}}</style></head>
-<body><h1>Nie znaleziono strony</h1>
-<p>Wróć na <a href="{SITE_URL}/">{SITE_URL}</a></p></body></html>"""
-    (DIST / "404.html").write_text(html, encoding="utf-8")
-    print("[OK] 404.html")
+<meta name="robots" content="noindex,follow"><link rel="canonical" href="{SITE_URL}/404.html"></head>
+<body style="font:16px/1.6 system-ui,Segoe UI,Roboto,Arial;padding:3rem;background:#0b0f17;color:#e9eef4">
+<h1>Nie znaleziono strony</h1><p><a href="{SITE_URL}/{DEFAULT_LANG}/" style="color:#ff8a1f">Wróć na stronę główną</a></p></body></html>""", encoding="utf-8")
+    built_files.append(p)
+write_404()
 
-def write_redirects():
-    """
-    GitHub Pages: HTML-redirect (meta refresh). W CMS: from, to, code(optional)
-    """
-    for r in REDIRS or []:
-        src = t(r.get("from") or r.get("src"))
-        dst = t(r.get("to") or r.get("target") or "/")
-        if not src: 
-            continue
-        src = src.strip("/")
+if CNAME_TARGET:
+    (DIST / "CNAME").write_text(CNAME_TARGET + "\n", encoding="utf-8")
 
-        # wspieramy /{lang}/... oraz bez języka
-        parts = src.split("/", 1)
-        if len(parts) == 2 and len(parts[0]) in (2, 3):
-            lang, rest = parts[0], parts[1]
-            out_dir = DIST / lang / rest
-        else:
-            out_dir = DIST / src
+def write_sitemap(urls: List[str]):
+    now = datetime.utcnow().date().isoformat()
+    body = ["<?xml version='1.0' encoding='UTF-8'?>",
+            "<urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>"]
+    for u in sorted(set(urls)):
+        body.append(f"<url><loc>{html.escape(u)}</loc><lastmod>{now}</lastmod></url>")
+    body.append("</urlset>")
+    (DIST / "sitemap.xml").write_text("\n".join(body), encoding="utf-8")
+write_sitemap(site_urls)
 
-        out_dir.mkdir(parents=True, exist_ok=True)
-        html = f"""<!doctype html><html lang="{DEFAULT_LANG}"><head>
-<meta charset="utf-8"><meta http-equiv="refresh" content="0;url={dst}">
-<link rel="canonical" href="{dst}"><meta name="robots" content="noindex,nofollow">
-</head><body><p>Redirect to <a href="{dst}">{dst}</a></p></body></html>"""
-        (out_dir / "index.html").write_text(html, encoding="utf-8")
-        print(f"[OK] redirect {src} → {dst}")
+(DIST / "robots.txt").write_text(
+    f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n",
+    encoding="utf-8"
+)
 
-def zip_dist():
-    zf = ROOT / "site.zip"
-    if zf.exists(): zf.unlink()
-    with zipfile.ZipFile(zf, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-        for p in DIST.rglob("*"):
-            if p.is_file():
-                z.write(p, p.relative_to(DIST))
-    print(f"[OK] site.zip ({zf.stat().st_size/1024:.0f} KB)")
+# ──────────────────────────────────────────────────────────────────────────────
+# LINK CHECK (wewnętrzne)
+available: set[str] = set()
+for f in built_files:
+    rel = "/" + str(f.relative_to(DIST)).replace("\\", "/")
+    if rel.endswith("/index.html"):
+        available.add(rel[:-10])  # katalog
+        available.add(rel)        # plik
+    else:
+        available.add(rel)
 
-# ----------------- main build -----------------
-def main():
-    # czyść dist
-    if DIST.exists():
-        shutil.rmtree(DIST)
-    DIST.mkdir(parents=True, exist_ok=True)
+for item in INTERNAL_HREFS:
+    src = item["file"]; hrefs = item["hrefs"]
+    for href in hrefs:
+        want1 = href.rstrip("/") + "/index.html"
+        want2 = href.rstrip("/") + "/"
+        if want1 not in available and want2 not in available:
+            warn(src, f"Broken internal link: {href}")
 
-    # renderuj tylko publish = True
-    published = [p for p in PAGES if p.get("publish", True)]
-    if not published:
-        print("WARN: brak stron z publish=TRUE — nic do renderu.", file=sys.stderr)
+# ──────────────────────────────────────────────────────────────────────────────
+# SNAPSHOT ZIP
+snap = DIST / "download" / "site.zip"
+snap.parent.mkdir(parents=True, exist_ok=True)
+with zipfile.ZipFile(snap, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+    for p in DIST.rglob("*"):
+        if p.is_dir(): continue
+        if p == snap: continue
+        zf.write(p, p.relative_to(DIST))
 
-    built_urls = []
-    for page in published:
-        out_path = render_one(page)
-        built_urls.append(site_url_for(page["lang"], page["slug"]))
+# ──────────────────────────────────────────────────────────────────────────────
+# BUDŻETY CSS/JS (gzip sumaryczne)
+def gz_sum_for(folder: Path, exts: Tuple[str,...]) -> int:
+    total = 0
+    if folder.exists():
+        for p in folder.rglob("*"):
+            if p.suffix.lower() in exts and p.is_file():
+                total += gz_size(p.read_bytes())
+    return total
 
-    write_redirects()
-    write_sitemap(built_urls)
-    write_robots()
-    write_cname()
-    write_404()
-    zip_dist()
+css_gz = gz_sum_for(DIST / "assets" / "css", (".css",))
+js_gz  = gz_sum_for(DIST / "assets" / "js",  (".js",))
+if css_gz > BUDGET_CSS_GZ:
+    warn("/assets/css", f"CSS gzip {css_gz}B > budżet {BUDGET_CSS_GZ}B (rozważ PurgeCSS/krytyczny CSS)")
+if js_gz > BUDGET_JS_GZ:
+    warn("/assets/js", f"JS gzip {js_gz}B > budżet {BUDGET_JS_GZ}B (odłóż niekrytyczne skrypty na 'defer/load')")
 
-    print(f"[DONE] {len(built_urls)} stron, dist = {DIST}")
+# ──────────────────────────────────────────────────────────────────────────────
+# LOG / EXIT
+def write_issues():
+    if not ISSUES:
+        (DIST / "build_ok.txt").write_text("OK " + now_iso(), encoding="utf-8"); return
+    lines = [f"[{x['level'].upper()}] {x['path']}: {x['msg']}" for x in ISSUES]
+    (DIST / "issues.log").write_text("\n".join(lines), encoding="utf-8")
+write_issues()
 
-if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print("ERROR:", e, file=sys.stderr)
-        raise
+errors = [x for x in ISSUES if x["level"]=="error"]
+for x in ISSUES: print(f"[{x['level'].upper()}] {x['path']}: {x['msg']}")
+if errors and STRICT:
+    raise SystemExit(1)
+print("Build finished:", len(built_files), "files ; CSS.gz=", css_gz, "JS.gz=", js_gz)
