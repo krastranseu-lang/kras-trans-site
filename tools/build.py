@@ -391,7 +391,11 @@ for page in PAGES:
         "places": PLACES,
         "default_lang": DEFAULT_LANG,
     }
-
+# --- zapis "debug" kontekstu dla każdej strony (łatwa inspekcja) ---
+dbg_dir = DIST / "_debug" / lang / (slug or "home")
+dbg_dir.mkdir(parents=True, exist_ok=True)
+with open(dbg_dir / "ctx.json", "w", encoding="utf-8") as df:
+    json.dump(ctx, df, ensure_ascii=False, indent=2)
     try:
         tmpl = env.get_template(tpl_name)
     except TemplateNotFound:
