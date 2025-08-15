@@ -12,15 +12,19 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from slugify import slugify
 
 # --- CONFIG / ENV ---
+# Expected env vars:
+#   APPS_URL – Apps Script endpoint returning CMS JSON
+#   APPS_KEY – access key for the endpoint
 SITE_URL = os.getenv("SITE_URL", "https://krastranseu-lang.github.io/kras-trans-site").rstrip("/")
-API_URL  = os.getenv("SHEETS_JSON_URL")
-API_KEY  = os.getenv("SHEETS_API_KEY")
-OUT      = pathlib.Path("public")
+APPS_URL = os.getenv("APPS_URL")
+APPS_KEY = os.getenv("APPS_KEY")
+OUT      = pathlib.Path("dist")
 
 # --- HELPERS ---
 def fetch_data():
-    assert API_URL and API_KEY, "Missing SHEETS_JSON_URL or SHEETS_API_KEY"
-    url = f"{API_URL}?key={API_KEY}"
+    """Fetch CMS JSON from Apps Script."""
+    assert APPS_URL and APPS_KEY, "Missing APPS_URL or APPS_KEY"
+    url = f"{APPS_URL}?key={APPS_KEY}"
     r = requests.get(url, timeout=30)
     r.raise_for_status()
     return r.json()
