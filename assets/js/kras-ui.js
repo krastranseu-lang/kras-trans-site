@@ -117,16 +117,31 @@
     closeBtn && closeBtn.addEventListener('click', closeMenu);
   }
 
-  function offerReveal(){
-    const el = document.querySelector('.offer-reveal');
-    if(!el) return;
-    const io = new IntersectionObserver(([ent])=>{
-      if(ent.isIntersecting && ent.intersectionRatio>0.4){
-        el.classList.add('is-on');
-        io.disconnect();
-      }
-    },{threshold:0.4});
-    io.observe(el);
+  function initOfferReveal(){
+    const host = document.getElementById('offer-reveal');
+    if(!host) return;
+    const sticky = host.querySelector('.split-hero__sticky');
+    const rail = host.querySelector('.split-hero__rail');
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches){
+      host.style.setProperty('--p', 1);
+      if(rail) rail.style.pointerEvents='auto';
+      return;
+    }
+    const calc=()=>{
+      const r = host.getBoundingClientRect();
+      const full = (host.offsetHeight - sticky.offsetHeight) || 1;
+      const passed = Math.min(Math.max(-r.top,0), full);
+      const p = Math.min(Math.max(passed/full,0),1);
+      host.style.setProperty('--p', p.toFixed(4));
+      if(rail) rail.style.pointerEvents = p>0.15 ? 'auto' : 'none';
+    };
+    let ticking=false;
+    const onScroll=()=>{ if(ticking) return; ticking=true; requestAnimationFrame(()=>{ ticking=false; calc(); }); };
+    const io=new IntersectionObserver(e=>{
+      if(e[0].isIntersecting){ addEventListener('scroll', onScroll, {passive:true}); addEventListener('resize', onScroll); calc(); }
+      else { removeEventListener('scroll', onScroll); removeEventListener('resize', onScroll); }
+    });
+    io.observe(host);
   }
 
   function equalizeCards(){
@@ -205,7 +220,7 @@
     initTheme();
     initDock();
     initNeonMenu();
-    offerReveal();
+    initOfferReveal();
     equalizeCards();
     initHowTo();
     lazyBackgrounds();
