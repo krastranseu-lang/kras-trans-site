@@ -154,8 +154,7 @@ def build_autolink_rules(CMS: dict, lang: str) -> List[Tuple[re.Pattern, str]]:
         kw = t(r.get("keyword") or r.get("anchor") or "")
         href = t(r.get("href") or r.get("url") or "")
         if kw and href:
-            pat = re.compile(rf"(?<!</?a[^>]*>)(?i)\b({re.escape(kw)})\b")
-            rules.append((pat, href))
+pat = re.compile(rf"\b({re.escape(kw)})\b", flags=re.IGNORECASE)            rules.append((pat, href))
 
     # 2) Z Pages.secondary_keywords (tylko opublikowane)
     for p in CMS.get("pages", []):
@@ -167,8 +166,7 @@ def build_autolink_rules(CMS: dict, lang: str) -> List[Tuple[re.Pattern, str]]:
             kws = [k.strip() for k in kws.split(",") if k.strip()]
         for kw in kws:
             if not kw: continue
-            pat = re.compile(rf"(?<!</?a[^>]*>)(?i)\b({re.escape(kw)})\b")
-            rules.append((pat, href))
+pat = re.compile(rf"\b({re.escape(kw)})\b", flags=re.IGNORECASE)            rules.append((pat, href))
     return rules
 
 def autolink_html(html_in: str, rules: List[Tuple[re.Pattern, str]], max_links_per_section: int = 2) -> str:
