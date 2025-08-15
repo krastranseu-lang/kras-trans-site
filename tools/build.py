@@ -89,7 +89,13 @@ def fail(path: str, msg: str):
 if not DATA.exists():
     raise SystemExit("Brak data/cms.json (sprawdź krok 'Fetch CMS JSON').")
 
-CMS = json.loads(DATA.read_text(encoding="utf-8"))
+try:
+    CMS = json.loads(DATA.read_text(encoding="utf-8"))
+except json.JSONDecodeError as e:
+    raise SystemExit(f"Błędny JSON z CMS: {e}")
+
+if isinstance(CMS, dict) and not CMS.get("ok", True):
+    raise SystemExit(f"Błąd CMS: {CMS.get('error', 'unknown')}")
 
 PAGES      = CMS.get("pages", []) or []
 FAQ        = CMS.get("faq", []) or []

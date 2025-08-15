@@ -27,7 +27,12 @@ def fetch_data():
     url = f"{APPS_URL}?key={APPS_KEY}"
     r = requests.get(url, timeout=30)
     r.raise_for_status()
-    return r.json()
+    data = r.json()
+    if not isinstance(data, dict):
+        raise SystemExit("Invalid CMS JSON")
+    if not data.get("ok", True):
+        raise SystemExit(f"CMS error: {data.get('error', 'unknown')}")
+    return data
 
 def words(t: str):
     return set(re.findall(r"[a-z0-9ąćęłńóśżź\-]+", (t or "").lower()))
