@@ -364,3 +364,27 @@
   });
 
 })();
+/* Lang switcher */
+(function () {
+  const root = document.getElementById('lang-switcher');
+  if (!root) return;
+  const btn = root.querySelector('#langBtn');
+  const menu = root.querySelector('#langMenu');
+
+  function open(v) {
+    root.dataset.open = v ? '1' : '0';
+    btn.setAttribute('aria-expanded', v ? 'true' : 'false');
+  }
+
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    open(root.dataset.open !== '1');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!root.contains(e.target)) open(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') open(false);
+  });
+})();
