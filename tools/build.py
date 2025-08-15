@@ -368,6 +368,12 @@ for page in PAGES:
                 if (t(f.get("lang")) or lang).lower()==lang
                 and (t(f.get("page"))==page_slug or t(f.get("slug"))==page_slug)]
 
+    # domyślne obrazy, gdy brak w danych CMS
+    page.setdefault("hero_image", "placeholder-hero-desktop.webp")
+    page.setdefault("hero_image_mobile", page["hero_image"])
+    page.setdefault("og_image", SITE_URL + "/static/img/placeholder-hero-desktop.webp")
+    page.setdefault("lcp_image", page["hero_image"])
+
     ctx = {
         "site_url": SITE_URL,
         "brand": BRAND,
