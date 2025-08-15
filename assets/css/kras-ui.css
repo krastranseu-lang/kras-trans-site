@@ -1,0 +1,154 @@
+:root {
+  --accent-hue: 22;
+  --bg: #ffffff;
+  --ink: #1f2126;
+  --muted: #646b75;
+  --card: #ffffff;
+  --bg-alt: #eef0f2;
+}
+:root[data-theme="dark"] {
+  --bg: #0b0f17;
+  --ink: #e9eef4;
+  --muted: #a9afb9;
+  --card: #12151c;
+  --bg-alt: #0e141d;
+}
+:root[data-theme="ebook"] {
+  --bg: #F7F3E8;
+  --ink: #1C1A16;
+  --muted: #6B665E;
+  --card: #FBF8EF;
+  --bg-alt: #EFE9DA;
+  font-variation-settings: "wght" 470;
+}
+.theme-hint {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--card);
+  color: var(--ink);
+  padding: .25rem .5rem;
+  border-radius: .25rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,.1);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s;
+}
+.theme-hint::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 10px;
+  border: 6px solid transparent;
+  border-bottom-color: var(--card);
+}
+.theme-hint.show {
+  opacity: 1;
+}
+.bottom-dock {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: .25rem env(safe-area-inset-right) calc(.25rem + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+  background: var(--card);
+  box-shadow: 0 -2px 6px rgba(0,0,0,.1);
+}
+.bottom-dock .dock-item {
+  flex: 1;
+  text-align: center;
+  padding: .5rem;
+  background: none;
+  border: 0;
+}
+.bottom-dock .dock-item svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: var(--ink);
+}
+.bottom-dock .dock-item.cta {
+  transform: translateY(-20%);
+}
+.neon {
+  position: fixed;
+  inset: 0;
+  display: none;
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(4px);
+}
+.neon.is-open {
+  display: flex;
+}
+.neon .neon-wrap {
+  margin: auto;
+  padding: 1rem;
+  background: var(--card);
+  color: var(--ink);
+  max-height: 100%;
+  overflow: auto;
+  box-shadow: 0 0 1rem hsl(var(--accent-hue) 80% 60% / .6);
+  position: relative;
+}
+.neon .neon-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: 0;
+}
+.offer-stage {
+  min-height: clamp(20rem, 40vh, 40rem);
+  position: relative;
+}
+.offer-heading {
+  text-align: center;
+  transition: transform .6s, opacity .6s;
+  transform-origin: center;
+}
+.offer-reveal .cards {
+  opacity: 0;
+  transform: translateY(2rem);
+  transition: opacity .6s, transform .6s;
+}
+.offer-reveal.is-on .offer-heading {
+  transform: scaleX(0);
+  opacity: 0;
+}
+.offer-reveal.is-on .cards {
+  opacity: 1;
+  transform: translateY(0);
+}
+.cards {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(260px,80vw,340px), 1fr));
+}
+.cards--scroll {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+}
+.cards--scroll .card {
+  flex: 0 0 clamp(260px,80vw,340px);
+  scroll-snap-align: start;
+}
+.card .pad {
+  padding: 1rem;
+}
+.howto {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--card);
+  padding: .5rem;
+  border-radius: .25rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,.1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .offer-heading,
+  .offer-reveal .cards {
+    transition: none;
+  }
+}
