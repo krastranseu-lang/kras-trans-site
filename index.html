@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="pl" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -18,6 +18,7 @@
         <button id="theme-toggle" class="icon-btn theme-toggle" aria-label="Przełącz motyw">
           <span class="sun" aria-hidden="true"></span>
           <span class="moon" aria-hidden="true"></span>
+          <span class="paper" aria-hidden="true"></span>
         </button>
         <a href="tel:+48793927467" class="btn primary">Zadzwoń 24/7</a>
       </div>
@@ -29,9 +30,9 @@
     <section class="hero" id="kras-hero" aria-label="Ekspresowy transport 3,5 t i TIR – Polska i UE">
       <div class="container wrap">
         <div>
-          <span class="claim">KOMPLEKSOWE USŁUGI TRANSPORTOWE</span>
-          <h1>Ekspresowy transport busem 3,5 t i TIR – Polska &amp; Europa</h1>
-          <p>Transport ekspresowy i dedykowany door-to-door dla firm i produkcji. Odbiór już dziś.</p>
+          <span class="claim" data-cms-key="hero_claim">KOMPLEKSOWE USŁUGI TRANSPORTOWE</span>
+          <h1 data-cms-key="hero_title">Ekspresowy transport busem 3,5 t i TIR – Polska &amp; Europa</h1>
+          <p data-cms-key="hero_desc">Transport ekspresowy i dedykowany door-to-door dla firm i produkcji. Odbiór już dziś.</p>
           <p>
             <a class="btn primary" href="#wycena">Wycena 15 min</a>
             <a class="btn" href="tel:+48793927467">Zadzwoń</a>
@@ -46,25 +47,25 @@
     <!-- OFERTA: na mobile przewijanie w poziomie (scroll-snap) -->
     <section class="section --line">
       <div class="container text">
-        <h2>Nasza oferta</h2>
+        <h2 data-cms-key="offer_title">Nasza oferta</h2>
       </div>
       <div class="container cards cards--scroll" aria-label="Usługi (przesuń w lewo/prawo)">
-        <article class="card"><div class="pad"><h3>Transport krajowy</h3><p>Szybkie przewozy w Polsce.</p></div></article>
-        <article class="card"><div class="pad"><h3>Transport międzynarodowy</h3><p>Obsługa całej Europy.</p></div></article>
-        <article class="card"><div class="pad"><h3>Transport ekspresowy</h3><p>Dostawy tego samego dnia.</p></div></article>
-        <article class="card"><div class="pad"><h3>Transport ADR</h3><p>Bezpieczny przewóz materiałów niebezpiecznych.</p></div></article>
-        <article class="card"><div class="pad"><h3>Transport paletowy</h3><p>Palety EUR/EPAL, winda, wózek.</p></div></article>
+        <article class="card"><div class="pad"><h3 data-cms-key="offer1_title">Transport krajowy</h3><p data-cms-key="offer1_desc">Szybkie przewozy w Polsce.</p></div></article>
+        <article class="card"><div class="pad"><h3 data-cms-key="offer2_title">Transport międzynarodowy</h3><p data-cms-key="offer2_desc">Obsługa całej Europy.</p></div></article>
+        <article class="card"><div class="pad"><h3 data-cms-key="offer3_title">Transport ekspresowy</h3><p data-cms-key="offer3_desc">Dostawy tego samego dnia.</p></div></article>
+        <article class="card"><div class="pad"><h3 data-cms-key="offer4_title">Transport ADR</h3><p data-cms-key="offer4_desc">Bezpieczny przewóz materiałów niebezpiecznych.</p></div></article>
+        <article class="card"><div class="pad"><h3 data-cms-key="offer5_title">Transport paletowy</h3><p data-cms-key="offer5_desc">Palety EUR/EPAL, winda, wózek.</p></div></article>
       </div>
     </section>
 
     <!-- FAQ: znak zapytania animowany (breathe), respektuje prefers-reduced-motion -->
     <section class="section --dots" id="faq">
       <div class="container text">
-        <h2>FAQ – najczęściej zadawane pytania</h2>
+        <h2 data-cms-key="faq_title">FAQ – najczęściej zadawane pytania</h2>
         <div class="faq">
-          <details><summary>Jak szybko zrealizujecie transport?</summary><p>Standardowo 24–48 h, w trybie ekspresowym często tego samego dnia.</p></details>
-          <details><summary>Ile kosztuje przewóz busem 3,5 t?</summary><p>Orientacyjnie od 3,50 zł/km. Wycena online 24/7.</p></details>
-          <details><summary>Skąd startujecie?</summary><p>Łódź i cała Polska — realizujemy transport po UE.</p></details>
+          <details><summary data-cms-key="faq1_q">Jak szybko zrealizujecie transport?</summary><p data-cms-key="faq1_a">Standardowo 24–48 h, w trybie ekspresowym często tego samego dnia.</p></details>
+          <details><summary data-cms-key="faq2_q">Ile kosztuje przewóz busem 3,5 t?</summary><p data-cms-key="faq2_a">Orientacyjnie od 3,50 zł/km. Wycena online 24/7.</p></details>
+          <details><summary data-cms-key="faq3_q">Skąd startujecie?</summary><p data-cms-key="faq3_a">Łódź i cała Polska — realizujemy transport po UE.</p></details>
         </div>
       </div>
     </section>
@@ -72,7 +73,7 @@
     <!-- Kontakt/Wycena -->
     <section class="section --wave" id="wycena">
       <div class="container text">
-        <h2>Skontaktuj się z nami</h2>
+        <h2 data-cms-key="contact_title">Skontaktuj się z nami</h2>
         <form class="card" method="post" action="#">
           <div class="pad">
             <div class="cards">
@@ -97,12 +98,13 @@
     <a href="/pl/transport-miedzynarodowy/">🌍<span>EU</span></a>
   </nav>
 
-  <footer class="site-footer">
-    <div class="container footer-grid" id="footer-columns"></div>
-    <div class="container"><small>© 2025 Kras-Trans • ul. Trzcinowa 14/11, 91-495 Łódź • <a href="tel:+48793927467">+48 793 927 467</a></small></div>
-  </footer>
+    <footer class="site-footer">
+      <div class="container footer-grid" id="footer-columns"></div>
+      <div class="container"><small data-cms-key="footer_copy">© 2025 Kras-Trans • ul. Trzcinowa 14/11, 91-495 Łódź • <a href="tel:+48793927467">+48 793 927 467</a></small></div>
+    </footer>
 
-  <script src="assets/js/kras-global.js" defer></script>
-  <script src="assets/js/menu-builder.js" defer></script>
-</body>
-</html>
+    <script src="assets/js/kras-global.js" defer></script>
+    <script src="assets/js/menu-builder.js" defer></script>
+    <script src="assets/js/cms-loader.js" defer></script>
+  </body>
+  </html>

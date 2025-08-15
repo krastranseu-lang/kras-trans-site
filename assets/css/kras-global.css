@@ -77,7 +77,7 @@
 /* Wspólne */
 * { box-sizing: border-box; }
 html, body { height: 100%; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; background: var(--bg); }
 body {
   margin: 0;
   font-family: var(--font-sans);
@@ -204,6 +204,7 @@ body {
 .theme-toggle{ position: relative; overflow: hidden; }
 .theme-toggle .sun, .theme-toggle .moon, .theme-toggle .paper{
   position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .25s ease;
+  background-repeat: no-repeat; background-position: center; background-size: 24px 24px;
 }
 [data-theme="light"] .theme-toggle .sun{ opacity: 1; }
 [data-theme="dark"] .theme-toggle .moon{ opacity: 1; }
@@ -216,6 +217,10 @@ body {
   radial-gradient(circle at 50% 50%, #9fb1d9 0 40%, transparent 50%); }
 .theme-toggle .paper{ background:
   linear-gradient(135deg, #f5ecd8 0 40%, #efe2c0 60% 100%); }
+
+/* naprzemienne tła sekcji */
+.section:nth-of-type(odd){ background: var(--surface); }
+.section:nth-of-type(even){ background: var(--surface-2); }
 
 /* =========================
    3) Hero
