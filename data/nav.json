@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "label": "Usługi",
+      "href": "/pl/uslugi/",
+      "children": [
+        {"label": "Transport międzynarodowy 3,5t", "href": "/pl/transport-miedzynarodowy/"},
+        {"label": "Transport ekspresowy", "href": "/pl/transport-ekspresowy/"},
+        {"label": "Transport ADR 3,5t", "href": "/pl/transport-adr/"},
+        {"label": "Transport paletowy", "href": "/pl/transport-paletowy/"}
+      ]
+    },
+    {
+      "label": "Kraje",
+      "href": "/pl/kraje/",
+      "children": [
+        {"label": "Niemcy", "href": "/pl/transport-do-niemiec/"},
+        {"label": "Włochy", "href": "/pl/transport-do-wloch/"},
+        {"label": "Francja", "href": "/pl/transport-do-francji/"}
+      ]
+    },
+    {"label": "Flota", "href": "/pl/flota/"},
+    {"label": "Blog", "href": "/pl/blog/"},
+    {"label": "O nas", "href": "/pl/o-nas/"},
+    {"label": "Kontakt", "href": "/pl/kontakt/"}
+  ],
+  "langs": []
+}
