@@ -156,6 +156,11 @@ def ensure_file(path: pathlib.Path, content: str):
 # --- BUILD ---
 def main():
     data     = fetch_data()
+    # save cms.json for site use
+    pathlib.Path("data").mkdir(parents=True, exist_ok=True)
+    (pathlib.Path("data") / "cms.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    (OUT / "data").mkdir(parents=True, exist_ok=True)
+    (OUT / "data" / "cms.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     pages    = data.get("pages", []) or []
     faq      = data.get("faq", []) or []
     company  = data.get("company", []) or []

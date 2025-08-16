@@ -63,12 +63,11 @@
     <div id="mega-root" class="mega" hidden></div>
   </header>
   <main>{% block content %}{% endblock %}</main>
-  <footer class="site-footer" id="kontakt">
-    <p>© {{ (company[0].name if company else 'Kras-Trans') }} — Ekspresowy transport 24/7</p>
-  </footer>
   <script>window.KRAS_NAV = {{ nav_cfg|tojson }};</script>
   <script src="/assets/js/kras-global.js" defer></script>
   <script src="/assets/js/menu-builder.js" defer></script>
   <script>(window.requestIdleCallback||window.setTimeout)(function(){var s=document.createElement('script');s.src='/assets/js/kras-ui.js';s.defer=true;document.body.appendChild(s);});</script>
+  <div id="kontakt"></div>
+  {% include "partials/footer.html" %}
 </body>
 </html>
