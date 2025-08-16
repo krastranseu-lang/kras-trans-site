@@ -87,17 +87,8 @@
       </div>
     </section>
 
+
     <!-- OFERTA (split hero: słowo z arkuszy + kafelki w railu) -->
-<<<<<<< codex/fix-offer-reveal-implementation-wmgwq2
-    <section class="section split-hero split-hero--narrow" id="offer-reveal" data-section="offers" data-style="edge" data-accent="amber" aria-label="{{ strings.offers_aria }}">
-      <div class="split-hero__sticky">
-        <div class="split-hero__stack">
-          <div class="split-hero__title" aria-hidden="true">
-            <span class="title-half title-left">{{ strings.offers_title }}</span>
-            <span class="title-half title-right">{{ strings.offers_title }}</span>
-          </div>
-          <h2 class="sr-only">{{ strings.offers_title }}</h2>
-=======
     <section class="section split-hero split-hero--narrow" id="offer-reveal" data-section="offers" data-style="edge" data-accent="amber" aria-label="{{ strings.offers_aria or 'Nasza oferta' }}">
       <div class="split-hero__sticky">
         <div class="split-hero__stack">
@@ -106,28 +97,18 @@
             <span class="title-half title-right">{{ strings.offers_title or 'Nasza oferta' }}</span>
           </div>
           <h2 class="sr-only">{{ strings.offers_title or 'Nasza oferta' }}</h2>
->>>>>>> main
 
           {% set offers = (blocks or [])|selectattr('block','equalto','offer')|selectattr('lang','equalto',(page.lang or 'pl'))|selectattr('page','equalto',(page.slugKey or page.slug or 'home'))|list %}
           {% if not offers|length %}{% set offers = (pages or [])|selectattr('type','equalto','service')|selectattr('lang','equalto',(page.lang or 'pl'))|list %}{% endif %}
 
           {% if offers|length %}
-<<<<<<< codex/fix-offer-reveal-implementation-wmgwq2
-          <div class="split-hero__rail" id="offer-rail" role="list" aria-label="{{ strings.offers_list }}">
-=======
           <div class="split-hero__rail" id="offer-rail" role="list" aria-label="{{ strings.offers_list or 'Usługi (przesuń w bok na telefonie)' }}">
->>>>>>> main
             {% for it in offers|sort(attribute='order') %}
             {% set url = it.href or it.url or '/' ~ (page.lang or 'pl') ~ '/' ~ (it.slug or '') ~ '/' %}
             <a role="listitem" class="offer-card" href="{{ url }}">
               {% if it.media %}<img src="{{ it.media }}" alt="" width="{{ it.img_w or 1280 }}" height="{{ it.img_h or 720 }}" loading="lazy" decoding="async">{% endif %}
-<<<<<<< codex/fix-offer-reveal-implementation-wmgwq2
-              <span class="offer-card__title">{{ it.lead }}</span>
-              {% if it.body_md %}<span class="offer-card__desc">{{ it.body_md | striptags }}</span>{% endif %}
-=======
               <span class="offer-card__title">{{ it.h1 or it.title or it.seo_title or it.slug }}</span>
               {% if it.lead or it.desc or it.meta_desc %}<span class="offer-card__desc">{{ it.lead or it.desc or it.meta_desc }}</span>{% endif %}
->>>>>>> main
             </a>
             {% endfor %}
           </div>
