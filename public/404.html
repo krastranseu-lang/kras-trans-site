@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>404 - Nie znaleziono</title>
+  <link rel="stylesheet" href="/assets/kt.css">
+</head>
+<body>
+<header class="site-header" id="header">
+  <div class="container navbar">
+    <a class="brand" href="/" aria-label="Strona główna">
+      <span class="brand__logo" aria-hidden="true">K</span>
+      <span class="brand__name">Kras-Trans</span>
+    </a>
+
+    <!-- Desktop nav -->
+    <nav class="nav" aria-label="Główna nawigacja">
+      <ul class="nav__list" role="menubar" aria-label="Główne pozycje">
+        <li role="none">
+          <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="services">
+            Usługi
+            <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </li>
+        <li role="none">
+          <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="industries">
+            Dla firm
+            <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </li>
+        <li role="none">
+          <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="resources">
+            Zasoby
+            <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </li>
+        <li role="none"><a class="nav__btn" role="menuitem" href="/pl/o-firmie/">O nas</a></li>
+        <li role="none"><a class="nav__btn" role="menuitem" href="/pl/flota/">Flota</a></li>
+        <li role="none"><a class="nav__btn" role="menuitem" href="/pl/blog/">Blog</a></li>
+      </ul>
+    </nav>
+
+    <!-- Actions -->
+    <div class="actions">
+      <div class="lang" data-lang aria-expanded="false">
+        <button class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="lang-panel" title="Języki">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 5h16M4 12h16M4 19h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <div id="lang-panel" class="lang__panel" role="menu" aria-label="Wybierz język">
+          <ul class="lang__list">
+            <li><a href="/pl/" role="menuitem">🇵🇱 Polski</a></li>
+            <li><a href="/en/" role="menuitem">🇬🇧 English</a></li>
+            <li><a href="/de/" role="menuitem">🇩🇪 Deutsch</a></li>
+            <li><a href="/fr/" role="menuitem">🇫🇷 Français</a></li>
+            <li><a href="/it/" role="menuitem">🇮🇹 Italiano</a></li>
+            <li><a href="/ru/" role="menuitem">🇷🇺 Русский</a></li>
+            <li><a href="/ua/" role="menuitem">🇺🇦 Українська</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <button id="themeToggle" class="icon-btn" aria-label="Przełącz motyw">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path id="themeIcon" d="M12 3a9 9 0 100 18 7 7 0 010-18z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+
+      <a href="#quote" class="cta">Wycena</a>
+
+      <button class="icon-btn hamburger" id="hamburger" aria-expanded="false" aria-controls="drawer" aria-label="Menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mega panels (desktop) -->
+  <div class="panels">
+    <div class="panel" id="panel-services" hidden>
+      <div class="container panel__grid">
+        <div class="panel__col">
+          <h4>Transport</h4>
+          <a class="panel__link" href="/pl/transport-ekspresowy/"><strong>Ekspres bus 3,5 t</strong> <span class="chip">Same day</span></a>
+          <a class="panel__link" href="/pl/tir/"><strong>Transport TIR (FTL/LTL)</strong></a>
+          <a class="panel__link" href="/pl/przeprowadzki-b2b/"><strong>Przeprowadzki B2B</strong></a>
+          <a class="panel__link" href="/pl/adr/"><strong>ADR*</strong> <span class="chip">po potwierdzeniu</span></a>
+        </div>
+        <div class="panel__col">
+          <h4>Spedycja</h4>
+          <a class="panel__link" href="#"><strong>Stałe trasy dla firm</strong></a>
+          <a class="panel__link" href="#"><strong>Planowanie i konsolidacja</strong></a>
+          <a class="panel__link" href="#"><strong>Fulfillment & cross-dock</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Obsługiwane kierunki</h4>
+          <a class="panel__link" href="#"><strong>Polska</strong></a>
+          <a class="panel__link" href="#"><strong>Niemcy</strong></a>
+          <a class="panel__link" href="#"><strong>Francja</strong></a>
+          <a class="panel__link" href="#"><strong>Benelux & Włochy</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Szybkie akcje</h4>
+          <a class="panel__link" href="#quote"><strong>Wyceń transport</strong></a>
+          <a class="panel__link" href="/pl/kontakt/"><strong>Kontakt</strong></a>
+          <a class="panel__link" href="#faq"><strong>FAQ</strong></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-industries" hidden>
+      <div class="container panel__grid">
+        <div class="panel__col">
+          <h4>Branże</h4>
+          <a class="panel__link" href="#"><strong>E-commerce & 3PL</strong></a>
+          <a class="panel__link" href="#"><strong>Automotive</strong></a>
+          <a class="panel__link" href="#"><strong>Retail & FMCG</strong></a>
+          <a class="panel__link" href="#"><strong>High-tech</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Use cases</h4>
+          <a class="panel__link" href="#"><strong>JIT / linie produkcyjne</strong></a>
+          <a class="panel__link" href="#"><strong>Zwroty & reverse</strong></a>
+          <a class="panel__link" href="#"><strong>Event logistics</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Dokumenty</h4>
+          <a class="panel__link" href="#"><strong>Wzór zlecenia</strong></a>
+          <a class="panel__link" href="#"><strong>Warunki współpracy</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Kontakt B2B</h4>
+          <a class="panel__link" href="#quote"><strong>Stała umowa / cennik</strong></a>
+          <a class="panel__link" href="/pl/kontakt/"><strong>Zostaw brief</strong></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-resources" hidden>
+      <div class="container panel__grid">
+        <div class="panel__col">
+          <h4>Materiały</h4>
+          <a class="panel__link" href="/pl/blog/"><strong>Blog</strong></a>
+          <a class="panel__link" href="/pl/case-studies/"><strong>Case studies</strong></a>
+          <a class="panel__link" href="#"><strong>Poradniki</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Narzędzia</h4>
+          <a class="panel__link" href="#"><strong>Kalkulator objętości</strong></a>
+          <a class="panel__link" href="#quote"><strong>Wycena online</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Wsparcie</h4>
+          <a class="panel__link" href="#faq"><strong>FAQ</strong></a>
+          <a class="panel__link" href="/pl/kontakt/"><strong>Kontakt</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Informacje</h4>
+          <a class="panel__link" href="/pl/o-firmie/"><strong>O firmie</strong></a>
+          <a class="panel__link" href="/pl/flota/"><strong>Flota</strong></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Drawer (mobile) -->
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer__head">
+    <div class="brand"><span class="brand__logo">K</span><span class="brand__name">Kras-Trans</span></div>
+    <button class="icon-btn" id="drawerClose" aria-label="Zamknij menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="drawer__body">
+    <nav aria-label="Menu mobilne">
+      <div class="acc">
+        <button class="acc__btn" aria-expanded="false">Usługi
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <div class="acc__panel">
+          <ul class="sublist">
+            <li><a href="/pl/transport-ekspresowy/">Ekspres bus 3,5 t</a></li>
+            <li><a href="/pl/tir/">Transport TIR (FTL/LTL)</a></li>
+            <li><a href="/pl/przeprowadzki-b2b/">Przeprowadzki B2B</a></li>
+            <li><a href="/pl/adr/">ADR*</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="acc">
+        <button class="acc__btn" aria-expanded="false">Dla firm
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <div class="acc__panel">
+          <ul class="sublist">
+            <li><a href="#">Branże</a></li>
+            <li><a href="#">JIT / produkcja</a></li>
+            <li><a href="#">Warunki współpracy</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="acc">
+        <button class="acc__btn" aria-expanded="false">Zasoby
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <div class="acc__panel">
+          <ul class="sublist">
+            <li><a href="/pl/blog/">Blog</a></li>
+            <li><a href="#">Case studies</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </div>
+      </div>
+      <a class="sublist" href="/pl/o-firmie/" style="display:block;padding:14px 0">O nas</a>
+      <a class="sublist" href="/pl/flota/" style="display:block;padding:14px 0">Flota</a>
+      <a class="sublist" href="/pl/blog/" style="display:block;padding:14px 0">Blog</a>
+
+      <div style="padding:16px 0;display:flex;gap:10px">
+        <a class="cta" href="#quote" style="flex:1;justify-content:center">Wycena</a>
+        <a class="icon-btn" href="tel:+48793927467" aria-label="Zadzwoń">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.86 19.86 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.89.31 1.76.57 2.6a2 2 0 0 1-.45 2.11L8 9a16 16 0 0 0 6 6l.57-.22a2 2 0 0 1 2.11.45c.84.26 1.71.45 2.6.57A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="2"/></svg>
+        </a>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<main class="content">
+  <div class="container" style="padding:40px 0;text-align:center">
+    <h1>404 - Nie znaleziono</h1>
+    <p>Przepraszamy, strona nie istnieje.</p>
+    <p><a href="/" class="cta">Wróć na stronę główną</a></p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container foot-row">
+    <div>© Kras-Trans</div>
+    <nav class="foot-nav">
+      <a href="/pl/kontakt/">Kontakt</a>
+      <a href="/pl/o-firmie/">O firmie</a>
+      <a href="/pl/licenses-insurance/">Licencje & ubezpieczenia</a>
+    </nav>
+  </div>
+</footer>
+
+<script defer src="/assets/kt.js"></script>
+</body>
+</html>
