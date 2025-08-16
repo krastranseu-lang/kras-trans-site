@@ -10,6 +10,7 @@
   const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
   const on = (el, ev, fn, opts) => el && el.addEventListener(ev, fn, opts);
   const raf = (fn) => (window.requestAnimationFrame||setTimeout)(fn,16);
+  const rIC = window.requestIdleCallback || (cb => setTimeout(cb,1));
   const clamp = (v,min,max) => Math.max(min, Math.min(max, v));
   const ls = {
     get: (k, d=null) => { try{ return JSON.parse(localStorage.getItem(k)); }catch{ return d; } },
@@ -362,19 +363,19 @@
     Theme.apply();
     Theme.ensureButton();
     setTimeout(()=>Theme.tipBubble(), 1800);
-
-    initCanvas();
-    initHScroll();
-    equalizeHeights();
-    initSmoothAnchors();
-    initLazyMedia();
-    initAjaxForms();
-    initDock();
-    initQuoteHelper();
-    initMenuToggle();
-
-    // equalize again on resizes
-    eqObserver.observe(document.body);
+    rIC(() => {
+      initCanvas();
+      initHScroll();
+      equalizeHeights();
+      initSmoothAnchors();
+      initLazyMedia();
+      initAjaxForms();
+      initDock();
+      initQuoteHelper();
+      initMenuToggle();
+      // equalize again on resizes
+      eqObserver.observe(document.body);
+    });
   });
 
 })();
