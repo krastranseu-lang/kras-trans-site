@@ -116,6 +116,36 @@ JOBS       = CMS.get("jobs", []) or []
 AUTOLINKS  = CMS.get("autolinks", []) or []
 
 # ──────────────────────────────────────────────────────────────────────────────
+# NAV TREE
+def build_nav_config(rows: List[dict], lang: str) -> Dict[str, Any]:
+    """Convert flat CMS nav rows into nested menu config for JS."""
+    lang = (lang or DEFAULT_LANG).lower()
+    # filter by lang and enabled flag
+    items = [r for r in rows
+             if (t(r.get("lang")) or DEFAULT_LANG).lower() == lang
+             and t(r.get("enabled", "true")).lower() != "false"]
+
+    def order_key(r: dict) -> int:
+        try:
+            return int(t(r.get("order") or "0"))
+        except ValueError:
+            return 0
+
+    top = [r for r in items if not t(r.get("parent"))]
+    out: List[Dict[str, Any]] = []
+    for r in sorted(top, key=order_key):
+        label = t(r.get("label"))
+        href = t(r.get("href"))
+        children_rows = [c for c in items if t(c.get("parent")) == label]
+        children = [{"label": t(c.get("label")), "href": t(c.get("href"))}
+                    for c in sorted(children_rows, key=order_key)]
+        entry: Dict[str, Any] = {"label": label, "href": href}
+        if children:
+            entry["children"] = children
+        out.append(entry)
+    return {"items": out}
+
+# ──────────────────────────────────────────────────────────────────────────────
 # STRINGS
 def build_strings(rows: List[dict], lang: str) -> Dict[str,str]:
     out: Dict[str,str] = {}
@@ -380,12 +410,15 @@ for page in PAGES:
     page.setdefault("og_image", SITE_URL + "/static/img/placeholder-hero-desktop.webp")
     page.setdefault("lcp_image", page["hero_image"])
 
+    nav_cfg = build_nav_config(NAV, lang)
+
     ctx = {
         "site_url": SITE_URL,
         "brand": BRAND,
         "updated": now_iso(),
         "company": COMPANY,
         "nav": NAV,
+        "nav_cfg": nav_cfg,
         "page": page,
         "page_html": t(page.get("page_html") or page.get("body_html") or page.get("body") or ""),
         "faq": page_faq,

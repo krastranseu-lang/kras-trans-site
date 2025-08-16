@@ -19,8 +19,9 @@
   <header class="site-header">
     <a href="/" class="brand">Kras-Trans</a>
     <nav class="nav">
-      <a href="/#oferta">Oferta</a>
-      <a href="/#kontakt">Kontakt</a>
+      {% for it in nav_cfg.items %}
+      <a href="{{ it.href }}">{{ it.label }}</a>
+      {% endfor %}
       <a href="tel:+48793927467" class="btn">Zadzwoń 24/7</a>
     </nav>
   </header>
@@ -28,5 +29,7 @@
   <footer class="site-footer" id="kontakt">
     <p>© {{ (company[0].name if company else 'Kras-Trans') }} — Ekspresowy transport 24/7</p>
   </footer>
+  <script>window.KRAS_NAV = {{ nav_cfg|tojson }};</script>
+  <script src="/assets/js/menu-builder.js" defer></script>
 </body>
 </html>
