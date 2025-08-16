@@ -1,3 +1,5 @@
+{# --- globals: brand --- #}
+{% set BRAND = (company[0].name if company is defined and company|length > 0 and company[0].name else 'Kras-Trans') %}
 <!doctype html>
 <html lang="{{ page.lang if page else 'pl' }}" class="no-motion">
 <head>
