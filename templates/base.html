@@ -15,6 +15,28 @@
   {% for ld in head.jsonld %}
   <script type="application/ld+json">{{ ld|tojson }}</script>
   {% endfor %}
+  <script>
+    // zakładamy: window.CMS_PAGE = { slugKey:'…', lang:'pl' }
+    (function(){
+      const data = window.CMS_DATA || {};
+      const { slugKey } = window.CMS_PAGE || {};
+      const map = (data.hreflang||{})[slugKey]; if(!map) return;
+
+      Object.entries(map).forEach(([L, href]) => {
+        const link = document.createElement('link');
+        link.rel = 'alternate';
+        link.hreflang = (L==='ua') ? 'uk' : L; // ukr: 'uk'
+        link.href = href;
+        document.head.appendChild(link);
+      });
+
+      const x = document.createElement('link');
+      x.rel = 'alternate';
+      x.hreflang = 'x-default';
+      x.href = map.en || map.pl; // fallback
+      document.head.appendChild(x);
+    })();
+  </script>
 </head>
 <body>
   <header class="site-header">

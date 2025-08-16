@@ -19,15 +19,33 @@
   <meta name="twitter:description" content="{{ page.meta_desc or page.lead }}">
   <meta name="twitter:image" content="{{ page.og_image or '/assets/media/og-default.jpg' }}">
   <link rel="canonical" href="{{ _canon }}">
-  {% if pages %}
-    {% for p in pages if (p.slugKey or p.slug) == _slug %}
-      <link rel="alternate" hreflang="{{ p.lang }}" href="/{{ p.lang }}/{{ p.slug or '' }}/">
-    {% endfor %}
-  {% endif %}
   <link rel="preload" href="/assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin media="(min-width:768px)">
   <link rel="stylesheet" href="/assets/css/kras-global.css">
   <link rel="stylesheet" href="/assets/css/kras-ui.css">
   <style>.visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}</style>
+  <script>
+    // zakładamy: window.CMS_PAGE = { slugKey:'…', lang:'pl' }
+    (function(){
+      const data = window.CMS_DATA || {};
+      const { slugKey } = window.CMS_PAGE || {};
+      const map = (data.hreflang||{})[slugKey]; if(!map) return;
+
+      Object.entries(map).forEach(([L, href]) => {
+        const link = document.createElement('link');
+        link.rel = 'alternate';
+        link.hreflang = (L==='ua') ? 'uk' : L; // ukr: 'uk'
+        link.href = href;
+        document.head.appendChild(link);
+      });
+
+      const x = document.createElement('link');
+      x.rel = 'alternate';
+      x.hreflang = 'x-default';
+      x.href = map.en || map.pl; // fallback
+      document.head.appendChild(x);
+    })();
+  </script>
+
 </head>
 
 <body>
