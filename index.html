@@ -9,24 +9,6 @@
   <link rel="stylesheet" href="assets/css/kras-global.css" />
 </head>
 <body>
-  <!-- HEADER (sticky + scrollowalne menu, CTA się nie łamie) -->
-  <header class="site-header" role="banner">
-    <div class="container header-grid">
-      <button id="menu-toggle" class="icon-btn menu-toggle" aria-label="Menu" aria-expanded="false" aria-controls="site-nav">
-        <span class="bar"></span><span class="bar"></span><span class="bar"></span>
-      </button>
-      <a href="/" class="brand">Kras-Trans</a>
-      <nav id="site-nav" class="nav" aria-label="Główna nawigacja"></nav>
-      <div class="header-actions">
-        <button id="theme-toggle" class="icon-btn theme-toggle" aria-label="Przełącz motyw">
-          <span class="sun" aria-hidden="true"></span>
-          <span class="moon" aria-hidden="true"></span>
-          <span class="paper" aria-hidden="true"></span>
-        </button>
-        <a href="tel:+48793927467" class="btn primary">Zadzwoń 24/7</a>
-      </div>
-    </div>
-  </header>
 
   <main id="main">
     <!-- HERO: wideo ma W/H + poster (zero CLS) -->
@@ -106,8 +88,10 @@
       <div class="container"><small data-cms-key="footer_copy">© 2025 Kras-Trans • ul. Trzcinowa 14/11, 91-495 Łódź • <a href="tel:+48793927467">+48 793 927 467</a></small></div>
     </footer>
 
-    <script src="assets/js/kras-global.js" defer></script>
+    <script>window.KRAS_NAV_SRC = "/data/nav.json";</script>
+    <script src="assets/js/header-loader.js" defer></script>
     <script src="assets/js/menu-builder.js" defer></script>
+    <script src="assets/js/kras-global.js" defer></script>
     <script src="assets/js/cms-loader.js" defer></script>
   </body>
   </html>
