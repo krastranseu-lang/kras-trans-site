@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pl">
+<html lang="{{ page.lang if page else 'pl' }}" class="no-motion">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,26 +10,35 @@
   <meta property="og:description" content="{{ head.og_description }}">
   <meta property="og:image" content="{{ head.og_image }}">
   <meta property="og:type" content="website">
-  <link rel="stylesheet" href="/static/css/site.css">
+  <link rel="stylesheet" href="/assets/css/kras-global.css">
+  <link rel="stylesheet" href="/assets/css/kras-ui.css">
   {% for ld in head.jsonld %}
   <script type="application/ld+json">{{ ld|tojson }}</script>
   {% endfor %}
 </head>
 <body>
   <header class="site-header">
-    <a href="/" class="brand">Kras-Trans</a>
-    <nav class="nav">
-      {% for it in nav_cfg.items %}
-      <a href="{{ it.href }}">{{ it.label }}</a>
-      {% endfor %}
-      <a href="tel:+48793927467" class="btn">Zadzwoń 24/7</a>
-    </nav>
+    <div class="container header-grid">
+      <a class="brand" href="/">
+        <img src="/assets/media/logo-firma-transportowa-kras-trans.png" alt="{{ (company[0].name if company else 'Kras-Trans') }}" width="132" height="32" loading="eager" fetchpriority="high">
+      </a>
+      <nav id="site-nav" class="nav" hidden aria-label="{{ strings.nav_main or 'Główna nawigacja' }}"></nav>
+      <div class="header-actions">
+        <button id="theme-toggle" class="icon-btn theme-toggle" aria-label="{{ strings.theme_toggle or 'Zmień motyw' }}">
+          <span class="sun"></span><span class="moon"></span><span class="paper"></span>
+        </button>
+        <a class="btn primary btn--shine" href="#kontakt">{{ strings.cta_call or 'Wyceń' }}</a>
+      </div>
+    </div>
+    <div id="mega-root" class="mega" hidden></div>
   </header>
   <main>{% block content %}{% endblock %}</main>
   <footer class="site-footer" id="kontakt">
     <p>© {{ (company[0].name if company else 'Kras-Trans') }} — Ekspresowy transport 24/7</p>
   </footer>
   <script>window.KRAS_NAV = {{ nav_cfg|tojson }};</script>
+  <script src="/assets/js/kras-global.js" defer></script>
   <script src="/assets/js/menu-builder.js" defer></script>
+  <script src="/assets/js/kras-ui.js" defer></script>
 </body>
 </html>
