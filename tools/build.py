@@ -117,8 +117,14 @@ AUTOLINKS  = CMS.get("autolinks", []) or []
 
 # ──────────────────────────────────────────────────────────────────────────────
 # NAV TREE
-def build_nav_config(rows: List[dict], lang: str) -> Dict[str, Any]:
-    """Convert flat CMS nav rows into nested menu config for JS."""
+def build_nav_config(rows: List[dict], lang: str,
+                     pages: List[dict] | None = None,
+                     slug_key: str | None = None) -> Dict[str, Any]:
+    """Convert flat CMS nav rows into nested menu config for JS.
+
+    In addition to menu items, build language switcher entries based on
+    available translations for the current slug.
+    """
     lang = (lang or DEFAULT_LANG).lower()
     # filter by lang and enabled flag
     items = [r for r in rows
@@ -143,7 +149,25 @@ def build_nav_config(rows: List[dict], lang: str) -> Dict[str, Any]:
         if children:
             entry["children"] = children
         out.append(entry)
-    return {"items": out}
+    return {"items": out, "langs": build_lang_links(pages, slug_key)}
+
+
+def build_lang_links(pages: List[dict] | None,
+                     slug_key: str | None) -> List[Dict[str, str]]:
+    """Return list of available languages for given slug key."""
+    out: List[Dict[str, str]] = []
+    if not pages:
+        return out
+    skey = t(slug_key or "home")
+    for p in pages:
+        if t(p.get("slugKey") or p.get("slug") or "home") != skey:
+            continue
+        code = (t(p.get("lang")) or DEFAULT_LANG).lower()
+        slug = t(p.get("slug"))
+        href = f"/{code}/{slug + '/' if slug else ''}"
+        out.append({"code": code, "label": code.upper(), "href": href})
+    out.sort(key=lambda x: x["code"])
+    return out
 
 # ──────────────────────────────────────────────────────────────────────────────
 # STRINGS
@@ -410,7 +434,7 @@ for page in PAGES:
     page.setdefault("og_image", SITE_URL + "/static/img/placeholder-hero-desktop.webp")
     page.setdefault("lcp_image", page["hero_image"])
 
-    nav_cfg = build_nav_config(NAV, lang)
+    nav_cfg = build_nav_config(NAV, lang, PAGES, samekey)
 
     ctx = {
         "site_url": SITE_URL,
