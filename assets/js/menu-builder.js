@@ -27,18 +27,43 @@
   }
 
   function build(data){
-    const lang=(window.CMS_PAGE&&window.CMS_PAGE.lang)||document.documentElement.lang||'pl';
-    const slugKey=(window.CMS_PAGE&&window.CMS_PAGE.slugKey)||'';
-    const navItems=(data.nav||[]).filter(it=>it.lang===lang && it.enabled!=='FALSE' && it.href && !/^#/.test(it.href) && it.href!=='/#/');
-    navItems.sort((a,b)=>(+a.order||0)-(+b.order||0));
-    const groups={};
-    navItems.forEach(it=>{ if(it.parent){ const p=it.parent.trim(); (groups[p]=groups[p]||[]).push(it); } });
-    const top=navItems.filter(it=>!it.parent);
-
     const siteNav=document.getElementById('site-nav');
     const megaRoot=document.getElementById('mega-root');
     const neon=document.getElementById('neon-menu');
     if(!siteNav) return;
+
+    const total=(data.nav||[]).length;
+    console.debug('[menu] nav rows:', total);
+
+    const lang=(window.CMS_PAGE&&window.CMS_PAGE.lang)||document.documentElement.lang||'pl';
+    const slugKey=(window.CMS_PAGE&&window.CMS_PAGE.slugKey)||'';
+    const navItems=(data.nav||[]).filter(it=>it.lang===lang && it.enabled!=='FALSE' && it.href && !/^#/.test(it.href) && it.href!=='/#/');
+    navItems.sort((a,b)=>(+a.order||0)-(+b.order||0));
+    if(!total || !navItems.length){
+      console.warn('[menu] nav empty – using fallback menu');
+      const ul=document.createElement('ul');
+      ul.className='nav__list';
+      [
+        {href:'/',label:'Home'},
+        {href:'/pl/',label:'PL'},
+        {href:'/pl/kontakt/',label:'Kontakt'}
+      ].forEach(it=>{
+        const li=document.createElement('li');
+        const a=document.createElement('a');
+        a.href=it.href;
+        a.textContent=it.label;
+        li.appendChild(a);
+        ul.appendChild(li);
+      });
+      siteNav.innerHTML='';
+      siteNav.appendChild(ul);
+      siteNav.hidden=false;
+      return;
+    }
+
+    const groups={};
+    navItems.forEach(it=>{ if(it.parent){ const p=it.parent.trim(); (groups[p]=groups[p]||[]).push(it); } });
+    const top=navItems.filter(it=>!it.parent);
 
     // ---- topbar ----
     const ul=document.createElement('ul');
