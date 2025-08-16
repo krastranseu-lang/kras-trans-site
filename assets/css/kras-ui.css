@@ -52,6 +52,12 @@
   }
   .site-header :is(a,button){outline-offset:2px;}
   #mega-root{position:absolute;left:0;right:0;top:100%;background:var(--card);box-shadow:0 10px 40px rgba(0,0,0,.14);}
+  .nav__btn{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;}
+  .nav__btn:hover,.nav__btn:focus{color:hsl(var(--accent-hue) 90% 45%);}
+  .panel{display:none;padding:24px 32px;}
+  .panel.is-open{display:block;}
+  .panel__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;}
+  .panel__grid a{display:block;padding:4px 0;text-decoration:none;color:inherit;}
 
   .hero-wrap{display:grid;gap:clamp(24px,5vw,40px);}
   @media(min-width:800px){.hero-wrap{grid-template-columns:1fr 1fr;align-items:center;}}
