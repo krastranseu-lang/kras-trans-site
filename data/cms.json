@@ -1,4 +1,5 @@
 {
+  "ok": true,
   "pages": [
     {
       "slug": "",
@@ -9,6 +10,9 @@
       "meta_desc": "Szybki i niezawodny transport ekspresowy dla firm i klientów indywidualnych w całej Europie. Sprawdź naszą ofertę.",
       "page_html": "<h1>Witamy w Kras-Trans</h1><p>Transport ekspresowy</p>"
     }
+  ],
+  "nav": [
+    {"label": "Home", "href": "/"}
   ],
   "strings": [],
   "company": [
@@ -34,6 +38,5 @@
   "authors": [],
   "categories": [],
   "autolinks": [],
-  "nav": [],
   "redirects": []
 }

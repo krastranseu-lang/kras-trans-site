@@ -23,6 +23,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Tuple
 from urllib.parse import urljoin
+from urllib.request import urlopen
 
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from bs4 import BeautifulSoup, NavigableString
@@ -37,8 +38,9 @@ except Exception:
 
 # ──────────────────────────────────────────────────────────────────────────────
 # ŚCIEŻKI / ENV
-ROOT   = Path(__file__).resolve().parents[1]
-DATA   = ROOT / "data" / "cms.json"
+ROOT      = Path(__file__).resolve().parents[1]
+DATA_DIR  = ROOT / "data"
+DATA      = DATA_DIR / "cms.json"
 TPLS   = ROOT / "templates"
 ASSETS = ROOT / "assets"
 DIST   = ROOT / "dist"
@@ -87,7 +89,17 @@ def fail(path: str, msg: str):
 # ──────────────────────────────────────────────────────────────────────────────
 # CMS JSON
 if not DATA.exists():
-    raise SystemExit("Brak data/cms.json (sprawdź krok 'Fetch CMS JSON').")
+    APPS_URL = os.getenv("APPS_URL")
+    APPS_KEY = os.getenv("APPS_KEY")
+    if APPS_URL and APPS_KEY:
+        DATA.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with urlopen(f"{APPS_URL}?key={APPS_KEY}") as r:
+                DATA.write_bytes(r.read())
+        except Exception as e:
+            raise SystemExit(f"Brak data/cms.json i pobieranie nie powiodło się: {e}")
+    else:
+        raise SystemExit("Brak data/cms.json (sprawdź krok 'Fetch CMS JSON').")
 
 try:
     CMS = json.loads(DATA.read_text(encoding="utf-8"))
@@ -215,6 +227,8 @@ if DIST.exists(): shutil.rmtree(DIST)
 DIST.mkdir(parents=True, exist_ok=True)
 if ASSETS.exists():
     shutil.copytree(ASSETS, DIST / "assets")
+if DATA_DIR.exists():
+    shutil.copytree(DATA_DIR, DIST / "data")
 
 built_files: List[Path] = []
 built_urls:  List[str] = []
