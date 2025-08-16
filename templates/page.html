@@ -1,16 +1,25 @@
-{% set BRAND = (company[0].name if company is defined and company|length > 0 and company[0].name else 'Kras-Trans') %}
-{% set CANON = page.canonical_path or '/' ~ page.lang ~ '/' ~ (page.slug and (page.slug ~ '/') or '') %}
+{% set BRAND   = (company[0].name if company is defined and company|length > 0 and company[0].name else 'Kras-Trans') %}
+{% set _slug   = page.slugKey or page.slug or 'home' %}
+{% set _lang   = page.lang or 'pl' %}
+{% set _canon  = page.canonical_path or '/' ~ _lang ~ '/' ~ (_slug != 'home' and (_slug ~ '/') or '') %}
+{% set STR     = (strings if strings is defined else {}) %}
+{% set COMPANY = (company if company is defined else []) %}
+{% set PHONE   = (COMPANY and COMPANY[0].telephone) or '+48793927467' %}
+{% set PAGES   = (pages   if pages   is defined else []) %}
+{% set BLOCKS  = (blocks  if blocks  is defined else []) %}
+{% set HREFLANG= (hreflang if hreflang is defined else {}) %}
+{% set NAV_CFG = (nav_cfg if nav_cfg is defined else {}) %}
+
 <!doctype html>
-<html lang="{{ page.lang or 'pl' }}" class="no-motion">
+<html lang="{{ _lang }}" class="no-motion">
 <head>
-  {% set _slug = page.slugKey or page.slug or 'home' %}
-  {% set _lang = page.lang or 'pl' %}
-  {% set _canon = '/' ~ _lang ~ '/' ~ (_slug ~ '/' if _slug else '') %}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ff7a1a">
+
   <title>{{ page.seo_title or page.title or 'Kras-Trans' }}</title>
   <meta name="description" content="{{ page.meta_desc or page.lead or '' }}">
+
   <meta property="og:type" content="website">
   <meta property="og:title" content="{{ page.og_title or page.seo_title or page.title }}">
   <meta property="og:description" content="{{ page.og_desc or page.meta_desc or page.lead }}">
@@ -21,293 +30,282 @@
   <meta name="twitter:description" content="{{ page.meta_desc or page.lead }}">
   <meta name="twitter:image" content="{{ page.og_image or '/assets/media/og-default.jpg' }}">
   <link rel="canonical" href="{{ _canon }}">
+
+  <!-- czcionki / CSS -->
   <link rel="preload" href="/assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/assets/fonts/InterVariable-Italic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/assets/css/kras-global.css" as="style">
   <link rel="preload" href="/assets/css/kras-ui.css" as="style">
   <link rel="stylesheet" href="/assets/css/kras-global.css" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="/assets/css/kras-ui.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="/assets/css/kras-ui.css" media="print"  onload="this.media='all'">
   <noscript>
     <link rel="stylesheet" href="/assets/css/kras-global.css">
     <link rel="stylesheet" href="/assets/css/kras-ui.css">
   </noscript>
   <link rel="stylesheet" href="/assets/kt.css">
   <style>.visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}</style>
+
+  {# hreflang z JSON-a jeśli dostępny #}
+  {% set _hreflang_map = HREFLANG[_slug] if HREFLANG and (_slug in HREFLANG) else {} %}
   <script>
-    // zakładamy: window.CMS_PAGE = { slugKey:'…', lang:'pl' }
-    (function(){
-      const data = window.CMS_DATA || {};
-      const { slugKey } = window.CMS_PAGE || {};
-      const map = (data.hreflang||{})[slugKey]; if(!map) return;
-
-      Object.entries(map).forEach(([L, href]) => {
-        const link = document.createElement('link');
-        link.rel = 'alternate';
-        link.hreflang = (L==='ua') ? 'uk' : L; // ukr: 'uk'
-        link.href = href;
-        document.head.appendChild(link);
-      });
-
-      const x = document.createElement('link');
-      x.rel = 'alternate';
-      x.hreflang = 'x-default';
-      x.href = map.en || map.pl; // fallback
-      document.head.appendChild(x);
-    })();
+  (function(){
+    var map = {{ _hreflang_map|tojson }};
+    var keys = Object.keys(map||{});
+    if(!keys.length) return;
+    keys.forEach(function(L){
+      var a=document.createElement('link');
+      a.rel='alternate';
+      a.hreflang=(L==='ua')?'uk':L;  // UA -> uk
+      a.href=map[L];
+      document.head.appendChild(a);
+    });
+    var x=document.createElement('link');
+    x.rel='alternate'; x.hreflang='x-default';
+    x.href=map['en']||map['pl']||map[keys[0]];
+    document.head.appendChild(x);
+  })();
   </script>
-
 </head>
 
 <body>
-  <!-- Tła: siatka + patyczki (canvas) — domyślnie hidden; JS włączy po idle -->
+  <!-- Tła (opcjonalne) -->
   <div id="bg-grid" aria-hidden="true"></div>
   <canvas id="bg-canvas" aria-hidden="true" hidden></canvas>
 
+  <!-- ================= HEADER ================= -->
   <header class="site-header" id="header">
-  <div class="container navbar">
-    <a class="brand" href="/" aria-label="Strona główna">
-      <span class="brand__logo" aria-hidden="true">K</span>
-      <span class="brand__name">Kras-Trans</span>
-    </a>
+    <div class="container navbar">
+      <a class="brand" href="/{{ _lang }}/" aria-label="Strona główna">
+        <span class="brand__logo" aria-hidden="true">K</span>
+        <span class="brand__name">{{ BRAND }}</span>
+      </a>
 
-    <!-- Desktop nav -->
-    <nav class="nav" aria-label="Główna nawigacja">
-      <ul class="nav__list" role="menubar" aria-label="Główne pozycje">
-        <li role="none">
-          <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="services">
-            Usługi
-            <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          </button>
-        </li>
-        <li role="none">
-          <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="industries">
-            Dla firm
-            <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          </button>
-        </li>
-        <li role="none">
-          <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="resources">
-            Zasoby
-            <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          </button>
-        </li>
-        <li role="none"><a class="nav__btn" role="menuitem" href="/{{ page.lang or 'pl' }}/o-firmie/">O nas</a></li>
-        <li role="none"><a class="nav__btn" role="menuitem" href="/{{ page.lang or 'pl' }}/flota/">Flota</a></li>
-        <li role="none"><a class="nav__btn" role="menuitem" href="/{{ page.lang or 'pl' }}/blog/">Blog</a></li>
-      </ul>
-    </nav>
+      <!-- Desktop nav -->
+      <nav class="nav" aria-label="Główna nawigacja">
+        <ul class="nav__list" role="menubar" aria-label="Główne pozycje">
+          <li role="none">
+            <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="services">
+              Usługi <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </li>
+          <li role="none">
+            <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="industries">
+              Dla firm <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </li>
+          <li role="none">
+            <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="resources">
+              Zasoby <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </li>
+          <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/o-firmie/">O nas</a></li>
+          <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/flota/">Flota</a></li>
+          <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/blog/">Blog</a></li>
+        </ul>
+      </nav>
 
-    <!-- Actions -->
-    <div class="actions">
-      <div class="lang" data-lang aria-expanded="false">
-        <button class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="lang-panel" title="Języki">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 5h16M4 12h16M4 19h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+      <!-- Akcje -->
+      <div class="actions">
+        <div class="lang" data-lang aria-expanded="false">
+          <button class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="lang-panel" title="Języki">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+          <div id="lang-panel" class="lang__panel" role="menu" aria-label="Wybierz język">
+            <ul class="lang__list">
+              <li><a href="/pl/" role="menuitem">🇵🇱 Polski</a></li>
+              <li><a href="/en/" role="menuitem">🇬🇧 English</a></li>
+              <li><a href="/de/" role="menuitem">🇩🇪 Deutsch</a></li>
+              <li><a href="/fr/" role="menuitem">🇫🇷 Français</a></li>
+              <li><a href="/it/" role="menuitem">🇮🇹 Italiano</a></li>
+              <li><a href="/ru/" role="menuitem">🇷🇺 Русский</a></li>
+              <li><a href="/ua/" role="menuitem">🇺🇦 Українська</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <button id="themeToggle" class="icon-btn" aria-label="Przełącz motyw">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path id="themeIcon" d="M12 3a9 9 0 100 18 7 7 0 010-18z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </button>
-        <div id="lang-panel" class="lang__panel" role="menu" aria-label="Wybierz język">
-          <ul class="lang__list">
-            <li><a href="/pl/" role="menuitem">🇵🇱 Polski</a></li>
-            <li><a href="/en/" role="menuitem">🇬🇧 English</a></li>
-            <li><a href="/de/" role="menuitem">🇩🇪 Deutsch</a></li>
-            <li><a href="/fr/" role="menuitem">🇫🇷 Français</a></li>
-            <li><a href="/it/" role="menuitem">🇮🇹 Italiano</a></li>
-            <li><a href="/ru/" role="menuitem">🇷🇺 Русский</a></li>
-            <li><a href="/ua/" role="menuitem">🇺🇦 Українська</a></li>
-          </ul>
+
+        <a href="#quote" class="cta">Wycena</a>
+
+        <button class="icon-btn hamburger" id="hamburger" aria-expanded="false" aria-controls="drawer" aria-label="Menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- MEGA PANELS -->
+    <div class="panels">
+      <!-- Services -->
+      <div class="panel" id="panel-services" hidden>
+        <div class="container panel__grid">
+          <div class="panel__col">
+            <h4>Transport</h4>
+            <a class="panel__link" href="/{{ _lang }}/transport-ekspresowy/"><strong>Ekspres bus 3,5 t</strong> <span class="chip">Same day</span></a>
+            <a class="panel__link" href="/{{ _lang }}/tir/"><strong>Transport TIR (FTL/LTL)</strong></a>
+            <a class="panel__link" href="/{{ _lang }}/przeprowadzki-b2b/"><strong>Przeprowadzki B2B</strong></a>
+            <a class="panel__link" href="/{{ _lang }}/adr/"><strong>ADR*</strong> <span class="chip">po potwierdzeniu</span></a>
+          </div>
+          <div class="panel__col">
+            <h4>Spedycja</h4>
+            <a class="panel__link" href="#"><strong>Stałe trasy dla firm</strong></a>
+            <a class="panel__link" href="#"><strong>Planowanie i konsolidacja</strong></a>
+            <a class="panel__link" href="#"><strong>Fulfillment & cross-dock</strong></a>
+          </div>
+          <div class="panel__col">
+            <h4>Obsługiwane kierunki</h4>
+            <a class="panel__link" href="#"><strong>Polska</strong></a>
+            <a class="panel__link" href="#"><strong>Niemcy</strong></a>
+            <a class="panel__link" href="#"><strong>Francja</strong></a>
+            <a class="panel__link" href="#"><strong>Benelux & Włochy</strong></a>
+          </div>
+          <div class="panel__col">
+            <h4>Szybkie akcje</h4>
+            <a class="panel__link" href="#quote"><strong>Wyceń transport</strong></a>
+            <a class="panel__link" href="/{{ _lang }}/kontakt/"><strong>Kontakt</strong></a>
+            <a class="panel__link" href="#faq"><strong>FAQ</strong></a>
+          </div>
         </div>
       </div>
 
-      <button id="themeToggle" class="icon-btn" aria-label="Przełącz motyw">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path id="themeIcon" d="M12 3a9 9 0 100 18 7 7 0 010-18z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
+      <!-- Industries -->
+      <div class="panel" id="panel-industries" hidden>
+        <div class="container panel__grid">
+          <div class="panel__col">
+            <h4>Branże</h4>
+            <a class="panel__link" href="#"><strong>E-commerce & 3PL</strong></a>
+            <a class="panel__link" href="#"><strong>Automotive</strong></a>
+            <a class="panel__link" href="#"><strong>Retail & FMCG</strong></a>
+            <a class="panel__link" href="#"><strong>High-tech</strong></a>
+          </div>
+          <div class="panel__col">
+            <h4>Use cases</h4>
+            <a class="panel__link" href="#"><strong>JIT / linie produkcyjne</strong></a>
+            <a class="panel__link" href="#"><strong>Zwroty & reverse</strong></a>
+            <a class="panel__link" href="#"><strong>Event logistics</strong></a>
+          </div>
+          <div class="panel__col">
+            <h4>Dokumenty</h4>
+            <a class="panel__link" href="#"><strong>Wzór zlecenia</strong></a>
+            <a class="panel__link" href="#"><strong>Warunki współpracy</strong></a>
+          </div>
+          <div class="panel__col">
+            <h4>Kontakt B2B</h4>
+            <a class="panel__link" href="#quote"><strong>Stała umowa / cennik</strong></a>
+            <a class="panel__link" href="/{{ _lang }}/kontakt/"><strong>Zostaw brief</strong></a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resources -->
+      <div class="panel" id="panel-resources" hidden>
+        <div class="container panel__grid">
+          <div class="panel__col">
+            <h4>Materiały</h4>
+            <a class="panel__link" href="/{{ _lang }}/blog/"><strong>Blog</strong></a>
+            <a class="panel__link" href="/{{ _lang }}/case-studies/"><strong>Case studies</strong></a>
+            <a class="panel__link" href="#"><strong>Poradniki</strong></a>
+          </div>
+          <div class="panel__col">
+            <h4>Narzędzia</h4>
+            <a class="panel__link" href="#"><strong>Kalkulator objętości</strong></a>
+            <a class="panel__link" href="#quote"><strong>Wycena online</strong></a>
+          </div>
+          <div class="panel__col">
+            <h4>Wsparcie</h4>
+            <a class="panel__link" href="#faq"><strong>FAQ</strong></a>
+            <a class="panel__link" href="/{{ _lang }}/kontakt/"><strong>Kontakt</strong></a>
+          </div>
+          <div class="panel__col">
+            <h4>Informacje</h4>
+            <a class="panel__link" href="/{{ _lang }}/o-firmie/"><strong>O firmie</strong></a>
+            <a class="panel__link" href="/{{ _lang }}/flota/"><strong>Flota</strong></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Drawer (mobile) -->
+  <div class="drawer" id="drawer" hidden>
+    <div class="drawer__head">
+      <div class="brand"><span class="brand__logo">K</span><span class="brand__name">{{ BRAND }}</span></div>
+      <button class="icon-btn" id="drawerClose" aria-label="Zamknij menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
+    </div>
+    <div class="drawer__body">
+      <nav aria-label="Menu mobilne">
+        <div class="acc">
+          <button class="acc__btn" aria-expanded="false">Usługi
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+          <div class="acc__panel">
+            <ul class="sublist">
+              <li><a href="/{{ _lang }}/transport-ekspresowy/">Ekspres bus 3,5 t</a></li>
+              <li><a href="/{{ _lang }}/tir/">Transport TIR (FTL/LTL)</a></li>
+              <li><a href="/{{ _lang }}/przeprowadzki-b2b/">Przeprowadzki B2B</a></li>
+              <li><a href="/{{ _lang }}/adr/">ADR*</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="acc">
+          <button class="acc__btn" aria-expanded="false">Dla firm
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+          <div class="acc__panel">
+            <ul class="sublist">
+              <li><a href="#">Branże</a></li>
+              <li><a href="#">JIT / produkcja</a></li>
+              <li><a href="#">Warunki współpracy</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="acc">
+          <button class="acc__btn" aria-expanded="false">Zasoby
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+          <div class="acc__panel">
+            <ul class="sublist">
+              <li><a href="/{{ _lang }}/blog/">Blog</a></li>
+              <li><a href="#">Case studies</a></li>
+              <li><a href="#faq">FAQ</a></li>
+            </ul>
+          </div>
+        </div>
 
-      <a href="#quote" class="cta">Wycena</a>
+        <a class="sublist" href="/{{ _lang }}/o-firmie/" style="display:block;padding:14px 0">O nas</a>
+        <a class="sublist" href="/{{ _lang }}/flota/" style="display:block;padding:14px 0">Flota</a>
+        <a class="sublist" href="/{{ _lang }}/blog/"  style="display:block;padding:14px 0">Blog</a>
 
-      <button class="icon-btn hamburger" id="hamburger" aria-expanded="false" aria-controls="drawer" aria-label="Menu">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </button>
+        <div style="padding:16px 0;display:flex;gap:10px">
+          <a class="cta" href="#quote" style="flex:1;justify-content:center">{{ STR.hero_cta_primary or 'Wyceń transport teraz' }}</a>
+          <a class="icon-btn" href="tel:{{ PHONE }}" aria-label="Zadzwoń">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.86 19.86 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.89.31 1.76.57 2.6a2 2 0 0 1-.45 2.11L8 9a16 16 0 0 0 6 6l.57-.22a2 2 0 0 1 2.11.45c.84.26 1.71.45 2.6.57A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="2"/></svg>
+          </a>
+        </div>
+      </nav>
     </div>
   </div>
 
-  <!-- Mega panels (desktop) -->
-  <div class="panels">
-    <div class="panel" id="panel-services" hidden>
-      <div class="container panel__grid">
-        <div class="panel__col">
-          <h4>Transport</h4>
-          <a class="panel__link" href="/{{ page.lang or 'pl' }}/transport-ekspresowy/"><strong>Ekspres bus 3,5 t</strong> <span class="chip">Same day</span></a>
-          <a class="panel__link" href="/{{ page.lang or 'pl' }}/tir/"><strong>Transport TIR (FTL/LTL)</strong></a>
-          <a class="panel__link" href="/{{ page.lang or 'pl' }}/przeprowadzki-b2b/"><strong>Przeprowadzki B2B</strong></a>
-          <a class="panel__link" href="/{{ page.lang or 'pl' }}/adr/"><strong>ADR*</strong> <span class="chip">po potwierdzeniu</span></a>
-        </div>
-        <div class="panel__col">
-          <h4>Spedycja</h4>
-          <a class="panel__link" href="#"><strong>Stałe trasy dla firm</strong></a>
-          <a class="panel__link" href="#"><strong>Planowanie i konsolidacja</strong></a>
-          <a class="panel__link" href="#"><strong>Fulfillment & cross-dock</strong></a>
-        </div>
-        <div class="panel__col">
-          <h4>Obsługiwane kierunki</h4>
-          <a class="panel__link" href="#"><strong>Polska</strong></a>
-          <a class="panel__link" href="#"><strong>Niemcy</strong></a>
-          <a class="panel__link" href="#"><strong>Francja</strong></a>
-          <a class="panel__link" href="#"><strong>Benelux & Włochy</strong></a>
-        </div>
-        <div class="panel__col">
-          <h4>Szybkie akcje</h4>
-          <a class="panel__link" href="#quote"><strong>Wyceń transport</strong></a>
-          <a class="panel__link" href="/{{ page.lang or 'pl' }}/kontakt/"><strong>Kontakt</strong></a>
-          <a class="panel__link" href="#faq"><strong>FAQ</strong></a>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel" id="panel-industries" hidden>
-      <div class="container panel__grid">
-        <div class="panel__col">
-          <h4>Branże</h4>
-          <a class="panel__link" href="#"><strong>E-commerce & 3PL</strong></a>
-          <a class="panel__link" href="#"><strong>Automotive</strong></a>
-          <a class="panel__link" href="#"><strong>Retail & FMCG</strong></a>
-          <a class="panel__link" href="#"><strong>High-tech</strong></a>
-        </div>
-        <div class="panel__col">
-          <h4>Use cases</h4>
-          <a class="panel__link" href="#"><strong>JIT / linie produkcyjne</strong></a>
-          <a class="panel__link" href="#"><strong>Zwroty & reverse</strong></a>
-          <a class="panel__link" href="#"><strong>Event logistics</strong></a>
-        </div>
-        <div class="panel__col">
-          <h4>Dokumenty</h4>
-          <a class="panel__link" href="#"><strong>Wzór zlecenia</strong></a>
-          <a class="panel__link" href="#"><strong>Warunki współpracy</strong></a>
-        </div>
-        <div class="panel__col">
-          <h4>Kontakt B2B</h4>
-          <a class="panel__link" href="#quote"><strong>Stała umowa / cennik</strong></a>
-          <a class="panel__link" href="/{{ page.lang or 'pl' }}/kontakt/"><strong>Zostaw brief</strong></a>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel" id="panel-resources" hidden>
-      <div class="container panel__grid">
-        <div class="panel__col">
-          <h4>Materiały</h4>
-          <a class="panel__link" href="/{{ page.lang or 'pl' }}/blog/"><strong>Blog</strong></a>
-          <a class="panel__link" href="/{{ page.lang or 'pl' }}/case-studies/"><strong>Case studies</strong></a>
-          <a class="panel__link" href="#"><strong>Poradniki</strong></a>
-        </div>
-        <div class="panel__col">
-          <h4>Narzędzia</h4>
-          <a class="panel__link" href="#"><strong>Kalkulator objętości</strong></a>
-          <a class="panel__link" href="#quote"><strong>Wycena online</strong></a>
-        </div>
-        <div class="panel__col">
-          <h4>Wsparcie</h4>
-          <a class="panel__link" href="#faq"><strong>FAQ</strong></a>
-          <a class="panel__link" href="/{{ page.lang or 'pl' }}/kontakt/"><strong>Kontakt</strong></a>
-        </div>
-        <div class="panel__col">
-          <h4>Informacje</h4>
-          <a class="panel__link" href="/{{ page.lang or 'pl' }}/o-firmie/"><strong>O firmie</strong></a>
-          <a class="panel__link" href="/{{ page.lang or 'pl' }}/flota/"><strong>Flota</strong></a>
-        </div>
-      </div>
-    </div>
-  </div>
-</header>
-
-<!-- Drawer (mobile) -->
-<div class="drawer" id="drawer" hidden>
-  <div class="drawer__head">
-    <div class="brand"><span class="brand__logo">K</span><span class="brand__name">Kras-Trans</span></div>
-    <button class="icon-btn" id="drawerClose" aria-label="Zamknij menu">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-    </button>
-  </div>
-  <div class="drawer__body">
-    <nav aria-label="Menu mobilne">
-      <div class="acc">
-        <button class="acc__btn" aria-expanded="false">Usługi
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        </button>
-        <div class="acc__panel">
-          <ul class="sublist">
-            <li><a href="/{{ page.lang or 'pl' }}/transport-ekspresowy/">Ekspres bus 3,5 t</a></li>
-            <li><a href="/{{ page.lang or 'pl' }}/tir/">Transport TIR (FTL/LTL)</a></li>
-            <li><a href="/{{ page.lang or 'pl' }}/przeprowadzki-b2b/">Przeprowadzki B2B</a></li>
-            <li><a href="/{{ page.lang or 'pl' }}/adr/">ADR*</a></li>
-          </ul>
-        </div>
-      </div>
-      <div class="acc">
-        <button class="acc__btn" aria-expanded="false">Dla firm
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        </button>
-        <div class="acc__panel">
-          <ul class="sublist">
-            <li><a href="#">Branże</a></li>
-            <li><a href="#">JIT / produkcja</a></li>
-            <li><a href="#">Warunki współpracy</a></li>
-          </ul>
-        </div>
-      </div>
-      <div class="acc">
-        <button class="acc__btn" aria-expanded="false">Zasoby
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        </button>
-        <div class="acc__panel">
-          <ul class="sublist">
-            <li><a href="/{{ page.lang or 'pl' }}/blog/">Blog</a></li>
-            <li><a href="#">Case studies</a></li>
-            <li><a href="#faq">FAQ</a></li>
-          </ul>
-        </div>
-      </div>
-      <a class="sublist" href="/{{ page.lang or 'pl' }}/o-firmie/" style="display:block;padding:14px 0">O nas</a>
-      <a class="sublist" href="/{{ page.lang or 'pl' }}/flota/" style="display:block;padding:14px 0">Flota</a>
-      <a class="sublist" href="/{{ page.lang or 'pl' }}/blog/" style="display:block;padding:14px 0">Blog</a>
-
-      <div style="padding:16px 0;display:flex;gap:10px">
-        <a class="cta" href="#quote" style="flex:1;justify-content:center">Wycena</a>
-        <a class="icon-btn" href="tel:+48793927467" aria-label="Zadzwoń">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.86 19.86 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.89.31 1.76.57 2.6a2 2 0 0 1-.45 2.11L8 9a16 16 0 0 0 6 6l.57-.22a2 2 0 0 1 2.11.45c.84.26 1.71.45 2.6.57A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="2"/></svg>
-        </a>
-      </div>
-    </nav>
-  </div>
-</div>
-
+  <!-- ================= MAIN ================= -->
   <main id="main" class="content" role="main">
-    <!-- HERO (21:9, bez stałego tła) -->
+    <!-- HERO -->
     <section class="hero" id="hero">
       <div class="container hero-wrap">
         <div class="hero-copy">
           <span class="claim">{{ page.claim or 'Kompleksowe usługi transportowe' }}</span>
           <h1>{{ page.h1 or page.title }}</h1>
-          {% if page.lead %}<p class="lead">{{ page.lead }}</p>{% endif %}
+          {% if page.lead %}<p class="lead" data-lead>{{ page.lead }}</p>{% endif %}
           <p class="hero-cta">
-            <a class="btn primary" href="#kontakt">{{ strings.hero_cta_primary or 'Wyceń transport teraz' }}</a>
-            <a class="btn" href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">{{ strings.hero_cta_secondary or 'Zadzwoń' }}</a>
+            <a class="btn primary" href="#quote">{{ STR.hero_cta_primary or 'Wyceń transport teraz' }}</a>
+            <a class="btn" href="tel:{{ PHONE }}">{{ STR.hero_cta_secondary or 'Zadzwoń' }}</a>
           </p>
-          <!-- Dymek: Jak to działa -->
-          <aside class="howto" id="howto" hidden aria-live="polite">
-            <ol>
-              <li>Kliknij „Wyceń transport teraz”.</li>
-              <li>Wpisz trasę i dane ładunku.</li>
-              <li>Wyślij – oddzwonimy i potwierdzimy odbiór.</li>
-            </ol>
-          </aside>
         </div>
         {% if page.hero_video %}
           <video class="hero-media" muted loop playsinline preload="none" poster="{{ page.hero_poster or '' }}" width="1680" height="720">
-            <source src="{{ page.hero_video or '/assets/media/hero.mp4' }}" type="video/mp4">
+            <source src="{{ page.hero_video }}" type="video/mp4">
           </video>
         {% elif page.hero_image %}
           <img class="hero-media" src="{{ page.hero_image }}" alt="{{ page.hero_alt or page.h1 }}" width="1680" height="720" loading="eager" fetchpriority="high">
@@ -315,29 +313,30 @@
       </div>
     </section>
 
-
-    <!-- OFERTA (split hero: słowo z arkuszy + kafelki w railu) -->
-    <section class="section split-hero split-hero--narrow" id="offer-reveal" data-section="offers" data-style="edge" data-accent="amber" aria-label="{{ strings.offers_aria or 'Nasza oferta' }}">
+    <!-- OFERTA (kafelki) -->
+    <section class="section split-hero split-hero--narrow" id="offer-reveal" data-section="offers" data-style="edge" data-accent="amber" aria-label="{{ STR.offers_aria or 'Nasza oferta' }}">
       <div class="split-hero__sticky">
         <div class="split-hero__stack">
           <div class="split-hero__title" aria-hidden="true">
-            <span class="title-half title-left">{{ strings.offers_title or 'Nasza oferta' }}</span>
-            <span class="title-half title-right">{{ strings.offers_title or 'Nasza oferta' }}</span>
+            <span class="title-half title-left">{{ STR.offers_title or 'Nasza oferta' }}</span>
+            <span class="title-half title-right">{{ STR.offers_title or 'Nasza oferta' }}</span>
           </div>
-          <h2 class="sr-only">{{ strings.offers_title or 'Nasza oferta' }}</h2>
+          <h2 class="visually-hidden">{{ STR.offers_title or 'Nasza oferta' }}</h2>
 
-          {% set offers = (blocks or [])|selectattr('block','equalto','offer')|selectattr('lang','equalto',(page.lang or 'pl'))|selectattr('page','equalto',(page.slugKey or page.slug or 'home'))|list %}
-          {% if not offers|length %}{% set offers = (pages or [])|selectattr('type','equalto','service')|selectattr('lang','equalto',(page.lang or 'pl'))|list %}{% endif %}
+          {% set offers = BLOCKS|selectattr('block','equalto','offer')|selectattr('lang','equalto',_lang)|selectattr('page','equalto',_slug)|list %}
+          {% if not offers|length %}
+            {% set offers = PAGES|selectattr('type','equalto','service')|selectattr('lang','equalto',_lang)|list %}
+          {% endif %}
 
           {% if offers|length %}
-          <div class="split-hero__rail" id="offer-rail" role="list" aria-label="{{ strings.offers_list or 'Usługi (przesuń w bok na telefonie)' }}">
+          <div class="split-hero__rail" id="offer-rail" role="list" aria-label="{{ STR.offers_list or 'Usługi (przesuń w bok na telefonie)' }}">
             {% for it in offers|sort(attribute='order') %}
-            {% set url = it.href or it.url or '/' ~ (page.lang or 'pl') ~ '/' ~ (it.slug or '') ~ '/' %}
-            <a role="listitem" class="offer-card" href="{{ url }}">
-              {% if it.media %}<img src="{{ it.media }}" alt="" width="{{ it.img_w or 1280 }}" height="{{ it.img_h or 720 }}" loading="lazy" decoding="async">{% endif %}
-              <span class="offer-card__title">{{ it.h1 or it.title or it.seo_title or it.slug }}</span>
-              {% if it.lead or it.desc or it.meta_desc %}<span class="offer-card__desc">{{ it.lead or it.desc or it.meta_desc }}</span>{% endif %}
-            </a>
+              {% set url = it.href or it.url or '/' ~ _lang ~ '/' ~ (it.slug or '') ~ '/' %}
+              <a role="listitem" class="offer-card" href="{{ url }}">
+                {% if it.media %}<img src="{{ it.media }}" alt="" width="{{ it.img_w or 1280 }}" height="{{ it.img_h or 720 }}" loading="lazy" decoding="async">{% endif %}
+                <span class="offer-card__title">{{ it.h1 or it.title or it.seo_title or it.slug }}</span>
+                {% if it.lead or it.desc or it.meta_desc %}<span class="offer-card__desc">{{ it.lead or it.desc or it.meta_desc }}</span>{% endif %}
+              </a>
             {% endfor %}
           </div>
           {% endif %}
@@ -346,9 +345,9 @@
       <div class="sep sep--morph" data-morph="wave-2" aria-hidden="true"></div>
     </section>
 
-    <!-- KIERUNKI (Twoja mapa) -->
+    <!-- KIERUNKI -->
     <section class="section" id="kierunki" data-section="kierunki" data-style="glass">
-      <div class="container text"><h2>{{ strings.routes_title or 'Kierunki' }}</h2></div>
+      <div class="container text"><h2>{{ STR.routes_title or 'Kierunki' }}</h2></div>
       <div class="container">
         <div class="iframe-wrap" style="aspect-ratio:16/9">
           <iframe class="routes-map" title="Mapa kierunków"
@@ -360,27 +359,37 @@
       </div>
     </section>
 
-    <!-- FAQ / BLOG / CTA / KONTAKT – puste sloty jak w globalnym szablonie -->
-    <!-- … (zostaw analogiczne sekcje: faq, blog, contact – placeholders) … -->
+    <!-- TODO: FAQ / BLOG / CTA / KONTAKT – sloty -->
   </main>
 
-  <!-- FOOTER -->
+  <!-- ================= FOOTER ================= -->
   <footer class="site-footer">
-  <div class="container foot-row">
-    <div>© {{ BRAND }} </div>
-    <nav class="foot-nav">
-      <a href="/{{ page.lang or 'pl' }}/kontakt/">Kontakt</a>
-      <a href="/{{ page.lang or 'pl' }}/o-firmie/">O firmie</a>
-      <a href="/{{ page.lang or 'pl' }}/licenses-insurance/">Licencje & ubezpieczenia</a>
-    </nav>
-  </div>
-</footer>
+    <div class="container foot-row">
+      <div>© {{ BRAND }}</div>
+      <nav class="foot-nav">
+        <a href="/{{ _lang }}/kontakt/">Kontakt</a>
+        <a href="/{{ _lang }}/o-firmie/">O firmie</a>
+        <a href="/{{ _lang }}/licenses-insurance/">Licencje & ubezpieczenia</a>
+      </nav>
+    </div>
+  </footer>
 
-  <!-- SKRYPTY -->
-  <script>window.KRAS_NAV = {{ nav_cfg|tojson }};</script>
+  <!-- ================= SCRIPTS ================= -->
+  <script>window.KRAS_NAV = {{ NAV_CFG|tojson }};</script>
   <script src="/assets/js/kras-global.js" defer></script>
   <script src="/assets/js/menu-builder.js" defer></script>
   <script>(window.requestIdleCallback||window.setTimeout)(function(){var s=document.createElement('script');s.src='/assets/js/kras-ui.js';s.defer=true;document.body.appendChild(s);});</script>
   <script defer src="/assets/kt.js"></script>
+
+  <!-- Formatowanie leada: \n → <br> oraz **bold** -->
+  <script>
+  (function(){
+    document.querySelectorAll('[data-lead], .lead').forEach(function(el){
+      el.innerHTML = (el.textContent||'')
+        .replace(/\\n/g,'<br>')
+        .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    });
+  })();
+  </script>
 </body>
 </html>
