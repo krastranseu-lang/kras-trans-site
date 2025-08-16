@@ -1,14 +1,43 @@
 {% set BRAND   = (company[0].name if company is defined and company|length > 0 and company[0].name else 'Kras-Trans') %}
 {% set _slug   = page.slugKey or page.slug or 'home' %}
 {% set _lang   = page.lang or 'pl' %}
-{% set _canon  = page.canonical_path or '/' ~ _lang ~ '/' ~ (_slug != 'home' and (_slug ~ '/') or '') %}
-{% set STR     = (strings if strings is defined else {}) %}
-{% set COMPANY = (company if company is defined else []) %}
-{% set PHONE   = (COMPANY and COMPANY[0].telephone) or '+48793927467' %}
 {% set PAGES   = (pages   if pages   is defined else []) %}
 {% set BLOCKS  = (blocks  if blocks  is defined else []) %}
 {% set HREFLANG= (hreflang if hreflang is defined else {}) %}
+{% set COMPANY = (company if company is defined else []) %}
+{% set PHONE   = (COMPANY and COMPANY[0].telephone) or '+48793927467' %}
 {% set NAV_CFG = (nav_cfg if nav_cfg is defined else {}) %}
+
+{# ===== i18n: bezpieczne fallbacki (zero twardych polskich napisów) ===== #}
+{% set I18N = {
+  'pl': {'offers_title':'Nasza oferta','routes_title':'Kierunki','hero_cta_primary':'Wyceń transport teraz','hero_cta_secondary':'Zadzwoń 24/7'},
+  'en': {'offers_title':'Our offer','routes_title':'Routes','hero_cta_primary':'Get a quote','hero_cta_secondary':'Call 24/7'},
+  'de': {'offers_title':'Unser Angebot','routes_title':'Routen','hero_cta_primary':'Angebot anfordern','hero_cta_secondary':'Anrufen 24/7'},
+  'fr': {'offers_title':'Notre offre','routes_title':'Itinéraires','hero_cta_primary':'Demander un devis','hero_cta_secondary':'Appeler 24/7'},
+  'it': {'offers_title':'La nostra offerta','routes_title':'Rotte','hero_cta_primary':'Richiedi preventivo','hero_cta_secondary':'Chiama 24/7'},
+  'ru': {'offers_title':'Наше предложение','routes_title':'Направления','hero_cta_primary':'Запросить расчёт','hero_cta_secondary':'Позвонить 24/7'},
+  'ua': {'offers_title':'Наша пропозиція','routes_title':'Напрямки','hero_cta_primary':'Кошторис','hero_cta_secondary':'Дзвонити 24/7'}
+} %}
+{# strings z CMS jeśli są, inaczej lokalizacja z I18N #}
+{% set TXT = (strings if strings is defined and strings) or I18N.get(_lang, I18N['pl']) %}
+
+{# ===== lokalne slugi dla stron stałych (fallback gdy CMS nie zwróci) ===== #}
+{% set LOCALE = {
+  'about':    {'pl':'o-firmie','en':'about','de':'uber-uns','fr':'a-propos','it':'chi-siamo','ru':'o-kompanii','ua':'pro-kompaniyu'},
+  'contact':  {'pl':'kontakt','en':'contact','de':'kontakt','fr':'contact','it':'contatto','ru':'kontakt','ua':'kontakt'},
+  'licenses': {'pl':'licencje-i-ubezpieczenia','en':'licenses-insurance','de':'lizenzen-und-versicherung','fr':'licences-et-assurance','it':'licenze-e-assicurazione','ru':'licenzii-i-strahovaniya','ua':'licenziyi-ta-strahuvannya'}
+} %}
+
+{# Pomocniczo: znajdź URL strony po slugKey (najpierw z PAGES, potem fallback z LOCALE) #}
+{% set _about   = (PAGES|selectattr('slugKey','equalto','about')   |selectattr('lang','equalto',_lang)|list|first) %}
+{% set _contact = (PAGES|selectattr('slugKey','equalto','contact') |selectattr('lang','equalto',_lang)|list|first) %}
+{% set _license = (PAGES|selectattr('slugKey','equalto','licenses')|selectattr('lang','equalto',_lang)|list|first) %}
+
+{% set URL_ABOUT   = (_about   and (_about.canonical_path   or '/' ~ _lang ~ '/' ~ (_about.slug   or LOCALE['about'][_lang])   ~ '/')) or '/' ~ _lang ~ '/' ~ LOCALE['about'][_lang]   ~ '/' %}
+{% set URL_CONTACT = (_contact and (_contact.canonical_path or '/' ~ _lang ~ '/' ~ (_contact.slug or LOCALE['contact'][_lang]) ~ '/')) or '/' ~ _lang ~ '/' ~ LOCALE['contact'][_lang] ~ '/' %}
+{% set URL_LICENSE = (_license and (_license.canonical_path or '/' ~ _lang ~ '/' ~ (_license.slug or LOCALE['licenses'][_lang]) ~ '/')) or '/' ~ _lang ~ '/' ~ LOCALE['licenses'][_lang] ~ '/' %}
+
+{% set _canon  = page.canonical_path or '/' ~ _lang ~ '/' ~ (_slug != 'home' and (_slug ~ '/') or '') %}
 
 <!doctype html>
 <html lang="{{ _lang }}" class="no-motion">
@@ -37,7 +66,7 @@
   <link rel="preload" href="/assets/css/kras-global.css" as="style">
   <link rel="preload" href="/assets/css/kras-ui.css" as="style">
   <link rel="stylesheet" href="/assets/css/kras-global.css" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="/assets/css/kras-ui.css" media="print"  onload="this.media='all'">
+  <link rel="stylesheet" href="/assets/css/kras-ui.css"    media="print" onload="this.media='all'">
   <noscript>
     <link rel="stylesheet" href="/assets/css/kras-global.css">
     <link rel="stylesheet" href="/assets/css/kras-ui.css">
@@ -45,7 +74,7 @@
   <link rel="stylesheet" href="/assets/kt.css">
   <style>.visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}</style>
 
-  {# hreflang z JSON-a jeśli dostępny #}
+  {# hreflang z JSON-a (dla bieżącej strony) #}
   {% set _hreflang_map = HREFLANG[_slug] if HREFLANG and (_slug in HREFLANG) else {} %}
   <script>
   (function(){
@@ -55,7 +84,7 @@
     keys.forEach(function(L){
       var a=document.createElement('link');
       a.rel='alternate';
-      a.hreflang=(L==='ua')?'uk':L;  // UA -> uk
+      a.hreflang=(L==='ua')?'uk':L;  // UA -> uk (standard hreflang)
       a.href=map[L];
       document.head.appendChild(a);
     });
@@ -98,7 +127,7 @@
               Zasoby <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
             </button>
           </li>
-          <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/o-firmie/">O nas</a></li>
+          <li role="none"><a class="nav__btn" role="menuitem" href="{{ URL_ABOUT }}">O nas</a></li>
           <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/flota/">Flota</a></li>
           <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/blog/">Blog</a></li>
         </ul>
@@ -163,7 +192,7 @@
           <div class="panel__col">
             <h4>Szybkie akcje</h4>
             <a class="panel__link" href="#quote"><strong>Wyceń transport</strong></a>
-            <a class="panel__link" href="/{{ _lang }}/kontakt/"><strong>Kontakt</strong></a>
+            <a class="panel__link" href="{{ URL_CONTACT }}"><strong>Kontakt</strong></a>
             <a class="panel__link" href="#faq"><strong>FAQ</strong></a>
           </div>
         </div>
@@ -193,7 +222,7 @@
           <div class="panel__col">
             <h4>Kontakt B2B</h4>
             <a class="panel__link" href="#quote"><strong>Stała umowa / cennik</strong></a>
-            <a class="panel__link" href="/{{ _lang }}/kontakt/"><strong>Zostaw brief</strong></a>
+            <a class="panel__link" href="{{ URL_CONTACT }}"><strong>Zostaw brief</strong></a>
           </div>
         </div>
       </div>
@@ -215,11 +244,11 @@
           <div class="panel__col">
             <h4>Wsparcie</h4>
             <a class="panel__link" href="#faq"><strong>FAQ</strong></a>
-            <a class="panel__link" href="/{{ _lang }}/kontakt/"><strong>Kontakt</strong></a>
+            <a class="panel__link" href="{{ URL_CONTACT }}"><strong>Kontakt</strong></a>
           </div>
           <div class="panel__col">
             <h4>Informacje</h4>
-            <a class="panel__link" href="/{{ _lang }}/o-firmie/"><strong>O firmie</strong></a>
+            <a class="panel__link" href="{{ URL_ABOUT }}"><strong>O firmie</strong></a>
             <a class="panel__link" href="/{{ _lang }}/flota/"><strong>Flota</strong></a>
           </div>
         </div>
@@ -275,12 +304,12 @@
           </div>
         </div>
 
-        <a class="sublist" href="/{{ _lang }}/o-firmie/" style="display:block;padding:14px 0">O nas</a>
+        <a class="sublist" href="{{ URL_ABOUT }}"   style="display:block;padding:14px 0">O nas</a>
         <a class="sublist" href="/{{ _lang }}/flota/" style="display:block;padding:14px 0">Flota</a>
         <a class="sublist" href="/{{ _lang }}/blog/"  style="display:block;padding:14px 0">Blog</a>
 
         <div style="padding:16px 0;display:flex;gap:10px">
-          <a class="cta" href="#quote" style="flex:1;justify-content:center">{{ STR.hero_cta_primary or 'Wyceń transport teraz' }}</a>
+          <a class="cta" href="#quote" style="flex:1;justify-content:center">{{ TXT.hero_cta_primary }}</a>
           <a class="icon-btn" href="tel:{{ PHONE }}" aria-label="Zadzwoń">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.86 19.86 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.89.31 1.76.57 2.6a2 2 0 0 1-.45 2.11L8 9a16 16 0 0 0 6 6l.57-.22a2 2 0 0 1 2.11.45c.84.26 1.71.45 2.6.57A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="2"/></svg>
           </a>
@@ -299,8 +328,8 @@
           <h1>{{ page.h1 or page.title }}</h1>
           {% if page.lead %}<p class="lead" data-lead>{{ page.lead }}</p>{% endif %}
           <p class="hero-cta">
-            <a class="btn primary" href="#quote">{{ STR.hero_cta_primary or 'Wyceń transport teraz' }}</a>
-            <a class="btn" href="tel:{{ PHONE }}">{{ STR.hero_cta_secondary or 'Zadzwoń' }}</a>
+            <a class="btn primary" href="#quote">{{ TXT.hero_cta_primary }}</a>
+            <a class="btn" href="tel:{{ PHONE }}">{{ TXT.hero_cta_secondary }}</a>
           </p>
         </div>
         {% if page.hero_video %}
@@ -314,22 +343,23 @@
     </section>
 
     <!-- OFERTA (kafelki) -->
-    <section class="section split-hero split-hero--narrow" id="offer-reveal" data-section="offers" data-style="edge" data-accent="amber" aria-label="{{ STR.offers_aria or 'Nasza oferta' }}">
+    <section class="section split-hero split-hero--narrow" id="offer-reveal" data-section="offers" data-style="edge" data-accent="amber" aria-label="{{ TXT.offers_title }}">
       <div class="split-hero__sticky">
         <div class="split-hero__stack">
           <div class="split-hero__title" aria-hidden="true">
-            <span class="title-half title-left">{{ STR.offers_title or 'Nasza oferta' }}</span>
-            <span class="title-half title-right">{{ STR.offers_title or 'Nasza oferta' }}</span>
+            <span class="title-half title-left">{{ TXT.offers_title }}</span>
+            <span class="title-half title-right">{{ TXT.offers_title }}</span>
           </div>
-          <h2 class="visually-hidden">{{ STR.offers_title or 'Nasza oferta' }}</h2>
+          <h2 class="visually-hidden">{{ TXT.offers_title }}</h2>
 
           {% set offers = BLOCKS|selectattr('block','equalto','offer')|selectattr('lang','equalto',_lang)|selectattr('page','equalto',_slug)|list %}
           {% if not offers|length %}
+            {# jeśli nie ma bloków, próbuj z PAGES (service) #}
             {% set offers = PAGES|selectattr('type','equalto','service')|selectattr('lang','equalto',_lang)|list %}
           {% endif %}
 
           {% if offers|length %}
-          <div class="split-hero__rail" id="offer-rail" role="list" aria-label="{{ STR.offers_list or 'Usługi (przesuń w bok na telefonie)' }}">
+          <div class="split-hero__rail" id="offer-rail" role="list" aria-label="{{ TXT.offers_title }}">
             {% for it in offers|sort(attribute='order') %}
               {% set url = it.href or it.url or '/' ~ _lang ~ '/' ~ (it.slug or '') ~ '/' %}
               <a role="listitem" class="offer-card" href="{{ url }}">
@@ -347,7 +377,7 @@
 
     <!-- KIERUNKI -->
     <section class="section" id="kierunki" data-section="kierunki" data-style="glass">
-      <div class="container text"><h2>{{ STR.routes_title or 'Kierunki' }}</h2></div>
+      <div class="container text"><h2>{{ TXT.routes_title }}</h2></div>
       <div class="container">
         <div class="iframe-wrap" style="aspect-ratio:16/9">
           <iframe class="routes-map" title="Mapa kierunków"
@@ -359,7 +389,7 @@
       </div>
     </section>
 
-    <!-- TODO: FAQ / BLOG / CTA / KONTAKT – sloty -->
+    <!-- (tu: sloty na FAQ / BLOG / CTA / KONTAKT) -->
   </main>
 
   <!-- ================= FOOTER ================= -->
@@ -367,9 +397,9 @@
     <div class="container foot-row">
       <div>© {{ BRAND }}</div>
       <nav class="foot-nav">
-        <a href="/{{ _lang }}/kontakt/">Kontakt</a>
-        <a href="/{{ _lang }}/o-firmie/">O firmie</a>
-        <a href="/{{ _lang }}/licenses-insurance/">Licencje & ubezpieczenia</a>
+        <a href="{{ URL_CONTACT }}">Kontakt</a>
+        <a href="{{ URL_ABOUT }}">O firmie</a>
+        <a href="{{ URL_LICENSE }}">Licencje &amp; ubezpieczenia</a>
       </nav>
     </div>
   </footer>
