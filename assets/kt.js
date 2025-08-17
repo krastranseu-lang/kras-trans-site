@@ -1,158 +1,418 @@
-const qs=(s,c=document)=>c.querySelector(s), qsa=(s,c=document)=>Array.from(c.querySelectorAll(s));
-const header=qs('#header');
+/*!
+ * KRAS-TRANS UI JS — 1.0
+ * - mega-menu (desktop), drawer (mobile) + focus trap
+ * - języki (dropdown), theme toggle (dark/light)
+ * - „hero title” rozsuwa się na boki przy scrollu sekcji ofert
+ * - rail ofert: h-scroll, 3D tilt, „tap-hint” na dociągniętym kafelku
+ * - mobile dock (Home / Wycena / Menu) — zawsze widoczny na tel.
+ * - lekki formatter treści z arkusza: \n, **bold**, wypunktowania (- / •)
+ */
 
-// sticky zmiana tła (opcjonalnie, jeśli masz sentinel w hero – można pominąć)
-function onScroll(){ header && header.classList.toggle('is-scrolled', window.scrollY>20); }
-onScroll(); window.addEventListener('scroll', onScroll, {passive:true});
+(() => {
+  const $ = (s, c = document) => c.querySelector(s);
+  const $$ = (s, c = document) => Array.from(c.querySelectorAll(s));
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const raf = (fn) => (window.requestAnimationFrame || setTimeout)(fn, 0);
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const LANG = (document.documentElement.getAttribute('lang') || 'pl').toLowerCase();
 
-// mega-panels
-let opened=null;
-function closePanels(){ qsa('.nav__btn[data-panel]').forEach(b=>b.setAttribute('aria-expanded','false'));
-  qsa('.panel').forEach(p=>{p.classList.remove('is-open');p.hidden=true}); opened=null; }
-function openPanel(id){ closePanels(); const btn=qs(`.nav__btn[data-panel="${id}"]`), panel=qs(`#panel-${id}`);
-  if(!btn||!panel) return; btn.setAttribute('aria-expanded','true'); panel.hidden=false; panel.classList.add('is-open'); opened=id; }
-qsa('.nav__btn[data-panel]').forEach(btn=>{
-  const id=btn.dataset.panel;
-  btn.addEventListener('click',()=> opened===id ? closePanels() : openPanel(id));
-  btn.addEventListener('mouseenter',()=> window.matchMedia('(min-width: 992px)').matches && openPanel(id));
-});
-document.addEventListener('click',e=>{ if(header && !header.contains(e.target)) closePanels(); });
-header && header.addEventListener('mouseleave',()=> window.matchMedia('(min-width: 992px)').matches && closePanels());
+  /* =========================
+     THEME (dark/light)
+     ========================= */
+  const themeBtn = $('#themeToggle');
+  const THEME_KEY = 'kt-theme';
+  function applyTheme(val) {
+    // val: 'light' | 'dark' | null
+    if (val === 'light') document.body.setAttribute('data-theme', 'light');
+    else document.body.removeAttribute('data-theme'); // dark (domyślnie)
+    try { localStorage.setItem(THEME_KEY, val || 'dark'); } catch {}
+  }
+  (function initTheme(){
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      applyTheme(saved === 'light' ? 'light' : 'dark');
+    } catch {
+      applyTheme('dark');
+    }
+    if (themeBtn) {
+      themeBtn.addEventListener('click', () => {
+        const cur = document.body.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+        applyTheme(cur === 'light' ? 'dark' : 'light');
+      });
+    }
+  })();
 
-// drawer mobile
-const drawer=qs('#drawer'), hamburger=qs('#hamburger'), drawerClose=qs('#drawerClose');
-function lockBody(b){document.body.style.overflow=b?'hidden':''}
-function openDrawer(){ if(!drawer||!hamburger) return; drawer.hidden=false; drawer.classList.add('is-open'); hamburger.setAttribute('aria-expanded','true'); lockBody(true); closePanels(); }
-function closeDrawer(){ if(!drawer||!hamburger) return; drawer.classList.remove('is-open'); hamburger.setAttribute('aria-expanded','false'); lockBody(false); setTimeout(()=>drawer.hidden=true,200); }
-hamburger && hamburger.addEventListener('click', openDrawer);
-drawerClose && drawerClose.addEventListener('click', closeDrawer);
-qsa('.acc').forEach(acc=>{
-  const btn=qs('.acc__btn',acc), panel=qs('.acc__panel',acc);
-  btn && btn.addEventListener('click',()=>{ const open=btn.getAttribute('aria-expanded')==='true'; btn.setAttribute('aria-expanded', String(!open)); panel && panel.classList.toggle('is-open', !open); });
-});
+  /* =========================
+     LANG DROPDOWN
+     ========================= */
+  (function initLangDropdown(){
+    const wrap = $('[data-lang]');
+    if (!wrap) return;
+    const btn = wrap.querySelector('button');
+    const panel = $('#lang-panel');
+    if (!btn || !panel) return;
 
-// języki
-const langWrap=qs('[data-lang]');
-if(langWrap){
-  const langBtn=langWrap.querySelector('button');
-  langBtn && langBtn.addEventListener('click', ()=>{
-    const expanded=langWrap.getAttribute('aria-expanded')==='true';
-    langWrap.setAttribute('aria-expanded', String(!expanded));
-    langBtn.setAttribute('aria-expanded', String(!expanded));
-  });
-  document.addEventListener('click', e=>{ if(!langWrap.contains(e.target)){ langWrap.setAttribute('aria-expanded','false'); langBtn && langBtn.setAttribute('aria-expanded','false'); }});
-}
+    function close() { wrap.setAttribute('aria-expanded', 'false'); btn.setAttribute('aria-expanded','false'); }
+    function toggle() {
+      const exp = wrap.getAttribute('aria-expanded') === 'true';
+      wrap.setAttribute('aria-expanded', String(!exp));
+      btn.setAttribute('aria-expanded', String(!exp));
+    }
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); toggle(); });
+    document.addEventListener('click', (e)=>{ if(!wrap.contains(e.target)) close(); });
+    wrap.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ close(); btn.focus(); }});
+  })();
 
-// theme
-const themeBtn=qs('#themeToggle'), root=document.documentElement;
-function applyTheme(t){ root.setAttribute('data-theme', t); }
-const saved=localStorage.getItem('theme'); if(saved) applyTheme(saved);
-themeBtn && themeBtn.addEventListener('click', ()=>{
-  const cur=root.getAttribute('data-theme')||'auto';
-  const next=cur==='dark'?'light':(cur==='light'?'auto':'dark');
-  applyTheme(next); localStorage.setItem('theme', next);
-});
+  /* =========================
+     MEGA MENU (desktop)
+     ========================= */
+  (function initMegaMenu(){
+    const header = $('#header');
+    const navBtns = $$('.nav__btn[data-panel]');
+    if (!header || !navBtns.length) return;
 
-// --- LEAD FIX: zamień **bold** i \n na <br> bez zmiany generatora ---
-qsa('.lead').forEach(el=>{
-  const raw = el.innerHTML || el.textContent || '';
-  const withBr = raw.replace(/\\n/g,'<br>');
-  const withBold = withBr.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
-  if(withBold !== raw) el.innerHTML = withBold;
-});
+    const panels = {
+      services: $('#panel-services'),
+      industries: $('#panel-industries'),
+      resources: $('#panel-resources')
+    };
+    let opened = null;
 
-// efekt znikania przycisku i nawigacja
-document.addEventListener('click',e=>{
-  const el=e.target.closest('a[data-disappear],button[data-disappear]');
-  if(!el) return;
-  if(el.dataset.firing){ e.preventDefault(); return; }
-  el.dataset.firing='1';
-  const rect=el.getBoundingClientRect();
-  el.style.width=rect.width+'px';
-  el.style.height=rect.height+'px';
-  el.classList.add('bye');
-  el.setAttribute('aria-disabled','true');
-  const url=el.getAttribute('href')||el.dataset.href||'#';
-  const target=el.getAttribute('target');
-  const delay=parseInt(el.dataset.delay||'140',10);
-  e.preventDefault();
-  window.setTimeout(()=>{target==='_blank'?window.open(url,'_blank','noopener'):window.location.assign(url);},delay);
-});
-/* === Mobile bottom dock actions === */
-document.getElementById('dock-menu')?.addEventListener('click', () => {
-  // użyj istniejącego hamburgera/drawera
-  const btn = document.getElementById('hamburger');
-  if(btn){ btn.click(); }
-});
-document.getElementById('dock-home')?.addEventListener('click', () => { /* zwykły link */ });
-
-/* === Offer rail tilt (max ~12° po trendzie) === */
-(function(){
-  const rail = document.getElementById('offer-rail');
-  if(!rail) return;
-  const MAX = 12; // deg
-  const update = () => {
-    const cards = rail.querySelectorAll('.offer-card');
-    const mid = rail.getBoundingClientRect().left + (rail.clientWidth/2);
-    cards.forEach(card => {
-      const r = card.getBoundingClientRect();
-      const c = r.left + r.width/2;
-      const t = Math.max(-1, Math.min(1, (c - mid) / (window.innerWidth*0.4)));
-      card.style.setProperty('--tilt', (-MAX * t).toFixed(2) + 'deg');
-    });
-  };
-  rail.addEventListener('scroll', update, {passive:true});
-  window.addEventListener('resize', update);
-  update();
-})();
-
-/* === Big title fade/slide on scroll (~35vh) === */
-(function(){
-  const sec = document.getElementById('offer-reveal');
-  if(!sec) return;
-  const title = sec.querySelector('.split-hero__title');
-  if(!title) return;
-  const getTop = () => sec.getBoundingClientRect().top + window.scrollY;
-  let startY = getTop(); // start of section
-  const onScroll = () => {
-    const sc = window.scrollY;
-    const span = window.innerHeight * 0.35;
-    const p = Math.max(0, Math.min(1, (sc - startY)/span));
-    title.style.setProperty('--titleOpacity', (1 - 0.6*p).toFixed(3));
-    title.style.setProperty('--titleShift', (40*p).toFixed(1) + 'px');
-    title.style.setProperty('--titleScale', (1 - 0.06*p).toFixed(3));
-  };
-  window.addEventListener('scroll', onScroll, {passive:true});
-  window.addEventListener('resize', () => { startY = getTop(); onScroll(); });
-  onScroll();
-})();
-
-/* === „Markdown-ish” parser dla bloków i leada === */
-(function(){
-  const toHTML = (txt) => {
-    if(!txt) return '';
-    const lines = txt.replace(/\r\n/g,'\n').split('\n');
-    let html = '', inList = false;
-    const flush = () => { if(inList){ html += '</ul>'; inList=false; } };
-    for(const line of lines){
-      const m = line.match(/^\s*(?:-|\u2022)\s+(.*)$/); // - lub •
-      if(m){
-        if(!inList){ html += '<ul>'; inList=true; }
-        html += '<li>' + m[1] + '</li>';
-      }else if(line.trim()===''){
-        flush(); html += '<p></p>';
-      }else{
-        flush();
-        let t = line
-          .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-          .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2">$1</a>');
-        html += '<p>'+ t +'</p>';
+    function openPanel(id, focusFirst=false){
+      closePanels();
+      const btn = $(`.nav__btn[data-panel="${id}"]`);
+      const panel = $(`#panel-${id}`);
+      if(!btn || !panel) return;
+      btn.setAttribute('aria-expanded','true');
+      panel.hidden = false;
+      opened = id;
+      document.addEventListener('keydown', onEsc);
+      document.addEventListener('click', onDoc);
+      if(focusFirst){
+        const f = panel.querySelector('a,button'); f && f.focus();
       }
     }
-    flush();
-    return html.replace(/<p><\/p>/g,'');
-  };
-  document.querySelectorAll('[data-md], [data-lead]').forEach(el=>{
-    el.innerHTML = toHTML(el.textContent || '');
-  });
+    function closePanels(){
+      navBtns.forEach(b=>b.setAttribute('aria-expanded','false'));
+      Object.values(panels).forEach(p=>{ if(p){ p.hidden = true; } });
+      opened = null;
+      document.removeEventListener('keydown', onEsc);
+      document.removeEventListener('click', onDoc);
+    }
+    function onEsc(e){ if(e.key==='Escape'){ closePanels(); } }
+    function onDoc(e){
+      const inHeader = header.contains(e.target);
+      const onBtn = e.target.closest('.nav__btn[data-panel]');
+      const onPanel = e.target.closest('.panel');
+      if(!inHeader || (!onBtn && !onPanel)) closePanels();
+    }
+    navBtns.forEach(btn=>{
+      const id = btn.dataset.panel;
+      btn.addEventListener('click', ()=> opened===id ? closePanels() : openPanel(id));
+      btn.addEventListener('mouseenter', ()=> window.matchMedia('(min-width: 900px)').matches && openPanel(id));
+      btn.addEventListener('keydown', (e)=>{
+        if(e.key==='ArrowDown'){ e.preventDefault(); openPanel(id, true); }
+      });
+    });
+    header.addEventListener('mouseleave', ()=> window.matchMedia('(min-width: 900px)').matches && closePanels());
+  })();
+
+  /* =========================
+     DRAWER (mobile) + accordions + focus trap
+     ========================= */
+  (function initDrawer(){
+    const drawer = $('#drawer');
+    const openBtn = $('#hamburger');
+    const closeBtn = $('#drawerClose');
+    if (!drawer || !openBtn || !closeBtn) return;
+
+    let lastFocus = null;
+    const focusSel = 'a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
+    function lockBody(lock){
+      document.documentElement.style.overflow = lock ? 'hidden' : '';
+      document.body.style.overflow = lock ? 'hidden' : '';
+    }
+    function trapFocus(node){
+      const f = $$(focusSel, node);
+      if(!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      function onKey(e){
+        if(e.key!=='Tab') return;
+        if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+        else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+      }
+      node.__trap = onKey;
+      node.addEventListener('keydown', onKey);
+    }
+    function releaseFocus(node){
+      if(node.__trap) node.removeEventListener('keydown', node.__trap);
+      if (lastFocus) lastFocus.focus();
+    }
+
+    function open(){
+      lastFocus = document.activeElement;
+      drawer.hidden = false;
+      raf(()=>{ drawer.classList.add('open'); });
+      lockBody(true);
+      trapFocus(drawer);
+      openBtn.setAttribute('aria-expanded','true');
+    }
+    function close(){
+      drawer.classList.remove('open');
+      openBtn.setAttribute('aria-expanded','false');
+      setTimeout(()=>{ drawer.hidden = true; releaseFocus(drawer); lockBody(false); }, 250);
+    }
+
+    openBtn.addEventListener('click', open);
+    closeBtn.addEventListener('click', close);
+    drawer.addEventListener('keydown', (e)=>{ if(e.key==='Escape') close(); });
+
+    // accordions
+    $$('.acc', drawer).forEach(acc=>{
+      const btn = acc.querySelector('.acc__btn');
+      const panel = acc.querySelector('.acc__panel');
+      if(!btn || !panel) return;
+      acc.setAttribute('aria-expanded','false');
+      btn.addEventListener('click', ()=>{
+        const exp = acc.getAttribute('aria-expanded')==='true';
+        acc.setAttribute('aria-expanded', String(!exp));
+      });
+    });
+
+    // zamknij, gdy klikniemy poza panel (bez overlayu)
+    drawer.addEventListener('click', (e)=>{
+      const body = $('.drawer__body', drawer);
+      const head = $('.drawer__head', drawer);
+      if(!body.contains(e.target) && !head.contains(e.target)) close();
+    });
+
+    // chowaj drawer na desktopie, jeśli ktoś zmieni rozmiar
+    window.addEventListener('resize', ()=>{
+      if(window.matchMedia('(min-width: 860px)').matches) close();
+    });
+  })();
+
+  /* =========================
+     MOBILE DOCK (stały)
+     ========================= */
+  (function initDock(){
+    if (window.matchMedia('(min-width: 860px)').matches) return; // tylko tel
+    if ($('.mobile-dock')) return;
+
+    const dock = document.createElement('nav');
+    dock.className = 'mobile-dock';
+    dock.innerHTML = `
+      <button class="mobile-dock__btn" data-act="home" aria-label="Home">
+        <svg class="mobile-dock__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 10.5l9-7 9 7v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5v-9z" stroke="currentColor" stroke-width="2"/><path d="M9 21v-6h6v6" stroke="currentColor" stroke-width="2"/></svg>
+        <span class="mobile-dock__label">Home</span>
+      </button>
+      <button class="mobile-dock__btn mobile-dock__btn--primary" data-act="quote" aria-label="Wycena">
+        <svg class="mobile-dock__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="mobile-dock__label">Wycena</span>
+      </button>
+      <button class="mobile-dock__btn" data-act="menu" aria-label="Menu">
+        <svg class="mobile-dock__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="mobile-dock__label">Menu</span>
+      </button>
+    `;
+    document.body.appendChild(dock);
+
+    dock.addEventListener('click', (e)=>{
+      const btn = e.target.closest('[data-act]');
+      if(!btn) return;
+      const act = btn.dataset.act;
+      if (act === 'home') {
+        window.location.href = `/${LANG}/`;
+      } else if (act === 'quote') {
+        const q = document.getElementById('quote');
+        if (q) q.scrollIntoView({behavior:'smooth', block:'start'});
+        else {
+          // fallback: spróbuj linku do kontaktu z nagłówka/paneli
+          const contactLink = $('a[href*="kontakt"], a[href*="contact"]');
+          if (contactLink) window.location.href = contactLink.href;
+        }
+      } else if (act === 'menu') {
+        const openBtn = $('#hamburger');
+        openBtn && openBtn.click();
+      }
+    });
+  })();
+
+  /* =========================
+     HERO TITLE — „rozsuń” na scroll sekcji ofert
+     ========================= */
+  (function initHeroTitleScroll(){
+    const section = $('#offer-reveal');
+    if (!section) return;
+    const title = $('.split-hero__title', section);
+    const L = $('.title-left', title);
+    const R = $('.title-right', title);
+    if (!title || !L || !R) return;
+
+    let ticking = false;
+
+    function update(){
+      ticking = false;
+      const rect = section.getBoundingClientRect();
+      // progress w zakresie [-0.2, 1.2] dla płynności (0..1 używamy realnie)
+      const vh = window.innerHeight || 1;
+      const start = vh * 0.15; // kiedy zacząć (po ~15vh)
+      const span  = vh * 0.35; // przez ile „wysuwać”
+      const p = clamp((start - rect.top) / span, 0, 1);
+
+      const shift = 22 * p; // % przesunięcia w bok
+      const op    = 1 - p;  // wygaszanie
+      L.style.transform = `translateX(${-2 - shift}%)`;
+      R.style.transform = `translateX(${2 + shift}%)`;
+      L.style.opacity = R.style.opacity = String(op);
+    }
+
+    function onScroll(){
+      if (ticking) return;
+      ticking = true;
+      raf(update);
+    }
+
+    update();
+    document.addEventListener('scroll', onScroll, {passive:true});
+    window.addEventListener('resize', onScroll);
+  })();
+
+  /* =========================
+     OFFER RAIL — 3D tilt + snap „tap-hint”
+     ========================= */
+  (function initOfferRail(){
+    const rail = $('#offer-rail');
+    if (!rail) return;
+    const cards = $$('.offer-card', rail);
+    if (!cards.length) return;
+
+    const MAX_TILT = 12; // deg (trend)
+    let focIdx = -1;
+    let hintTimer = null;
+
+    function setTilt(card, ev){
+      if (prefersReduced) return;
+      const r = card.getBoundingClientRect();
+      const x = (ev.clientX - r.left) / r.width;   // 0..1
+      const y = (ev.clientY - r.top)  / r.height;  // 0..1
+      const ry = (x - 0.5) * (MAX_TILT * 2);       // rotateY
+      const rx = (0.5 - y) * (MAX_TILT * 1.6);     // rotateX
+      card.style.setProperty('--tiltX', rx.toFixed(2) + 'deg');
+      card.style.setProperty('--tiltY', ry.toFixed(2) + 'deg');
+    }
+    function resetTilt(card){
+      card.style.setProperty('--tiltX','0deg');
+      card.style.setProperty('--tiltY','0deg');
+    }
+
+    cards.forEach(card=>{
+      card.addEventListener('pointermove', (e)=> setTilt(card, e));
+      card.addEventListener('pointerleave', ()=> resetTilt(card));
+      card.addEventListener('touchstart', ()=> card.classList.add('is-focused'), {passive:true});
+      card.addEventListener('touchend', ()=> card.classList.remove('is-focused'));
+    });
+
+    function updateFocus(){
+      const cx = window.innerWidth / 2;
+      let best = {idx:-1, dist:Infinity};
+      cards.forEach((c, i)=>{
+        const r = c.getBoundingClientRect();
+        const mid = r.left + r.width / 2;
+        const d = Math.abs(mid - cx);
+        if (d < best.dist) best = {idx:i, dist:d};
+      });
+      if (best.idx !== focIdx) {
+        if (focIdx >= 0 && cards[focIdx]) cards[focIdx].classList.remove('is-focused');
+        focIdx = best.idx;
+        cards[focIdx] && cards[focIdx].classList.add('is-focused');
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(()=>{ cards[focIdx] && cards[focIdx].classList.remove('is-focused'); }, 900);
+      }
+    }
+
+    // reaguj na przewijanie railsa i na przewijanie strony
+    let ticking = false;
+    const onAnyScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      raf(()=>{ ticking = false; updateFocus(); });
+    };
+    rail.addEventListener('scroll', onAnyScroll, {passive:true});
+    document.addEventListener('scroll', onAnyScroll, {passive:true});
+    window.addEventListener('resize', onAnyScroll);
+
+    // inicjalne wybranie
+    updateFocus();
+  })();
+
+  /* =========================
+     FORMATTER treści z arkusza
+     - zamienia \n na <br> / akapity
+     - **bold** → <strong>
+     - linie zaczynające się od "-" lub "•" → <ul><li>…</li></ul>
+     ========================= */
+  (function initContentFormatter(){
+    function toHTML(text){
+      if(!text) return '';
+      let t = String(text).replace(/\r\n/g,'\n').trim();
+
+      // wykryj listy
+      const lines = t.split('\n');
+      let out = [], buf = [];
+      function flushUL(){
+        if (!buf.length) return;
+        out.push('<ul>');
+        buf.forEach(item=>{
+          const s = item.replace(/^[-•]\s?/, '').trim();
+          out.push('<li>'+s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')+'</li>');
+        });
+        out.push('</ul>');
+        buf = [];
+      }
+      for (const L of lines) {
+        if (/^\s*[-•]\s+/.test(L)) { buf.push(L); continue; }
+        flushUL();
+        if (L.trim()==='') { out.push('<p></p>'); continue; }
+        out.push('<p>'+L.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')+'</p>');
+      }
+      flushUL();
+
+      // sklej puste <p></p> powstałe po podwójnych \n
+      const html = out.join('').replace(/(<p>\s*<\/p>)+/g,'<br>');
+      return html;
+    }
+
+    // lead: pozostawiamy <br>, bez <ul>
+    $$( '[data-lead], .lead').forEach(el=>{
+      const raw = el.textContent || '';
+      el.innerHTML = raw
+        .replace(/\r\n/g,'\n')
+        .split('\n').map(s=>s.trim()).join('<br>')
+        .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    });
+
+    // markdown-like (sekcje, bloki)
+    $$('[data-md], .prose').forEach(el=>{
+      const raw = el.textContent || '';
+      el.innerHTML = toHTML(raw);
+    });
+  })();
+
+  /* =========================
+     QUALITY OF LIFE: smooth anchor scroll (mobile)
+     ========================= */
+  (function initSmoothAnchors(){
+    $$('a[href^="#"]').forEach(a=>{
+      a.addEventListener('click', (e)=>{
+        const id = a.getAttribute('href').slice(1);
+        const target = document.getElementById(id);
+        if (!target) return;
+        e.preventDefault();
+        target.scrollIntoView({behavior:'smooth', block:'start'});
+      });
+    });
+  })();
+
 })();
