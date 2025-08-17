@@ -1,3 +1,27 @@
+{# ==== SAFE DEFAULTS (header) ==== #}
+{% set BRAND = (company[0].name if company is defined and company|length>0 and company[0].name else 'Kras-Trans') %}
+{% set _lang = (page.lang or 'pl') if page is defined else 'pl' %}
+
+{# NAV_CFG bywa nieprzekazany — użyj pustej mapy #}
+{% set NAV = nav_cfg if nav_cfg is defined and nav_cfg else {} %}
+{% set HREF = hreflang if hreflang is defined else {} %}
+
+{# Lista języków: z NAV.langs lub domyślna #}
+{% set LANGS = (NAV.langs if NAV and (NAV.langs is defined) else ['pl','en','de','fr','it','ru','ua']) %}
+
+{# Generuj URL do strony o danym slugKey i języku — najpierw z hreflang, inaczej /{lang}/{slug}/ #}
+{% macro link_for(slugkey, lang) -%}
+  {%- set m = HREF.get(slugkey, {}) -%}
+  {%- if m and m.get(lang) -%}{{ m[lang] }}
+  {%- else -%}/{{ lang }}/{{ slugkey }}/
+  {%- endif -%}
+{%- endmacro %}
+
+{# Proste etykiety, gdy strings nie nadejdą #}
+{% set STR = (strings if strings is defined and strings else {}) %}
+{% set LBL_QUOTE  = STR.get('hero_cta_primary','Wycena') %}
+{% set LBL_ABOUT  = STR.get('menu_about','O nas') %}
+{% set LBL_CONTACT= STR.get('menu_contact','Kontakt') %}
 <!-- ============ HEADER / NAVIGATION ============ -->
 <header class="site-header" role="banner">
   <div class="container navbar">
