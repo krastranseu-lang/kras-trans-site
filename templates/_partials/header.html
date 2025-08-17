@@ -1,0 +1,228 @@
+<!-- ============ HEADER / MEGA NAV ============ -->
+<header id="header" class="site-header" role="banner">
+  <div class="container navbar">
+    <a class="brand" href="/{{ _lang }}/" aria-label="Home">
+      <span class="brand__logo" aria-hidden="true">K</span>
+      <span class="brand__name">{{ BRAND }}</span>
+    </a>
+
+    <nav class="nav" aria-label="Primary">
+      <ul class="nav__list" role="menubar">
+        <li role="none">
+          <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="services">
+            {{ STR.menu_services }}
+            <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+          </button>
+        </li>
+        <li role="none">
+          <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="industries">
+            {{ STR.menu_biz }}
+            <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+          </button>
+        </li>
+        <li role="none">
+          <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="resources">
+            {{ STR.menu_resources }}
+            <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+          </button>
+        </li>
+        <li role="none"><a class="nav__btn" role="menuitem" href="{{ url_of('about', _lang) }}">{{ STR.menu_about }}</a></li>
+        <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/flota/">{{ STR.menu_fleet }}</a></li>
+        <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/blog/">{{ STR.menu_blog }}</a></li>
+      </ul>
+    </nav>
+
+    <div class="actions">
+      <a href="#quote" class="cta nojs-hide">{{ STR.hero_cta_primary }}</a>
+
+      <div class="lang" data-lang>
+        <button class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="lang-panel" title="Language">
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <div id="lang-panel" class="lang__panel" role="menu" aria-label="Select language">
+          <ul class="lang__list">
+            <li><a href="/pl/" role="menuitem">🇵🇱 Polski</a></li>
+            <li><a href="/en/" role="menuitem">🇬🇧 English</a></li>
+            <li><a href="/de/" role="menuitem">🇩🇪 Deutsch</a></li>
+            <li><a href="/fr/" role="menuitem">🇫🇷 Français</a></li>
+            <li><a href="/it/" role="menuitem">🇮🇹 Italiano</a></li>
+            <li><a href="/ru/" role="menuitem">🇷🇺 Русский</a></li>
+            <li><a href="/ua/" role="menuitem">🇺🇦 Українська</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <button id="themeToggle" class="icon-btn" aria-label="Theme">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path id="themeIcon" d="M12 3a9 9 0 100 18 7 7 0 010-18z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+      </button>
+
+      <button class="icon-btn hamburger" id="hamburger" aria-expanded="false" aria-controls="drawer" aria-label="Menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== Mega panels (desktop) ===== -->
+  <div class="panels">
+    <div class="panel" id="panel-services" hidden>
+      <div class="container panel__grid">
+        <div class="panel__col">
+          <h4>Transport</h4>
+          <a class="panel__link" href="/{{ _lang }}/transport-ekspresowy/"><strong>Ekspres bus 3,5 t</strong> <span class="chip">Same day</span></a>
+          <a class="panel__link" href="/{{ _lang }}/tir/"><strong>Transport TIR (FTL/LTL)</strong></a>
+          <a class="panel__link" href="/{{ _lang }}/przeprowadzki-b2b/"><strong>Przeprowadzki B2B</strong></a>
+          <a class="panel__link" href="/{{ _lang }}/adr/"><strong>ADR*</strong> <span class="chip">po potwierdzeniu</span></a>
+        </div>
+        <div class="panel__col">
+          <h4>Spedycja</h4>
+          <a class="panel__link" href="#"><strong>Stałe trasy dla firm</strong></a>
+          <a class="panel__link" href="#"><strong>Planowanie i konsolidacja</strong></a>
+          <a class="panel__link" href="#"><strong>Fulfillment & cross-dock</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Kierunki</h4>
+          <a class="panel__link" href="#"><strong>Polska</strong></a>
+          <a class="panel__link" href="#"><strong>Niemcy</strong></a>
+          <a class="panel__link" href="#"><strong>Francja</strong></a>
+          <a class="panel__link" href="#"><strong>Benelux & Włochy</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Szybkie akcje</h4>
+          <a class="panel__link" href="#quote"><strong>Wyceń transport</strong></a>
+          <a class="panel__link" href="{{ url_of('contact', _lang) }}"><strong>{{ STR.menu_contact }}</strong></a>
+          <a class="panel__link" href="#faq"><strong>FAQ</strong></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-industries" hidden>
+      <div class="container panel__grid">
+        <div class="panel__col">
+          <h4>Branże</h4>
+          <a class="panel__link" href="#"><strong>E-commerce & 3PL</strong></a>
+          <a class="panel__link" href="#"><strong>Automotive</strong></a>
+          <a class="panel__link" href="#"><strong>Retail & FMCG</strong></a>
+          <a class="panel__link" href="#"><strong>High-tech</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Use cases</h4>
+          <a class="panel__link" href="#"><strong>JIT / produkcja</strong></a>
+          <a class="panel__link" href="#"><strong>Zwroty & reverse</strong></a>
+          <a class="panel__link" href="#"><strong>Event logistics</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Dokumenty</h4>
+          <a class="panel__link" href="#"><strong>Wzór zlecenia</strong></a>
+          <a class="panel__link" href="#"><strong>Warunki współpracy</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Kontakt B2B</h4>
+          <a class="panel__link" href="#quote"><strong>Stała umowa / cennik</strong></a>
+          <a class="panel__link" href="{{ url_of('contact', _lang) }}"><strong>Zostaw brief</strong></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-resources" hidden>
+      <div class="container panel__grid">
+        <div class="panel__col">
+          <h4>Materiały</h4>
+          <a class="panel__link" href="/{{ _lang }}/blog/"><strong>Blog</strong></a>
+          <a class="panel__link" href="/{{ _lang }}/case-studies/"><strong>Case studies</strong></a>
+          <a class="panel__link" href="#"><strong>Poradniki</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Narzędzia</h4>
+          <a class="panel__link" href="#"><strong>Kalkulator objętości</strong></a>
+          <a class="panel__link" href="#quote"><strong>Wycena online</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Wsparcie</h4>
+          <a class="panel__link" href="#faq"><strong>FAQ</strong></a>
+          <a class="panel__link" href="{{ url_of('contact', _lang) }}"><strong>{{ STR.menu_contact }}</strong></a>
+        </div>
+        <div class="panel__col">
+          <h4>Informacje</h4>
+          <a class="panel__link" href="{{ url_of('about', _lang) }}"><strong>{{ STR.menu_about }}</strong></a>
+          <a class="panel__link" href="/{{ _lang }}/flota/"><strong>{{ STR.menu_fleet }}</strong></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ MOBILE DRAWER ============ -->
+<div class="drawer" id="drawer" hidden aria-hidden="true">
+  <div class="drawer__head">
+    <div class="brand"><span class="brand__logo">K</span><span class="brand__name">{{ BRAND }}</span></div>
+    <button class="icon-btn" id="drawerClose" aria-label="Zamknij">
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="drawer__body">
+    <nav aria-label="Mobile">
+      <div class="acc">
+        <button class="acc__btn" aria-expanded="false">{{ STR.menu_services }}
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+        </button>
+        <div class="acc__panel">
+          <ul class="sublist">
+            <li><a href="/{{ _lang }}/transport-ekspresowy/">Ekspres bus 3,5 t</a></li>
+            <li><a href="/{{ _lang }}/tir/">Transport TIR (FTL/LTL)</a></li>
+            <li><a href="/{{ _lang }}/przeprowadzki-b2b/">Przeprowadzki B2B</a></li>
+            <li><a href="/{{ _lang }}/adr/">ADR*</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="acc">
+        <button class="acc__btn" aria-expanded="false">{{ STR.menu_biz }}
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+        </button>
+        <div class="acc__panel">
+          <ul class="sublist">
+            <li><a href="#">Branże</a></li>
+            <li><a href="#">JIT / produkcja</a></li>
+            <li><a href="#">Warunki współpracy</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="acc">
+        <button class="acc__btn" aria-expanded="false">{{ STR.menu_resources }}
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+        </button>
+        <div class="acc__panel">
+          <ul class="sublist">
+            <li><a href="/{{ _lang }}/blog/">Blog</a></li>
+            <li><a href="#">Case studies</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <a class="sublist" href="{{ url_of('about', _lang) }}" style="display:block;padding:14px 0">{{ STR.menu_about }}</a>
+      <a class="sublist" href="/{{ _lang }}/flota/" style="display:block;padding:14px 0">{{ STR.menu_fleet }}</a>
+      <a class="sublist" href="/{{ _lang }}/blog/"  style="display:block;padding:14px 0">{{ STR.menu_blog }}</a>
+
+      <div style="padding:16px 0;display:flex;gap:10px">
+        <a class="cta" href="#quote" style="flex:1;justify-content:center">{{ STR.hero_cta_primary }}</a>
+        <a class="icon-btn" href="tel:{{ PHONE }}" aria-label="Call">
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.86 19.86 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.89.31 1.76.57 2.6a2 2 0 0 1-.45 2.11L8 9a16 16 0 0 0 6 6l.57-.22a2 2 0 0 1 2.11.45c.84.26 1.71.45 2.6.57A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        </a>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<!-- ============ MOBILE BOTTOM DOCK (always visible) ============ -->
+<nav class="mobile-dock" aria-label="Quick actions">
+  <a id="dock-home" class="dock-btn" href="/{{ _lang }}/" aria-label="Home">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5l9-7 9 7V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" fill="currentColor"/></svg>
+    <span>{{ STR.dock_home }}</span>
+  </a>
+  <a id="dock-quote" class="dock-cta" href="#quote" aria-label="Quote">{{ STR.hero_cta_primary }}</a>
+  <button id="dock-menu" class="dock-btn" aria-label="Menu" aria-controls="drawer" aria-expanded="false">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+    <span>{{ STR.dock_menu }}</span>
+  </button>
+</nav>
+
