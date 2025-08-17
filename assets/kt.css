@@ -90,3 +90,61 @@ img,svg{display:block;max-width:100%} a{color:inherit;text-decoration:none} butt
 a[data-disappear],button[data-disappear]{transition:opacity .14s ease,transform .14s ease;will-change:opacity,transform}
 a[data-disappear].bye,button[data-disappear].bye{opacity:0;transform:scale(.92);pointer-events:none}
 @media(prefers-reduced-motion:reduce){a[data-disappear],button[data-disappear]{transition:none}}
+
+/* === Mobile dock (glass, glow) === */
+.mobile-dock{
+  position: fixed; inset:auto 50% 14px auto; transform:translateX(-50%);
+  display:flex; gap:10px; align-items:center; z-index:999;
+  padding:8px; border-radius:16px; border:1px solid hsl(220 12% 20% / .5);
+  background: linear-gradient(235deg, hsl(210 50% 10%/.7), transparent 33%),
+              linear-gradient( 45deg, hsl(260 50% 10%/.7), transparent 33%),
+              linear-gradient(hsl(220 25% 5% /.75));
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 16px -8px hsl(220 50% 2% / .7), 0 20px 36px -14px hsl(220 50% 4% /.5);
+}
+.mobile-dock .dock-btn,
+.mobile-dock .dock-cta{
+  display:flex; gap:8px; align-items:center; justify-content:center;
+  padding:10px 14px; border-radius:12px; font-weight:600; line-height:1;
+  color: #e7ecf5; background: hsl(220 14% 12% / .5); border:1px solid hsl(220 12% 22%/.6);
+}
+.mobile-dock .dock-cta{
+  background: linear-gradient(135deg,#31b0ff,#21e1c4);
+  color:#081018; border:0; box-shadow: 0 6px 20px -6px #31b0ff80;
+}
+@media (min-width: 980px){ .mobile-dock{ display:none; } }
+
+/* === Offer rail: horizontal, 3D tiles (mobile) === */
+.split-hero__rail{
+  display:flex; gap:14px; overflow-x:auto; padding: 10px 10px 18px;
+  scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
+}
+.offer-card{
+  --tilt: 0deg;
+  flex:0 0 88%; max-width:88%; scroll-snap-align:center;
+  transform: perspective(900px) rotateY(var(--tilt)) translateZ(0);
+  transition: transform .2s ease, box-shadow .2s ease;
+  border-radius:20px; background: hsl(220 14% 10%/.6);
+  border:1px solid hsl(220 12% 22%/.5);
+  box-shadow: 0 10px 22px -10px hsl(220 80% 30% /.35), 0 26px 60px -24px hsl(220 70% 20% /.35);
+}
+.offer-card img{ display:block; width:100%; height:auto; border-radius:inherit; }
+.offer-card .offer-card__title{ display:block; font-weight:700; font-size:1.1rem; padding:12px 14px 6px; }
+.offer-card .offer-card__desc{ display:block; padding:0 14px 14px; color:#aab3c2; font-size:.95rem; }
+@media (min-width: 980px){
+  .offer-card{ flex:0 0 320px; max-width:320px; }
+}
+
+/* === Big split title scroll effect (fade+slide) === */
+.split-hero__title{
+  position: sticky; top: 0; pointer-events:none;
+  --titleOpacity: 1; --titleShift: 0px; --titleScale: 1;
+  opacity: var(--titleOpacity);
+  transform: translateY(var(--titleShift)) scale(var(--titleScale));
+  transition: opacity .15s linear, transform .15s linear;
+}
+.title-half{ will-change:transform; }
+
+/* Prose lists from text columns */
+.prose ul{ margin: 8px 0 14px 18px; }
+.prose li{ margin: 4px 0; }
