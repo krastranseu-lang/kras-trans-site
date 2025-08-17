@@ -1,0 +1,222 @@
+{# ========= Licencje & ubezpieczenia (Company) ========= #}
+{% set _lang   = page.lang or 'pl' %}
+{% set _slug   = page.slugKey or page.slug or 'licenses-insurance' %}
+{% set BRAND   = (company[0].name if company is defined and company|length > 0 and company[0].name else 'Kras-Trans') %}
+{% set PHONE   = (company and company[0].telephone) or '+48793927467' %}
+{% set HREFMAP = (hreflang if hreflang is defined else {}) %}
+{% set STR = {
+  'pl': {
+    'h1': (page.h1 or page.title or 'Licencje i ubezpieczenia'),
+    'lead': (page.lead or 'Bezpieczeństwo i zgodność: nasze licencje przewozowe, polisy OCP/CMR oraz dokumenty do pobrania.'),
+    'dl': 'Do pobrania',
+    'ins': 'Ubezpieczenia',
+    'lic': 'Licencje i uprawnienia',
+    'faq': 'Najczęstsze pytania',
+    'cta': 'Pobierz wzór CMR',
+    'cta2': 'Skontaktuj się z nami',
+    'crumb_company': 'Firma',
+    'crumb_page': 'Licencje & ubezpieczenia'
+  },
+  'en': {
+    'h1': (page.h1 or page.title or 'Licences & insurance'),
+    'lead':'Safety and compliance: haulage licences, OCP/CMR insurance and downloads.',
+    'dl':'Downloads','ins':'Insurance','lic':'Licences','faq':'FAQ',
+    'cta':'Download CMR template','cta2':'Contact us',
+    'crumb_company':'Company','crumb_page':'Licences & insurance'
+  }
+}[_lang] %}
+
+{% set _canon  = page.canonical_path or '/' ~ _lang ~ '/' ~ (_slug ~ '/' if _slug else '') %}
+{% set _hreflang_map = HREFMAP[_slug] if HREFMAP and (_slug in HREFMAP) else {} %}
+
+<!doctype html>
+<html lang="{{ _lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ page.seo_title or STR.h1 ~ ' — ' ~ BRAND }}</title>
+  <meta name="description" content="{{ page.meta_desc or STR.lead }}">
+  <link rel="canonical" href="{{ _canon }}">
+  {# alternatywne wersje językowe #}
+  {% for L,href in _hreflang_map.items() %}
+  <link rel="alternate" hreflang="{{ 'uk' if L=='ua' else L }}" href="{{ href }}">{% endfor %}
+  {% if _hreflang_map %}<link rel="alternate" hreflang="x-default" href="{{ _hreflang_map.get('en') or _hreflang_map.get('pl') }}">{% endif %}
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ page.og_title or page.seo_title or STR.h1 }}">
+  <meta property="og:description" content="{{ page.og_desc or page.meta_desc or STR.lead }}">
+  <meta property="og:image" content="{{ page.og_image or '/assets/media/og-default.jpg' }}">
+  <meta property="og:url" content="{{ _canon }}">
+  <meta name="theme-color" content="#ff7a1a">
+
+  {# globalne style (używamy istniejących plików) #}
+  <link rel="preload" href="/assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/InterVariable-Italic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/kras-global.css">
+  <link rel="stylesheet" href="/assets/css/kras-ui.css">
+  <link rel="stylesheet" href="/assets/kt.css">
+
+  {# JSON-LD: Breadcrumbs + FAQ (z bloków) #}
+  {% set faqs = (blocks|selectattr('block','equalto','faq')|selectattr('page','equalto',_slug)|selectattr('lang','equalto',_lang)|list) if blocks is defined else [] %}
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"BreadcrumbList",
+    "itemListElement":[
+      {"@type":"ListItem","position":1,"name":"{{ STR.crumb_company }}","item":"/{{ _lang }}/o-firmie/"},
+      {"@type":"ListItem","position":2,"name":"{{ STR.crumb_page }}","item":"{{ _canon }}"}
+    ]
+  }
+  </script>
+  {% if faqs|length %}
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"FAQPage",
+    "mainEntity":[
+      {% for f in faqs %}
+      {"@type":"Question","name":"{{ f.title|e }}","acceptedAnswer":{"@type":"Answer","text":"{{ (f.body_md or f.lead or '')|e }}"}}
+      {% if not loop.last %},{% endif %}
+      {% endfor %}
+    ]
+  }
+  </script>
+  {% endif %}
+</head>
+
+<body>
+  {% include "_partials/header.html" %}
+
+  <main id="main" class="content" role="main">
+    <section class="section --line">
+      <div class="container hero-wrap">
+        <div>
+          <span class="claim">{{ STR.crumb_company }}</span>
+          <h1>{{ page.h1 or STR.h1 }}</h1>
+          <p class="lead" data-md>{{ page.lead or STR.lead }}</p>
+
+          <p style="margin-top:18px">
+            <a class="btn primary btn--shine" href="/assets/docs/cmr.pdf" download>
+              <span class="btn__label">{{ STR.cta }}</span>
+              <span class="btn__spinner" aria-hidden="true"></span>
+            </a>
+            <a class="btn" href="/{{ _lang }}/kontakt/">{{ STR.cta2 }}</a>
+          </p>
+        </div>
+
+        {% if page.hero_image or page.hero_video %}
+        <div>
+          {% if page.hero_video %}
+          <video class="hero-media" muted loop playsinline preload="none" poster="{{ page.hero_poster or '' }}">
+            <source src="{{ page.hero_video }}" type="video/mp4">
+          </video>
+          {% else %}
+          <img class="hero-media" src="{{ page.hero_image }}" alt="" loading="eager" width="1680" height="720">
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
+    {# ======= Licencje / Ubezpieczenia / Do pobrania ======= #}
+    {% set _items_lic = (blocks|selectattr('block','equalto','license')|selectattr('page','equalto',_slug)|selectattr('lang','equalto',_lang)|list) if blocks is defined else [] %}
+    {% set _items_ins = (blocks|selectattr('block','equalto','insurance')|selectattr('page','equalto',_slug)|selectattr('lang','equalto',_lang)|list) if blocks is defined else [] %}
+    {% set _items_dl  = (blocks|selectattr('block','equalto','download')|selectattr('page','equalto',_slug)|selectattr('lang','equalto',_lang)|list) if blocks is defined else [] %}
+
+    <section class="section">
+      <div class="container cards cards--wrap">
+        <article class="card" style="grid-column: span 6">
+          <div class="pad">
+            <h2>{{ STR.lic }}</h2>
+            {% if _items_lic|length %}
+              <ul>
+                {% for it in _items_lic|sort(attribute='order') %}
+                <li><strong>{{ it.title }}</strong>{% if it.lead %}: {{ it.lead }}{% endif %}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="muted">Wpisz licencje w arkuszu (blok: <code>license</code>, strona: <code>{{ _slug }}</code>).</p>
+            {% endif %}
+          </div>
+        </article>
+
+        <article class="card" style="grid-column: span 6">
+          <div class="pad">
+            <h2>{{ STR.ins }}</h2>
+            {% if _items_ins|length %}
+              <ul>
+                {% for it in _items_ins|sort(attribute='order') %}
+                <li><strong>{{ it.title }}</strong>{% if it.lead %}: {{ it.lead }}{% endif %}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="muted">Dodaj pozycje ubezpieczeń w arkuszu (blok: <code>insurance</code>).</p>
+            {% endif %}
+          </div>
+        </article>
+
+        <article class="card" style="grid-column: span 12">
+          <div class="pad">
+            <h2>{{ STR.dl }}</h2>
+            {% if _items_dl|length %}
+            <div class="cards cards--wrap">
+              {% for it in _items_dl|sort(attribute='order') %}
+              <a class="card" href="{{ it.href or it.url }}" download style="grid-column: span 4; text-decoration:none">
+                <div class="pad">
+                  <h3>{{ it.title }}</h3>
+                  {% if it.lead %}<p class="muted">{{ it.lead }}</p>{% endif %}
+                </div>
+              </a>
+              {% endfor %}
+            </div>
+            {% else %}
+              <p class="muted">Dodaj pliki do pobrania (blok: <code>download</code> z <code>href</code>).</p>
+            {% endif %}
+          </div>
+        </article>
+      </div>
+    </section>
+
+    {# ========= FAQ ========= #}
+    {% if faqs|length %}
+    <section class="section --line" id="faq">
+      <div class="container">
+        <h2 style="text-align:center">{{ STR.faq }}</h2>
+        <div class="cards cards--wrap" style="margin-top:14px">
+          {% for f in faqs|sort(attribute='order') %}
+          <details class="card" style="grid-column: span 12">
+            <summary class="pad">{{ f.title }}</summary>
+            <div class="pad" data-md>{{ f.body_md or f.lead }}</div>
+          </details>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    {# ========= Mapa (opcjonalnie) ========= #}
+    {% if page.map_embed %}
+    <section class="section">
+      <div class="container">
+        <div class="map-frame">
+          <iframe src="{{ page.map_embed }}" loading="lazy" referrerpolicy="no-referrer" title="Mapa" allowfullscreen></iframe>
+        </div>
+      </div>
+    </section>
+    {% endif %}
+  </main>
+
+  {% include "_partials/footer.html" %}
+
+  <script src="/assets/js/kras-global.js" defer></script>
+  <script src="/assets/js/kras-ui.js" defer></script>
+
+  {# prosty formatter Markdown -> <br>/<p>/<strong> dla [data-md] i .lead #}
+  <script>
+  (function(){
+    function fmt(s){return (s||'').replace(/\r\n/g,'\n').replace(/\n\n+/g,'</p><p>').replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}
+    document.querySelectorAll('[data-md], .lead').forEach(el=>{el.innerHTML='<p>'+fmt(el.textContent.trim())+'</p>'})
+  })();
+  </script>
+</body>
+</html>
