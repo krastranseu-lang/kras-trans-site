@@ -86,3 +86,7 @@ img,svg{display:block;max-width:100%} a{color:inherit;text-decoration:none} butt
 
 /* Responsive */
 @media (max-width:991px){.nav{display:none}.hamburger{display:inline-grid}.panel{display:none !important}.cta{padding:.55rem .9rem}}
+
+a[data-disappear],button[data-disappear]{transition:opacity .14s ease,transform .14s ease;will-change:opacity,transform}
+a[data-disappear].bye,button[data-disappear].bye{opacity:0;transform:scale(.92);pointer-events:none}
+@media(prefers-reduced-motion:reduce){a[data-disappear],button[data-disappear]{transition:none}}

@@ -267,6 +267,32 @@
     primaryCta?.addEventListener('click', () => { showHowTo(); });
   }
 
+  // Efekt znikania przycisku przed przejściem na nową stronę
+  function initDisappear() {
+    document.addEventListener('click', e => {
+      const el = e.target.closest('a[data-disappear],button[data-disappear]');
+      if (!el) return;
+      if (el.dataset.firing) { e.preventDefault(); return; }
+      el.dataset.firing = '1';
+      const rect = el.getBoundingClientRect();
+      el.style.width = rect.width + 'px';
+      el.style.height = rect.height + 'px';
+      el.classList.add('bye');
+      el.setAttribute('aria-disabled', 'true');
+      const url = el.getAttribute('href') || el.dataset.href || '#';
+      const target = el.getAttribute('target');
+      const delay = parseInt(el.dataset.delay || '140', 10);
+      e.preventDefault();
+      window.setTimeout(() => {
+        if (target === '_blank') {
+          window.open(url, '_blank', 'noopener');
+        } else {
+          window.location.assign(url);
+        }
+      }, delay);
+    });
+  }
+
   // Leniwe wczytanie tła canvas (animacja patyczków) po pewnym czasie bezczynności
   function lazyBackgrounds() {
     const canvas = document.getElementById('bg-canvas');
@@ -354,6 +380,7 @@
     initHowTo();
     lazyBackgrounds();
     initMapEmbed();
+    initDisappear();
     gateAnimations();
     // Odsłonięcie hero (np. dla fade-in obrazu)
     const hero = document.getElementById('hero');
