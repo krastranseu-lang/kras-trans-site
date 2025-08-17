@@ -43,20 +43,22 @@
   {% include '_partials/header.html' %}
   <main>
     {{ page_html|safe }}
-    {% if page.min_outlinks is defined and page.max_outlinks is defined %}
-      {% set links = SEO.outlinks(page, PAGES, page.min_outlinks, page.max_outlinks, page.suggest_links, page.anchor_text_suggestions) %}
-      {% if links %}
-      <nav class="outlinks" aria-label="Related">
-        <ul>
-          {% for l in links %}
-            <li><a href="{{ l.href }}">{{ l.anchor }}</a></li>
-          {% endfor %}
-        </ul>
-      </nav>
-      {% endif %}
-    {% endif %}
   </main>
   <script type="application/ld+json">{{ SEO.structured(page, company, BLOCKS)|tojson }}</script>
+  <script type="application/ld+json">{{ {
+    '@context':'https://schema.org',
+    '@type':'Article',
+    'headline': page.seo_title if page.seo_title is defined and page.seo_title else page.title,
+    'image': page.hero_image if page.hero_image is defined else '',
+    'author': {'@type':'Person','name': page.author} if page.author is defined else {},
+    'datePublished': page.published if page.published is defined else '' }|tojson }}</script>
+  {% if page.kpi is defined %}
+  <script type="application/ld+json">{{ {
+    '@context':'https://schema.org',
+    '@type':'Review',
+    'itemReviewed': {'@type':'Thing','name': page.h1 or page.title},
+    'reviewBody': page.kpi }|tojson }}</script>
+  {% endif %}
   {% include '_partials/footer.html' %}
 </body>
 </html>
