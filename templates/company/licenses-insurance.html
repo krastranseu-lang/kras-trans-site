@@ -81,9 +81,7 @@
   {# globalne style (używamy istniejących plików) #}
   <link rel="preload" href="/assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/assets/fonts/InterVariable-Italic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/assets/css/kras-global.css">
-  <link rel="stylesheet" href="/assets/css/kras-ui.css">
-  <link rel="stylesheet" href="/assets/kt.css">
+  <link rel="stylesheet" href="/assets/css/app.css">
 
   {# JSON-LD: Breadcrumbs + FAQ (z bloków) #}
   {% set faqs = (blocks|selectattr('block','equalto','faq')|selectattr('page','equalto',_slug)|selectattr('lang','equalto',_lang)|list) if blocks is defined else [] %}
@@ -236,9 +234,7 @@
   </main>
 
   {% include "_partials/footer.html" %}
-
-  <script src="/assets/js/kras-global.js" defer></script>
-  <script src="/assets/js/kras-ui.js" defer></script>
+  <script src="/assets/js/app.js" defer></script>
 
   {# prosty formatter Markdown -> <br>/<p>/<strong> dla [data-md] i .lead #}
   <script>
