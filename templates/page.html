@@ -274,7 +274,7 @@
               <a role="listitem" class="offer-card" href="{{ url }}">
                 {% if it.media %}<img src="{{ it.media }}" alt="" width="{{ it.img_w or 1280 }}" height="{{ it.img_h or 720 }}" loading="lazy" decoding="async">{% endif %}
                 <span class="offer-card__title">{{ it.h1 or it.title or it.seo_title or it.slug }}</span>
-                {% if it.lead or it.desc or it.meta_desc %}<span class="offer-card__desc">{{ it.lead or it.desc or it.meta_desc }}</span>{% endif %}
+                {% if it.lead or it.desc or it.meta_desc %}<span class="offer-card__desc" data-md>{{ it.lead or it.desc or it.meta_desc }}</span>{% endif %}
               </a>
             {% endfor %}
           </div>
@@ -295,11 +295,10 @@
     <section class="section" id="kierunki" data-section="kierunki" data-style="glass">
       <div class="container text"><h2>{{ STR.routes_title or T.routes_title }}</h2></div>
       <div class="container">
-        <div class="iframe-wrap" style="aspect-ratio:16/9">
+        <div class="iframe-wrap">
           <iframe class="routes-map" title="Mapa kierunków" loading="lazy"
                   src="/assets/media/mapa-kierunkow-kras-trans.html"
-                  sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer"
-                  style="width:100%;height:100%;border:0"></iframe>
+                  sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer"></iframe>
         </div>
       </div>
     </section>
