@@ -1,3 +1,32 @@
+{% set _slug = page.slugKey or page.slug or 'licenses-insurance' %}
+{% set _lang = page.lang or 'pl' %}
+{% set STR   = (strings if strings is defined and strings else {}) %}
+
+{% include '_partials/header.html' %}
+{# ...dalej treść strony (bloki z arkusza) #}
+
+{# Przykład pobrania bloków z arkusza dla tej podstrony: #}
+{% set page_blocks = (blocks or []) 
+  | selectattr('lang','equalto',_lang)
+  | selectattr('page','equalto',_slug)
+  | selectattr('enabled','ne',False)
+  | list %}
+{% if page_blocks|length %}
+  <section class="section">
+    <div class="container grid">
+      {% for b in page_blocks|sort(attribute='order') %}
+        <article class="card">
+          {% if b.title %}<h3>{{ b.title }}</h3>{% endif %}
+          {% if b.lead %}<p class="muted" data-md>{{ b.lead }}</p>{% endif %}
+          {% if b.body_md %}<div class="prose" data-md>{{ b.body_md }}</div>{% endif %}
+          {% if b.cta_label and b.href %}<p><a class="btn" href="{{ b.href }}">{{ b.cta_label }}</a></p>{% endif %}
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+{% include '_partials/footer.html' %}
 {# ========= Licencje & ubezpieczenia (Company) ========= #}
 {% set _lang   = page.lang or 'pl' %}
 {% set _slug   = page.slugKey or page.slug or 'licenses-insurance' %}
