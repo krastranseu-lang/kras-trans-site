@@ -1,12 +1,23 @@
+{# ==== SAFE DEFAULTS (footer) ==== #}
+{% set BRAND = (company[0].name if company is defined and company|length>0 and company[0].name else 'Kras-Trans') %}
+{% set _lang = (page.lang or 'pl') if page is defined else 'pl' %}
+{% set HREF = hreflang if hreflang is defined else {} %}
+{% macro link_for(slugkey, lang) -%}
+  {%- set m = HREF.get(slugkey, {}) -%}
+  {%- if m and m.get(lang) -%}{{ m[lang] }}{%- else -%}/{{ lang }}/{{ slugkey }}/ {%- endif -%}
+{%- endmacro %}
+{% set STR = (strings if strings is defined and strings else {}) %}
+{% set LBL_LICENSES = STR.get('licenses_label','Licencje & ubezpieczenia') %}
+{% set LBL_ABOUT    = STR.get('menu_about','O firmie') %}
+{% set LBL_CONTACT  = STR.get('menu_contact','Kontakt') %}
 <!-- ============ FOOTER ============ -->
 <footer class="site-footer">
   <div class="container foot-row">
     <div>© {{ SEO.brand(company) }}</div>
     <nav class="foot-nav" aria-label="Footer">
-      <a href="{{ url_of('contact', _lang) }}">{{ STR.menu_contact }}</a>
-      <a href="{{ url_of('about', _lang) }}">{{ STR.menu_about }}</a>
-      <a href="{{ url_of('licenses-insurance', _lang) }}">{{ STR.licenses_label }}</a>
-    </nav>
+<a href="{{ link_for('contact', _lang) }}">{{ LBL_CONTACT }}</a>
+<a href="{{ link_for('about', _lang) }}">{{ LBL_ABOUT }}</a>
+<a href="{{ link_for('licenses-insurance', _lang) }}">{{ LBL_LICENSES }}</a>    </nav>
     {% if company is defined and company and company[0] %}
       {% set c = company[0] %}
       <address>
