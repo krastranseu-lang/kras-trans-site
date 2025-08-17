@@ -18,15 +18,12 @@
   <!-- Preload critical assets (fonts, CSS) -->
   <link rel="preload" href="/assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/assets/fonts/InterVariable-Italic.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="/assets/css/kras-global.css" as="style" />
-  <link rel="preload" href="/assets/css/kras-ui.css" as="style" />
+  <link rel="preload" href="/assets/css/app.css" as="style" />
   <!-- Asynchronous CSS loading (prevents render-blocking) -->
-  <link rel="stylesheet" href="/assets/css/kras-global.css" media="print" onload="this.media='all'; this.onload=null;" />
-  <link rel="stylesheet" href="/assets/css/kras-ui.css" media="print" onload="this.media='all'; this.onload=null;" />
+  <link rel="stylesheet" href="/assets/css/app.css" media="print" onload="this.media='all'; this.onload=null;" />
   <noscript>
     <!-- Fallback for no-JS: load CSS normally -->
-    <link rel="stylesheet" href="/assets/css/kras-global.css" />
-    <link rel="stylesheet" href="/assets/css/kras-ui.css" />
+    <link rel="stylesheet" href="/assets/css/app.css" />
   </noscript>
   <style>
     /* Visually hidden utility (for accessibility) */
@@ -244,16 +241,6 @@
     /* Globalna konfiguracja menu z CMS (wstawiana podczas build) */
     window.KRAS_NAV = {{ nav_cfg | tojson }};
   </script>
-  <script src="/assets/js/kras-global.js" defer></script>
-  <script src="/assets/js/menu-builder.js" defer></script>
-  <!-- Ładowanie głównego skryptu interfejsu po wczytaniu strony (idle) -->
-  <script>
-    (window.requestIdleCallback || window.setTimeout)(function(){
-      const s = document.createElement('script');
-      s.src = "/assets/js/kras-ui.js";
-      s.defer = true;
-      document.body.appendChild(s);
-    });
-  </script>
+  <script src="/assets/js/app.js" defer></script>
 </body>
 </html>
