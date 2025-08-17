@@ -38,6 +38,7 @@
     const lang=(window.CMS_PAGE&&window.CMS_PAGE.lang)||document.documentElement.lang||'pl';
     const slugKey=(window.CMS_PAGE&&window.CMS_PAGE.slugKey)||'';
     const navItems=(data.nav||[]).filter(it=>it.lang===lang && it.enabled!=='FALSE' && it.href && !/^#/.test(it.href) && it.href!=='/#/');
+    console.debug('[menu] nav items for', lang+':', navItems.length);
     navItems.sort((a,b)=>(+a.order||0)-(+b.order||0));
     if(!total || !navItems.length){
       console.warn('[menu] nav empty – using fallback menu');
