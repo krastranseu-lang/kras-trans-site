@@ -1,16 +1,18 @@
+{# ========= PAGE TEMPLATE (FULL REWRITE) ========= #}
+{# — bezpieczne set-y (nic nie wywali się przy brakach w CMS) — #}
 {% set BRAND   = (company[0].name if company is defined and company|length > 0 and company[0].name else 'Kras-Trans') %}
 {% set _slug   = page.slugKey or page.slug or 'home' %}
 {% set _lang   = page.lang or 'pl' %}
 
-{# --- fallback i18n, gdy strings brak --- #}
+{# — fallback i18n (gdy strings puste) — #}
 {% set I18N = {
-  'pl': {'offers_title':'Nasza oferta','routes_title':'Kierunki','hero_cta_primary':'Wyceń transport teraz','hero_cta_secondary':'Zadzwoń 24/7'},
-  'en': {'offers_title':'Our offer','routes_title':'Routes','hero_cta_primary':'Get a quote','hero_cta_secondary':'Call 24/7'},
-  'de': {'offers_title':'Unser Angebot','routes_title':'Routen','hero_cta_primary':'Angebot anfordern','hero_cta_secondary':'Anrufen 24/7'},
-  'fr': {'offers_title':'Notre offre','routes_title':'Itinéraires','hero_cta_primary':'Demander un devis','hero_cta_secondary':'Appeler 24/7'},
-  'it': {'offers_title':'La nostra offerta','routes_title':'Rotte','hero_cta_primary':'Richiedi preventivo','hero_cta_secondary':'Chiama 24/7'},
-  'ru': {'offers_title':'Наше предложение','routes_title':'Направления','hero_cta_primary':'Запросить расчёт','hero_cta_secondary':'Позвонить 24/7'},
-  'ua': {'offers_title':'Наша пропозиція','routes_title':'Напрямки','hero_cta_primary':'Кошторис','hero_cta_secondary':'Дзвонити 24/7'}
+  'pl': {'offers_title':'Nasza oferta','routes_title':'Kierunki','hero_cta_primary':'Wyceń transport teraz','hero_cta_secondary':'Zadzwoń 24/7','menu_services':'Usługi','menu_biz':'Dla firm','menu_resources':'Zasoby','menu_about':'O nas','menu_fleet':'Flota','menu_blog':'Blog','menu_contact':'Kontakt'},
+  'en': {'offers_title':'Our offer','routes_title':'Routes','hero_cta_primary':'Get a quote','hero_cta_secondary':'Call 24/7','menu_services':'Services','menu_biz':'For business','menu_resources':'Resources','menu_about':'About','menu_fleet':'Fleet','menu_blog':'Blog','menu_contact':'Contact'},
+  'de': {'offers_title':'Unser Angebot','routes_title':'Routen','hero_cta_primary':'Angebot anfordern','hero_cta_secondary':'Anrufen 24/7','menu_services':'Leistungen','menu_biz':'Für Firmen','menu_resources':'Ressourcen','menu_about':'Über uns','menu_fleet':'Flotte','menu_blog':'Blog','menu_contact':'Kontakt'},
+  'fr': {'offers_title':'Notre offre','routes_title':'Itinéraires','hero_cta_primary':'Demander un devis','hero_cta_secondary':'Appeler 24/7','menu_services':'Services','menu_biz':'Pour les entreprises','menu_resources':'Ressources','menu_about':'À propos','menu_fleet':'Flotte','menu_blog':'Blog','menu_contact':'Contact'},
+  'it': {'offers_title':'La nostra offerta','routes_title':'Rotte','hero_cta_primary':'Richiedi preventivo','hero_cta_secondary':'Chiama 24/7','menu_services':'Servizi','menu_biz':'Per aziende','menu_resources':'Risorse','menu_about':'Chi siamo','menu_fleet':'Flotta','menu_blog':'Blog','menu_contact':'Contatto'},
+  'ru': {'offers_title':'Наше предложение','routes_title':'Направления','hero_cta_primary':'Запросить расчёт','hero_cta_secondary':'Позвонить 24/7','menu_services':'Услуги','menu_biz':'Для бизнеса','menu_resources':'Ресурсы','menu_about':'О компании','menu_fleet':'Парк','menu_blog':'Блог','menu_contact':'Контакты'},
+  'ua': {'offers_title':'Наша пропозиція','routes_title':'Напрямки','hero_cta_primary':'Кошторис','hero_cta_secondary':'Дзвонити 24/7','menu_services':'Послуги','menu_biz':'Для бізнесу','menu_resources':'Ресурси','menu_about':'Про нас','menu_fleet':'Автопарк','menu_blog':'Блог','menu_contact':'Контакт'}
 } %}
 {% set STR     = (strings if strings is defined and strings else I18N[_lang]) %}
 {% set _canon  = page.canonical_path or '/' ~ _lang ~ '/' ~ (_slug != 'home' and (_slug ~ '/') or '') %}
@@ -21,7 +23,7 @@
 {% set HREFLANG= (hreflang if hreflang is defined else {}) %}
 {% set NAV_CFG = (nav_cfg if nav_cfg is defined else {}) %}
 
-{# pomocnicza: link do strony po slugKey + lang (szuka w hreflang lub w pages) #}
+{# — pomocnicze: zbuduj URL danej podstrony po slugKey i języku — #}
 {% macro url_of(slugkey, lang) -%}
   {%- set map = HREFLANG[slugkey] if HREFLANG and (slugkey in HREFLANG) else {} -%}
   {%- if map and (lang in map) -%}{{ map[lang] }}
@@ -37,110 +39,83 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#ff7a1a">
+  <meta name="theme-color" content="#0a0f16">
 
-  <title>{{ page.seo_title or page.title or 'Kras-Trans' }}</title>
+  <title>{{ page.seo_title or page.title or BRAND }}</title>
   <meta name="description" content="{{ page.meta_desc or page.lead or '' }}">
 
   <meta property="og:type" content="website">
-  <meta property="og:title" content="{{ page.og_title or page.seo_title or page.title }}">
+  <meta property="og:title" content="{{ page.og_title or page.seo_title or page.title or BRAND }}">
   <meta property="og:description" content="{{ page.og_desc or page.meta_desc or page.lead }}">
   <meta property="og:image" content="{{ page.og_image or '/assets/media/og-default.jpg' }}">
   <meta property="og:url" content="{{ _canon }}">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="{{ page.seo_title or page.title }}">
+  <meta name="twitter:title" content="{{ page.seo_title or page.title or BRAND }}">
   <meta name="twitter:description" content="{{ page.meta_desc or page.lead }}">
   <meta name="twitter:image" content="{{ page.og_image or '/assets/media/og-default.jpg' }}">
   <link rel="canonical" href="{{ _canon }}">
 
-  <!-- czcionki / CSS -->
-  <link rel="preload" href="/assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/assets/fonts/InterVariable-Italic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/assets/css/kras-global.css" as="style">
-  <link rel="preload" href="/assets/css/kras-ui.css" as="style">
-  <link rel="stylesheet" href="/assets/css/kras-global.css" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="/assets/css/kras-ui.css"    media="print" onload="this.media='all'">
-  <noscript>
-    <link rel="stylesheet" href="/assets/css/kras-global.css">
-    <link rel="stylesheet" href="/assets/css/kras-ui.css">
-  </noscript>
-  <link rel="stylesheet" href="/assets/kt.css">
-  <style>.visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}</style>
+  {# — HREFLANG (jeśli podano w CMS) — #}
+  {% set _map = HREFLANG[_slug] if HREFLANG and (_slug in HREFLANG) else {} %}
+  {% for L, H in _map.items() %}
+    <link rel="alternate" hreflang="{{ 'uk' if L=='ua' else L }}" href="{{ H }}">
+  {% endfor %}
+  {% if _map.en or _map.pl %}
+    <link rel="alternate" hreflang="x-default" href="{{ _map.en or _map.pl }}">
+  {% endif %}
 
-  {# hreflang dla BIEŻĄCEJ strony #}
-  {% set _hreflang_map = HREFLANG[_slug] if HREFLANG and (_slug in HREFLANG) else {} %}
-  <script>
-  (function(){
-    var map = {{ _hreflang_map|tojson }};
-    var keys = Object.keys(map||{});
-    if(!keys.length) return;
-    keys.forEach(function(L){
-      var a=document.createElement('link');
-      a.rel='alternate';
-      a.hreflang=(L==='ua')?'uk':L;  // UA -> uk
-      a.href=map[L];
-      document.head.appendChild(a);
-    });
-    var x=document.createElement('link');
-    x.rel='alternate'; x.hreflang='x-default';
-    x.href=map['en']||map['pl']||map[keys[0]];
-    document.head.appendChild(x);
-  })();
-  </script>
+  {# — jeden bundel z CSS (wrzucisz w następnym kroku) — #}
+  <link rel="stylesheet" href="/assets/app.css">
+  <noscript><style>.nojs-hide{display:none!important}</style></noscript>
 </head>
-<nav class="mobile-dock" aria-label="Szybkie akcje">
-  <a class="dock-btn" id="dock-home" href="/{{ _lang }}/" aria-label="Start">
-    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M3 10.5l9-7 9 7v9a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 19.5z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-    <span>Home</span>
-  </a>
-  <a class="dock-cta" href="#quote" aria-label="Wycena">Wycena</a>
-  <button class="dock-btn" id="dock-menu" aria-label="Menu">
-    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-    <span>Menu</span>
-  </button>
-</nav>
+
 <body>
-  <!-- tła (opcjonalnie) -->
+  <!-- ===== BACKGROUNDS (Canvas/gradient) – aktywowane przez JS ===== -->
   <div id="bg-grid" aria-hidden="true"></div>
   <canvas id="bg-canvas" aria-hidden="true" hidden></canvas>
 
-  <!-- ============== HEADER ============== -->
-  <header class="site-header" id="header">
+  <!-- ============ HEADER / MEGA NAV ============ -->
+  <header id="header" class="site-header" role="banner">
     <div class="container navbar">
-      <a class="brand" href="/{{ _lang }}/" aria-label="Strona główna">
+      <a class="brand" href="/{{ _lang }}/" aria-label="Home">
         <span class="brand__logo" aria-hidden="true">K</span>
         <span class="brand__name">{{ BRAND }}</span>
       </a>
 
-      <nav class="nav" aria-label="Główna nawigacja">
-        <ul class="nav__list" role="menubar" aria-label="Główne pozycje">
+      <nav class="nav" aria-label="Primary">
+        <ul class="nav__list" role="menubar">
           <li role="none">
             <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="services">
-              Usługi <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              {{ STR.menu_services }}
+              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
             </button>
           </li>
           <li role="none">
             <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="industries">
-              Dla firm <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              {{ STR.menu_biz }}
+              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
             </button>
           </li>
           <li role="none">
             <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="resources">
-              Zasoby <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              {{ STR.menu_resources }}
+              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
             </button>
           </li>
-          <li role="none"><a class="nav__btn" role="menuitem" href="{{ url_of('about', _lang) }}">O nas</a></li>
-          <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/flota/">Flota</a></li>
-          <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/blog/">Blog</a></li>
+          <li role="none"><a class="nav__btn" role="menuitem" href="{{ url_of('about', _lang) }}">{{ STR.menu_about }}</a></li>
+          <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/flota/">{{ STR.menu_fleet }}</a></li>
+          <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/blog/">{{ STR.menu_blog }}</a></li>
         </ul>
       </nav>
 
       <div class="actions">
-        <div class="lang" data-lang aria-expanded="false">
-          <button class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="lang-panel" title="Języki">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <a href="#quote" class="cta nojs-hide">{{ STR.hero_cta_primary }}</a>
+
+        <div class="lang" data-lang>
+          <button class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="lang-panel" title="Language">
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </button>
-          <div id="lang-panel" class="lang__panel" role="menu" aria-label="Wybierz język">
+          <div id="lang-panel" class="lang__panel" role="menu" aria-label="Select language">
             <ul class="lang__list">
               <li><a href="/pl/" role="menuitem">🇵🇱 Polski</a></li>
               <li><a href="/en/" role="menuitem">🇬🇧 English</a></li>
@@ -153,23 +128,17 @@
           </div>
         </div>
 
-        <a href="#quote" class="cta">Wycena</a>
-
-        <button id="themeToggle" class="icon-btn" aria-label="Przełącz motyw">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path id="themeIcon" d="M12 3a9 9 0 100 18 7 7 0 010-18z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+        <button id="themeToggle" class="icon-btn" aria-label="Theme">
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path id="themeIcon" d="M12 3a9 9 0 100 18 7 7 0 010-18z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
         </button>
 
         <button class="icon-btn hamburger" id="hamburger" aria-expanded="false" aria-controls="drawer" aria-label="Menu">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
         </button>
       </div>
     </div>
 
-    <!-- Mega-panels -->
+    <!-- ===== Mega panels (desktop) ===== -->
     <div class="panels">
       <div class="panel" id="panel-services" hidden>
         <div class="container panel__grid">
@@ -187,7 +156,7 @@
             <a class="panel__link" href="#"><strong>Fulfillment & cross-dock</strong></a>
           </div>
           <div class="panel__col">
-            <h4>Obsługiwane kierunki</h4>
+            <h4>Kierunki</h4>
             <a class="panel__link" href="#"><strong>Polska</strong></a>
             <a class="panel__link" href="#"><strong>Niemcy</strong></a>
             <a class="panel__link" href="#"><strong>Francja</strong></a>
@@ -196,7 +165,7 @@
           <div class="panel__col">
             <h4>Szybkie akcje</h4>
             <a class="panel__link" href="#quote"><strong>Wyceń transport</strong></a>
-            <a class="panel__link" href="{{ url_of('contact', _lang) }}"><strong>Kontakt</strong></a>
+            <a class="panel__link" href="{{ url_of('contact', _lang) }}"><strong>{{ STR.menu_contact }}</strong></a>
             <a class="panel__link" href="#faq"><strong>FAQ</strong></a>
           </div>
         </div>
@@ -213,7 +182,7 @@
           </div>
           <div class="panel__col">
             <h4>Use cases</h4>
-            <a class="panel__link" href="#"><strong>JIT / linie produkcyjne</strong></a>
+            <a class="panel__link" href="#"><strong>JIT / produkcja</strong></a>
             <a class="panel__link" href="#"><strong>Zwroty & reverse</strong></a>
             <a class="panel__link" href="#"><strong>Event logistics</strong></a>
           </div>
@@ -246,31 +215,31 @@
           <div class="panel__col">
             <h4>Wsparcie</h4>
             <a class="panel__link" href="#faq"><strong>FAQ</strong></a>
-            <a class="panel__link" href="{{ url_of('contact', _lang) }}"><strong>Kontakt</strong></a>
+            <a class="panel__link" href="{{ url_of('contact', _lang) }}"><strong>{{ STR.menu_contact }}</strong></a>
           </div>
           <div class="panel__col">
             <h4>Informacje</h4>
-            <a class="panel__link" href="{{ url_of('about', _lang) }}"><strong>O firmie</strong></a>
-            <a class="panel__link" href="/{{ _lang }}/flota/"><strong>Flota</strong></a>
+            <a class="panel__link" href="{{ url_of('about', _lang) }}"><strong>{{ STR.menu_about }}</strong></a>
+            <a class="panel__link" href="/{{ _lang }}/flota/"><strong>{{ STR.menu_fleet }}</strong></a>
           </div>
         </div>
       </div>
     </div>
   </header>
 
-  <!-- Drawer (mobile) -->
-  <div class="drawer" id="drawer" hidden>
+  <!-- ============ MOBILE DRAWER ============ -->
+  <div class="drawer" id="drawer" hidden aria-hidden="true">
     <div class="drawer__head">
       <div class="brand"><span class="brand__logo">K</span><span class="brand__name">{{ BRAND }}</span></div>
-      <button class="icon-btn" id="drawerClose" aria-label="Zamknij menu">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <button class="icon-btn" id="drawerClose" aria-label="Zamknij">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
     </div>
     <div class="drawer__body">
-      <nav aria-label="Menu mobilne">
+      <nav aria-label="Mobile">
         <div class="acc">
-          <button class="acc__btn" aria-expanded="false">Usługi
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <button class="acc__btn" aria-expanded="false">{{ STR.menu_services }}
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
           </button>
           <div class="acc__panel">
             <ul class="sublist">
@@ -282,8 +251,8 @@
           </div>
         </div>
         <div class="acc">
-          <button class="acc__btn" aria-expanded="false">Dla firm
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <button class="acc__btn" aria-expanded="false">{{ STR.menu_biz }}
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
           </button>
           <div class="acc__panel">
             <ul class="sublist">
@@ -294,8 +263,8 @@
           </div>
         </div>
         <div class="acc">
-          <button class="acc__btn" aria-expanded="false">Zasoby
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <button class="acc__btn" aria-expanded="false">{{ STR.menu_resources }}
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
           </button>
           <div class="acc__panel">
             <ul class="sublist">
@@ -306,29 +275,28 @@
           </div>
         </div>
 
-        <a class="sublist" href="{{ url_of('about', _lang) }}" style="display:block;padding:14px 0">O nas</a>
-        <a class="sublist" href="/{{ _lang }}/flota/" style="display:block;padding:14px 0">Flota</a>
-        <a class="sublist" href="/{{ _lang }}/blog/"  style="display:block;padding:14px 0">Blog</a>
+        <a class="sublist" href="{{ url_of('about', _lang) }}" style="display:block;padding:14px 0">{{ STR.menu_about }}</a>
+        <a class="sublist" href="/{{ _lang }}/flota/" style="display:block;padding:14px 0">{{ STR.menu_fleet }}</a>
+        <a class="sublist" href="/{{ _lang }}/blog/"  style="display:block;padding:14px 0">{{ STR.menu_blog }}</a>
 
         <div style="padding:16px 0;display:flex;gap:10px">
           <a class="cta" href="#quote" style="flex:1;justify-content:center">{{ STR.hero_cta_primary }}</a>
-          <a class="icon-btn" href="tel:{{ PHONE }}" aria-label="Zadzwoń">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.86 19.86 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.89.31 1.76.57 2.6a2 2 0 0 1-.45 2.11L8 9a16 16 0 0 0 6 6l.57-.22a2 2 0 0 1 2.11.45c.84.26 1.71.45 2.6.57A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="2"/></svg>
+          <a class="icon-btn" href="tel:{{ PHONE }}" aria-label="Call">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.86 19.86 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.89.31 1.76.57 2.6a2 2 0 0 1-.45 2.11L8 9a16 16 0 0 0 6 6l.57-.22a2 2 0 0 1 2.11.45c.84.26 1.71.45 2.6.57A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="2" fill="none"/></svg>
           </a>
         </div>
       </nav>
     </div>
   </div>
 
-  <!-- ============== MAIN ============== -->
+  <!-- ============ HERO ============ -->
   <main id="main" class="content" role="main">
-    <!-- HERO -->
     <section class="hero" id="hero">
       <div class="container hero-wrap">
         <div class="hero-copy">
           <span class="claim">{{ page.claim or 'Kompleksowe usługi transportowe' }}</span>
-          <h1>{{ page.h1 or page.title }}</h1>
-          {% if page.lead %}<p class="lead" data-lead>{{ page.lead }}</p>{% endif %}
+          <h1>{{ page.h1 or page.title or BRAND }}</h1>
+          {% if page.lead %}<p class="lead" data-md>{{ page.lead }}</p>{% endif %}
           <p class="hero-cta">
             <a class="btn primary" href="#quote">{{ STR.hero_cta_primary }}</a>
             <a class="btn" href="tel:{{ PHONE }}">{{ STR.hero_cta_secondary }}</a>
@@ -344,13 +312,14 @@
       </div>
     </section>
 
-    {# ===== OFERTA (kafelki) – widoczne tylko gdy są bloki/usługi ===== #}
+    <!-- ============ OFFERS (3D tiles mobile / grid desktop) ============ -->
     {% set offers = BLOCKS|selectattr('block','equalto','offer')|selectattr('lang','equalto',_lang)|selectattr('page','equalto',_slug)|list %}
     {% if not offers|length %}
       {% set offers = PAGES|selectattr('type','equalto','service')|selectattr('lang','equalto',_lang)|list %}
     {% endif %}
+
     {% if offers|length %}
-    <section class="section split-hero split-hero--narrow" id="offer-reveal" data-section="offers" data-style="edge" data-accent="amber" aria-label="{{ STR.offers_title }}">
+    <section class="section split-hero split-hero--narrow" id="offer-reveal" data-section="offers" aria-label="{{ STR.offers_title }}">
       <div class="split-hero__sticky">
         <div class="split-hero__stack">
           <div class="split-hero__title" aria-hidden="true">
@@ -361,11 +330,11 @@
 
           <div class="split-hero__rail" id="offer-rail" role="list" aria-label="{{ STR.offers_title }}">
             {% for it in offers|sort(attribute='order') %}
-              {% set url = it.href or it.url or '/' ~ _lang ~ '/' ~ (it.slug or '') ~ '/' %}
+              {% set url = it.href or it.url or '/' ~ _lang ~ '/' ~ (it.slug or it.slugKey or '') ~ '/' %}
               <a role="listitem" class="offer-card" href="{{ url }}">
                 {% if it.media %}<img src="{{ it.media }}" alt="" width="{{ it.img_w or 1280 }}" height="{{ it.img_h or 720 }}" loading="lazy" decoding="async">{% endif %}
                 <span class="offer-card__title">{{ it.h1 or it.title or it.seo_title or it.slug }}</span>
-                {% if it.lead or it.desc or it.meta_desc %}<span class="offer-card__desc">{{ it.lead or it.desc or it.meta_desc }}</span>{% endif %}
+                {% if it.lead or it.desc or it.meta_desc %}<span class="offer-card__desc" data-md>{{ it.lead or it.desc or it.meta_desc }}</span>{% endif %}
               </a>
             {% endfor %}
           </div>
@@ -375,7 +344,7 @@
     </section>
     {% endif %}
 
-    {# ===== BLOKI strony (blocks.page == _slug) ===== #}
+    <!-- ============ PAGE BLOCKS (from Blocks sheet) ============ -->
     {% set page_blocks = BLOCKS|selectattr('lang','equalto',_lang)|selectattr('page','equalto',_slug)|selectattr('enabled','ne',False)|list %}
     {% if page_blocks|length %}
     <section class="section" id="blocks">
@@ -394,7 +363,7 @@
     </section>
     {% endif %}
 
-    {# ===== CONTENT z page.body_md ===== #}
+    <!-- ============ PAGE.MD (optional long content) ============ -->
     {% if page.body_md %}
     <section class="section" id="content">
       <div class="container text">
@@ -403,8 +372,8 @@
     </section>
     {% endif %}
 
-    {# ===== KIERUNKI (mapa) ===== #}
-    <section class="section" id="kierunki" data-section="kierunki" data-style="glass">
+    <!-- ============ MAP / ROUTES ============ -->
+    <section class="section" id="kierunki" data-section="kierunki">
       <div class="container text"><h2>{{ STR.routes_title }}</h2></div>
       <div class="container">
         <div class="iframe-wrap" style="aspect-ratio:16/9">
@@ -416,48 +385,58 @@
         </div>
       </div>
     </section>
-
-    {# TODO: FAQ / BLOG / CTA / KONTAKT – sloty wg potrzeb #}
   </main>
 
-  <!-- ============== FOOTER ============== -->
+  <!-- ============ MOBILE BOTTOM DOCK (always visible) ============ -->
+  <nav class="mobile-dock" aria-label="Quick actions">
+    <a id="dock-home" class="dock-btn" href="/{{ _lang }}/" aria-label="Home">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5l9-7 9 7V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" fill="currentColor"/></svg>
+      <span>Home</span>
+    </a>
+    <a id="dock-quote" class="dock-cta" href="#quote" aria-label="Quote">{{ STR.hero_cta_primary }}</a>
+    <button id="dock-menu" class="dock-btn" aria-label="Menu">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      <span>Menu</span>
+    </button>
+  </nav>
+
+  <!-- ============ FOOTER ============ -->
   <footer class="site-footer">
     <div class="container foot-row">
       <div>© {{ BRAND }}</div>
-      <nav class="foot-nav">
-        <a href="{{ url_of('contact', _lang) }}">Kontakt</a>
-        <a href="{{ url_of('about', _lang) }}">O firmie</a>
+      <nav class="foot-nav" aria-label="Footer">
+        <a href="{{ url_of('contact', _lang) }}">{{ STR.menu_contact }}</a>
+        <a href="{{ url_of('about', _lang) }}">{{ STR.menu_about }}</a>
         <a href="{{ url_of('licenses-insurance', _lang) }}">Licencje & ubezpieczenia</a>
       </nav>
     </div>
   </footer>
 
-  <!-- ============== SCRIPTS ============== -->
-  <script>window.KRAS_NAV = {{ NAV_CFG|tojson }};</script>
-  <script src="/assets/js/kras-global.js" defer></script>
-  <script src="/assets/js/menu-builder.js" defer></script>
-  <script>(window.requestIdleCallback||window.setTimeout)(function(){var s=document.createElement('script');s.src='/assets/js/kras-ui.js';s.defer=true;document.body.appendChild(s);});</script>
-  <script defer src="/assets/kt.js"></script>
-
-  <!-- prosty formatter: \n → <br> oraz **bold**; działa dla [data-lead] i [data-md] -->
-  <script>
-  (function(){
-    function fmt(s){
-      return (s||'')
-        .replace(/\r\n/g,'\n')
-        .replace(/\n\n+/g,'</p><p>')
-        .replace(/\n/g,'<br>')
-        .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  <!-- ============ JSON-LD (Organization fallback) ============ -->
+  {% if page.structured_data %}
+    <script type="application/ld+json">{{ page.structured_data|safe }}</script>
+  {% else %}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "{{ BRAND }}",
+      "url": "{{ _canon }}",
+      "telephone": "{{ PHONE }}",
+      "logo": "/assets/media/og-default.jpg"
     }
-    document.querySelectorAll('[data-lead]').forEach(function(el){
-      el.innerHTML = fmt(el.textContent);
-    });
-    document.querySelectorAll('[data-md]').forEach(function(el){
-      var t = el.textContent.trim();
-      if(!t) return;
-      el.innerHTML = '<p>'+fmt(t)+'</p>';
-    });
-  })();
+    </script>
+  {% endif %}
+
+  <!-- ============ JS bundle (wrzucisz w następnym kroku) ============ -->
+  <script>
+    window.KT = {
+      lang: "{{ _lang }}",
+      slugKey: "{{ _slug }}",
+      phone: "{{ PHONE }}",
+      nav: {{ NAV_CFG|tojson }}
+    };
   </script>
+  <script src="/assets/app.js" defer></script>
 </body>
 </html>
