@@ -78,3 +78,81 @@ document.addEventListener('click',e=>{
   e.preventDefault();
   window.setTimeout(()=>{target==='_blank'?window.open(url,'_blank','noopener'):window.location.assign(url);},delay);
 });
+/* === Mobile bottom dock actions === */
+document.getElementById('dock-menu')?.addEventListener('click', () => {
+  // użyj istniejącego hamburgera/drawera
+  const btn = document.getElementById('hamburger');
+  if(btn){ btn.click(); }
+});
+document.getElementById('dock-home')?.addEventListener('click', () => { /* zwykły link */ });
+
+/* === Offer rail tilt (max ~12° po trendzie) === */
+(function(){
+  const rail = document.getElementById('offer-rail');
+  if(!rail) return;
+  const MAX = 12; // deg
+  const update = () => {
+    const cards = rail.querySelectorAll('.offer-card');
+    const mid = rail.getBoundingClientRect().left + (rail.clientWidth/2);
+    cards.forEach(card => {
+      const r = card.getBoundingClientRect();
+      const c = r.left + r.width/2;
+      const t = Math.max(-1, Math.min(1, (c - mid) / (window.innerWidth*0.4)));
+      card.style.setProperty('--tilt', (-MAX * t).toFixed(2) + 'deg');
+    });
+  };
+  rail.addEventListener('scroll', update, {passive:true});
+  window.addEventListener('resize', update);
+  update();
+})();
+
+/* === Big title fade/slide on scroll (~35vh) === */
+(function(){
+  const sec = document.getElementById('offer-reveal');
+  if(!sec) return;
+  const title = sec.querySelector('.split-hero__title');
+  if(!title) return;
+  const getTop = () => sec.getBoundingClientRect().top + window.scrollY;
+  let startY = getTop(); // start of section
+  const onScroll = () => {
+    const sc = window.scrollY;
+    const span = window.innerHeight * 0.35;
+    const p = Math.max(0, Math.min(1, (sc - startY)/span));
+    title.style.setProperty('--titleOpacity', (1 - 0.6*p).toFixed(3));
+    title.style.setProperty('--titleShift', (40*p).toFixed(1) + 'px');
+    title.style.setProperty('--titleScale', (1 - 0.06*p).toFixed(3));
+  };
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('resize', () => { startY = getTop(); onScroll(); });
+  onScroll();
+})();
+
+/* === „Markdown-ish” parser dla bloków i leada === */
+(function(){
+  const toHTML = (txt) => {
+    if(!txt) return '';
+    const lines = txt.replace(/\r\n/g,'\n').split('\n');
+    let html = '', inList = false;
+    const flush = () => { if(inList){ html += '</ul>'; inList=false; } };
+    for(const line of lines){
+      const m = line.match(/^\s*(?:-|\u2022)\s+(.*)$/); // - lub •
+      if(m){
+        if(!inList){ html += '<ul>'; inList=true; }
+        html += '<li>' + m[1] + '</li>';
+      }else if(line.trim()===''){
+        flush(); html += '<p></p>';
+      }else{
+        flush();
+        let t = line
+          .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+          .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2">$1</a>');
+        html += '<p>'+ t +'</p>';
+      }
+    }
+    flush();
+    return html.replace(/<p><\/p>/g,'');
+  };
+  document.querySelectorAll('[data-md], [data-lead]').forEach(el=>{
+    el.innerHTML = toHTML(el.textContent || '');
+  });
+})();
