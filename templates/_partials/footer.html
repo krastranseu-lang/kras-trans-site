@@ -4,7 +4,15 @@
 {% set HREF = hreflang if hreflang is defined else {} %}
 {% macro link_for(slugkey, lang) -%}
   {%- set m = HREF.get(slugkey, {}) -%}
-  {%- if m and m.get(lang) -%}{{ m[lang] }}{%- else -%}/{{ lang }}/{{ slugkey }}/ {%- endif -%}
+  {%- if m and m.get(lang) -%}
+    {{ m[lang] }}
+  {%- else -%}
+    {%- if slugkey == 'home' -%}
+      /{{ lang }}/
+    {%- else -%}
+      /{{ lang }}/{{ slugkey }}/
+    {%- endif -%}
+  {%- endif -%}
 {%- endmacro %}
 {% set STR = (strings if strings is defined and strings else {}) %}
 {% set LBL_LICENSES = STR.get('licenses_label','Licencje & ubezpieczenia') %}

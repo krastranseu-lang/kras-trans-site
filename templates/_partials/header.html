@@ -24,7 +24,11 @@
   {%- if m and m.get(lang) -%}
     {{ m[lang] }}
   {%- else -%}
-    /{{ lang }}/{{ slugkey }}/
+    {%- if slugkey == 'home' -%}
+      /{{ lang }}/
+    {%- else -%}
+      /{{ lang }}/{{ slugkey }}/
+    {%- endif -%}
   {%- endif -%}
 {%- endmacro %}
 
