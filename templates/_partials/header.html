@@ -1,67 +1,91 @@
-{# ==== SAFE DEFAULTS (header) ==== #}
+{# ===================== SAFE DEFAULTS ===================== #}
 {% set BRAND = (company[0].name if company is defined and company|length>0 and company[0].name else 'Kras-Trans') %}
-{% set _lang = (page.lang or 'pl') if page is defined else 'pl' %}
+{% set _lang  = (page.lang or 'pl')  if page is defined else 'pl' %}
+{% set _slug  = (page.slugKey or page.slug or 'home') if page is defined else 'home' %}
 
-{# NAV_CFG bywa nieprzekazany — użyj pustej mapy #}
-{% set NAV = nav_cfg if nav_cfg is defined and nav_cfg else {} %}
-{% set HREF = hreflang if hreflang is defined else {} %}
+{# opcjonalne struktury z generatora #}
+{% set NAV  = (nav_cfg  if nav_cfg  is defined and nav_cfg  else {}) %}
+{% set HREF = (hreflang if hreflang is defined and hreflang else {}) %}
+{% set STR  = (strings  if strings  is defined and strings  else {}) %}
 
-{# Lista języków: z NAV.langs lub domyślna #}
-{% set LANGS = (NAV.langs if NAV and (NAV.langs is defined) else ['pl','en','de','fr','it','ru','ua']) %}
+{# etykiety z fallbackiem #}
+{% set LBL_QUOTE   = STR.get('hero_cta_primary','Wycena') %}
+{% set LBL_ABOUT   = STR.get('menu_about','O nas') %}
+{% set LBL_CONTACT = STR.get('menu_contact','Kontakt') %}
+{% set LBL_DOCK_HOME = STR.get('dock_home','Start') %}
+{% set LBL_DOCK_MENU = STR.get('dock_menu','Menu') %}
 
-{# Generuj URL do strony o danym slugKey i języku — najpierw z hreflang, inaczej /{lang}/{slug}/ #}
+{# lista języków: z NAV['langs'] albo domyślna #}
+{% set LANGS = NAV.get('langs', ['pl','en','de','fr','it','ru','ua']) %}
+
+{# link do strony (najpierw z hreflang, inaczej /{lang}/{slug}/) #}
 {% macro link_for(slugkey, lang) -%}
   {%- set m = HREF.get(slugkey, {}) -%}
-  {%- if m and m.get(lang) -%}{{ m[lang] }}
-  {%- else -%}/{{ lang }}/{{ slugkey }}/
+  {%- if m and m.get(lang) -%}
+    {{ m[lang] }}
+  {%- else -%}
+    /{{ lang }}/{{ slugkey }}/
   {%- endif -%}
 {%- endmacro %}
 
-{# Proste etykiety, gdy strings nie nadejdą #}
-{% set STR = (strings if strings is defined and strings else {}) %}
-{% set LBL_QUOTE  = STR.get('hero_cta_primary','Wycena') %}
-{% set LBL_ABOUT  = STR.get('menu_about','O nas') %}
-{% set LBL_CONTACT= STR.get('menu_contact','Kontakt') %}
 <!-- ============ HEADER / NAVIGATION ============ -->
-<header class="site-header" role="banner">
+<header id="header" class="site-header" role="banner">
   <div class="container navbar">
-    <a class="brand" href="/{{ _lang }}/">
+    <a class="brand" href="/{{ _lang }}/" aria-label="Strona główna">
       <span class="brand__logo" aria-hidden="true">K</span>
       <span class="brand__name">{{ BRAND }}</span>
     </a>
-    {% if NAV_CFG is defined and NAV_CFG.get('items') %}
-    <nav class="nav" aria-label="Primary">
+
+    <nav class="nav" aria-label="Główna nawigacja">
       <ul class="nav__list" role="menubar">
-        {% for item in NAV_CFG.get('items') %}
+        {# jeśli NAV.items istnieje – pokaż zgodnie z CMS; w przeciwnym razie minimalny zestaw #}
+        {% for item in NAV.get('items', []) %}
           <li role="none">
             {% if item.children %}
-              <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false" data-panel="panel-{{ loop.index0 }}">{{ item.label }}</button>
+              <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false"
+                      data-panel="panel-{{ loop.index0 }}">{{ item.label }}</button>
             {% else %}
               <a class="nav__btn" role="menuitem" href="{{ item.href }}">{{ item.label }}</a>
             {% endif %}
           </li>
+        {% else %}
+          <li role="none"><a class="nav__btn" role="menuitem" href="{{ link_for('about', _lang) }}">{{ LBL_ABOUT }}</a></li>
+          <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/flota/">Flota</a></li>
+          <li role="none"><a class="nav__btn" role="menuitem" href="/{{ _lang }}/blog/">Blog</a></li>
         {% endfor %}
       </ul>
     </nav>
-    {% endif %}
+
     <div class="actions">
-      <a href="#quote" class="cta nojs-hide">{{ STR.hero_cta_primary }}</a>
-      <div class="lang" data-lang>
-        <button class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="lang-panel" title="Language">🌐</button>
-        <div id="lang-panel" class="lang__panel" role="menu" aria-label="Select language">
+      <a href="#quote" class="cta">{{ LBL_QUOTE }}</a>
+
+      <div class="lang" data-lang aria-expanded="false">
+        <button class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="lang-panel" title="Języki">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 5h16M4 12h16M4 19h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <div id="lang-panel" class="lang__panel" role="menu" aria-label="Wybierz język">
           <ul class="lang__list">
-            {% for L in NAV_CFG.langs if NAV_CFG is defined and NAV_CFG.langs %}
-              <li><a href="{{ L.href }}" role="menuitem">{{ L.label }}</a></li>
+            {% for L in LANGS %}
+              {% set hrefl = 'uk' if L == 'ua' else L %}
+              <li><a role="menuitem" hreflang="{{ hrefl }}" href="{{ link_for(_slug, L) }}">{{ L|upper }}</a></li>
             {% endfor %}
           </ul>
         </div>
       </div>
-      <button class="icon-btn hamburger" id="hamburger" aria-expanded="false" aria-controls="drawer" aria-label="Menu">☰</button>
+
+      <button class="icon-btn hamburger" id="hamburger" aria-expanded="false" aria-controls="drawer" aria-label="Menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
     </div>
   </div>
+
+  {# ===== Mega-panels (opcjonalnie z CMS: menu_panels) ===== #}
   <div class="panels">
-    {% set panels = menu_panels if menu_panels is defined else [] %}
-    {% for key, items in panels|groupby('panel_key') %}
+    {% for key, items in (menu_panels if menu_panels is defined else [])|groupby('panel_key') %}
       <div class="panel" id="panel-{{ key }}" hidden>
         <div class="container panel__grid">
           {% for col, col_items in items|groupby('column') %}
@@ -83,20 +107,22 @@
 
 <!-- ============ MOBILE DRAWER ============ -->
 <div class="drawer" id="drawer" hidden aria-hidden="true">
-  <nav aria-label="Mobile">
+  <nav aria-label="Menu mobilne">
     <ul>
-      {% if NAV_CFG is defined and NAV_CFG.get('items') %}
-        {% for it in NAV_CFG.get('items') %}
-          <li><a href="{{ it.href }}">{{ it.label }}</a></li>
-        {% endfor %}
-      {% endif %}
+      {% for it in NAV.get('items', []) %}
+        <li><a href="{{ it.href }}">{{ it.label }}</a></li>
+      {% else %}
+        <li><a href="{{ link_for('about', _lang) }}">{{ LBL_ABOUT }}</a></li>
+        <li><a href="/{{ _lang }}/flota/">Flota</a></li>
+        <li><a href="{{ link_for('contact', _lang) }}">{{ LBL_CONTACT }}</a></li>
+      {% endfor %}
     </ul>
   </nav>
 </div>
 
 <!-- ============ DOCK (BOTTOM NAV) ============ -->
-<nav class="dock" aria-label="Dock">
-  <a href="/{{ _lang }}/">{{ STR.dock_home }}</a>
-  <a href="#quote">Wycena</a>
-  <a href="#drawer" id="dockMenu">{{ STR.dock_menu }}</a>
+<nav class="dock" aria-label="Skróty">
+  <a href="/{{ _lang }}/">{{ LBL_DOCK_HOME }}</a>
+  <a href="#quote">{{ LBL_QUOTE }}</a>
+  <a href="#drawer" id="dockMenu">{{ LBL_DOCK_MENU }}</a>
 </nav>
