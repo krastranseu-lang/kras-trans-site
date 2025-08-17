@@ -1,0 +1,149 @@
+{% macro brand(company) -%}
+  {%- if company is defined and company and company[0].name -%}
+    {{ company[0].name }}
+  {%- else -%}
+    Kras-Trans
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro canon(page) -%}
+  {%- set lang = (page.lang if page.lang is defined and page.lang else 'pl') -%}
+  {%- set slug = page.slugKey or page.slug or 'home' -%}
+  {{ page.canonical_path if page.canonical_path is defined and page.canonical_path else '/' ~ lang ~ '/' ~ (slug != 'home' and (slug ~ '/') or '') }}
+{%- endmacro %}
+
+{% macro seo_title(page, brand) -%}
+  {{ page.seo_title if page.seo_title is defined and page.seo_title else page.title if page.title is defined and page.title else page.h1 if page.h1 is defined and page.h1 else brand ~ ' — Transport' }}
+{%- endmacro %}
+
+{% macro meta_desc(page) -%}
+  {%- if page.meta_desc is defined and page.meta_desc -%}
+    {{ page.meta_desc }}
+  {%- elif page.lead is defined and page.lead -%}
+    {{ page.lead | truncate(160, True, '') }}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro hreflang_links(slugKey, hreflang) -%}
+  {%- set mapping = hreflang[slugKey] if hreflang is defined and slugKey in hreflang else {} -%}
+  {%- for code, url in mapping.items() -%}
+    <link rel="alternate" hreflang="{{ 'uk' if code == 'ua' else code }}" href="{{ url }}">
+  {%- endfor -%}
+  {%- if mapping.en or mapping.pl -%}
+    <link rel="alternate" hreflang="x-default" href="{{ mapping.en or mapping.pl }}">
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro breadcrumbs(page, pages) -%}
+  {%- set ns = namespace(crumbs=[]) -%}
+  {%- set lang = page.lang if page.lang is defined and page.lang else 'pl' -%}
+  {%- set parent = page.parentSlug if page.parentSlug is defined else None -%}
+  {%- for i in range(10) -%}
+    {%- if parent -%}
+      {%- set p = pages|selectattr('slug','equalto',parent)|selectattr('lang','equalto',lang)|first -%}
+      {%- if p -%}
+        {%- set ns.crumbs = [{'label': p.title or p.h1 or p.slug, 'href': '/' ~ lang ~ '/' ~ (p.slug and (p.slug ~ '/') or '')}] + ns.crumbs -%}
+        {%- set parent = p.parentSlug if p.parentSlug is defined else None -%}
+      {%- else -%}
+        {%- set parent = None -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- set current_label = page.h1 or page.title or (page.slug if page.slug is defined else '') -%}
+  {%- set ns.crumbs = ns.crumbs + [{'label': current_label, 'href': '/' ~ lang ~ '/' ~ (page.slug if page.slug is defined and page.slug else '')}] -%}
+  {{ ns.crumbs }}
+{%- endmacro %}
+
+{% macro image_alt(page) -%}
+  {{ page.hero_alt if page.hero_alt is defined and page.hero_alt else page.h1 if page.h1 is defined else '' }}
+{%- endmacro %}
+
+{% macro outlinks(page, pages, limit_min, limit_max, suggest, anchors) -%}
+  {%- set lang = page.lang if page.lang is defined and page.lang else 'pl' -%}
+  {%- set res = [] -%}
+  {%- set added = [] -%}
+  {%- set anchor_list = anchors.split(',') if anchors is defined and anchors else [] -%}
+  {%- set idx = 0 -%}
+  {%- if suggest is defined and suggest -%}
+    {%- for sk in suggest.split(',') -%}
+      {%- set sk = sk|trim -%}
+      {%- set p = pages|selectattr('slugKey','equalto',sk)|selectattr('lang','equalto',lang)|first -%}
+      {%- if p and p.slug != page.slug -%}
+        {%- set anchor = anchor_list[idx] if anchor_list|length > idx else p.title or p.h1 or p.slug -%}
+        {%- set res = res + [{'href':'/'~lang~'/'~(p.slug or sk)~'/', 'anchor':anchor}] -%}
+        {%- set added = added + [p.slug] -%}
+        {%- set idx = idx + 1 -%}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+  {%- set siblings = pages|selectattr('parentSlug','equalto',page.parentSlug)|selectattr('lang','equalto',lang)|list if pages is defined else [] -%}
+  {%- for p in siblings -%}
+    {%- if res|length < limit_max -%}
+      {%- if p.slug != page.slug and p.slug not in added -%}
+        {%- set anchor = anchor_list[idx] if anchor_list|length > idx else p.title or p.h1 or p.slug -%}
+        {%- set res = res + [{'href':'/'~lang~'/'~p.slug~'/', 'anchor':anchor}] -%}
+        {%- set added = added + [p.slug] -%}
+        {%- set idx = idx + 1 -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- if res|length < limit_min -%}
+    {%- set services = pages|selectattr('type','equalto','service')|selectattr('lang','equalto',lang)|sort(attribute='order')|list -%}
+    {%- for p in services -%}
+      {%- if res|length < limit_min -%}
+        {%- if p.slug != page.slug and p.slug not in added -%}
+          {%- set anchor = anchor_list[idx] if anchor_list|length > idx else p.title or p.h1 or p.slug -%}
+          {%- set res = res + [{'href':'/'~lang~'/'~p.slug~'/', 'anchor':anchor}] -%}
+          {%- set added = added + [p.slug] -%}
+          {%- set idx = idx + 1 -%}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+  {{ res[:limit_max] }}
+{%- endmacro %}
+
+{% macro structured(page, company, blocks) -%}
+  {%- set data = [] -%}
+  {%- set lang = page.lang if page.lang is defined and page.lang else 'pl' -%}
+  {%- set slug = page.slug if page.slug is defined else '' -%}
+  {%- set url = page.canonical_path if page.canonical_path is defined and page.canonical_path else '/'~lang~'/'~(slug and slug~'/' or '') -%}
+  {%- if slug in ('', 'home') -%}
+    {%- set website = {'@context':'https://schema.org','@type':'WebSite','url':url,'potentialAction':{'@type':'SearchAction','target':url~'?q={search_term_string}','query-input':'required name=search_term_string'}} -%}
+    {%- set data = data + [website] -%}
+  {%- endif -%}
+  {%- if company is defined and company and company[0] -%}
+    {%- set c = company[0] -%}
+    {%- set org = {'@context':'https://schema.org','@type':'LocalBusiness','name':c.name,'telephone':c.telephone,'email':c.email,'address':{'@type':'PostalAddress','streetAddress':c.streetAddress,'addressLocality':c.addressLocality,'postalCode':c.postalCode,'addressCountry':c.addressCountry}} -%}
+    {%- set data = data + [org] -%}
+  {%- endif -%}
+  {%- if pages is defined -%}
+    {%- set bc = breadcrumbs(page, pages) -%}
+  {%- else -%}
+    {%- set bc = [] -%}
+  {%- endif -%}
+  {%- if bc -%}
+    {%- set items = [] -%}
+    {%- for b in bc -%}
+      {%- set items = items + [{'@type':'ListItem','position':loop.index,'name':b.label,'item':b.href}] -%}
+    {%- endfor -%}
+    {%- set data = data + [{'@context':'https://schema.org','@type':'BreadcrumbList','itemListElement':items}] -%}
+  {%- endif -%}
+  {%- if page.type is defined and page.type == 'service' -%}
+    {%- set svc = {'@context':'https://schema.org','@type':'Service','name':page.h1 or page.title} -%}
+    {%- set data = data + [svc] -%}
+  {%- endif -%}
+  {%- set faqs = blocks|selectattr('block','equalto','faq')|list if blocks is defined else [] -%}
+  {%- if faqs -%}
+    {%- set faq_items = [] -%}
+    {%- for f in faqs -%}
+      {%- set faq_items = faq_items + [{'@type':'Question','name':f.title,'acceptedAnswer':{'@type':'Answer','text':f.body_md}}] -%}
+    {%- endfor -%}
+    {%- set data = data + [{'@context':'https://schema.org','@type':'FAQPage','mainEntity':faq_items}] -%}
+  {%- endif -%}
+  {%- if page.hero_video is defined and page.hero_video -%}
+    {%- set video = {'@context':'https://schema.org','@type':'VideoObject','name':page.h1 or page.title,'thumbnailUrl':page.hero_poster,'uploadDate':'','contentUrl':page.hero_video} -%}
+    {%- set data = data + [video] -%}
+  {%- endif -%}
+  {{ data }}
+{%- endmacro %}

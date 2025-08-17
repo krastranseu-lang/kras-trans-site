@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+{% for p in pages if p.publish and p.lang == lang %}
+  <url>
+    <loc>{{ site_url }}{{ '/' ~ p.lang ~ '/' ~ (p.slug and p.slug ~ '/' or '') }}</loc>
+    {% set alt = hreflang[p.slugKey or p.slug] if hreflang is defined else {} %}
+    {% for code, href in alt.items() %}
+      <xhtml:link rel="alternate" hreflang="{{ 'uk' if code=='ua' else code }}" href="{{ href }}" />
+    {% endfor %}
+  </url>
+{% endfor %}
+</urlset>

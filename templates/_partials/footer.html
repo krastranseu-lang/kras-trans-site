@@ -1,12 +1,34 @@
 <!-- ============ FOOTER ============ -->
 <footer class="site-footer">
   <div class="container foot-row">
-    <div>© {{ BRAND }}</div>
+    <div>© {{ SEO.brand(company) }}</div>
     <nav class="foot-nav" aria-label="Footer">
       <a href="{{ url_of('contact', _lang) }}">{{ STR.menu_contact }}</a>
       <a href="{{ url_of('about', _lang) }}">{{ STR.menu_about }}</a>
       <a href="{{ url_of('licenses-insurance', _lang) }}">{{ STR.licenses_label }}</a>
     </nav>
+    {% if company is defined and company and company[0] %}
+      {% set c = company[0] %}
+      <address>
+        {% if c.streetAddress %}{{ c.streetAddress }}, {{ c.postalCode }} {{ c.addressLocality }}{% endif %}<br>
+        {% if c.telephone %}<a href="tel:{{ c.telephone }}">{{ c.telephone }}</a><br>{% endif %}
+        {% if c.email %}<a href="mailto:{{ c.email }}">{{ c.email }}</a>{% endif %}
+      </address>
+      {% set json = {
+        '@context':'https://schema.org',
+        '@type':'LocalBusiness',
+        'name': c.name or '',
+        'telephone': c.telephone or '',
+        'email': c.email or '',
+        'address': {
+          '@type':'PostalAddress',
+          'streetAddress': c.streetAddress or '',
+          'addressLocality': c.addressLocality or '',
+          'postalCode': c.postalCode or '',
+          'addressCountry': c.addressCountry or ''
+        }
+      } %}
+      <script type="application/ld+json">{{ json | tojson }}</script>
+    {% endif %}
   </div>
 </footer>
-

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  {% set langs = pages|selectattr('publish','equalto',True)|map(attribute='lang')|unique if pages is defined else [] %}
+  {% for l in langs %}
+  <sitemap>
+    <loc>{{ site_url }}/sitemap-{{ l }}.xml</loc>
+  </sitemap>
+  {% endfor %}
+</sitemapindex>
