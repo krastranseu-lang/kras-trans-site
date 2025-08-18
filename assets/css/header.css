@@ -1,9 +1,10 @@
-/* ====== KRAS-TRANS — Header + Mega menu (Maersk-like) =================== */
+/* ====== KRAS-TRANS — Header + Mega menu (Maersk-like, slim panel) ====== */
 :root{
   --bg:#0b111c; --bg-2:#0f1726; --surface:rgba(12,18,30,.55);
   --text:#e9f2ff; --muted:#9db0cf; --brand:#2ee6c8; --brand-ink:#00201a;
   --border:rgba(255,255,255,.10); --shadow:0 18px 40px rgba(0,0,0,.35);
   --radius:14px; --radius-lg:18px; --speed:170ms; --container:1240px;
+  --mega-max-h: 420px; /* nadpisywane z data-mega-maxh */
 }
 :root[data-theme="light"]{
   --bg:#ffffff; --bg-2:#f6f8fb; --surface:rgba(255,255,255,.72);
@@ -11,13 +12,11 @@
   --shadow:0 18px 40px rgba(0,0,0,.10);
 }
 
-/* base */
 .kt-header, .kt-header *{ box-sizing:border-box; }
 .kt-header a{ color:var(--text); text-decoration:none; }
 .kt-header ul{ list-style:none; padding:0; margin:0; }
 .kt-header button{ font:inherit; color:inherit; background:none; border:none; }
 
-/* bar */
 .kt-header{
   position:sticky; top:0; inset-inline:0; z-index:70;
   background:linear-gradient(180deg, var(--surface), transparent 120%);
@@ -40,8 +39,6 @@
   line-height:1; white-space:nowrap; position:relative;
 }
 .menu-link:hover{ background:rgba(255,255,255,.06); }
-
-/* caret bez podskakiwania */
 .menu-link.has-caret::after{
   content:""; width:10px; height:10px; margin-left:6px; flex:0 0 10px;
   mask:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M7 10l5 5 5-5z"/></svg>') center/contain no-repeat;
@@ -49,35 +46,42 @@
 }
 .menu-item[aria-open="true"] > .menu-link.has-caret::after{ transform:rotate(180deg); background:var(--text); }
 
-/* ===== Mega panel (full-width jak u Maersk) ===== */
+/* ===== Mega panel: pełna szerokość, NISKI, ze scroll w środku ===== */
 .mega{
-  position:fixed; left:0; right:0;
-  top:var(--mega-top, 86px); z-index:69;
+  position:fixed; left:0; right:0; top:var(--mega-top, 86px); z-index:69;
   background:linear-gradient(180deg, rgba(18,24,38,.98), rgba(10,16,28,.96));
-  border-bottom:1px solid var(--border);
-  box-shadow:var(--shadow);
+  border-bottom:1px solid var(--border); box-shadow:var(--shadow);
   transform:translateY(-6px); opacity:0; pointer-events:none;
   transition:transform var(--speed) ease, opacity var(--speed) ease;
+  max-height:var(--mega-max-h); overflow:hidden; /* klucz */
 }
 .menu-item[aria-open="true"] .mega{ transform:translateY(0); opacity:1; pointer-events:auto; }
 
-.mega__wrap{ max-width:var(--container); margin:0 auto; padding:18px 20px 22px; display:grid; grid-template-columns: 3fr 1fr; gap:18px; }
-@media (max-width:1100px){ .mega{ display:none; } }
+.mega__wrap{
+  max-width:var(--container); margin:0 auto; padding:14px 20px;
+  display:grid; grid-template-columns: 3fr 1fr; gap:16px;
+  height:100%;
+}
+.mega__scroll{
+  min-height:0; /* grid fix */
+  overflow:auto; overscroll-behavior:contain;
+  padding-right:6px; /* miejsce na scrollbar */
+}
 
-.mega__cols{ display:grid; gap:12px 18px; grid-template-columns: repeat(3, minmax(220px,1fr)); }
+/* kolumny linków */
+.mega__cols{ display:grid; gap:10px 16px; grid-template-columns: repeat(3, minmax(220px,1fr)); }
 @media (min-width:1280px){ .mega__cols{ grid-template-columns: repeat(4, minmax(220px,1fr)); } }
-
-.mega__col{ background:transparent; }
-.mega__group{ font-weight:700; color:var(--text); opacity:.9; margin:4px 0 8px; }
+.mega__group{ font-weight:700; color:var(--text); opacity:.9; margin:4px 0 6px; }
 .mega__link{
-  display:block; padding:10px 12px; border-radius:12px; color:var(--text); opacity:.9;
-  border:1px solid transparent;
+  display:block; padding:9px 10px; border-radius:12px; color:var(--text); opacity:.95;
+  border:1px solid transparent; font-size:15.5px;
 }
 .mega__link:hover{ background:rgba(255,255,255,.06); border-color:var(--border); }
 
-/* prawa kolumna z „feature”/CTA (jak u Maersk) */
+/* prawa kolumna */
 .mega__aside{
-  border-left:1px dashed rgba(255,255,255,.08); padding-left:18px; display:flex; flex-direction:column; gap:12px;
+  border-left:1px dashed rgba(255,255,255,.08); padding-left:16px;
+  display:flex; flex-direction:column; gap:12px; min-width:240px;
 }
 .mega__card{
   background:linear-gradient(180deg, rgba(30,205,195,.12), rgba(30,205,195,.04));
@@ -102,7 +106,6 @@
 .lang[aria-open="true"] .lang__list{ display:block; }
 .lang__opt{ display:flex; gap:8px; align-items:center; padding:8px 10px; border-radius:10px; }
 .lang__opt:hover{ background:rgba(255,255,255,.06); }
-
 .flag{ width:18px; height:12px; background-size:cover; border-radius:2px; box-shadow:0 0 0 1px rgba(0,0,0,.25) inset; }
 .flag-pl{ background-image:url('/assets/flags/pl.svg'); } .flag-gb{ background-image:url('/assets/flags/gb.svg'); }
 .flag-de{ background-image:url('/assets/flags/de.svg'); } .flag-fr{ background-image:url('/assets/flags/fr.svg'); }
@@ -115,7 +118,7 @@
 :root:not([data-theme="light"]) .theme .sun{ opacity:0; transform:scale(.8) rotate(-30deg); }
 :root[data-theme="light"] .theme .moon{ opacity:0; transform:scale(.8) rotate(30deg); }
 
-/* mobile drawer */
+/* mobile */
 .hamburger{ display:none; width:46px; height:42px; border-radius:12px; border:1px solid var(--border); background:rgba(255,255,255,.06); }
 .hamburger span{ display:block; height:2px; background:var(--text); margin:6px 10px; border-radius:2px; }
 @media (max-width:1100px){
@@ -135,7 +138,6 @@
 .header-wave{ width:100%; height:36px; display:block; }
 .header-wave path{ fill:var(--bg); opacity:.92; }
 
-/* perf / a11y */
 @media (prefers-reduced-motion:reduce){
   .mega, .menu-link::after, .brand img{ transition:none!important; animation:none!important; }
 }
