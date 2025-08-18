@@ -2,66 +2,74 @@
 {% set BRAND = (company[0].name if company is defined and company|length>0 and company[0].name else 'Kras-Trans') %}
 {% set _lang  = (page.lang or 'pl') if page is defined else 'pl' %}
 {% set _slug  = (page.slugKey or page.slug or 'home') if page is defined else 'home' %}
+
+{# Konfiguracja z generatora #}
 {% set NAV    = nav_cfg if nav_cfg is defined and nav_cfg else {} %}
 {% set HREF   = hreflang if hreflang is defined else {} %}
+{% set PAGES  = pages if pages is defined else [] %}
 
-{# języki i flagi (fallback) #}
-{% set LANGS  = NAV.get('langs', ['pl','en','de','fr','it','ru','ua']) %}
-{% set FLAGS  = {'pl':'🇵🇱','en':'🇬🇧','de':'🇩🇪','fr':'🇫🇷','it':'🇮🇹','ru':'🇷🇺','ua':'🇺🇦'} %}
+{# Języki i flagi (obsługa: ['pl',...] lub [{code:'pl',href:'...',label:'PL'},...]) #}
+{% set LANGS_RAW = NAV.get('langs') %}
+{% set LANGS     = LANGS_RAW if LANGS_RAW else ['pl','en','de','fr','it','ru','ua'] %}
+{% set FLAGS     = {'pl':'🇵🇱','en':'🇬🇧','de':'🇩🇪','fr':'🇫🇷','it':'🇮🇹','ru':'🇷🇺','ua':'🇺🇦'} %}
 
-{# link do tej samej strony w innym języku: najpierw z hreflang, inaczej /{lang}/{slug}/ #}
+{# Link do {slug,lang}: najpierw z hreflang, inaczej /{lang}/{slug}/ #}
 {% macro link_for(slugkey, lang) -%}
-  {%- set map = HREF[slugkey] if HREF and (slugkey in HREF) else {} -%}
-  {%- if map and (lang in map) -%}{{ map[lang] }}
+  {%- set map = HREF.get(slugkey, {}) -%}
+  {%- if map and map.get(lang) -%}
+    {{ map[lang] }}
   {%- else -%}
     {%- if slugkey == 'home' -%}/{{ lang }}/
-    {%- else -%}/{{ lang }}/{{ slugkey }}/
+    {%- else -%}
+      {%- set p = PAGES|selectattr('slugKey','equalto',slugkey)|selectattr('lang','equalto',lang)|first -%}
+      /{{ lang }}/{{ (p.slug if p and p.slug else slugkey) }}/
     {%- endif -%}
   {%- endif -%}
 {%- endmacro %}
 
-{# pomocnicze ID z etykiety #}
+{# Pomocnicze ID z etykiety #}
 {% macro slug_id(s) -%}{{ (s or 'grp')|lower|replace(' ','-')|replace('/','-') }}{%- endmacro %}
 
-{# Źródła danych dla menu: preferuj NAV.items/panels; fallback: NAV.entries (płaska lista) #}
+{# Źródła menu: preferuj NAV.items (z dziećmi); fallback: NAV.entries (płaska lista) #}
 {% set TOP_ITEMS = NAV.get('items', []) %}
 {% set PANELS_SS = NAV.get('panels', []) %}
 {% set ENTRIES   = NAV.get('entries', []) %}
 
-{# Fallback z entries: standalone (bez parent) + grupy (parent) #}
+{# Fallback z entries: standalone (bez parent) + elementy z parentem #}
 {% set STANDALONE = ENTRIES|selectattr('enabled','ne',False)|selectattr('parent','in',[None,''])|list %}
 {% set WITH_PARENT= ENTRIES|selectattr('enabled','ne',False)|rejectattr('parent','in',[None,''])|list %}
 
 <header id="header" class="site-header" role="banner">
   <div class="container navbar">
     <a class="brand" href="/{{ _lang }}/" aria-label="Strona główna">
-      <img src="/assets/media/logo-firma-transportowa-kras-trans.png" alt="{{ BRAND }}" width="132" height="32" decoding="async" />
+      <img src="/assets/media/logo-firma-transportowa-kras-trans.png" alt="{{ BRAND }}"
+           width="132" height="32" decoding="async" fetchpriority="high" />
       <span class="brand__name">{{ BRAND }}</span>
     </a>
 
     <nav class="nav" aria-label="Główna nawigacja">
       <ul class="nav__list" role="menubar">
-        {# ===== tryb 1: gotowe NAV.items (zagnieżdżone dzieci) ===== #}
-        {% if TOP_ITEMS %}
+        {# ===== tryb 1: NAV.items (drzewo) ===== #}
+        {% if TOP_ITEMS and TOP_ITEMS|length %}
           {% for item in TOP_ITEMS %}
             <li role="none">
               {% if item.children %}
                 <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false"
                         data-panel="panel-{{ slug_id(item.key or item.label) }}">{{ item.label }}</button>
               {% else %}
-                <a class="nav__btn" role="menuitem" href="{{ item.href or link_for(item.slugKey or item.key, _lang) }}">{{ item.label }}</a>
+                <a class="nav__btn" role="menuitem"
+                   href="{{ item.href or link_for(item.slugKey or item.key or 'home', _lang) }}">{{ item.label }}</a>
               {% endif %}
             </li>
           {% endfor %}
         {% else %}
-        {# ===== tryb 2: płaska lista NAV.entries (grupujemy wg parent) ===== #}
-          {# linki bez parenta (np. Home, Contact) #}
+        {# ===== tryb 2: NAV.entries (płasko → grupowanie po parent) ===== #}
           {% for it in STANDALONE|sort(attribute='order') %}
             <li role="none">
-              <a class="nav__btn" role="menuitem" href="{{ it.href or link_for(it.slugKey or it.key, _lang) }}">{{ it.label }}</a>
+              <a class="nav__btn" role="menuitem"
+                 href="{{ it.href or link_for(it.slugKey or it.key or 'home', _lang) }}">{{ it.label }}</a>
             </li>
           {% endfor %}
-          {# przyciski otwierające panele (unikalne parenty) #}
           {% for grp in WITH_PARENT|groupby('parent') %}
             <li role="none">
               <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false"
@@ -73,31 +81,32 @@
     </nav>
 
     <div class="actions">
-      <a href="#quote" class="cta">{{ (strings and strings.get('hero_cta_primary')) or 'Wyceń' }}</a>
+      <a href="#quote" class="cta">{{ (strings and strings.get('hero_cta_primary')) or 'Wycena' }}</a>
 
-      {# języki #}
+      {# ===== języki (stringi lub obiekty) ===== #}
       <div class="lang" data-lang aria-expanded="false">
-        <button class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="lang-panel" title="Języki">
-          🌐
-        </button>
-        <div id="lang-panel" class="lang__panel" role="menu" aria-label="Wybierz język">
+        <button class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="lang-panel" title="Języki">🌐</button>
+        <div id="lang-panel" class="lang__panel" role="menu" aria-label="Wybierz język" hidden>
           <ul class="lang__list">
             {% for L in LANGS %}
-              {% set hrefl = 'uk' if L == 'ua' else L %}
-              <li><a role="menuitem" hreflang="{{ hrefl }}" href="{{ link_for(_slug, L) }}">{{ FLAGS.get(L,'🌍') }} {{ L|upper }}</a></li>
+              {% set code  = (L.code or L.lang or L) %}
+              {% set label = (L.label or code|upper) %}
+              {% set href  = (L.href  or link_for(_slug, code)) %}
+              {% set hrefl = 'uk' if code=='ua' else code %}
+              <li><a role="menuitem" hreflang="{{ hrefl }}" href="{{ href }}">{{ FLAGS.get(code,'🌍') }} {{ label }}</a></li>
             {% endfor %}
           </ul>
         </div>
       </div>
 
-      {# przełącznik motywu #}
+      {# ===== przełącznik motywu ===== #}
       <button id="themeToggle" class="icon-btn" aria-label="Przełącz motyw" title="Motyw: system/dark/light">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path id="themeIcon" d="M12 3a9 9 0 100 18 7 7 0 010-18z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </button>
 
-      {# hamburger (mobile) #}
+      {# ===== hamburger (mobile) ===== #}
       <button class="icon-btn hamburger" id="hamburger" aria-expanded="false" aria-controls="drawer" aria-label="Menu">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -106,10 +115,10 @@
     </div>
   </div>
 
-  {# ========== MEGA-PANELS (desktop) ========== #}
+  {# ================= MEGA-PANELS (desktop) ================= #}
   <div class="panels">
-    {# tryb 1: NAV.panels #}
-    {% if PANELS_SS %}
+    {# tryb 1: NAV.panels (już rozpisane) #}
+    {% if PANELS_SS and PANELS_SS|length %}
       {% for grp in PANELS_SS|groupby('parent') %}
         <div class="panel" id="panel-{{ slug_id(grp.grouper) }}" hidden>
           <div class="container panel__grid">
@@ -117,9 +126,13 @@
               <div class="panel__col">
                 {% for it in colset.list|sort(attribute='order') %}
                   {% if it.type == 'promo' and it.promo_img %}
-                    <a class="panel__promo" href="{{ it.href or '#' }}"><img src="{{ it.promo_img }}" alt=""></a>
+                    <a class="panel__promo" href="{{ it.href or '#' }}">
+                      <img src="{{ it.promo_img }}" alt="" loading="lazy" decoding="async">
+                      {% if it.title %}<strong>{{ it.title }}</strong>{% endif %}
+                      {% if it.desc %}<span class="muted">{{ it.desc }}</span>{% endif %}
+                    </a>
                   {% else %}
-                    <a class="panel__link" href="{{ it.href or link_for(it.slugKey or it.key, _lang) }}">
+                    <a class="panel__link" href="{{ it.href or link_for(it.slugKey or it.key or 'home', _lang) }}">
                       {% if it.badge %}<span class="chip">{{ it.badge }}</span>{% endif %}
                       <strong>{{ it.label }}</strong>
                     </a>
@@ -131,7 +144,7 @@
         </div>
       {% endfor %}
     {% else %}
-      {# tryb 2: z NAV.entries (grupowanie po parent) #}
+      {# tryb 2: z NAV.entries (grupowanie po parent, kolumny po col) #}
       {% for grp in WITH_PARENT|groupby('parent') %}
         <div class="panel" id="panel-{{ slug_id(grp.grouper) }}" hidden>
           <div class="container panel__grid">
@@ -139,9 +152,11 @@
               <div class="panel__col">
                 {% for it in colset.list|sort(attribute='order') %}
                   {% if it.promo_img %}
-                    <a class="panel__promo" href="{{ it.href or '#' }}"><img src="{{ it.promo_img }}" alt=""></a>
+                    <a class="panel__promo" href="{{ it.href or '#' }}">
+                      <img src="{{ it.promo_img }}" alt="" loading="lazy" decoding="async">
+                    </a>
                   {% else %}
-                    <a class="panel__link" href="{{ it.href or link_for(it.slugKey or it.key, _lang) }}">
+                    <a class="panel__link" href="{{ it.href or link_for(it.slugKey or it.key or 'home', _lang) }}">
                       {% if it.badge %}<span class="chip">{{ it.badge }}</span>{% endif %}
                       <strong>{{ it.label }}</strong>
                     </a>
@@ -156,46 +171,49 @@
   </div>
 </header>
 
-{# ========== MOBILE DRAWER ========== #}
+{# ================= MOBILE DRAWER ================= #}
 <div class="drawer" id="drawer" hidden aria-hidden="true">
   <div class="drawer__head">
-    <div class="brand"><span class="brand__logo">K</span><span class="brand__name">{{ BRAND }}</span></div>
+    <div class="brand">
+      <span class="brand__logo">K</span>
+      <span class="brand__name">{{ BRAND }}</span>
+    </div>
     <button class="icon-btn" id="drawerClose" aria-label="Zamknij menu">×</button>
   </div>
+
   <div class="drawer__body">
     <nav aria-label="Menu mobilne">
       <ul class="drawer__list">
-        {% if TOP_ITEMS %}
+        {% if TOP_ITEMS and TOP_ITEMS|length %}
           {% for it in TOP_ITEMS %}
             {% if it.children %}
               <li class="acc">
                 <button class="acc__btn" aria-expanded="false">{{ it.label }}</button>
-                <div class="acc__panel">
+                <div class="acc__panel" hidden>
                   {% for col in it.children|groupby('col') %}
                     <ul class="sublist">
                       {% for x in col.list|sort(attribute='order') %}
-                        <li><a href="{{ x.href or link_for(x.slugKey or x.key, _lang) }}">{{ x.label }}</a></li>
+                        <li><a href="{{ x.href or link_for(x.slugKey or x.key or 'home', _lang) }}">{{ x.label }}</a></li>
                       {% endfor %}
                     </ul>
                   {% endfor %}
                 </div>
               </li>
             {% else %}
-              <li><a href="{{ it.href or link_for(it.slugKey or it.key, _lang) }}">{{ it.label }}</a></li>
+              <li><a href="{{ it.href or link_for(it.slugKey or it.key or 'home', _lang) }}">{{ it.label }}</a></li>
             {% endif %}
           {% endfor %}
         {% else %}
-          {# fallback z entries #}
           {% for it in STANDALONE|sort(attribute='order') %}
-            <li><a href="{{ it.href or link_for(it.slugKey or it.key, _lang) }}">{{ it.label }}</a></li>
+            <li><a href="{{ it.href or link_for(it.slugKey or it.key or 'home', _lang) }}">{{ it.label }}</a></li>
           {% endfor %}
           {% for grp in WITH_PARENT|groupby('parent') %}
             <li class="acc">
               <button class="acc__btn" aria-expanded="false">{{ grp.grouper }}</button>
-              <div class="acc__panel">
+              <div class="acc__panel" hidden>
                 <ul class="sublist">
                   {% for x in grp.list|sort(attribute='order') %}
-                    <li><a href="{{ x.href or link_for(x.slugKey or x.key, _lang) }}">{{ x.label }}</a></li>
+                    <li><a href="{{ x.href or link_for(x.slugKey or x.key or 'home', _lang) }}">{{ x.label }}</a></li>
                   {% endfor %}
                 </ul>
               </div>
@@ -204,36 +222,39 @@
         {% endif %}
       </ul>
     </nav>
+
     <div class="drawer__langs">
       {% for L in LANGS %}
-        <a hreflang="{{ 'uk' if L=='ua' else L }}" href="{{ link_for(_slug, L) }}">{{ FLAGS.get(L,'🌍') }} {{ L|upper }}</a>
+        {% set code = (L.code or L.lang or L) %}
+        <a hreflang="{{ 'uk' if code=='ua' else code }}" href="{{ (L.href or link_for(_slug, code)) }}">
+          {{ FLAGS.get(code,'🌍') }} {{ (L.label or code|upper) }}
+        </a>
       {% endfor %}
     </div>
   </div>
 </div>
 
-{# ========== BOTTOM DOCK (zawsze widoczny) ========== #}
+{# ================= BOTTOM DOCK ================= #}
 <nav class="dock" aria-label="Skróty">
   <a href="/{{ _lang }}/"><span></span><em>{{ (strings and strings.get('dock_home')) or 'Start' }}</em></a>
   <a href="#quote"><span></span><em>{{ (strings and strings.get('hero_cta_primary')) or 'Wycena' }}</em></a>
   <button id="dockMenu"><span></span><em>{{ (strings and strings.get('dock_menu')) or 'Menu' }}</em></button>
 </nav>
 
-{# ========== JS do headera (bez zależności) ========== #}
+{# ================= HEADER JS (bez zależności) ================= #}
 <script>
 (function(){
-  // helperzy
   const $  = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
 
-  // ===== mega-menu
+  // ===== Mega menu (desktop)
   const btns   = $$('.nav__btn[data-panel]');
   const panels = $$('.panel');
 
   function openPanel(id){
     panels.forEach(p => p.hidden = (p.id !== id));
     btns.forEach(b => b.setAttribute('aria-expanded', b.dataset.panel === id ? 'true' : 'false'));
-    document.body.classList.toggle('mega-open', true);
+    document.body.classList.add('mega-open');
   }
   function closePanels(){
     panels.forEach(p => p.hidden = true);
@@ -242,80 +263,79 @@
   }
 
   btns.forEach(b=>{
-    b.addEventListener('click', (e)=>{
+    b.addEventListener('click', ()=>{
       const id = b.dataset.panel;
       const isOpen = b.getAttribute('aria-expanded') === 'true';
       isOpen ? closePanels() : openPanel(id);
     });
-    // desktop hover
+    // hover na desktopie
     if (matchMedia('(pointer:fine)').matches){
       b.addEventListener('mouseenter', ()=> openPanel(b.dataset.panel));
     }
   });
-  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePanels(); });
-  document.addEventListener('click', (e)=>{
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanels(); });
+  document.addEventListener('click', e => {
     if (!e.target.closest('.nav') && !e.target.closest('.panels')) closePanels();
   });
 
-  // ===== języki
+  // ===== Language dropdown
   const langWrap = document.querySelector('[data-lang]');
   if (langWrap){
-    const btn = langWrap.querySelector('button');
+    const btn   = langWrap.querySelector('button');
     const panel = $('#lang-panel');
     function toggleLang(force){
-      const open = force ?? (langWrap.getAttribute('aria-expanded') !== 'true');
+      const open = (force !== undefined) ? force : langWrap.getAttribute('aria-expanded') !== 'true';
       langWrap.setAttribute('aria-expanded', open ? 'true' : 'false');
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      panel.hidden = !open;
+      if (panel) panel.hidden = !open;
     }
     btn.addEventListener('click', ()=> toggleLang());
-    document.addEventListener('click', (e)=>{
-      if (!langWrap.contains(e.target)) toggleLang(false);
-    });
+    document.addEventListener('click', e => { if (!langWrap.contains(e.target)) toggleLang(false); });
   }
 
-  // ===== motyw: system → dark → light
+  // ===== Theme: system → dark → light
   const root = document.documentElement;
   const btnTheme = $('#themeToggle');
   const icon = $('#themeIcon');
   const modes = ['system','dark','light'];
+
   function applyTheme(m){
-    if(m==='system'){ root.removeAttribute('data-theme'); }
-    else{ root.setAttribute('data-theme', m); }
+    if (m === 'system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', m);
     localStorage.setItem('theme', m);
+    // prosta zmiana ikony
     icon.setAttribute('d', m==='dark'
       ? 'M12 3a9 9 0 100 18 7 7 0 010-18z'
       : 'M12 4v4m0 8v4m8-8h-4M8 12H4m10.5-5.5l-2.8 2.8m-4.4 4.4l-2.8 2.8m10 0l-2.8-2.8m-4.4-4.4L6.3 6.5');
   }
   function nextMode(cur){ return modes[(modes.indexOf(cur)+1)%modes.length]; }
+
   let mode = localStorage.getItem('theme') || 'system';
   applyTheme(mode);
-  btnTheme && btnTheme.addEventListener('click', ()=>{
-    mode = nextMode(mode); applyTheme(mode);
-  });
+  btnTheme && btnTheme.addEventListener('click', ()=> { mode = nextMode(mode); applyTheme(mode); });
 
-  // ===== drawer (mobile)
+  // ===== Drawer (mobile)
   const drawer = $('#drawer');
   const hamb   = $('#hamburger');
   const close  = $('#drawerClose');
-  function openDrawer(){ drawer.hidden=false; drawer.setAttribute('aria-hidden','false'); hamb.setAttribute('aria-expanded','true'); document.body.classList.add('drawer-open'); }
-  function closeDrawer(){ drawer.hidden=true; drawer.setAttribute('aria-hidden','true'); hamb.setAttribute('aria-expanded','false'); document.body.classList.remove('drawer-open'); }
-  hamb && hamb.addEventListener('click', ()=> drawer.hidden ? openDrawer() : closeDrawer());
+  function openDrawer(){ if(drawer){ drawer.hidden=false; drawer.setAttribute('aria-hidden','false'); } if(hamb){ hamb.setAttribute('aria-expanded','true'); } document.body.classList.add('drawer-open'); }
+  function closeDrawer(){ if(drawer){ drawer.hidden=true; drawer.setAttribute('aria-hidden','true'); } if(hamb){ hamb.setAttribute('aria-expanded','false'); } document.body.classList.remove('drawer-open'); }
+  hamb  && hamb.addEventListener('click', ()=> (drawer && drawer.hidden) ? openDrawer() : closeDrawer());
   close && close.addEventListener('click', closeDrawer);
-  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeDrawer(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
 
-  // akordeony w drawerze
+  // Akordeony w drawerze
   $$('.acc__btn').forEach(b=>{
+    const panel = b.nextElementSibling;
+    if (panel) panel.hidden = true;
     b.addEventListener('click', ()=>{
-      const open = b.getAttribute('aria-expanded')==='true';
-      b.setAttribute('aria-expanded', open ? 'false':'true');
-      const p = b.nextElementSibling;
-      if(p) p.hidden = open;
+      const open = b.getAttribute('aria-expanded') === 'true';
+      b.setAttribute('aria-expanded', open ? 'false' : 'true');
+      if (panel) panel.hidden = open;
     });
-    const p = b.nextElementSibling; if(p) p.hidden = true;
   });
 
-  // ===== DOCK
+  // ===== Dock
   const dockBtn = $('#dockMenu');
   dockBtn && dockBtn.addEventListener('click', openDrawer);
 })();
