@@ -1,4 +1,11 @@
-<link rel="preload" href="/assets/css/header.css" as="style" onload="this.rel='stylesheet'">
+<!-- MICRO-CRITICAL: zapewnia natychmiast widoczny cienki pasek -->
+<style>
+  #site-header{position:sticky;top:0;z-index:70}
+  #site-header .kt-header__bar{display:flex;align-items:center;gap:16px}
+  #site-header .brand img{height:72px}
+</style>
+
+<link rel="stylesheet" href="/assets/css/header.css">
 
 <header id="site-header"
         class="kt-header glass"
@@ -6,14 +13,14 @@
         data-lang="{{ page.lang or 'pl' }}"
         data-api="https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec?key=kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
         data-cms="/data/cms.json"
-        data-open-delay="60"
-        data-close-delay="360"
+        data-open-delay="120"
+        data-close-delay="480"
         data-mega-maxh="420">
 
   <div class="kt-header__bar">
     <a class="brand" data-bind="brand-url" href="#">
       <img src="/assets/media/logo-firma-transportowa-kras-trans.png"
-           alt="" data-i18n="brand_alt" width="240" height="72"
+           alt="" width="240" height="72"
            decoding="async" fetchpriority="high" />
     </a>
 
