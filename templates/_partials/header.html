@@ -4,9 +4,9 @@
 <header id="site-header"
         class="kt-header glass"
         data-sticky
-        data-lang="pl"                                   <!-- ustaw: pl/en/de/fr/it/ru/ua -->
-        data-api="https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec?key=kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"   <!-- Apps Script doGet -->
-        data-cms="/data/cms.json">                      <!-- fallback: statyczny JSON -->
+        data-lang="{{ page.lang or 'pl' }}"
+        data-api="https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec?key=kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
+        data-cms="/data/cms.json">
   <div class="kt-header__bar">
     <!-- Brand -->
     <a class="brand" data-bind="brand-url" href="#">
