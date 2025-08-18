@@ -1,27 +1,32 @@
-<!-- HEADER (bez słów; etykiety/hrefy dostarcza JS z arkusza) -->
-<link rel="stylesheet" href="/assets/css/header.css" />
-<header id="site-header" class="kt-header glass" data-sticky data-lang="" data-api="">
+<!-- HEADER (bez słów; wszystko zasilane z API) -->
+<link rel="preload" href="/assets/css/header.css" as="style" onload="this.rel='stylesheet'">
+
+<header id="site-header"
+        class="kt-header glass"
+        data-sticky
+        data-api="<!-- TU WSTAW URL do Apps Script doGet (https://.../exec?key=...) -->"
+        data-lang="pl">
   <div class="kt-header__bar">
     <!-- Brand -->
     <a class="brand" data-bind="brand-url" href="#">
       <img src="/assets/media/logo-firma-transportowa-kras-trans.png"
-           alt="" data-i18n="brand_alt" width="240" height="64"
-           decoding="async" fetchpriority="high" />
+           alt="" data-i18n="brand_alt"
+           width="240" height="64" decoding="async" fetchpriority="high" />
     </a>
 
-    <!-- Burger (mobile) -->
+    <!-- Burger -->
     <button class="hamburger" aria-expanded="false" data-i18n-aria="menu_toggle">
       <span></span><span></span><span></span>
     </button>
 
-    <!-- Main nav root (JS zbuduje <li> z podmenu) -->
+    <!-- Main nav (JS wygeneruje <li>) -->
     <nav class="main-nav" aria-label="" data-i18n-aria="nav_main">
       <ul class="menu" role="menubar" data-nav-root></ul>
     </nav>
 
     <!-- Actions -->
     <div class="header-actions">
-      <!-- Języki (JS wypełni aktualny i listę) -->
+      <!-- Języki -->
       <div class="lang" data-lang-switcher>
         <button class="lang__btn" aria-haspopup="listbox" aria-expanded="false">
           <span class="flag" data-lang-flag></span>
@@ -30,23 +35,24 @@
         <ul class="lang__list" role="listbox" data-lang-list></ul>
       </div>
 
-      <!-- Tryb jasny/ciemny – ikony z /assets/flags/ -->
+      <!-- Motyw jasny/ciemny -->
       <button id="theme-toggle" class="theme" aria-pressed="false" data-i18n-aria="theme_toggle">
-        <img class="sun" src="/assets/flags/theme-sun.svg" alt="" />
-        <img class="moon" src="/assets/flags/theme-moon.svg" alt="" />
+        <img class="sun"  src="/assets/flags/theme-sun.svg"  alt="">
+        <img class="moon" src="/assets/flags/theme-moon.svg" alt="">
       </button>
 
-      <!-- CTA (etykieta i href z arkusza/CTA-engine) -->
+      <!-- CTA -->
       <a class="btn btn-quote" href="#" data-cta="quote"><span data-i18n="cta_quote_primary"></span></a>
     </div>
   </div>
 
-  <!-- Falowany separator -->
+  <!-- Falowany separator paska -->
   <svg class="header-wave" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true">
     <path d="M0,32 C240,64 480,0 720,24 C960,48 1200,48 1440,16 L1440,60 L0,60 Z"></path>
   </svg>
 
-  <!-- Scrim pod mobilne menu -->
+  <!-- Tło dla mobilnego menu -->
   <div class="nav-scrim" hidden></div>
 </header>
+
 <script src="/assets/js/header.js" defer></script>
