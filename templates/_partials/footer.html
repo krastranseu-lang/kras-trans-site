@@ -1,53 +1,170 @@
-{# ==== SAFE DEFAULTS (footer) ==== #}
-{% set BRAND = (company[0].name if company is defined and company|length>0 and company[0].name else 'Kras-Trans') %}
-{% set _lang = (page.lang or 'pl') if page is defined else 'pl' %}
-{% set HREF = hreflang if hreflang is defined else {} %}
+{# ====================== FOOTER (glass) ====================== #}
+{% set BRAND  = (company[0].name if company is defined and company|length>0 and company[0].name else 'Kras-Trans') %}
+{% set _lang  = (page.lang or 'pl') if page is defined else 'pl' %}
+{% set NAV    = nav_cfg if nav_cfg is defined and nav_cfg else {} %}
+{% set HREF   = hreflang if hreflang is defined else {} %}
+{% set STR    = (strings if strings is defined else {}) %}
+
+{# i18n fallback #}
+{% set I18N = {
+  'pl': {'follow':'Śledź nas','legal':'Informacje prawne','contact':'Kontakt','about':'O firmie'},
+  'en': {'follow':'Follow us','legal':'Legal','contact':'Contact','about':'About'},
+  'de': {'follow':'Folge uns','legal':'Rechtliches','contact':'Kontakt','about':'Über uns'},
+  'fr': {'follow':'Suivez-nous','legal':'Mentions légales','contact':'Contact','about':'À propos'},
+  'it': {'follow':'Seguici','legal':'Note legali','contact':'Contatto','about':'Chi siamo'},
+  'ru': {'follow':'Мы в сети','legal':'Юр. инфо','contact':'Контакты','about':'О компании'},
+  'ua': {'follow':'Ми в мережі','legal':'Правова інформація','contact':'Контакт','about':'Про нас'}
+} %}
+{% set LBL = I18N.get(_lang, I18N['en']) %}
+
+{# ===== utils ===== #}
 {% macro link_for(slugkey, lang) -%}
   {%- set m = HREF.get(slugkey, {}) -%}
-  {%- if m and m.get(lang) -%}
-    {{ m[lang] }}
-  {%- else -%}
-    {%- if slugkey == 'home' -%}
-      /{{ lang }}/
-    {%- else -%}
-      /{{ lang }}/{{ slugkey }}/
-    {%- endif -%}
+  {%- if m and m.get(lang) -%}{{ m[lang] }}
+  {%- else -%}{%- if slugkey=='home' -%}/{{ lang }}/{%- else -%}/{{ lang }}/{{ slugkey }}/{%- endif -%}
   {%- endif -%}
 {%- endmacro %}
-{% set STR = (strings if strings is defined and strings else {}) %}
-{% set LBL_LICENSES = STR.get('licenses_label','Licencje & ubezpieczenia') %}
-{% set LBL_ABOUT    = STR.get('menu_about','O firmie') %}
-{% set LBL_CONTACT  = STR.get('menu_contact','Kontakt') %}
-<!-- ============ FOOTER ============ -->
-<footer class="site-footer">
+{% macro slug_id(s) -%}{{ (s or 'grp')|lower|replace(' ','-')|replace('/','-') }}{%- endmacro %}
+
+{# ===== źródła danych do footer ===== #}
+{% set FOOT_GROUPS = NAV.get('footer_groups', []) %}
+{% set LEGAL_LINKS = NAV.get('legal', []) %}
+{% set ENTRIES     = NAV.get('entries', []) %}
+
+{# Fallback: wyciągnij z entries rekordy footerowe #}
+{% if not FOOT_GROUPS and ENTRIES %}
+  {% set _cand = ENTRIES
+      |selectattr('enabled','ne',False)
+      |selectattr('lang','equalto',_lang)
+      |list %}
+  {# region='footer' preferowane #}
+  {% set _foot = _cand|selectattr('region','equalto','footer')|list %}
+  {% if not _foot|length %}
+    {% set _foot = _cand|selectattr('type','equalto','footer')|list %}
+  {% endif %}
+  {% if not _foot|length %}
+    {% set _foot = _cand|selectattr('footer','equalto',True)|list %}
+  {% endif %}
+  {# zgrupuj po parent #}
+  {% set FOOT_GROUPS = [] %}
+  {% for grp in _foot|groupby('parent') %}
+    {% set cols = [] %}
+    {% for colset in grp.list|groupby('col') %}
+      {% set items = [] %}
+      {% for it in colset.list|sort(attribute='order') %}
+        {% set _href = it.href or link_for(it.slugKey or it.key, _lang) %}
+        {% set items = items + [ {'label': it.label, 'href': _href, 'badge': it.badge} ] %}
+      {% endfor %}
+      {% set cols = cols + [ {'items': items} ] %}
+    {% endfor %}
+    {% set FOOT_GROUPS = FOOT_GROUPS + [ {'title': grp.grouper, 'cols': cols} ] %}
+  {% endfor %}
+{% endif %}
+
+{# Fallback LEGAL z entries (region='legal') #}
+{% if not LEGAL_LINKS and ENTRIES %}
+  {% set LEGAL_LINKS = ENTRIES
+      |selectattr('enabled','ne',False)
+      |selectattr('lang','equalto',_lang)
+      |selectattr('region','equalto','legal')
+      |sort(attribute='order')
+      |map(attribute='href')
+      |list %}
+{% endif %}
+
+<footer class="site-footer" role="contentinfo">
   <div class="container foot-row">
-    <div>© {{ BRAND }}</div>
-    <nav class="foot-nav" aria-label="Footer">
-<a href="{{ link_for('contact', _lang) }}">{{ LBL_CONTACT }}</a>
-<a href="{{ link_for('about', _lang) }}">{{ LBL_ABOUT }}</a>
-<a href="{{ link_for('licenses-insurance', _lang) }}">{{ LBL_LICENSES }}</a>    </nav>
-    {% if company is defined and company and company[0] %}
-      {% set c = company[0] %}
-      <address>
-        {% if c.streetAddress %}{{ c.streetAddress }}, {{ c.postalCode }} {{ c.addressLocality }}{% endif %}<br>
-        {% if c.telephone %}<a href="tel:{{ c.telephone }}">{{ c.telephone }}</a><br>{% endif %}
-        {% if c.email %}<a href="mailto:{{ c.email }}">{{ c.email }}</a>{% endif %}
+    <div class="foot-brand">
+      <a class="brand" href="/{{ _lang }}/" aria-label="Strona główna">
+        <img src="/assets/media/logo-firma-transportowa-kras-trans.png" alt="{{ BRAND }}" width="128" height="30" decoding="async" />
+      </a>
+      <address class="foot-addr">
+        <strong>{{ BRAND }}</strong><br>
+        {% if company and company[0].street_address %}{{ company[0].street_address }}{% endif %}
+        {% if company and company[0].postal_code %}, {{ company[0].postal_code }}{% endif %}
+        {% if company and company[0].city %} {{ company[0].city }}{% endif %}<br>
+        {% if company and company[0].telephone %}<a href="tel:{{ company[0].telephone }}">{{ company[0].telephone }}</a><br>{% endif %}
+        {% if company and company[0].email %}<a href="mailto:{{ company[0].email }}">{{ company[0].email }}</a>{% endif %}
       </address>
-      {% set json = {
-        '@context':'https://schema.org',
-        '@type':'LocalBusiness',
-        'name': c.name or '',
-        'telephone': c.telephone or '',
-        'email': c.email or '',
-        'address': {
-          '@type':'PostalAddress',
-          'streetAddress': c.streetAddress or '',
-          'addressLocality': c.addressLocality or '',
-          'postalCode': c.postalCode or '',
-          'addressCountry': c.addressCountry or ''
-        }
-      } %}
-      <script type="application/ld+json">{{ json | tojson }}</script>
-    {% endif %}
+
+      {# Social (sameAs z company[0]) #}
+      {% set socials = (company and company[0].same_as) or [] %}
+      {% if socials and socials|length %}
+      <div class="foot-social">
+        <span class="muted">{{ LBL.follow }}</span>
+        <div class="foot-social__row">
+          {% for url in socials %}
+            {% set host = url|replace('https://','')|replace('http://','') %}
+            <a href="{{ url }}" rel="me noopener" target="_blank" aria-label="{{ host }}">{{ host.split('/')[0] }}</a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="foot-cols">
+      {# ===== główne grupy kolumn ===== #}
+      {% for g in FOOT_GROUPS %}
+        <section class="foot-col">
+          <h4 class="foot-col__title">{{ g.title }}</h4>
+          <div class="foot-col__grid">
+            {% set columns = g.cols if g.cols is defined and g.cols else [ {'items': g.items or []} ] %}
+            {% for c in columns %}
+              <ul class="foot-list">
+                {% for it in (c.items or []) %}
+                  <li>
+                    <a href="{{ it.href }}">
+                      {{ it.label }}
+                      {% if it.badge %}<span class="chip">{{ it.badge }}</span>{% endif %}
+                    </a>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% endfor %}
+          </div>
+        </section>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="container foot-legal">
+    <div class="foot-copy">© {{ (now or '')[:4] or '' }} {{ BRAND }}</div>
+    <nav class="foot-legal__links" aria-label="{{ LBL.legal }}">
+      {% if LEGAL_LINKS and LEGAL_LINKS|length %}
+        {% for href in LEGAL_LINKS %}
+          <a href="{{ href }}">{{ href.split('/')[-2]|replace('-',' ')|title }}</a>
+        {% endfor %}
+      {% else %}
+        <a href="{{ link_for('contact', _lang) }}">{{ LBL.contact }}</a>
+        <a href="{{ link_for('about', _lang) }}">{{ LBL.about }}</a>
+      {% endif %}
+    </nav>
   </div>
 </footer>
+
+{# ======= JS: akordeony w stopce na mobile + drobne UX ======= #}
+<script>
+(function(){
+  // Mobile accordion: klik w tytuł sekcji rozwija listy
+  const mq = window.matchMedia('(max-width: 820px)');
+  function bindAcc(){
+    document.querySelectorAll('.foot-col').forEach(col=>{
+      const title = col.querySelector('.foot-col__title');
+      if(!title) return;
+      title.setAttribute('tabindex','0');
+      title.setAttribute('role','button');
+      title.setAttribute('aria-expanded','false');
+      const body = col.querySelector('.foot-col__grid');
+      if (mq.matches){ body.hidden = true; }
+      title.onclick = ()=> {
+        const open = title.getAttribute('aria-expanded') === 'true';
+        title.setAttribute('aria-expanded', open ? 'false' : 'true');
+        body.hidden = open;
+      };
+      title.onkeydown = (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); title.click(); } };
+    });
+  }
+  bindAcc();
+  mq.addEventListener?.('change', bindAcc);
+})();
+</script>
