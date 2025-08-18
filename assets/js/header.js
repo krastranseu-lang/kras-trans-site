@@ -1,4 +1,4 @@
-/* ================== Header + Mega menu (Maersk-like) ================== */
+/* ================== Header + Mega menu (Maersk-like, slim panel) ================== */
 (function () {
   const header = document.getElementById('site-header');
   if (!header) return;
@@ -7,6 +7,9 @@
   let LANG = (header.dataset.lang || detectLangFromPath() || 'pl').toLowerCase();
   const API_URL = header.dataset.api || '';
   const CMS_URL = header.dataset.cms || '';
+  const OPEN_DELAY  = Number(header.dataset.openDelay  || 60);
+  const CLOSE_DELAY = Number(header.dataset.closeDelay || 360);
+  const MEGA_MAXH   = Number(header.dataset.megaMaxh   || 420);
 
   const FLAG_BY_LANG = { pl:'pl', en:'gb', de:'de', fr:'fr', it:'it', ru:'ru', ua:'ua' };
   const LANGS = ['pl','en','de','fr','it','ru','ua'];
@@ -25,7 +28,7 @@
   const scrim     = header.querySelector('.nav-scrim');
   const rootEl    = document.documentElement;
 
-  /* ---------- THEME (global) ---------- */
+  /* ---------- THEME ---------- */
   function applyTheme(mode){ rootEl.setAttribute('data-theme', mode);
     try{ localStorage.setItem(THEME_KEY, mode); }catch(e){} themeBtn?.setAttribute('aria-pressed', String(mode==='dark')); }
   const stored = (()=>{ try{ return localStorage.getItem(THEME_KEY); }catch(e){return null;}})();
@@ -34,7 +37,7 @@
   prefersDark.addEventListener?.('change', e => { if (!stored) applyTheme(e.matches ? 'dark' : 'light'); });
   themeBtn?.addEventListener('click', ()=> applyTheme(rootEl.getAttribute('data-theme')==='dark' ? 'light' : 'dark'));
 
-  /* ---------- DATA SOURCE ---------- */
+  /* ---------- DATA ---------- */
   function detectLangFromPath(){ const m = location.pathname.match(/^\/([a-z]{2})(\/|$)/i); return m ? m[1].toLowerCase() : null; }
   function getInline(){ const s=document.getElementById('kt-cms'); if(!s) return null; try{ return JSON.parse(s.textContent); }catch{return null;} }
   function fetchJSON(url, timeout=6000){
@@ -85,19 +88,15 @@
       a.addEventListener('pointerenter', prefetchHref, { passive:true });
       li.appendChild(a);
 
-      // Mega panel
       if (node.children.length){
         const mega = buildMega(node, STR);
         li.appendChild(mega);
-      }
 
-      // mobile fallback (drilldown)
-      if (node.children.length){
+        // mobile fallback
         const mob = create('div','submenu-mobile'); const list=document.createElement('ul');
         node.children.forEach(ch=>{ const li2=document.createElement('li'); const l=create('a','submenu-link',{href:cleanHref(ch.href)||'#',text:ch.label}); li2.appendChild(l); list.appendChild(li2);});
         mob.appendChild(list); li.appendChild(mob);
       }
-
       frag.appendChild(li);
     });
 
@@ -107,12 +106,12 @@
   }
 
   function buildMega(node, STR){
-    const mega = create('div','mega'); const wrap = create('div','mega__wrap'); mega.appendChild(wrap);
+    const mega = create('div','mega'); mega.style.setProperty('--mega-max-h', MEGA_MAXH+'px');
 
-    // Lewa część — kolumny
+    const wrap = create('div','mega__wrap');
+    const scroll = create('div','mega__scroll'); // KLUCZ: wewnętrzny scroll
     const colsWrap = create('div','mega__cols');
 
-    // Podział: wg col z arkusza, fallback: równe porcje
     const kids = node.children.slice();
     const declared = kids.some(k=>k.col>0);
     let nCols = declared ? Math.min(4, Math.max(...kids.map(k=>k.col))) : Math.min(4, Math.ceil(kids.length/6) || 1);
@@ -124,7 +123,7 @@
     }
 
     for (let c=1;c<=nCols;c++){
-      const col = create('div','mega__col'); // nagłówek grupy można dodać z future danych
+      const col = create('div','mega__col');
       kids.filter(k=>k._col===c).forEach(ch=>{
         const link = create('a','mega__link',{ href: cleanHref(ch.href)||'#', text: ch.label });
         link.addEventListener('pointerenter', prefetchHref, { passive:true });
@@ -133,15 +132,16 @@
       colsWrap.appendChild(col);
     }
 
-    // Prawa kolumna — karta feature/CTA (pobiera z Strings)
     const aside = create('div','mega__aside');
     const card  = create('div','mega__card');
     const p     = create('p',null,{ text: t(STR,'mega_help_text',LANG) || '' });
     const cta   = create('a','mega__cta',{ href: header.querySelector('[data-cta="quote"]')?.getAttribute('href') || '#', text: t(STR,'cta_quote_primary',LANG) || '' });
     card.appendChild(p); card.appendChild(cta); aside.appendChild(card);
 
-    wrap.appendChild(colsWrap);
+    scroll.appendChild(colsWrap);
+    wrap.appendChild(scroll);
     wrap.appendChild(aside);
+    mega.appendChild(wrap);
     return mega;
   }
 
@@ -159,9 +159,11 @@
     });
   }
 
+  /* ---------- Mega: open/close + hover intent corridor ---------- */
   function wireMegas(){
     const items = [...header.querySelectorAll('.menu-item.has-mega')];
-    let openTO=null, closeTO=null;
+    let openTO=null, closeTO=null, hoverId=null;
+    const mouse = { x:0, y:0 }; document.addEventListener('pointermove', e=>{ mouse.x=e.clientX; mouse.y=e.clientY; }, { passive:true });
 
     function setMegaTop(){
       const rect = header.getBoundingClientRect();
@@ -172,17 +174,31 @@
     items.forEach(item=>{
       const link = item.querySelector('.menu-link'); const mega = item.querySelector('.mega'); if(!mega) return;
 
-      function open(){ clearTimeout(closeTO); items.forEach(i=>i.removeAttribute('aria-open')); item.setAttribute('aria-open','true'); setMegaTop(); }
-      function close(){ closeTO = setTimeout(()=>item.removeAttribute('aria-open'), 180); }
+      function reallyOpen(){
+        items.forEach(i=>i.removeAttribute('aria-open'));
+        item.setAttribute('aria-open','true'); setMegaTop();
+      }
+      function open(){ clearTimeout(closeTO); clearTimeout(openTO); openTO = setTimeout(reallyOpen, OPEN_DELAY); }
+      function close(){ clearTimeout(openTO); clearTimeout(closeTO); closeTO = setTimeout(()=>item.removeAttribute('aria-open'), CLOSE_DELAY); }
 
-      // hover / focus
-      item.addEventListener('pointerenter', open, { passive:true });
-      item.addEventListener('pointerleave', close, { passive:true });
-      mega.addEventListener('pointerenter', ()=>clearTimeout(closeTO), { passive:true });
-      mega.addEventListener('pointerleave', close, { passive:true });
+      // korytarz intencji (trójkąt między spodem linka i górą mega)
+      function inCorridor(){
+        const lr = link.getBoundingClientRect(); const mr = mega.getBoundingClientRect();
+        if (mouse.y < lr.bottom || mouse.y > mr.top + 40) return false; // poza pionowym korytarzem
+        // proporcja między krawędziami
+        const leftX  = lr.left + (mouse.y - lr.bottom) * ( (mr.left - lr.left) / Math.max(1, (mr.top - lr.bottom)) );
+        const rightX = lr.right + (mouse.y - lr.bottom) * ( (mr.right - lr.right) / Math.max(1, (mr.top - lr.bottom)) );
+        return mouse.x >= Math.min(leftX,rightX) - 12 && mouse.x <= Math.max(leftX,rightX) + 12;
+      }
+
+      item.addEventListener('pointerenter', ()=>{ clearInterval(hoverId); open(); }, { passive:true });
+      item.addEventListener('pointerleave', ()=>{ hoverId=setInterval(()=>{ if(!inCorridor()){ clearInterval(hoverId); close(); } }, 40); }, { passive:true });
+
+      mega.addEventListener('pointerenter', ()=>{ clearTimeout(closeTO); clearInterval(hoverId); }, { passive:true });
+      mega.addEventListener('pointerleave', ()=>close(), { passive:true });
 
       // klawiatura
-      link.addEventListener('keydown', e=>{ if(e.key==='ArrowDown'){ e.preventDefault(); open(); mega.querySelector('a')?.focus(); }});
+      link.addEventListener('keydown', e=>{ if(e.key==='ArrowDown'){ e.preventDefault(); reallyOpen(); mega.querySelector('a')?.focus(); }});
       mega.addEventListener('keydown', e=>{ if(e.key==='Escape'){ e.preventDefault(); item.removeAttribute('aria-open'); link.focus(); }});
     });
 
@@ -198,7 +214,6 @@
     const flag = FLAG_BY_LANG[LANG] || 'gb'; langFlag.className = 'flag flag-'+flag;
     langCode.textContent = (LANG||'pl').toUpperCase();
 
-    // reverse: "lang/slug" -> slugKey
     const reverse = {};
     (routes||[]).forEach(r=>{
       const key=(r.slugKey||r.slugkey||'home').trim()||'home';
@@ -225,10 +240,8 @@
   }
 
   /* ---------- STRINGS/CTA/BRAND ---------- */
-  function applyStrings(strings){
-    header.querySelectorAll('[data-i18n]').forEach(el=>{ const v=t(strings, el.getAttribute('data-i18n'), LANG); if(v) el.textContent=v; });
-    header.querySelectorAll('[data-i18n-aria]').forEach(el=>{ const v=t(strings, el.getAttribute('data-i18n-aria'), LANG); if(v) el.setAttribute('aria-label', v); });
-  }
+  function tBind(strings){ header.querySelectorAll('[data-i18n]').forEach(el=>{ const v=t(strings, el.getAttribute('data-i18n'), LANG); if(v) el.textContent=v; });
+    header.querySelectorAll('[data-i18n-aria]').forEach(el=>{ const v=t(strings, el.getAttribute('data-i18n-aria'), LANG); if(v) el.setAttribute('aria-label', v); }); }
   function bindBrand(){ if(brandLink) brandLink.href=`/${LANG}/`; }
 
   /* ---------- Mobile ---------- */
@@ -238,7 +251,7 @@
   scrim?.addEventListener('click', closeMobile);
   window.addEventListener('resize', ()=>{ if(innerWidth>1100 && header.getAttribute('aria-mobile-open')==='true') closeMobile(); }, { passive:true });
 
-  /* ---------- PERF niceties ---------- */
+  /* ---------- brand scale on scroll ---------- */
   const brandImg = header.querySelector('.brand img');
   window.addEventListener('scroll', ()=>{ const y=Math.max(0,Math.min(1, scrollY/160)); const h=72-(72-56)*y; if(brandImg) brandImg.style.height=`${h}px`; }, { passive:true });
 
@@ -252,13 +265,15 @@
 
     const tree = buildHierarchy(navLang);
     renderNav(tree, STR);
-    applyStrings(STR);
+    tBind(STR);
     bindBrand();
     renderLangSwitcher(data.hreflang||{}, data.routes||[], STR);
-    console.info('[KT header] boot ok (mega)', {lang:LANG});
+    console.info('[KT header] boot ok (mega slim)', {lang:LANG});
   }
 
   function start(){
+    // zastosuj max-height z atrybutu do :root
+    document.documentElement.style.setProperty('--mega-max-h', MEGA_MAXH+'px');
     getCMS().then(boot).catch(err=>console.error('[KT header] init error', err));
   }
   if ('requestIdleCallback' in window) requestIdleCallback(start, { timeout: 1200 }); else setTimeout(start, 0);
