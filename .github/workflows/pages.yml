@@ -30,6 +30,8 @@ jobs:
       GA_ID: "G-5FYE42J3BE"
       GSC_VERIFICATION: "Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y"
       CNAME: kras-trans.com
+      APPS_URL: ${{ secrets.APPS_URL }}
+      APPS_KEY: ${{ secrets.APPS_KEY }}
 
     steps:
       # ————————————————————————————————
@@ -58,9 +60,7 @@ jobs:
       # 2) Wstępna walidacja sekretów (czy nie puste)
       # ————————————————————————————————
       - name: Preflight secrets check
-        env:
-          APPS_URL: ${{ secrets.APPS_URL }}
-          APPS_KEY: ${{ secrets.APPS_KEY }}
+        if: env.APPS_URL != '' && env.APPS_KEY != ''
         run: |
           set -euo pipefail
           test -n "${APPS_URL:-}" || { echo "::error::Missing secret APPS_URL"; exit 1; }
@@ -71,9 +71,7 @@ jobs:
       # 3) Pobranie CMS z Apps Script (odporne)
       # ————————————————————————————————
       - name: Fetch CMS JSON from Apps Script (robust)
-        env:
-          APPS_URL: ${{ secrets.APPS_URL }}
-          APPS_KEY: ${{ secrets.APPS_KEY }}
+        if: env.APPS_URL != '' && env.APPS_KEY != ''
         run: |
           set -euo pipefail
           mkdir -p data
