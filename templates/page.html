@@ -1,30 +1,34 @@
 {% import '_macros/seo.html' as SEO %}
-{% set BRAND = SEO.brand(company) %}
-{% set _slug = page.slugKey or page.slug or 'home' %}
-{% set _lang = page.lang or 'pl' %}
-{% set PAGES = pages if pages is defined else [] %}
-{% set BLOCKS = blocks if blocks is defined else [] %}
+
+{# ================= SAFE DEFAULTS ================= #}
+{% set BRAND    = SEO.brand(company) %}
+{% set _slug    = (page.slugKey or page.slug or 'home') if page is defined else 'home' %}
+{% set _lang    = (page.lang or 'pl') if page is defined else 'pl' %}
+{% set PAGES    = pages   if pages   is defined else [] %}
+{% set BLOCKS   = blocks  if blocks  is defined else [] %}
 {% set HREFLANG = hreflang if hreflang is defined else {} %}
-{% set NAV_CFG = nav_cfg if nav_cfg is defined else {} %}
+{% set NAV_CFG  = nav_cfg if nav_cfg is defined else {} %}
 
+{# Fallback i18n (gdy strings puste) #}
 {% set I18N = {
-  'pl': {'hero_cta_primary':'Wyceń transport teraz','menu_contact':'Kontakt','menu_about':'O nas','licenses_label':'Licencje i ubezpieczenia','dock_home':'Start','dock_menu':'Menu'},
-  'en': {'hero_cta_primary':'Get a quote','menu_contact':'Contact','menu_about':'About','licenses_label':'Licenses & insurance','dock_home':'Home','dock_menu':'Menu'},
-  'de': {'hero_cta_primary':'Angebot anfordern','menu_contact':'Kontakt','menu_about':'Über uns','licenses_label':'Lizenzen & Versicherung','dock_home':'Home','dock_menu':'Menü'},
-  'fr': {'hero_cta_primary':'Demander un devis','menu_contact':'Contact','menu_about':'À propos','licenses_label':'Licences & assurances','dock_home':'Accueil','dock_menu':'Menu'},
-  'it': {'hero_cta_primary':'Richiedi preventivo','menu_contact':'Contatto','menu_about':'Chi siamo','licenses_label':'Licenze e assicurazioni','dock_home':'Home','dock_menu':'Menu'},
-  'ru': {'hero_cta_primary':'Запросить расчёт','menu_contact':'Контакты','menu_about':'О компании','licenses_label':'Лицензии и страхование','dock_home':'Главная','dock_menu':'Меню'},
-  'ua': {'hero_cta_primary':'Кошторис','menu_contact':'Контакт','menu_about':'Про нас','licenses_label':'Ліцензії та страхування','dock_home':'Головна','dock_menu':'Меню'}
+  'pl': {'claim':'Kompleksowe usługi transportowe','hero_cta_primary':'Wyceń transport teraz'},
+  'en': {'claim':'Full-stack transport services','hero_cta_primary':'Get a quote'},
+  'de': {'claim':'Umfassende Transportdienste','hero_cta_primary':'Angebot anfordern'},
+  'fr': {'claim':'Services de transport complets','hero_cta_primary':'Demander un devis'},
+  'it': {'claim':'Servizi di trasporto completi','hero_cta_primary':'Richiedi preventivo'},
+  'ru': {'claim':'Комплексные транспортные услуги','hero_cta_primary':'Запросить расчёт'},
+  'ua': {'claim':'Комплексні транспортні послуги','hero_cta_primary':'Кошторис'}
 } %}
-{% set STR = (strings if strings is defined and strings else I18N[_lang]) %}
+{% set STR = (strings if strings is defined and strings else I18N.get(_lang, I18N['pl'])) %}
 
+{# Link resolver: najpierw hreflang -> potem /{lang}/{slug}/ #}
 {% macro url_of(slugkey, lang) -%}
-  {%- set map = HREFLANG[slugkey] if HREFLANG and (slugkey in HREFLANG) else {} -%}
-  {%- if map and (lang in map) -%}{{ map[lang] }}
+  {%- set m = HREFLANG[slugkey] if HREFLANG and (slugkey in HREFLANG) else {} -%}
+  {%- if m and (lang in m) -%}{{ m[lang] }}
   {%- else -%}
-    {%- set p = PAGES|selectattr('slugKey','equalto',slugkey)|selectattr('lang','equalto',lang)|first -%}
-    {%- set the_slug = (p.slug if p and p.slug else slugkey) -%}
-    /{{ lang }}/{{ the_slug }}/
+    {%- if slugkey == 'home' -%}/{{ lang }}/
+    {%- else -%}/{{ lang }}/{{ slugkey }}/
+    {%- endif -%}
   {%- endif -%}
 {%- endmacro %}
 
@@ -32,31 +36,112 @@
 <html lang="{{ _lang }}">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{{ SEO.seo_title(page, BRAND) }}</title>
   <meta name="description" content="{{ SEO.meta_desc(page) }}">
   <link rel="canonical" href="{{ SEO.canon(page) }}">
   {{ SEO.hreflang_links(_slug, HREFLANG) | safe }}
-  <style>/* critical css placeholder */</style>
+
+  {# CSS: trzymać jedną paczkę /assets/css/app.css #}
   <link rel="stylesheet" href="/assets/css/app.css" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/assets/css/app.css"></noscript>
 </head>
 <body>
   {% include '_partials/header.html' %}
-  <main>
-    {{ page_html|safe }}
+
+  <main id="main" role="main">
+    {# 1) Jeśli build wygenerował gotowe HTML (np. layout karty) — pokaż je #}
+    {% if page_html is defined and page_html %}
+      {{ page_html|safe }}
+
+    {# 2) Inaczej zbuduj stronę z pól + bloków z arkusza #}
+    {% else %}
+      <!-- HERO -->
+      <section class="hero">
+        <div class="container hero-wrap">
+          <div class="hero-copy">
+            <span class="claim">{{ page.claim or STR.claim }}</span>
+            <h1>{{ page.h1 or page.title }}</h1>
+            {% if page.lead %}<p class="lead" data-lead>{{ page.lead }}</p>{% endif %}
+            <p class="hero-cta">
+              <a class="btn primary" href="#quote">{{ STR.hero_cta_primary }}</a>
+            </p>
+          </div>
+          {% if page.hero_video %}
+            <video class="hero-media" muted loop playsinline preload="none"
+                   poster="{{ page.hero_poster or '' }}" width="1680" height="720">
+              <source src="{{ page.hero_video }}" type="video/mp4">
+            </video>
+          {% elif page.hero_image %}
+            <img class="hero-media" src="{{ page.hero_image }}" alt="{{ page.hero_alt or page.h1 }}"
+                 width="1680" height="720" loading="eager" fetchpriority="high">
+          {% endif %}
+        </div>
+      </section>
+
+      {# BLOKI z arkusza: blocks.page == _slug i lang == _lang #}
+      {% set page_blocks = BLOCKS
+         |selectattr('lang','equalto',_lang)
+         |selectattr('page','equalto',_slug)
+         |selectattr('enabled','ne',False)
+         |list %}
+      {% if page_blocks|length %}
+      <section class="section">
+        <div class="container grid">
+          {% for b in page_blocks|sort(attribute='order') %}
+          <article class="card">
+            {% if b.title %}<h3>{{ b.title }}</h3>{% endif %}
+            {% if b.lead %}<p class="muted" data-md>{{ b.lead }}</p>{% endif %}
+            {% if b.body_md %}<div class="prose" data-md>{{ b.body_md }}</div>{% endif %}
+            {% if b.href and b.cta_label %}<p><a class="btn" href="{{ b.href }}">{{ b.cta_label }}</a></p>{% endif %}
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {# Treść z page.body_md (jeżeli jest) #}
+      {% if page.body_md %}
+      <section class="section">
+        <div class="container text">
+          <div class="prose" data-md>{{ page.body_md }}</div>
+        </div>
+      </section>
+      {% endif %}
+    {% endif %}
+
+    {# Slot na „powiązane linki” z makra SEO (opcjonalnie) #}
     {% if page.min_outlinks is defined and page.max_outlinks is defined %}
       {% set links = SEO.outlinks(page, PAGES, page.min_outlinks, page.max_outlinks, page.suggest_links, page.anchor_text_suggestions) %}
       {% if links %}
       <nav class="outlinks" aria-label="Related">
         <ul>
-          {% for l in links %}
-            <li><a href="{{ l.href }}">{{ l.anchor }}</a></li>
-          {% endfor %}
+          {% for l in links %}<li><a href="{{ l.href }}">{{ l.anchor }}</a></li>{% endfor %}
         </ul>
       </nav>
       {% endif %}
     {% endif %}
   </main>
+
   <script type="application/ld+json">{{ SEO.structured(page, company, BLOCKS)|tojson }}</script>
   {% include '_partials/footer.html' %}
+
+  {# Minimalny formatter: \n -> <br>, akapity i **bold** dla [data-lead]/[data-md] #}
+  <script>
+  (function(){
+    function fmt(s){
+      return (s||'')
+        .replace(/\r\n/g,'\n')
+        .replace(/\n\n+/g,'</p><p>')
+        .replace(/\n/g,'<br>')
+        .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    }
+    document.querySelectorAll('[data-lead]').forEach(el=>{ el.innerHTML = fmt(el.textContent); });
+    document.querySelectorAll('[data-md]').forEach(el=>{
+      var t = el.textContent.trim(); if(!t) return;
+      el.innerHTML = '<p>'+fmt(t)+'</p>';
+    });
+  })();
+  </script>
 </body>
 </html>
