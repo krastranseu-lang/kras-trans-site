@@ -1,90 +1,88 @@
-:root{
-  --bg: #0b1020;
-  --bg-2:#0e152d;
-  --txt:#e9edf6;
-  --muted:#9aa3b2;
-  --brand:#2ac3ff;
-  --cta:#2dd4bf;
-  --border:#1f2742;
-  --shadow: 0 20px 40px rgba(0,0,0,.25);
-}
-[data-theme="light"]{
-  --bg:#ffffff; --bg-2:#f7f9fc; --txt:#0c1222; --muted:#5b6472; --brand:#1f7aff; --cta:#0ea5e9; --border:#e6eaf2;
-}
+<header id="site-header" class="kt-header glass" data-sticky>
+  <div class="kt-header__bar">
+    <a class="brand" href="/{{ (page.lang or 'pl') }}/">
+      <img
+        src="/assets/media/logo-firma-transportowa-kras-trans.png"
+        alt="Kras-Trans"
+        width="240" height="64"
+        decoding="async" fetchpriority="high" />
+    </a>
 
-.kt-header{position:sticky;top:0;z-index:1000;background:var(--bg);box-shadow:0 1px 0 var(--border);}
-.kt-container{max-width:1200px;margin:auto;padding:12px 20px;display:flex;align-items:center;gap:16px;}
-.kt-logo{display:flex;align-items:center;min-width:132px}
-.kt-logo img{height:clamp(30px,4.2vw,36px);width:auto;object-fit:contain;vertical-align:middle}
+    <button class="hamburger" aria-label="Menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
 
-.kt-nav{margin-left:8px;flex:1}
-.kt-nav__list{display:flex;gap:6px;align-items:center;list-style:none}
-.kt-nav__item{position:relative}
-.kt-nav__link{display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:12px;font-weight:500;color:var(--txt);background:transparent;border:0;cursor:pointer}
-.kt-nav__link:hover{background:color-mix(in oklab, var(--bg-2) 85%, #fff 15%);}
-.kt-caret{opacity:.7;transform:translateY(1px)}
+    {# MAIN NAV – budowane z arkusza Nav #}
+    {% set L = page.lang or 'pl' %}
+    {% set root = nav
+      | selectattr('enabled','!=',false)
+      | selectattr('lang','equalto',L)
+      | selectattr('parent','in',['',' ' ,None])
+      | sort(attribute='order') | list %}
+    <nav class="main-nav" aria-label="{{ t('nav_main') or 'Main navigation' }}">
+      <ul class="menu" role="menubar">
+        {% for n in root %}
+          {% set kids = nav
+            | selectattr('enabled','!=',false)
+            | selectattr('lang','equalto',L)
+            | selectattr('parent','equalto',n.label)
+            | sort(attribute='order') | list %}
+          <li class="menu-item {{ 'has-sub' if kids }}" role="none">
+            <a class="menu-link" role="menuitem" href="{{ n.href }}">{{ n.label }}</a>
 
-.has-mega .kt-mega{position:absolute;left:0;right:0;top:calc(100% + 8px);display:none}
-.has-mega[aria-expanded="true"] .kt-mega{display:block}
-.has-mega:hover .kt-mega{display:block}
+            {% if kids %}
+              <button class="sub-hint" aria-label="Open submenu" aria-expanded="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+                <span class="sparkle" aria-hidden="true"></span>
+              </button>
+              <div class="submenu" role="menu">
+                <div class="submenu__inner">
+                  {% for c in kids %}
+                    <a class="submenu-link" role="menuitem" href="{{ c.href }}">{{ c.label }}</a>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </nav>
 
-.kt-mega{background:var(--bg-2);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:18px}
-.kt-mega__grid{display:grid;grid-template-columns:repeat(3,minmax(200px,1fr));gap:14px}
-.kt-mega__col{list-style:none;margin:0;padding:0}
-.kt-mega__col a{display:block;padding:8px 10px;border-radius:10px;color:var(--txt)}
-.kt-mega__col a:hover{background:color-mix(in oklab, var(--bg) 75%, #fff 25%);}
+    <div class="header-actions">
+      {# LANGUAGE #}
+      <div class="lang">
+        {% set langs = ['pl','en','de','fr','it','ru','ua'] %}
+        <button class="lang__btn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="flag flag-{{ L }}"></span><span class="lang__code">{{ L|upper }}</span>
+        </button>
+        <ul class="lang__list" role="listbox" aria-label="Language">
+          {% for a in langs %}
+            <li role="option" aria-selected="{{ 'true' if a==L else 'false' }}">
+              <a href="/{{ a }}/" class="lang__opt">
+                <span class="flag flag-{{ a }}"></span><span>{{ a|upper }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
 
-.kt-actions{display:flex;align-items:center;gap:12px;margin-left:auto}
-.kt-cta{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;background:var(--cta);color:#00131a;border-radius:999px;font-weight:700;text-decoration:none;box-shadow:0 6px 16px rgba(0,0,0,.2)}
-.kt-cta:hover{filter:brightness(1.05)}
+      {# THEME #}
+      <button id="theme-toggle" class="theme" aria-label="Toggle theme" aria-pressed="false">
+        <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4V2m0 20v-2m8-8h2M2 12h2m13.657-6.343l1.414-1.414M4.929 19.071l1.414-1.414m0-10.314L4.93 4.93m14.142 14.142-1.414-1.414M12 7a5 5 0 100 10 5 5 0 000-10z"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
 
-.kt-burger{display:none;flex-direction:column;gap:4px;background:transparent;border:0}
-.kt-burger span{width:22px;height:2px;background:var(--txt);border-radius:3px;display:block}
+      <a class="btn btn-quote" href="{{ url_by_slugkey('quote') if routes else '/'~L~'/wycena/' }}">{{ t('final_cta_primary') or 'Wycena' }}</a>
+    </div>
+  </div>
 
-.kt-lang{position:relative}
-.kt-lang__btn{display:flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--border);background:transparent;color:var(--txt);border-radius:12px}
-.kt-lang__list{position:absolute;right:0;top:calc(100% + 8px);background:var(--bg-2);border:1px solid var(--border);border-radius:12px;list-style:none;padding:8px;display:none;min-width:160px}
-.kt-lang__list a{display:block;padding:8px 10px;border-radius:8px;color:var(--txt)}
-.kt-lang__list a[aria-current="true"]{font-weight:700}
-.kt-lang[aria-expanded="true"] .kt-lang__list{display:block}
+  {# dekoracyjna fala na dole headera #}
+  <svg class="header-wave" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,32 C240,64 480,0 720,24 C960,48 1200,48 1440,16 L1440,60 L0,60 Z"></path>
+  </svg>
 
-.kt-theme{border:1px solid var(--border);background:transparent;color:var(--txt);border-radius:12px;padding:8px;line-height:0}
-
-@media (max-width: 1100px){
-  .kt-nav{display:none}
-  .kt-burger{display:flex}
-}
-
-/* Mobile drawer */
-.kt-mobile{position:fixed;inset:0;background:color-mix(in oklab, var(--bg) 70%, #000 30%);backdrop-filter:saturate(120%) blur(4px);
-  display:none; z-index:1000;}
-.kt-mobile.is-open{display:block}
-.kt-mobile__inner{background:var(--bg);width:min(92vw,420px);height:100svh;overflow:auto;border-left:1px solid var(--border);margin-left:auto;box-shadow:var(--shadow)}
-.kt-mobile__top{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border)}
-.kt-mobile__nav{padding:8px 12px}
-.kt-mobile__list{list-style:none;margin:0;padding:0}
-.kt-mobile__item{border-bottom:1px solid var(--border)}
-.kt-mobile__item a, .kt-mobile__item summary{display:flex;justify-content:space-between;align-items:center;color:var(--txt);padding:14px 10px;font-weight:500}
-.kt-mobile__item summary{cursor:pointer;list-style:none}
-.kt-mobile__cols{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;padding:0 8px 12px}
-.kt-mobile__cols ul{margin:0;padding:0;list-style:none}
-.kt-mobile__cols a{display:block;padding:8px;border-radius:10px}
-.kt-mobile__utils{padding:14px 16px;border-top:1px solid var(--border)}
-.kt-lang--mobile .kt-lang__pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.pill{display:inline-flex;align-items:center;justify-content:center;padding:8px 10px;border:1px solid var(--border);border-radius:999px;color:var(--txt);text-decoration:none}
-.pill.is-active{background:var(--bg-2);font-weight:700}
-
-@media (hover: hover){
-  .has-mega:hover > .kt-nav__link{background:color-mix(in oklab, var(--bg-2) 85%, #fff 15%)}
-}
-
-/* Accessibility / focus */
-.kt-header a:focus-visible, .kt-header button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-
-/* Reduce motion */
-@media (prefers-reduced-motion: no-preference){
-  .kt-mega{animation:pop .12s ease-out}
-  .kt-mobile__inner{animation:slide .18s ease-out}
-}
-@keyframes pop{from{opacity:0;transform:translateY(6px)}}
-@keyframes slide{from{transform:translateX(20px);opacity:0}}
+  {# pełnoekranowy overlay dla mobile i submenus #}
+  <div class="nav-scrim" hidden></div>
+</header>
