@@ -1,3 +1,4 @@
+{# ===================== SAFE DEFAULTS ===================== #}
 {% set BRAND = (company[0].name if company is defined and company|length>0 and company[0].name else 'Kras-Trans') %}
 {% set _slug  = (page.slugKey or page.slug or 'home') if page is defined else 'home' %}
 {% set _lang  = (page.lang    or 'pl')   if page is defined else 'pl' %}
@@ -5,7 +6,7 @@
 {% set BLOCKS = blocks if blocks is defined else [] %}
 {% set HREF   = hreflang if hreflang is defined else {} %}
 
-{# i18n fallback, gdy strings nie nadejdą #}
+{# i18n fallback (gdy strings nie przyjdą z CMS) #}
 {% set I18N = {
   'pl': {'offers_title':'Nasza oferta','routes_title':'Kierunki','hero_cta_primary':'Wyceń transport teraz','hero_cta_secondary':'Zadzwoń','faq_title':'FAQ'},
   'en': {'offers_title':'Our offer','routes_title':'Routes','hero_cta_primary':'Get a quote','hero_cta_secondary':'Call','faq_title':'FAQ'},
@@ -37,6 +38,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0b1220">
+
   <title>{{ page.seo_title or page.title or BRAND }}</title>
   <meta name="description" content="{{ page.meta_desc or page.lead or '' }}">
   <link rel="canonical" href="{{ _canon }}">
@@ -50,45 +52,49 @@
     <link rel="alternate" hreflang="x-default" href="{{ _hl.en or _hl.pl }}">
   {% endif %}
 
+  {# preloady i CSS globalny #}
   <link rel="preload" href="/assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/assets/css/app.css">
+  <link rel="preload" href="/assets/css/app.css" as="style">
+  <link rel="stylesheet" href="/assets/css/app.css" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/assets/css/app.css"></noscript>
+
+  {# małe minimum stylu dla layoutu sekcji (reszta w app.css) #}
   <style>
-    /* delikatne minimum, resztę masz w /assets/css/app.css */
     .container{max-width:1200px;margin:0 auto;padding:0 16px}
+    .section{padding:56px 0}
     .hero{padding:56px 0}
-    .hero-wrap{display:grid;grid-template-columns:1.05fr 1fr;gap:32px}
-    .hero .claim{display:inline-block;font-size:.8rem;letter-spacing:.1em;opacity:.8;margin-bottom:10px}
+    .hero-wrap{display:grid;gap:32px}
+    @media(min-width:900px){.hero-wrap{grid-template-columns:1.05fr 1fr}}
+    .claim{display:inline-block;font-size:.8rem;letter-spacing:.1em;opacity:.8;margin-bottom:10px}
     .hero h1{font-size:clamp(32px,4.2vw,54px);line-height:1.05;margin:.2em 0 .3em}
-    .hero .lead{color:var(--muted);max-width:62ch}
+    .lead{color:var(--muted);max-width:62ch}
     .hero-cta{display:flex;gap:12px;margin-top:16px}
     .btn{display:inline-flex;align-items:center;gap:10px;padding:12px 18px;border-radius:14px;border:1px solid var(--edge,#2a3448)}
     .btn.primary{background:linear-gradient(180deg,#28a3ff,#0077ff);color:#fff;border:none}
-    .section{padding:56px 0}
-    .card-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
-    .card{grid-column:span 12;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:18px}
-    @media(min-width:700px){.card{grid-column:span 6}}
-    @media(min-width:1024px){.card{grid-column:span 4}}
-    .prose p{margin:.6em 0}
+
     .rail{display:grid;grid-auto-flow:column;grid-auto-columns:80%;gap:14px;padding:4px;overflow-x:auto;scroll-snap-type:x mandatory}
     .rail > a{scroll-snap-align:center}
     .offer-card{display:flex;flex-direction:column;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;overflow:hidden}
     .offer-card img{width:100%;height:auto;display:block}
     .offer-card__title{font-weight:700;padding:12px 14px 4px}
     .offer-card__desc{opacity:.8;padding:0 14px 14px}
-    /* FAQ */
+
+    .card-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+    .card{grid-column:span 12;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:18px}
+    @media(min-width:700px){.card{grid-column:span 6}}
+    @media(min-width:1024px){.card{grid-column:span 4}}
+
     details{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px}
     details+details{margin-top:10px}
     summary{cursor:pointer;font-weight:600}
+    .iframe-wrap{aspect-ratio:16/9;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.06)}
   </style>
 </head>
 <body>
-{% include '_partials/header.html' %}
-  <main id="main" role="main">
-    … (treść z Twojego `page.html`) …
-  </main>
-  {% include '_partials/footer.html' %}
 
-  
+  {# HEADER z partiala #}
+  {% include '_partials/header.html' %}
+
   <main id="main" role="main">
     <!-- ============ HERO ============ -->
     <section class="hero" id="hero">
@@ -141,7 +147,7 @@
     </section>
     {% endif %}
 
-    {# ============ BLOKI STRONY (automatyczne sekcje wg block) ============ #}
+    {# ============ BLOKI STRONY (sekcje wg block) ============ #}
     {% set _page_blocks = BLOCKS
         |selectattr('lang','equalto',_lang)
         |selectattr('page','equalto',_slug)
@@ -149,12 +155,11 @@
         |sort(attribute='order')
         |list %}
     {% if _page_blocks|length %}
-      {# grupowanie wg pola "block" (np. 'why','how','fleet','license','faq' ...) #}
       {% for kind, items in _page_blocks|groupby('block') %}
         {% set _title = (items[0].section_title or items[0].title or kind|capitalize) if items and (items[0] is defined) else kind|capitalize %}
         {% if 'faq' in (kind|string) %}
           <section class="section" id="{{ kind }}">
-            <div class="container"><h2>{{ _title }}</h2></div>
+            <div class="container"><h2>{{ _title or STR.faq_title }}</h2></div>
             <div class="container">
               {% for f in items %}
                 {% if f.title %}<details><summary>{{ f.title }}</summary>{% else %}<details>{% endif %}
@@ -182,12 +187,12 @@
       {% endfor %}
     {% endif %}
 
-    {# ============ KIERUNKI (mapa) – pokaż na home albo gdy page.show_map == True ============ #}
+    {# ============ MAPA – na home lub gdy page.show_map == True ============ #}
     {% if _slug == 'home' or page.show_map %}
     <section class="section" id="kierunki">
       <div class="container"><h2>{{ STR.routes_title }}</h2></div>
       <div class="container">
-        <div class="iframe-wrap" style="aspect-ratio:16/9">
+        <div class="iframe-wrap">
           <iframe class="routes-map" title="Mapa kierunków" loading="lazy"
                   src="/assets/media/mapa-kierunkow-kras-trans.html"
                   sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer"></iframe>
@@ -205,43 +210,44 @@
     </section>
     {% endif %}
 
-    {# ============ ANCHOR DO WYCENY (do podpięcia formularza lub stopki) ============ #}
+    {# kotwica do formularza/wyceny w stopce #}
     <div id="quote"></div>
-
   </main>
 
-  <!-- ============ FORMATOWANIE TEKSTU / MD (lightweight) ============ -->
+  {# FOOTER z partiala #}
+  {% include '_partials/footer.html' %}
+
+  {# ========= JS: formatowanie \n / list / bold ========= #}
   <script>
   (function(){
-    function toHtml(md){
-      if(!md) return '';
-      let s = (md+'').replace(/\r\n/g,'\n').trim();
+    function mdToHtml(s){
+      if(!s) return '';
+      s = (s+'').replace(/\r\n/g,'\n').trim();
 
-      // listy punktowane: linie zaczynające się od "-" lub "•"
+      // listy punktowane ( -  lub  • )
       if (/^(\s*[-•]\s.+\n?)+$/m.test(s) || s.includes('\n- ') || s.includes('\n• ')) {
         const items = s.split('\n').map(l=>l.replace(/^\s*[-•]\s?/,'').trim()).filter(Boolean);
         return '<ul><li>'+items.join('</li><li>')+'</li></ul>';
       }
-
       // listy numerowane 1) 2) ...
       if (/^\s*\d+\)\s/m.test(s)) {
         const items = s.split(/\n+/).map(l=>l.replace(/^\s*\d+\)\s*/,'').trim()).filter(Boolean);
         return '<ol><li>'+items.join('</li><li>')+'</li></ol>';
       }
-
-      // akapity + nowe linie
-      s = s
-        .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-        .replace(/\n{2,}/g,'</p><p>')
-        .replace(/\n/g,'<br>');
+      // akapity + <br> i **bold**
+      s = s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+           .replace(/\n{2,}/g,'</p><p>')
+           .replace(/\n/g,'<br>');
       return '<p>'+s+'</p>';
     }
-
     document.querySelectorAll('[data-md]').forEach(el=>{
-      const raw = el.textContent;
-      el.innerHTML = toHtml(raw);
+      el.innerHTML = mdToHtml(el.textContent);
     });
   })();
   </script>
+
+  {# konfiguracja nawigacji dla headera + skrypt ogólny #}
+  <script>window.KRAS_NAV = {{ nav_cfg|tojson if nav_cfg is defined else {} }};</script>
+  <script src="/assets/js/app.js" defer></script>
 </body>
 </html>
