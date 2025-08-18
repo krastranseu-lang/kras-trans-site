@@ -1,88 +1,52 @@
-<header id="site-header" class="kt-header glass" data-sticky>
+<!-- HEADER (bez słów; etykiety/hrefy dostarcza JS z arkusza) -->
+<link rel="stylesheet" href="/assets/css/header.css" />
+<header id="site-header" class="kt-header glass" data-sticky data-lang="" data-api="">
   <div class="kt-header__bar">
-    <a class="brand" href="/{{ (page.lang or 'pl') }}/">
-      <img
-        src="/assets/media/logo-firma-transportowa-kras-trans.png"
-        alt="Kras-Trans"
-        width="240" height="64"
-        decoding="async" fetchpriority="high" />
+    <!-- Brand -->
+    <a class="brand" data-bind="brand-url" href="#">
+      <img src="/assets/media/logo-firma-transportowa-kras-trans.png"
+           alt="" data-i18n="brand_alt" width="240" height="64"
+           decoding="async" fetchpriority="high" />
     </a>
 
-    <button class="hamburger" aria-label="Menu" aria-expanded="false">
+    <!-- Burger (mobile) -->
+    <button class="hamburger" aria-expanded="false" data-i18n-aria="menu_toggle">
       <span></span><span></span><span></span>
     </button>
 
-    {# MAIN NAV – budowane z arkusza Nav #}
-    {% set L = page.lang or 'pl' %}
-    {% set root = nav
-      | selectattr('enabled','!=',false)
-      | selectattr('lang','equalto',L)
-      | selectattr('parent','in',['',' ' ,None])
-      | sort(attribute='order') | list %}
-    <nav class="main-nav" aria-label="{{ t('nav_main') or 'Main navigation' }}">
-      <ul class="menu" role="menubar">
-        {% for n in root %}
-          {% set kids = nav
-            | selectattr('enabled','!=',false)
-            | selectattr('lang','equalto',L)
-            | selectattr('parent','equalto',n.label)
-            | sort(attribute='order') | list %}
-          <li class="menu-item {{ 'has-sub' if kids }}" role="none">
-            <a class="menu-link" role="menuitem" href="{{ n.href }}">{{ n.label }}</a>
-
-            {% if kids %}
-              <button class="sub-hint" aria-label="Open submenu" aria-expanded="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-                <span class="sparkle" aria-hidden="true"></span>
-              </button>
-              <div class="submenu" role="menu">
-                <div class="submenu__inner">
-                  {% for c in kids %}
-                    <a class="submenu-link" role="menuitem" href="{{ c.href }}">{{ c.label }}</a>
-                  {% endfor %}
-                </div>
-              </div>
-            {% endif %}
-          </li>
-        {% endfor %}
-      </ul>
+    <!-- Main nav root (JS zbuduje <li> z podmenu) -->
+    <nav class="main-nav" aria-label="" data-i18n-aria="nav_main">
+      <ul class="menu" role="menubar" data-nav-root></ul>
     </nav>
 
+    <!-- Actions -->
     <div class="header-actions">
-      {# LANGUAGE #}
-      <div class="lang">
-        {% set langs = ['pl','en','de','fr','it','ru','ua'] %}
+      <!-- Języki (JS wypełni aktualny i listę) -->
+      <div class="lang" data-lang-switcher>
         <button class="lang__btn" aria-haspopup="listbox" aria-expanded="false">
-          <span class="flag flag-{{ L }}"></span><span class="lang__code">{{ L|upper }}</span>
+          <span class="flag" data-lang-flag></span>
+          <span class="lang__code" data-lang-code></span>
         </button>
-        <ul class="lang__list" role="listbox" aria-label="Language">
-          {% for a in langs %}
-            <li role="option" aria-selected="{{ 'true' if a==L else 'false' }}">
-              <a href="/{{ a }}/" class="lang__opt">
-                <span class="flag flag-{{ a }}"></span><span>{{ a|upper }}</span>
-              </a>
-            </li>
-          {% endfor %}
-        </ul>
+        <ul class="lang__list" role="listbox" data-lang-list></ul>
       </div>
 
-      {# THEME #}
-      <button id="theme-toggle" class="theme" aria-label="Toggle theme" aria-pressed="false">
-        <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4V2m0 20v-2m8-8h2M2 12h2m13.657-6.343l1.414-1.414M4.929 19.071l1.414-1.414m0-10.314L4.93 4.93m14.142 14.142-1.414-1.414M12 7a5 5 0 100 10 5 5 0 000-10z"/></svg>
-        <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      <!-- Tryb jasny/ciemny – ikony z /assets/flags/ -->
+      <button id="theme-toggle" class="theme" aria-pressed="false" data-i18n-aria="theme_toggle">
+        <img class="sun" src="/assets/flags/theme-sun.svg" alt="" />
+        <img class="moon" src="/assets/flags/theme-moon.svg" alt="" />
       </button>
 
-      <a class="btn btn-quote" href="{{ url_by_slugkey('quote') if routes else '/'~L~'/wycena/' }}">{{ t('final_cta_primary') or 'Wycena' }}</a>
+      <!-- CTA (etykieta i href z arkusza/CTA-engine) -->
+      <a class="btn btn-quote" href="#" data-cta="quote"><span data-i18n="cta_quote_primary"></span></a>
     </div>
   </div>
 
-  {# dekoracyjna fala na dole headera #}
+  <!-- Falowany separator -->
   <svg class="header-wave" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true">
     <path d="M0,32 C240,64 480,0 720,24 C960,48 1200,48 1440,16 L1440,60 L0,60 Z"></path>
   </svg>
 
-  {# pełnoekranowy overlay dla mobile i submenus #}
+  <!-- Scrim pod mobilne menu -->
   <div class="nav-scrim" hidden></div>
 </header>
+<script src="/assets/js/header.js" defer></script>
