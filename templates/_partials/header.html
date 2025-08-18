@@ -1,4 +1,3 @@
-<!-- HEADER (dynamiczny: wszystko z arkusza/JSON) -->
 <link rel="preload" href="/assets/css/header.css" as="style" onload="this.rel='stylesheet'">
 
 <header id="site-header"
@@ -7,6 +6,7 @@
         data-lang="{{ page.lang or 'pl' }}"
         data-api="https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec?key=kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
         data-cms="/data/cms.json">
+
   <div class="kt-header__bar">
     <!-- Brand -->
     <a class="brand" data-bind="brand-url" href="#">
@@ -20,14 +20,13 @@
       <span></span><span></span><span></span>
     </button>
 
-    <!-- Main nav (JS wygeneruje <li>) -->
+    <!-- Main nav -->
     <nav class="main-nav" aria-label="" data-i18n-aria="nav_main">
       <ul class="menu" role="menubar" data-nav-root></ul>
     </nav>
 
     <!-- Actions -->
     <div class="header-actions">
-      <!-- Języki -->
       <div class="lang" data-lang-switcher>
         <button class="lang__btn" aria-haspopup="listbox" aria-expanded="false">
           <span class="flag" data-lang-flag></span>
@@ -36,28 +35,22 @@
         <ul class="lang__list" role="listbox" data-lang-list></ul>
       </div>
 
-      <!-- Motyw -->
       <button id="theme-toggle" class="theme" aria-pressed="false" data-i18n-aria="theme_toggle">
         <img class="sun"  src="/assets/flags/theme-sun.svg"  alt="">
         <img class="moon" src="/assets/flags/theme-moon.svg" alt="">
       </button>
 
-      <!-- CTA -->
       <a class="btn btn-quote" href="#" data-cta="quote"><span data-i18n="cta_quote_primary"></span></a>
     </div>
   </div>
 
-  <!-- Falowany separator -->
+  <!-- separator fali -->
   <svg class="header-wave" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true">
     <path d="M0,32 C240,64 480,0 720,24 C960,48 1200,48 1440,16 L1440,60 L0,60 Z"></path>
   </svg>
 
-  <!-- Tło pod drawer mobilny -->
+  <!-- tło dla drawer mobilnego -->
   <div class="nav-scrim" hidden></div>
 </header>
-
-<!-- (opcjonalnie) możesz tu wstrzyknąć inline JSON, wtedy nic nie będzie fetchowane:
-<script id="kt-cms" type="application/json">{ ...payload z doGet... }</script>
--->
 
 <script src="/assets/js/header.js" defer></script>
