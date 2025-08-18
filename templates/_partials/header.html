@@ -1,132 +1,88 @@
-{# expects in context:
-   page.lang -> current lang (fallback 'pl')
-   nav       -> list[ {lang,label,href,parent,order,col,enabled} ]
-   company   -> company data (for phone etc.)  # optional
-#}
-{% set LANG = page.lang or 'pl' %}
-{% set nav_lang = nav | selectattr('lang','equalto', LANG) | list %}
-{% set top = nav_lang | selectattr('parent','equalto','') | sort(attribute='order') | list %}
-{% set has_children = nav_lang | rejectattr('parent','equalto','') | map(attribute='parent') | list %}
-
-<header class="kt-header" data-theme="auto">
-  <div class="kt-container">
-    <!-- Logo -->
-    <a class="kt-logo" href="/{{LANG}}/">
-      <img src="/assets/media/logo-firma-transportowa-kras-trans.png" alt="Kras-Trans" width="132" height="36" />
+<header id="site-header" class="kt-header glass" data-sticky>
+  <div class="kt-header__bar">
+    <a class="brand" href="/{{ (page.lang or 'pl') }}/">
+      <img
+        src="/assets/media/logo-firma-transportowa-kras-trans.png"
+        alt="Kras-Trans"
+        width="240" height="64"
+        decoding="async" fetchpriority="high" />
     </a>
 
-    <!-- Desktop nav -->
-    <nav class="kt-nav" aria-label="Main">
-      <ul class="kt-nav__list">
-        {% for item in top %}
-          {% set kids = nav_lang | selectattr('parent','equalto', item.label) | sort(attribute='order') | list %}
-          {% if kids|length %}
-            <li class="kt-nav__item has-mega">
-              <button class="kt-nav__link" aria-expanded="false" aria-haspopup="true" data-mega="#mega-{{ loop.index }}">
-                <span>{{ item.label }}</span>
-                <svg class="kt-caret" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    <button class="hamburger" aria-label="Menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+
+    {# MAIN NAV – budowane z arkusza Nav #}
+    {% set L = page.lang or 'pl' %}
+    {% set root = nav
+      | selectattr('enabled','!=',false)
+      | selectattr('lang','equalto',L)
+      | selectattr('parent','in',['',' ' ,None])
+      | sort(attribute='order') | list %}
+    <nav class="main-nav" aria-label="{{ t('nav_main') or 'Main navigation' }}">
+      <ul class="menu" role="menubar">
+        {% for n in root %}
+          {% set kids = nav
+            | selectattr('enabled','!=',false)
+            | selectattr('lang','equalto',L)
+            | selectattr('parent','equalto',n.label)
+            | sort(attribute='order') | list %}
+          <li class="menu-item {{ 'has-sub' if kids }}" role="none">
+            <a class="menu-link" role="menuitem" href="{{ n.href }}">{{ n.label }}</a>
+
+            {% if kids %}
+              <button class="sub-hint" aria-label="Open submenu" aria-expanded="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+                <span class="sparkle" aria-hidden="true"></span>
               </button>
-              <div class="kt-mega" id="mega-{{ loop.index }}" role="dialog" aria-label="{{ item.label }}">
-                <div class="kt-mega__grid">
-                  {% for col, group in kids|groupby('col') %}
-                    <ul class="kt-mega__col">
-                      {% for link in group|sort(attribute='order') %}
-                        <li><a href="{{ link.href }}">{{ link.label }}</a></li>
-                      {% endfor %}
-                    </ul>
+              <div class="submenu" role="menu">
+                <div class="submenu__inner">
+                  {% for c in kids %}
+                    <a class="submenu-link" role="menuitem" href="{{ c.href }}">{{ c.label }}</a>
                   {% endfor %}
                 </div>
               </div>
-            </li>
-          {% else %}
-            <li class="kt-nav__item">
-              <a class="kt-nav__link" href="{{ item.href }}"><span>{{ item.label }}</span></a>
-            </li>
-          {% endif %}
+            {% endif %}
+          </li>
         {% endfor %}
       </ul>
     </nav>
 
-    <!-- Right side: language, theme, CTA -->
-    <div class="kt-actions">
-      <div class="kt-lang">
-        {% set LANGS = ['pl','en','de','fr','it','ru','ua'] %}
-        <button class="kt-lang__btn" aria-expanded="false" aria-haspopup="true">
-          <span class="kt-lang__current">{{ LANG|upper }}</span>
-          <svg class="kt-caret" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    <div class="header-actions">
+      {# LANGUAGE #}
+      <div class="lang">
+        {% set langs = ['pl','en','de','fr','it','ru','ua'] %}
+        <button class="lang__btn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="flag flag-{{ L }}"></span><span class="lang__code">{{ L|upper }}</span>
         </button>
-        <ul class="kt-lang__list" role="menu">
-          {% for L in LANGS %}
-            <li role="none"><a role="menuitem" href="/{{L}}/{{ page.slug or '' }}"{% if L==LANG %} aria-current="true"{% endif %}>{{ L|upper }}</a></li>
+        <ul class="lang__list" role="listbox" aria-label="Language">
+          {% for a in langs %}
+            <li role="option" aria-selected="{{ 'true' if a==L else 'false' }}">
+              <a href="/{{ a }}/" class="lang__opt">
+                <span class="flag flag-{{ a }}"></span><span>{{ a|upper }}</span>
+              </a>
+            </li>
           {% endfor %}
         </ul>
       </div>
 
-      <button class="kt-theme" id="kt-theme" aria-label="Toggle theme">
-        <svg class="sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path d="M12 4V2m0 20v-2m8-8h2M2 12h2m13.657-6.343l1.414-1.414M4.929 19.071l1.414-1.414M18.071 19.071l-1.414-1.414M6.343 6.343L4.929 4.929" stroke="currentColor" stroke-width="2" fill="none"/>
-          <circle cx="12" cy="12" r="4" fill="currentColor"/>
-        </svg>
+      {# THEME #}
+      <button id="theme-toggle" class="theme" aria-label="Toggle theme" aria-pressed="false">
+        <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4V2m0 20v-2m8-8h2M2 12h2m13.657-6.343l1.414-1.414M4.929 19.071l1.414-1.414m0-10.314L4.93 4.93m14.142 14.142-1.414-1.414M12 7a5 5 0 100 10 5 5 0 000-10z"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
       </button>
 
-      <a class="kt-cta" href="/{{LANG}}/wycena/">{{ 'Wycena' if LANG=='pl' else 'Quote' }}</a>
-
-      <!-- Mobile burger -->
-      <button class="kt-burger" aria-label="Menu" aria-expanded="false" aria-controls="kt-mobile">
-        <span></span><span></span><span></span>
-      </button>
+      <a class="btn btn-quote" href="{{ url_by_slugkey('quote') if routes else '/'~L~'/wycena/' }}">{{ t('final_cta_primary') or 'Wycena' }}</a>
     </div>
   </div>
 
-  <!-- Mobile drawer -->
-  <div class="kt-mobile" id="kt-mobile" aria-hidden="true">
-    <div class="kt-mobile__inner">
-      <div class="kt-mobile__top">
-        <a class="kt-logo" href="/{{LANG}}/">
-          <img src="/assets/media/logo-transport-kras-trans.svg" alt="Kras-Trans" width="132" height="36" />
-        </a>
-        <a class="kt-cta" href="/{{LANG}}/wycena/">{{ 'Wycena' if LANG=='pl' else 'Quote' }}</a>
-      </div>
-      <nav class="kt-mobile__nav" aria-label="Mobile">
-        <ul class="kt-mobile__list">
-          {% for item in top %}
-            {% set kids = nav_lang | selectattr('parent','equalto', item.label) | sort(attribute='order') | list %}
-            {% if kids|length %}
-              <li class="kt-mobile__item">
-                <details>
-                  <summary>{{ item.label }}</summary>
-                  <div class="kt-mobile__cols">
-                    {% for col, group in kids|groupby('col') %}
-                      <ul>
-                        {% for link in group|sort(attribute='order') %}
-                          <li><a href="{{ link.href }}">{{ link.label }}</a></li>
-                        {% endfor %}
-                      </ul>
-                    {% endfor %}
-                  </div>
-                </details>
-              </li>
-            {% else %}
-              <li class="kt-mobile__item"><a href="{{ item.href }}">{{ item.label }}</a></li>
-            {% endif %}
-          {% endfor %}
-        </ul>
-      </nav>
-      <div class="kt-mobile__utils">
-        <div class="kt-lang kt-lang--mobile">
-          <div class="kt-lang__row">
-            <span>{{ 'Język' if LANG=='pl' else 'Language' }}</span>
-            <div class="kt-lang__pills">
-              {% for L in ['pl','en','de','fr','it','ru','ua'] %}
-                <a class="pill{% if L==LANG %} is-active{% endif %}" href="/{{L}}/{{ page.slug or '' }}">{{ L|upper }}</a>
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-        {% if company and company[0] and company[0].telephone %}
-          <a class="kt-call" href="tel:{{ company[0].telephone }}">{{ 'Zadzwoń 24/7' if LANG=='pl' else 'Call 24/7' }}</a>
-        {% endif %}
-      </div>
-    </div>
-  </div>
+  {# dekoracyjna fala na dole headera #}
+  <svg class="header-wave" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,32 C240,64 480,0 720,24 C960,48 1200,48 1440,16 L1440,60 L0,60 Z"></path>
+  </svg>
+
+  {# pełnoekranowy overlay dla mobile i submenus #}
+  <div class="nav-scrim" hidden></div>
 </header>
