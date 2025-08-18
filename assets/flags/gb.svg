@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600" preserveAspectRatio="xMidYMid slice" shape-rendering="geometricPrecision">
+
+<rect width="900" height="600" fill="#012169"/>
+<!-- White diagonals -->
+<line x1="0" y1="0" x2="900" y2="600" stroke="#FFFFFF" stroke-width="120" stroke-linecap="square"/>
+<line x1="0" y1="600" x2="900" y2="0" stroke="#FFFFFF" stroke-width="120" stroke-linecap="square"/>
+<!-- Red diagonals -->
+<line x1="0" y1="0" x2="900" y2="600" stroke="#C8102E" stroke-width="70" stroke-linecap="square"/>
+<line x1="0" y1="600" x2="900" y2="0" stroke="#C8102E" stroke-width="70" stroke-linecap="square"/>
+<!-- White cross -->
+<rect x="0" y="210" width="900" height="180" fill="#FFFFFF"/>
+<rect x="360" y="0" width="180" height="600" fill="#FFFFFF"/>
+<!-- Red cross -->
+<rect x="0" y="240" width="900" height="120" fill="#C8102E"/>
+<rect x="390" y="0" width="120" height="600" fill="#C8102E"/>
+
+</svg>
