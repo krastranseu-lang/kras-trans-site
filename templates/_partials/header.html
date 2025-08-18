@@ -1,169 +1,150 @@
 {# ===================== SAFE DEFAULTS ===================== #}
-{% set BRAND = (company[0].name if company is defined and company|length>0 and company[0].name else 'Kras-Trans') %}
+{% set BRAND  = (company[0].name if company is defined and company|length>0 and company[0].name else 'Kras-Trans') %}
 {% set _lang  = (page.lang or 'pl')  if page is defined else 'pl' %}
 {% set _slug  = (page.slugKey or page.slug or 'home') if page is defined else 'home' %}
+{% set NAV    = (nav_cfg  if nav_cfg  is defined and nav_cfg  else {}) %}
+{% set ITEMS  = NAV.get('items', []) %}
+{% set HREF   = (hreflang if hreflang is defined else {}) %}
+{% set PAGES  = (pages if pages is defined else []) %}
+{% set STR    = (strings if strings is defined else {}) %}
+{% set LANGS  = NAV.get('langs', ['pl','en','de','fr','it','ru','ua']) %}
 
-{# dane z generatora (nie używamy już NAV_CFG; tylko NAV) #}
-{% set NAV  = (nav_cfg  if nav_cfg  is defined and nav_cfg  else {}) %}
-{% set HREF = (hreflang if hreflang is defined and hreflang else {}) %}
-{% set STR  = (strings  if strings  is defined and strings  else {}) %}
+{# emoji flagi #}
+{% macro flag(l) -%}
+  {%- set m = {'pl':'🇵🇱','en':'🇬🇧','de':'🇩🇪','fr':'🇫🇷','it':'🇮🇹','ru':'🇷🇺','ua':'🇺🇦'} -%}
+  {{ m.get(l, '🏳️') }}
+{%- endmacro %}
 
-{# etykiety #}
-{% set LBL_QUOTE     = STR.get('hero_cta_primary','Wycena') %}
-{% set LBL_CONTACT   = STR.get('menu_contact','Kontakt') %}
-{% set LBL_DOCK_HOME = STR.get('dock_home','Start') %}
-{% set LBL_DOCK_MENU = STR.get('dock_menu','Menu') %}
-
-{# uproszczony helper do URL-a strony w danym języku #}
+{# link dla slugKey (najpierw z hreflang, inaczej z Pages/SlugMap) #}
 {% macro link_for(slugkey, lang) -%}
-  {%- set m = HREF.get(slugkey, {}) -%}
-  {%- if m and m.get(lang) -%}
-    {{ m[lang] }}
+  {%- set map = HREF.get(slugkey, {}) -%}
+  {%- if map and map.get(lang) -%}
+    {{ map[lang] }}
   {%- else -%}
-    {%- if slugkey == 'home' -%}/{{ lang }}/{%- else -%}/{{ lang }}/{{ slugkey }}/ {%- endif -%}
+    {%- if slugkey in ['home',''] -%}
+/{{ lang }}/
+    {%- else -%}
+      {%- set p = PAGES|selectattr('slugKey','equalto',slugkey)|selectattr('lang','equalto',lang)|first -%}
+      /{{ lang }}/{{ (p and p.slug) or slugkey }}/
+    {%- endif -%}
   {%- endif -%}
 {%- endmacro %}
 
-{# listy nawigacji #}
-{% set NAV_ITEMS = NAV.get('items') or [] %}
-{# NAV.langs może być listą kodów lub listą obiektów {label,href,code?} #}
-{% set LANGS_RAW = NAV.get('langs') or [] %}
-{# panele mega-menu (opcjonalnie filtrujemy po języku, jeśli pole lang istnieje) #}
-{% set _panels_raw = (menu_panels if menu_panels is defined else []) %}
-{% set PANELS = _panels_raw|selectattr('lang','equalto',_lang)|list if _panels_raw and (_panels_raw[0] is mapping and 'lang' in _panels_raw[0]) else _panels_raw %}
+{# top-level: parent pusty, enabled=TRUE #}
+{% set TOP = ITEMS
+  |selectattr('enabled','ne',False)
+  |selectattr('parent','in',[None,''])
+  |list %}
 
-<!-- ============ HEADER / NAVIGATION ============ -->
-<header id="header" class="site-header" role="banner">
+<header id="header" class="site-header glass" role="banner">
   <div class="container navbar">
     <a class="brand" href="/{{ _lang }}/" aria-label="Strona główna">
-      <span class="brand__logo" aria-hidden="true">K</span>
-      <span class="brand__name">{{ BRAND }}</span>
+      <img src="/assets/media/logo-firma-transportowa-kras-trans.png"
+           alt="{{ BRAND }}" width="132" height="32" fetchpriority="high" />
     </a>
 
-    {% if NAV_ITEMS %}
     <nav class="nav" aria-label="Główna nawigacja">
       <ul class="nav__list" role="menubar">
-        {% for item in NAV_ITEMS|sort(attribute='order') %}
+        {% for p in TOP|sort(attribute='order') %}
+          {# panel id – stabilnie po key/label #}
+          {% set key = (p.key or p.label or ('k' ~ loop.index))|lower|replace(' ','-') %}
+          {% set children = ITEMS
+              |selectattr('enabled','ne',False)
+              |selectattr('parent','equalto', (p.key or p.label))
+              |list %}
           <li role="none">
-            {% set has_children = item.children and item.children|length>0 %}
-            {% set panel_id = (item.panel or item.key or ('idx' ~ loop.index0)) %}
-            {% if has_children %}
-              <button class="nav__btn" role="menuitem" aria-haspopup="true" aria-expanded="false"
-                      data-panel="panel-{{ panel_id }}">{{ item.label }}</button>
+            {% if children|length %}
+              <button class="nav__btn" role="menuitem" aria-haspopup="true"
+                      aria-expanded="false" data-panel="panel-{{ key }}">
+                {{ p.label }}
+              </button>
             {% else %}
-              <a class="nav__btn" role="menuitem" href="{{ item.href }}">{{ item.label }}</a>
+              {# solo link: z slugKey lub href #}
+              {% set href = p.href if p.href else (p.slugKey and link_for(p.slugKey, _lang)) %}
+              {% if href %}
+                <a class="nav__btn" role="menuitem" href="{{ href }}">{{ p.label }}</a>
+              {% endif %}
             {% endif %}
           </li>
         {% endfor %}
       </ul>
     </nav>
-    {% endif %}
 
     <div class="actions">
-      {% if LBL_QUOTE %}<a href="#quote" class="cta nojs-hide">{{ LBL_QUOTE }}</a>{% endif %}
+      <button id="themeToggle" class="icon-btn" aria-label="Przełącz motyw" title="Motyw">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M12 3a9 9 0 100 18 7 7 0 010-18z" fill="currentColor"/>
+        </svg>
+      </button>
 
-      {# wybór języka — akceptuje listę kodów lub listę obiektów {label,href,code?} #}
-      {% set has_langs = LANGS_RAW and LANGS_RAW|length>0 %}
-      {% if has_langs or HREF.get(_slug) %}
-      <div class="lang" data-lang aria-expanded="false">
+      <div class="lang" data-lang>
         <button class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="lang-panel" title="Języki">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 5h16M4 12h16M4 19h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+          🌐
         </button>
         <div id="lang-panel" class="lang__panel" role="menu" aria-label="Wybierz język">
           <ul class="lang__list">
-            {% if has_langs %}
-              {% for L in LANGS_RAW %}
-                {% if L is mapping %}
-                  <li><a role="menuitem" href="{{ L.href }}" hreflang="{{ L.hreflang or L.code or '' }}">{{ L.label }}</a></li>
-                {% else %}
-                  {% set code = L %}
-                  {% set hrefl = 'uk' if code == 'ua' else code %}
-                  <li><a role="menuitem" href="{{ link_for(_slug, code) }}" hreflang="{{ hrefl }}">{{ code|upper }}</a></li>
-                {% endif %}
-              {% endfor %}
-            {% else %}
-              {% for code, url in HREF.get(_slug, {}).items() %}
-                {% set hrefl = 'uk' if code == 'ua' else code %}
-                <li><a role="menuitem" href="{{ url }}" hreflang="{{ hrefl }}">{{ code|upper }}</a></li>
-              {% endfor %}
-            {% endif %}
+            {% for L in LANGS %}
+              {% set hrefl = (L=='ua') and 'uk' or L %}
+              <li>
+                <a role="menuitem" hreflang="{{ hrefl }}" href="{{ link_for(_slug, L) }}">
+                  {{ flag(L) }} {{ L|upper }}
+                </a>
+              </li>
+            {% endfor %}
           </ul>
         </div>
       </div>
-      {% endif %}
 
-      <button class="icon-btn hamburger" id="hamburger" aria-expanded="false" aria-controls="drawer" aria-label="Menu">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </button>
+      <a href="#quote" class="cta">{{ STR.get('hero_cta_primary','Wycena') }}</a>
     </div>
   </div>
 
-  {# ===== Mega-panels =====
-     Łączymy przyciski z panelami po item.panel (lub item.key).
-     Każdy panel grupujemy kolumnami (column) i sortujemy po order. #}
-  {% if PANELS and PANELS|length>0 %}
+  {# ===== Mega-panels ===== #}
   <div class="panels">
-    {% for key, items in PANELS|groupby('panel_key') %}
-      <div class="panel" id="panel-{{ key }}" hidden>
-        <div class="container panel__grid">
-          {% for col, col_items in items|groupby('column') %}
-            <div class="panel__col">
-              {% for it in col_items|sort(attribute='order') %}
-                {% if it.type == 'promo' %}
-                  <a class="panel__promo" href="{{ it.href }}">
-                    {% if it.media %}<img src="{{ it.media }}" alt="" width="{{ it.img_w or 640 }}" height="{{ it.img_h or 360 }}" loading="lazy">{% endif %}
-                    <span class="panel__promo-title">{{ it.label }}</span>
-                    {% if it.desc %}<span class="panel__promo-desc">{{ it.desc }}</span>{% endif %}
-                  </a>
-                {% else %}
-                  <a class="panel__link" href="{{ it.href }}">
-                    {% if it.icon %}<span class="icon" aria-hidden="true">{{ it.icon }}</span>{% endif %}
-                    <strong>{{ it.label }}</strong>
-                    {% if it.note %}<span class="chip">{{ it.note }}</span>{% endif %}
-                  </a>
-                {% endif %}
-              {% endfor %}
-            </div>
-          {% endfor %}
+    {% for p in TOP|sort(attribute='order') %}
+      {% set key = (p.key or p.label or ('k' ~ loop.index))|lower|replace(' ','-') %}
+      {% set children = ITEMS
+          |selectattr('enabled','ne',False)
+          |selectattr('parent','equalto', (p.key or p.label))
+          |list %}
+      {% if children|length %}
+        {% set promo = children|selectattr('type','equalto','promo')|list|first %}
+        {% set links = children|rejectattr('type','equalto','promo')|list %}
+        <div class="panel" id="panel-{{ key }}" hidden>
+          <div class="container panel__grid">
+            {# grupowanie po col; jeśli brak col – jedna kolumna #}
+            {% set groups = links|sort(attribute='order')|groupby('col') %}
+            {% for col, col_items in groups %}
+              <div class="panel__col">
+                {% for it in col_items %}
+                  {% set href = it.href if it.href else (it.slugKey and link_for(it.slugKey, _lang)) %}
+                  {% if href %}
+                    <a class="panel__link" href="{{ href }}">
+                      <strong>{{ it.label }}</strong>
+                      {% if it.badge %}<span class="chip">{{ it.badge }}</span>{% endif %}
+                    </a>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            {% endfor %}
+
+            {% if promo %}
+              <div class="panel__col panel__promo">
+                {% set phref = promo.promo_href or (promo.slugKey and link_for(promo.slugKey, _lang)) %}
+                <a class="promo" href="{{ phref or '#' }}">
+                  {% if promo.promo_image %}
+                    <img src="{{ promo.promo_image }}" alt="" loading="lazy" decoding="async"/>
+                  {% endif %}
+                  <div class="promo__txt">
+                    <h4>{{ promo.label or 'Polecane' }}</h4>
+                    {% if promo.desc %}<p>{{ promo.desc }}</p>{% endif %}
+                  </div>
+                </a>
+              </div>
+            {% endif %}
+          </div>
         </div>
-      </div>
+      {% endif %}
     {% endfor %}
   </div>
-  {% endif %}
 </header>
-
-<!-- ============ MOBILE DRAWER (menu boczne) ============ -->
-{% if NAV_ITEMS %}
-<div class="drawer" id="drawer" hidden aria-hidden="true">
-  <nav aria-label="Menu mobilne">
-    <ul class="mnav">
-      {% for it in NAV_ITEMS|sort(attribute='order') %}
-        {% set has_children = it.children and it.children|length>0 %}
-        <li class="mnav__item">
-          {% if has_children %}
-            <button class="mnav__btn" aria-expanded="false">{{ it.label }}</button>
-            <ul class="mnav__sub">
-              {% for ch in it.children|sort(attribute='order') %}
-                <li><a href="{{ ch.href }}">{{ ch.label }}</a></li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <a class="mnav__link" href="{{ it.href }}">{{ it.label }}</a>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-  </nav>
-</div>
-{% endif %}
-
-<!-- ============ DOCK (BOTTOM NAV – zawsze widoczny) ============ -->
-<nav class="dock" aria-label="Skróty">
-  <a class="dock__btn" href="/{{ _lang }}/" aria-label="{{ LBL_DOCK_HOME }}">🏠 <span>{{ LBL_DOCK_HOME }}</span></a>
-  <a class="dock__btn" href="#quote" aria-label="{{ LBL_QUOTE }}">💬 <span>{{ LBL_QUOTE }}</span></a>
-  <button class="dock__btn" id="dockMenu" aria-controls="drawer" aria-expanded="false" aria-label="{{ LBL_DOCK_MENU }}">☰ <span>{{ LBL_DOCK_MENU }}</span></button>
-</nav>
