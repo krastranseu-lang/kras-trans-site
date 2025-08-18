@@ -1,253 +1,371 @@
-{# ===================== SAFE DEFAULTS ===================== #}
-{% set BRAND = (company[0].name if company is defined and company|length>0 and company[0].name else 'Kras-Trans') %}
-{% set _slug  = (page.slugKey or page.slug or 'home') if page is defined else 'home' %}
-{% set _lang  = (page.lang    or 'pl')   if page is defined else 'pl' %}
-{% set PAGES  = pages  if pages  is defined else [] %}
-{% set BLOCKS = blocks if blocks is defined else [] %}
-{% set HREF   = hreflang if hreflang is defined else {} %}
-
-{# i18n fallback (gdy strings nie przyjdą z CMS) #}
-{% set I18N = {
-  'pl': {'offers_title':'Nasza oferta','routes_title':'Kierunki','hero_cta_primary':'Wyceń transport teraz','hero_cta_secondary':'Zadzwoń','faq_title':'FAQ'},
-  'en': {'offers_title':'Our offer','routes_title':'Routes','hero_cta_primary':'Get a quote','hero_cta_secondary':'Call','faq_title':'FAQ'},
-  'de': {'offers_title':'Unser Angebot','routes_title':'Routen','hero_cta_primary':'Angebot anfordern','hero_cta_secondary':'Anrufen','faq_title':'FAQ'},
-  'fr': {'offers_title':'Notre offre','routes_title':'Itinéraires','hero_cta_primary':'Demander un devis','hero_cta_secondary':'Appeler','faq_title':'FAQ'},
-  'it': {'offers_title':'La nostra offerta','routes_title':'Rotte','hero_cta_primary':'Richiedi preventivo','hero_cta_secondary':'Chiama','faq_title':'FAQ'},
-  'ru': {'offers_title':'Наше предложение','routes_title':'Направления','hero_cta_primary':'Запросить расчёт','hero_cta_secondary':'Позвонить','faq_title':'FAQ'},
-  'ua': {'offers_title':'Наша пропозиція','routes_title':'Напрямки','hero_cta_primary':'Кошторис','hero_cta_secondary':'Дзвонити','faq_title':'FAQ'}
-} %}
-{% set STR = (strings if strings is defined and strings else I18N[_lang]) %}
-
-{# kanoniczny #}
-{% set _canon = page.canonical_path or '/' ~ _lang ~ '/' ~ (_slug != 'home' and (_slug ~ '/') or '') %}
-
-{# link do wersji językowych: najpierw z hreflang, w innym razie /{lang}/{slug}/ #}
-{% macro url_of(slugkey, lang) -%}
-  {%- set map = HREF[slugkey] if HREF and (slugkey in HREF) else {} -%}
-  {%- if map and (lang in map) -%}{{ map[lang] }}
-  {%- else -%}
-    {%- set p = PAGES|selectattr('slugKey','equalto',slugkey)|selectattr('lang','equalto',lang)|first -%}
-    {%- set the_slug = (p.slug if p and p.slug else slugkey) -%}
-    /{{ lang }}/{{ the_slug }}/
-  {%- endif -%}
-{%- endmacro %}
-
 <!doctype html>
-<html lang="{{ _lang }}" class="no-motion">
+<html lang="pl" dir="ltr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0b1220">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
-  <title>{{ page.seo_title or page.title or BRAND }}</title>
-  <meta name="description" content="{{ page.meta_desc or page.lead or '' }}">
-  <link rel="canonical" href="{{ _canon }}">
+  <!-- SEO: H1 == Title -->
+  <title>Firma transportowa i spedycja — Kras-Trans</title>
+  <meta name="description" content="Kras-Trans — firma transportowa i spedycja. Transport krajowy i międzynarodowy, ekspres 24/7, busy 3,5 t, TIR/FTL, ADR, ładunki high‑value. Szybka wycena, wysoka terminowość, bezpieczne dokumenty i stała obsługa B2B.">
 
-  {# hreflang (x-default = EN/PL fallback) #}
-  {% set _hl = HREF[_slug] if HREF and (_slug in HREF) else {} %}
-  {% for L,href in (_hl or {}).items() %}
-    <link rel="alternate" hreflang="{{ 'uk' if L=='ua' else L }}" href="{{ href }}">
-  {% endfor %}
-  {% if _hl and (_hl.en or _hl.pl) %}
-    <link rel="alternate" hreflang="x-default" href="{{ _hl.en or _hl.pl }}">
-  {% endif %}
+  <!-- Canonical + hreflang (przykładowe; dopnij do ROUTES) -->
+  <link rel="canonical" href="https://kras-trans.eu/pl/">
+  <link rel="alternate" hreflang="pl" href="https://kras-trans.eu/pl/">
+  <link rel="alternate" hreflang="en" href="https://kras-trans.eu/en/">
+  <link rel="alternate" hreflang="de" href="https://kras-trans.eu/de/">
+  <link rel="alternate" hreflang="fr" href="https://kras-trans.eu/fr/">
+  <link rel="alternate" hreflang="it" href="https://kras-trans.eu/it/">
+  <link rel="alternate" hreflang="ru" href="https://kras-trans.eu/ru/">
+  <link rel="alternate" hreflang="uk" href="https://kras-trans.eu/ua/">
+  <link rel="alternate" hreflang="x-default" href="https://kras-trans.eu/en/">
 
-  {# preloady i CSS globalny #}
-  <link rel="preload" href="/assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/assets/css/app.css" as="style">
-  <link rel="stylesheet" href="/assets/css/app.css" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/assets/css/app.css"></noscript>
+  <!-- Preloads (CSS/hero); później dopełnimy -->
+  <link rel="preload" as="image" href="/assets/media/hero.webp" imagesrcset="/assets/media/hero.avif 1x" fetchpriority="high">
+  <link rel="preload" as="style" href="/assets/css/header.css" />
+  <link rel="preload" as="style" href="/assets/css/home.css" />
+  <link rel="preload" as="script" href="/assets/js/header.js" importance="low">
+  <link rel="preload" as="script" href="/assets/js/home.js" importance="low">
 
-  {# małe minimum stylu dla layoutu sekcji (reszta w app.css) #}
-  <style>
-    .container{max-width:1200px;margin:0 auto;padding:0 16px}
-    .section{padding:56px 0}
-    .hero{padding:56px 0}
-    .hero-wrap{display:grid;gap:32px}
-    @media(min-width:900px){.hero-wrap{grid-template-columns:1.05fr 1fr}}
-    .claim{display:inline-block;font-size:.8rem;letter-spacing:.1em;opacity:.8;margin-bottom:10px}
-    .hero h1{font-size:clamp(32px,4.2vw,54px);line-height:1.05;margin:.2em 0 .3em}
-    .lead{color:var(--muted);max-width:62ch}
-    .hero-cta{display:flex;gap:12px;margin-top:16px}
-    .btn{display:inline-flex;align-items:center;gap:10px;padding:12px 18px;border-radius:14px;border:1px solid var(--edge,#2a3448)}
-    .btn.primary{background:linear-gradient(180deg,#28a3ff,#0077ff);color:#fff;border:none}
+  <!-- Ikony fav i webmanifest (podmienimy ścieżki) -->
+  <link rel="icon" type="image/svg+xml" href="/assets/favicons/favicon.svg">
+  <link rel="manifest" href="/site.webmanifest">
 
-    .rail{display:grid;grid-auto-flow:column;grid-auto-columns:80%;gap:14px;padding:4px;overflow-x:auto;scroll-snap-type:x mandatory}
-    .rail > a{scroll-snap-align:center}
-    .offer-card{display:flex;flex-direction:column;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;overflow:hidden}
-    .offer-card img{width:100%;height:auto;display:block}
-    .offer-card__title{font-weight:700;padding:12px 14px 4px}
-    .offer-card__desc{opacity:.8;padding:0 14px 14px}
+  <!-- Open Graph / Twitter Cards -->
+  <meta property="og:site_name" content="Kras-Trans">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Firma transportowa i spedycja — Kras-Trans">
+  <meta property="og:description" content="Transport krajowy i międzynarodowy, ekspres 24/7, busy 3,5 t, TIR/FTL, ADR, high‑value. Szybka wycena i stała obsługa B2B.">
+  <meta property="og:image" content="https://kras-trans.eu/assets/media/og-default.webp">
 
-    .card-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
-    .card{grid-column:span 12;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:18px}
-    @media(min-width:700px){.card{grid-column:span 6}}
-    @media(min-width:1024px){.card{grid-column:span 4}}
+  <!-- Krytyczne style wstrzykniemy inline przy wdrożeniu; na razie tylko linki: -->
+  <link rel="stylesheet" href="/assets/css/header.css">
+  <link rel="stylesheet" href="/assets/css/home.css">
 
-    details{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px}
-    details+details{margin-top:10px}
-    summary{cursor:pointer;font-weight:600}
-    .iframe-wrap{aspect-ratio:16/9;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.06)}
-  </style>
+  <!-- JSON‑LD (Organization + WebSite + Breadcrumbs) -->
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"Organization",
+    "name":"Kras-Trans",
+    "url":"https://kras-trans.eu",
+    "logo":"https://kras-trans.eu/assets/media/logo-transport-kras-trans.svg",
+    "email":"contact@kras-trans.eu",
+    "telephone":"+48 793 927 467",
+    "address":{
+      "@type":"PostalAddress",
+      "streetAddress":"Trzcinowa 14/11",
+      "postalCode":"91-495",
+      "addressLocality":"Łódź",
+      "addressCountry":"PL"
+    },
+    "sameAs":[
+      "https://www.instagram.com/kras_trans.express.eu",
+      "https://www.linkedin.com/company/kras-trans",
+      "https://www.facebook.com/share/sS2jgJPwdgvrF4az/?mibextid=LQQJ4d"
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"WebSite",
+    "name":"Kras-Trans",
+    "url":"https://kras-trans.eu",
+    "inLanguage":"pl"
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"BreadcrumbList",
+    "itemListElement":[
+      {"@type":"ListItem","position":1,"name":"Kras-Trans","item":"https://kras-trans.eu/"},
+      {"@type":"ListItem","position":2,"name":"Strona główna","item":"https://kras-trans.eu/pl/"}
+    ]
+  }
+  </script>
 </head>
-<body>
 
-  {# HEADER z partiala #}
+<body class="kt-body">
+
+  <!-- HEADER (masz już swój komponent; zostawiam jako include) -->
   {% include '_partials/header.html' %}
 
-  <main id="main" role="main">
-    <!-- ============ HERO ============ -->
-    <section class="hero" id="hero">
-      <div class="container hero-wrap">
-        <div class="hero-copy">
-          {% if page.claim %}<span class="claim">{{ page.claim }}</span>{% endif %}
-          <h1>{{ page.h1 or page.title }}</h1>
-          {% if page.lead %}<p class="lead" data-md>{{ page.lead }}</p>{% endif %}
-          <p class="hero-cta">
-            <a class="btn primary" href="#quote">{{ STR.hero_cta_primary }}</a>
-            <a class="btn" href="tel:{{ (company and company[0].telephone) or '+48793927467' }}">{{ STR.hero_cta_secondary }}</a>
-          </p>
+  <!-- LOGO LAUNCHPAD: pod headerem, „rozjeżdża” się na boki przy scrollu i znika -->
+  <div class="logo-launchpad" aria-hidden="true">
+    <img class="logo-piece logo-left"  src="/assets/media/logo-left.svg"  alt="" width="240" height="80" decoding="async" loading="eager">
+    <img class="logo-piece logo-right" src="/assets/media/logo-right.svg" alt="" width="240" height="80" decoding="async" loading="eager">
+  </div>
+
+  <!-- HERO -->
+  <section id="hero" class="section hero" aria-labelledby="hero-title" data-anim="reveal-hero">
+    <div class="container">
+      <p class="claim">KOMPLEKSOWE USŁUGI TRANSPORTOWE</p>
+      <h1 id="hero-title">Firma transportowa i spedycja — Kras-Trans</h1>
+      <p class="lead">
+        Transport krajowy i międzynarodowy po całej Europie. Busy 3,5 t i zestawy TIR/FTL, ekspres 24/7, ADR, ładunki wrażliwe high‑value.
+        Terminowość, przejrzyste stawki i stały opiekun B2B. Wyceny w kilkadziesiąt minut.
+      </p>
+
+      <div class="cta-row">
+        <a class="btn btn-primary" href="/pl/wycena/">Wycena online</a>
+        <a class="btn btn-ghost"   href="tel:+48793927467">Zadzwoń: +48 793 927 467</a>
+        <a class="btn btn-ghost"   href="https://wa.me/48793927467" rel="noopener" target="_blank">WhatsApp</a>
+      </div>
+
+      <ul class="hero-stats" role="list">
+        <li><strong>24/7</strong><span>dyspozytura</span></li>
+        <li><strong>99,1%</strong><span>on‑time</span></li>
+        <li><strong>3,5 t / TIR</strong><span>flota</span></li>
+        <li><strong>ADR</strong><span>certyfikowani</span></li>
+      </ul>
+
+      <picture class="hero-media">
+        <source srcset="/assets/media/hero.avif" type="image/avif">
+        <source srcset="/assets/media/hero.webp" type="image/webp">
+        <img src="/assets/media/hero.jpg" width="1280" height="720" alt="Transport międzynarodowy Kras-Trans — flota w trasie" loading="eager" fetchpriority="high" decoding="async">
+      </picture>
+    </div>
+  </section>
+
+  <!-- USŁUGI: 4 kafelki WOW + mobilny scroll w prawo -->
+  <section id="services" class="section tiles" aria-labelledby="services-title" data-anim="stagger-up">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="services-title">Usługi transportowe</h2>
+        <p>Transport krajowy, międzynarodowy, ekspres 24/7 oraz obsługa firm w modelu SLA.</p>
+      </div>
+
+      <!-- Reel = pozioma karuzela na mobile; desktop = siatka 2x2 -->
+      <div class="reel" role="list" aria-label="Główne usługi">
+        <article class="tile3d" role="listitem">
+          <h3>Transport krajowy</h3>
+          <p>Szybkie przewozy w całej Polsce. Real‑time tracking, terminowość i minimalne okna załadunku.</p>
+          <a class="tile-link" href="/pl/transport-krajowy/">Sprawdź</a>
+        </article>
+
+        <article class="tile3d" role="listitem">
+          <h3>Transport międzynarodowy</h3>
+          <p>EU/EEA/UK. Regularne linie, odprawy i dokumenty. Doświadczone załogi na trasach długodystansowych.</p>
+          <a class="tile-link" href="/pl/transport-miedzynarodowy/">Sprawdź</a>
+        </article>
+
+        <article class="tile3d" role="listitem">
+          <h3>Transport ekspresowy 24/7</h3>
+          <p>„Last‑minute” oraz AOG/line‑stop. Busy 3,5 t i podwójne obsady. Start nawet w 2–3 h.</p>
+          <a class="tile-link" href="/pl/transport-ekspresowy/">Sprawdź</a>
+        </article>
+
+        <article class="tile3d" role="listitem">
+          <h3>Usługi dla firm (SLA)</h3>
+          <p>Stałe linie, stałe okna czasowe, dedykowany dyspozytor i rozliczenia cykliczne.</p>
+          <a class="tile-link" href="/pl/sla/">Sprawdź</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOTYLA / SPECJALIZACJE -->
+  <section id="fleet" class="section tiles" aria-labelledby="fleet-title" data-anim="stagger-zoom">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="fleet-title">Flota i specjalizacje</h2>
+        <p>Dobieramy środek transportu do ładunku i czasu: busy 3,5 t, TIR/FTL, ADR i high‑value.</p>
+      </div>
+      <div class="reel" role="list" aria-label="Flota i specjalizacje">
+        <article class="tile3d" role="listitem">
+          <h3>Busy 3,5 t</h3>
+          <p>Najlepsze do ekspresów i dostaw JIT. Łatwy dojazd do centrów miast i krótkie postojowe.</p>
+          <a class="tile-link" href="/pl/busy-35t/">Poznaj</a>
+        </article>
+
+        <article class="tile3d" role="listitem">
+          <h3>TIR / FTL</h3>
+          <p>Zestawy do pełnych załadunków. Stabilne linie i przewidywalne lead‑time’y.</p>
+          <a class="tile-link" href="/pl/transport-tir/">Poznaj</a>
+        </article>
+
+        <article class="tile3d" role="listitem">
+          <h3>ADR</h3>
+          <p>Przewozy zgodnie z przepisami ADR. Szkolone załogi, wymagane wyposażenie i dokumenty.</p>
+          <a class="tile-link" href="/pl/adr/">Poznaj</a>
+        </article>
+
+        <article class="tile3d" role="listitem">
+          <h3>High‑value</h3>
+          <p>Elektronika, komponenty automotive, med‑tech. Dyskretne trasy, zabezpieczenia i monitoring.</p>
+          <a class="tile-link" href="/pl/high-value/">Poznaj</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- BRANŻE -->
+  <section id="industries" class="section tiles" aria-labelledby="industries-title" data-anim="stagger-fade">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="industries-title">Branże, które obsługujemy</h2>
+        <p>Od e‑commerce po przemysł. Rozumiemy sezonowość, piki i wymagania jakościowe.</p>
+      </div>
+      <div class="reel" role="list" aria-label="Branże">
+        <article class="tile3d" role="listitem"><h3>E‑commerce B2B</h3><p>Stałe sloty, zwrotne, kompletacje.</p></article>
+        <article class="tile3d" role="listitem"><h3>Automotive</h3><p>JIT/JIS, komponenty, AOG/line‑stop.</p></article>
+        <article class="tile3d" role="listitem"><h3>Elektronika</h3><p>High‑value, zabezpieczenia, monitoring.</p></article>
+        <article class="tile3d" role="listitem"><h3>Meble i AGD</h3><p>Delikatne ładunki, piętrowanie, pasy.</p></article>
+        <article class="tile3d" role="listitem"><h3>Farmacja*</h3><p>Stabilność łańcucha dostaw (*bez kontrolowanej temp.).</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ZASIĘG -->
+  <section id="coverage" class="section tiles" aria-labelledby="coverage-title" data-anim="parallax">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="coverage-title">Zasięg — cała Europa</h2>
+        <p>Codziennie kursujemy między PL, DE, CZ, SK, AT, NL, BE, FR, IT, ES, PT oraz krajami bałtyckimi.</p>
+      </div>
+
+      <div class="reel" role="list" aria-label="Kierunki">
+        <article class="tile3d" role="listitem"><h3>Polska ⇄ Niemcy</h3><p>Stałe linie, szybkie okna.</p></article>
+        <article class="tile3d" role="listitem"><h3>Polska ⇄ Francja</h3><p>Dostawy do hubów i DC.</p></article>
+        <article class="tile3d" role="listitem"><h3>Polska ⇄ Włochy</h3><p>Produkcja i retail.</p></article>
+        <article class="tile3d" role="listitem"><h3>Polska ⇄ Hiszpania</h3><p>Sezonówka i kampanie.</p></article>
+        <article class="tile3d" role="listitem"><h3>Benelux</h3><p>Gęsta siatka dostaw.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- JAK PRACUJEMY -->
+  <section id="process" class="section tiles" aria-labelledby="process-title" data-anim="timeline">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="process-title">Jak pracujemy</h2>
+        <p>Prosto i przejrzyście. Od zapytania do dowozu.</p>
+      </div>
+
+      <ol class="steps" aria-label="Proces">
+        <li class="tile3d"><h3>1. Zapytanie</h3><p>Wycena online lub telefon — ładunek, trasa, termin.</p></li>
+        <li class="tile3d"><h3>2. Dopasowanie</h3><p>Bus 3,5 t / TIR, okna załadunku, sloty w DC.</p></li>
+        <li class="tile3d"><h3>3. Potwierdzenie</h3><p>Stawka, dokumenty, kontakt do kierowcy.</p></li>
+        <li class="tile3d"><h3>4. Realizacja</h3><p>Monitoring, aktualizacje, ETA.</p></li>
+        <li class="tile3d"><h3>5. Dostawa</h3><p>POD/CMR, rozliczenie, feedback.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- DOWODY SPOŁECZNE / KPI -->
+  <section id="trust" class="section tiles" aria-labelledby="trust-title" data-anim="counter">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="trust-title">Dlaczego Kras-Trans</h2>
+        <p>Liczą się fakty: jakość, terminowość i bezpieczeństwo ładunku.</p>
+      </div>
+      <div class="reel" role="list" aria-label="Atuty">
+        <article class="tile3d" role="listitem"><h3>99,1% on‑time</h3><p>Realna terminowość mierzona w SLA.</p></article>
+        <article class="tile3d" role="listitem"><h3>24/7 dyspozytura</h3><p>Stały kontakt i szybkie reakcje.</p></article>
+        <article class="tile3d" role="listitem"><h3>ADR / high‑value</h3><p>Standardy bezpieczeństwa i dokumentacja.</p></article>
+        <article class="tile3d" role="listitem"><h3>Transparentne stawki</h3><p>Bez ukrytych kosztów, jasne warunki.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- CENNIK + KALKULATOR -->
+  <section id="pricing" class="section tiles" aria-labelledby="pricing-title" data-anim="flip">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="pricing-title">Cennik i szybka wycena</h2>
+        <p>Przejrzyste stawki, realne terminy i opcje ekspresowe.</p>
+      </div>
+      <div class="reel" role="list" aria-label="Cennik i wycena">
+        <article class="tile3d" role="listitem">
+          <h3>Cennik usług</h3>
+          <p>Szacunkowe widełki dla popularnych relacji. Stawki finalne potwierdzamy po dokładnych parametrach.</p>
+          <a class="tile-link" href="/pl/cennik/">Zobacz cennik</a>
+        </article>
+        <article class="tile3d" role="listitem">
+          <h3>Wycena online</h3>
+          <p>Wypełnij prosty formularz — wracamy z propozycją i ETA najczęściej w ciągu godziny.</p>
+          <a class="tile-link" href="/pl/wycena/">Wyceń transport</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="section faq" aria-labelledby="faq-title" data-anim="accordion">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="faq-title">FAQ — najczęstsze pytania</h2>
+        <p>Krótko i konkretnie. Jeśli czegoś brakuje — napisz do nas.</p>
+      </div>
+      <details class="qa">
+        <summary>Jak szybko możecie podstawić busa 3,5 t?</summary>
+        <div class="a"><p>W trybie ekspres najczęściej w ciągu 2–3 godzin od akceptacji wyceny, zależnie od lokalizacji.</p></div>
+      </details>
+      <details class="qa">
+        <summary>Czy realizujecie przewozy ADR?</summary>
+        <div class="a"><p>Tak, zgodnie z wymaganiami ADR. Kierowcy i pojazdy mają wymagane uprawnienia i wyposażenie.</p></div>
+      </details>
+      <details class="qa">
+        <summary>Czy oferujecie stałe linie (SLA) dla firm?</summary>
+        <div class="a"><p>Tak. Rezerwujemy sloty i planujemy cykliczne trasy. Dedykowany dyspozytor jest w stałym kontakcie.</p></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- CTA KOŃCOWE -->
+  <section id="final-cta" class="section final-cta" aria-labelledby="final-cta-title" data-anim="glow">
+    <div class="container">
+      <h2 id="final-cta-title">Zacznijmy dziś — otrzymaj wycenę</h2>
+      <p>Wyślij parametry ładunku i trasę. Dobierzemy optymalne rozwiązanie czas/koszt.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="/pl/wycena/">Wycena online</a>
+        <a class="btn btn-ghost" href="tel:+48793927467">Zadzwoń: +48 793 927 467</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- STOPKA / KONTAKT -->
+  <footer id="contact" class="footer section" aria-labelledby="contact-title">
+    <div class="container">
+      <h2 id="contact-title" class="visually-hidden">Kontakt</h2>
+      <div class="footer-grid">
+        <div class="col">
+          <img src="/assets/media/logo-transport-kras-trans.svg" alt="Kras-Trans" width="160" height="44" loading="lazy" decoding="async">
+          <p>91‑495 Łódź, Trzcinowa 14/11</p>
+          <p>NIP: 726 266 23 03</p>
         </div>
-        {% if page.hero_video %}
-          <video class="hero-media" muted loop playsinline preload="none" poster="{{ page.hero_poster or '' }}" width="1280" height="720">
-            <source src="{{ page.hero_video }}" type="video/mp4">
-          </video>
-        {% elif page.hero_image %}
-          <img class="hero-media" src="{{ page.hero_image }}" alt="{{ page.hero_alt or page.h1 }}" width="1280" height="720" loading="eager">
-        {% endif %}
-      </div>
-    </section>
-
-    {# ============ OFERTA (kafelki) – z blocks.block == 'offer' lub fallback: PAGES[type='service'] ============ #}
-    {% set _offers = BLOCKS
-        |selectattr('lang','equalto',_lang)
-        |selectattr('page','equalto',_slug)
-        |selectattr('block','equalto','offer')
-        |list %}
-    {% if not _offers|length %}
-      {% set _offers = PAGES|selectattr('type','equalto','service')|selectattr('lang','equalto',_lang)|list %}
-    {% endif %}
-    {% if _offers|length %}
-    <section class="section" id="offers">
-      <div class="container"><h2>{{ STR.offers_title }}</h2></div>
-      <div class="container">
-        <div class="rail">
-          {% for it in _offers|sort(attribute='order') %}
-            {% set url = it.href or it.url or '/' ~ _lang ~ '/' ~ (it.slug or '') ~ '/' %}
-            <a class="offer-card" href="{{ url }}">
-              {% if it.media %}<img src="{{ it.media }}" alt="" width="{{ it.img_w or 1280 }}" height="{{ it.img_h or 720 }}" loading="lazy">{% endif %}
-              <span class="offer-card__title">{{ it.h1 or it.title or it.seo_title or it.slug }}</span>
-              {% if it.lead or it.desc or it.meta_desc %}
-                <span class="offer-card__desc" data-md>{{ it.lead or it.desc or it.meta_desc }}</span>
-              {% endif %}
-            </a>
-          {% endfor %}
+        <div class="col">
+          <ul class="contact-list" role="list">
+            <li><a href="mailto:contact@kras-trans.eu">contact@kras-trans.eu</a></li>
+            <li><a href="tel:+48793927467">+48 793 927 467</a></li>
+            <li><a href="/pl/kontakt/">Formularz kontaktowy</a></li>
+          </ul>
+        </div>
+        <div class="col">
+          <ul class="social" role="list">
+            <li><a href="https://www.instagram.com/kras_trans.express.eu" rel="noopener" target="_blank">Instagram</a></li>
+            <li><a href="https://www.linkedin.com/company/kras-trans" rel="noopener" target="_blank">LinkedIn</a></li>
+            <li><a href="https://www.facebook.com/share/sS2jgJPwdgvrF4az/?mibextid=LQQJ4d" rel="noopener" target="_blank">Facebook</a></li>
+          </ul>
+        </div>
+        <div class="col">
+          <nav class="mini-nav" aria-label="Szybkie linki">
+            <a href="/pl/cennik/">Cennik</a>
+            <a href="/pl/uslugi/">Usługi</a>
+            <a href="/pl/firma/">Firma</a>
+            <a href="/pl/faq/">FAQ</a>
+          </nav>
         </div>
       </div>
-    </section>
-    {% endif %}
+      <p class="copyright">© <span data-year>2025</span> Kras-Trans. Wszelkie prawa zastrzeżone.</p>
+    </div>
+  </footer>
 
-    {# ============ BLOKI STRONY (sekcje wg block) ============ #}
-    {% set _page_blocks = BLOCKS
-        |selectattr('lang','equalto',_lang)
-        |selectattr('page','equalto',_slug)
-        |selectattr('enabled','ne',False)
-        |sort(attribute='order')
-        |list %}
-    {% if _page_blocks|length %}
-      {% for kind, items in _page_blocks|groupby('block') %}
-        {% set _title = (items[0].section_title or items[0].title or kind|capitalize) if items and (items[0] is defined) else kind|capitalize %}
-        {% if 'faq' in (kind|string) %}
-          <section class="section" id="{{ kind }}">
-            <div class="container"><h2>{{ _title or STR.faq_title }}</h2></div>
-            <div class="container">
-              {% for f in items %}
-                {% if f.title %}<details><summary>{{ f.title }}</summary>{% else %}<details>{% endif %}
-                  {% if f.lead %}<p data-md>{{ f.lead }}</p>{% endif %}
-                  {% if f.body_md %}<div class="prose" data-md>{{ f.body_md }}</div>{% endif %}
-                </details>
-              {% endfor %}
-            </div>
-          </section>
-        {% else %}
-          <section class="section" id="{{ kind }}">
-            <div class="container"><h2>{{ _title }}</h2></div>
-            <div class="container card-grid">
-              {% for b in items %}
-                <article class="card">
-                  {% if b.title %}<h3>{{ b.title }}</h3>{% endif %}
-                  {% if b.lead %}<p class="muted" data-md>{{ b.lead }}</p>{% endif %}
-                  {% if b.body_md %}<div class="prose" data-md>{{ b.body_md }}</div>{% endif %}
-                  {% if b.href and b.cta_label %}<p><a class="btn" href="{{ b.href }}">{{ b.cta_label }}</a></p>{% endif %}
-                </article>
-              {% endfor %}
-            </div>
-          </section>
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-
-    {# ============ MAPA – na home lub gdy page.show_map == True ============ #}
-    {% if _slug == 'home' or page.show_map %}
-    <section class="section" id="kierunki">
-      <div class="container"><h2>{{ STR.routes_title }}</h2></div>
-      <div class="container">
-        <div class="iframe-wrap">
-          <iframe class="routes-map" title="Mapa kierunków" loading="lazy"
-                  src="/assets/media/mapa-kierunkow-kras-trans.html"
-                  sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer"></iframe>
-        </div>
-      </div>
-    </section>
-    {% endif %}
-
-    {# ============ DODATKOWA TREŚĆ Z page.body_md (opcjonalnie) ============ #}
-    {% if page.body_md %}
-    <section class="section" id="content">
-      <div class="container">
-        <div class="prose" data-md>{{ page.body_md }}</div>
-      </div>
-    </section>
-    {% endif %}
-
-    {# kotwica do formularza/wyceny w stopce #}
-    <div id="quote"></div>
-  </main>
-
-  {# FOOTER z partiala #}
-  {% include '_partials/footer.html' %}
-
-  {# ========= JS: formatowanie \n / list / bold ========= #}
-  <script>
-  (function(){
-    function mdToHtml(s){
-      if(!s) return '';
-      s = (s+'').replace(/\r\n/g,'\n').trim();
-
-      // listy punktowane ( -  lub  • )
-      if (/^(\s*[-•]\s.+\n?)+$/m.test(s) || s.includes('\n- ') || s.includes('\n• ')) {
-        const items = s.split('\n').map(l=>l.replace(/^\s*[-•]\s?/,'').trim()).filter(Boolean);
-        return '<ul><li>'+items.join('</li><li>')+'</li></ul>';
-      }
-      // listy numerowane 1) 2) ...
-      if (/^\s*\d+\)\s/m.test(s)) {
-        const items = s.split(/\n+/).map(l=>l.replace(/^\s*\d+\)\s*/,'').trim()).filter(Boolean);
-        return '<ol><li>'+items.join('</li><li>')+'</li></ol>';
-      }
-      // akapity + <br> i **bold**
-      s = s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-           .replace(/\n{2,}/g,'</p><p>')
-           .replace(/\n/g,'<br>');
-      return '<p>'+s+'</p>';
-    }
-    document.querySelectorAll('[data-md]').forEach(el=>{
-      el.innerHTML = mdToHtml(el.textContent);
-    });
-  })();
-  </script>
-
-  {# konfiguracja nawigacji dla headera + skrypt ogólny #}
-  <script>window.KRAS_NAV = {{ nav_cfg|tojson if nav_cfg is defined else {} }};</script>
-  <script src="/assets/js/app.js" defer></script>
+  <!-- Skrypty strony (ładujemy po HTML) -->
+  <script defer src="/assets/js/header.js"></script>
+  <script defer src="/assets/js/home.js"></script>
+  <noscript><style>.reel{overflow:auto;white-space:nowrap}.tile3d{display:inline-block;vertical-align:top;width:18rem}</style></noscript>
 </body>
 </html>
