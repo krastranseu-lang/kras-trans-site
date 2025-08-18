@@ -1,43 +1,23 @@
-/* ===============================
- *  Kras-Trans Header (Performance-first)
- *  - Glass/sticky, mega menu, mobile drawer
- *  - Sparkle hint, wave, flags, theme toggle
- *  - A11y, hover-intent (JS sets [aria-open])
- *  - PageSpeed: small shadows, GPU hints, RRM
- * =============================== */
-
-/* ---------- THEME TOKENS ---------- */
+/* === KRAS-TRANS — Header (perf + UX) ======================= */
 :root{
-  --bg:#0b111c;
-  --bg-2:#0f1726;
-  --surface:rgba(9,14,25,.55);
-  --text:#e9f2ff;
-  --muted:#9db0cf;
-  --brand:#2ee6c8;
-  --brand-ink:#00201a;
-  --border:rgba(255,255,255,.08);
-  --shadow:0 10px 24px rgba(0,0,0,.28);
-  --radius:14px;
-  --radius-lg:18px;
-  --speed:180ms;
+  --bg:#0b111c; --bg-2:#0f1726; --surface:rgba(9,14,25,.55);
+  --text:#e9f2ff; --muted:#9db0cf; --brand:#2ee6c8; --brand-ink:#00201a;
+  --border:rgba(255,255,255,.08); --shadow:0 10px 24px rgba(0,0,0,.28);
+  --radius:14px; --radius-lg:18px; --speed:180ms;
 }
 :root[data-theme="light"]{
-  --bg:#ffffff;
-  --bg-2:#f6f8fb;
-  --surface:rgba(255,255,255,.7);
-  --text:#0c1323;
-  --muted:#4c5b78;
-  --border:rgba(12,19,35,.08);
+  --bg:#ffffff; --bg-2:#f6f8fb; --surface:rgba(255,255,255,.7);
+  --text:#0c1323; --muted:#4c5b78; --border:rgba(12,19,35,.08);
   --shadow:0 10px 24px rgba(0,0,0,.08);
 }
 
-/* ---------- RESET (scoped) ---------- */
+/* scope */
 .kt-header, .kt-header *{ box-sizing:border-box; }
 .kt-header ul{ margin:0; padding:0; list-style:none; }
 .kt-header a{ color:var(--text); text-decoration:none; }
 .kt-header button{ font:inherit; color:inherit; background:none; border:none; }
 
-/* ---------- HEADER BAR ---------- */
+/* bar */
 .kt-header{
   position:sticky; top:0; inset-inline:0; z-index:60;
   background:linear-gradient(180deg, var(--surface), transparent 120%);
@@ -45,36 +25,31 @@
   backdrop-filter:saturate(120%) blur(10px);
   -webkit-backdrop-filter:saturate(120%) blur(10px);
   box-shadow:var(--shadow);
-  will-change:transform;
 }
 .kt-header__bar{
   max-width:1240px; margin:0 auto; padding:14px 20px;
   display:flex; align-items:center; gap:16px;
 }
-.brand img{ height:52px; width:auto; display:block; transition:height .2s ease; }
+.brand img{ height:72px; width:auto; display:block; transition:height .2s ease; }
 
-/* ---------- NAV DESKTOP ---------- */
+/* nav desktop */
 .main-nav{ margin-inline:auto; }
 .menu{ display:flex; align-items:center; gap:8px; }
 .menu-item{ position:relative; }
-.menu-link{
-  padding:10px 12px; border-radius:10px; line-height:1; white-space:nowrap;
-}
+.menu-link{ padding:10px 12px; border-radius:10px; white-space:nowrap; }
 .menu-link:hover{ background:rgba(255,255,255,.06); }
 
-/* ---------- SUBMENU ---------- */
+/* hint + sparkle */
 .sub-hint{ padding:6px; margin-left:-6px; border-radius:10px; position:relative; cursor:pointer; }
 .sub-hint svg{ width:18px; height:18px; stroke:var(--muted); stroke-width:2; fill:none; transition:transform .22s ease; }
 .menu-item[aria-open="true"] .sub-hint svg{ transform:rotate(180deg); }
-
-.sparkle{
-  position:absolute; inset:-2px; border-radius:12px; pointer-events:none;
+.sparkle{ position:absolute; inset:-2px; border-radius:12px; pointer-events:none;
   background:conic-gradient(from 0deg at 50% 50%, transparent 0 20%, rgba(255,255,255,.18) 22% 28%, transparent 30% 100%);
   animation:kt-spin 2.2s linear infinite; opacity:.0; transition:opacity .18s ease;
 }
-.menu-item:hover .sparkle{ opacity:.6; }
-@keyframes kt-spin { to { transform:rotate(1turn); } }
+.menu-item:hover .sparkle{ opacity:.6; } @keyframes kt-spin{ to{ transform:rotate(1turn) } }
 
+/* submenu */
 .submenu{
   position:absolute; left:8px; top:calc(100% + 10px);
   min-width:280px; max-width:720px;
@@ -84,42 +59,30 @@
   opacity:0; transform:translateY(8px) scale(.98);
   pointer-events:none; transition:opacity var(--speed) ease, transform var(--speed) ease;
 }
-.menu-item[aria-open="true"] > .submenu{
-  opacity:1; transform:translateY(0) scale(1); pointer-events:auto;
-}
+.menu-item[aria-open="true"] > .submenu{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
 .submenu__inner{ display:grid; gap:4px; }
 .submenu-grid{ grid-template-columns:repeat(2, minmax(220px,1fr)); }
 @media (min-width:1200px){ .submenu-grid{ grid-template-columns:repeat(3, minmax(220px,1fr)); } }
 .submenu-link{ display:block; padding:10px 12px; border-radius:12px; }
 .submenu-link:hover{ background:rgba(255,255,255,.06); }
 
-/* ---------- ACTIONS ---------- */
+/* actions */
 .header-actions{ display:flex; align-items:center; gap:10px; }
-.btn-quote{
-  padding:10px 14px; border-radius:999px; background:var(--brand); color:var(--brand-ink);
-  border:1px solid transparent; font-weight:700;
-}
+.btn-quote{ padding:10px 14px; border-radius:999px; background:var(--brand); color:var(--brand-ink); border:1px solid transparent; font-weight:700; }
 .btn-quote:hover{ filter:brightness(.95); }
 
-/* ---------- LANG ---------- */
+/* lang */
 .lang{ position:relative; }
-.lang__btn{
-  display:flex; align-items:center; gap:8px;
-  padding:8px 10px; border-radius:12px;
-  background:rgba(255,255,255,.06); border:1px solid var(--border);
-}
+.lang__btn{ display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:12px; background:rgba(255,255,255,.06); border:1px solid var(--border); }
 .lang__list{
-  position:absolute; right:0; top:calc(100% + 8px); min-width:150px; padding:8px;
+  position:absolute; right:0; top:calc(100% + 8px); min-width:160px; padding:8px;
   background:var(--bg-2); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow);
   display:none;
 }
 .lang[aria-open="true"] .lang__list{ display:block; }
 .lang__opt{ display:flex; gap:8px; align-items:center; padding:8px 10px; border-radius:10px; }
 .lang__opt:hover{ background:rgba(255,255,255,.06); }
-.flag{
-  width:18px; height:12px; background-size:cover; border-radius:2px;
-  box-shadow:0 0 0 1px rgba(0,0,0,.25) inset;
-}
+.flag{ width:18px; height:12px; background-size:cover; border-radius:2px; box-shadow:0 0 0 1px rgba(0,0,0,.25) inset; }
 .flag-pl{ background-image:url('/assets/flags/pl.svg'); }
 .flag-gb{ background-image:url('/assets/flags/gb.svg'); }
 .flag-de{ background-image:url('/assets/flags/de.svg'); }
@@ -128,16 +91,13 @@
 .flag-ru{ background-image:url('/assets/flags/ru.svg'); }
 .flag-ua{ background-image:url('/assets/flags/ua.svg'); }
 
-/* ---------- THEME TOGGLE ---------- */
-.theme{
-  width:42px; height:42px; border-radius:12px; display:grid; place-items:center;
-  border:1px solid var(--border); background:rgba(255,255,255,.06);
-}
+/* theme */
+.theme{ width:42px; height:42px; border-radius:12px; display:grid; place-items:center; border:1px solid var(--border); background:rgba(255,255,255,.06); }
 .theme img{ width:20px; height:20px; display:block; transition:transform .25s ease, opacity .2s ease; }
 :root:not([data-theme="light"]) .theme .sun{ opacity:0; transform:scale(.8) rotate(-30deg); }
 :root[data-theme="light"] .theme .moon{ opacity:0; transform:scale(.8) rotate(30deg); }
 
-/* ---------- HAMBURGER / MOBILE ---------- */
+/* mobile */
 .hamburger{ display:none; width:46px; height:42px; border-radius:12px; border:1px solid var(--border); background:rgba(255,255,255,.06); }
 .hamburger span{ display:block; height:2px; background:var(--text); margin:6px 10px; border-radius:2px; }
 @media (max-width:1100px){
@@ -150,18 +110,18 @@
   .menu-item[aria-open="true"] .submenu{ display:block; margin-top:6px; }
   .nav-scrim{ position:fixed; inset:0; background:rgba(0,0,0,.45); backdrop-filter:blur(2px); }
 }
-.nav-scrim[hidden]{ display:none !important; }
+.nav-scrim[hidden]{ display:none!important; }
 
-/* ---------- WAVE ---------- */
+/* wave */
 .header-wave{ width:100%; height:36px; display:block; }
 .header-wave path{ fill:var(--bg); opacity:.92; }
 
-/* ---------- PREFER REDUCED MOTION ---------- */
+/* reduced motion */
 @media (prefers-reduced-motion:reduce){
-  .submenu, .theme img, .brand img, .sub-hint svg{ transition:none !important; animation:none !important; }
+  .submenu, .theme img, .brand img, .sub-hint svg{ transition:none!important; animation:none!important; }
 }
 
-/* ---------- SAFETY for no-backdrop support ---------- */
+/* no backdrop support */
 @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))){
   .kt-header{ background:linear-gradient(180deg, rgba(10,16,28,.92), rgba(10,16,28,.80)); }
 }
