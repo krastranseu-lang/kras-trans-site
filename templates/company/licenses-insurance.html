@@ -1,38 +1,25 @@
-{% set _slug = page.slugKey or page.slug or 'licenses-insurance' %}
-{% set _lang = page.lang or 'pl' %}
-{% set STR   = (strings if strings is defined and strings else {}) %}
+{# ===================== SAFE DEFAULTS ===================== #}
+{% set BRAND = (company[0].name if company is defined and company|length>0 and company[0].name else 'Kras-Trans') %}
+{% set _lang  = (page.lang or 'pl') if page is defined else 'pl' %}
+{% set _slug  = (page.slugKey or page.slug or 'licenses-insurance') if page is defined else 'licenses-insurance' %}
+{% set HREF   = (hreflang if hreflang is defined and hreflang else {}) %}
+{% set STR    = (strings if strings is defined and strings else {}) %}
+{% set ALT    = HREF.get(_slug, {}) %}
 
-{% include '_partials/header.html' %}
-{# ...dalej treść strony (bloki z arkusza) #}
+{% macro link_for(slugkey, lang) -%}
+  {%- set m = HREF.get(slugkey, {}) -%}
+  {%- if m and m.get(lang) -%}
+    {{ m[lang] }}
+  {%- else -%}
+    {%- if slugkey == 'home' -%}
+      /{{ lang }}/
+    {%- else -%}
+      /{{ lang }}/{{ slugkey }}/
+    {%- endif -%}
+  {%- endif -%}
+{%- endmacro %}
 
-{# Przykład pobrania bloków z arkusza dla tej podstrony: #}
-{% set page_blocks = (blocks or []) 
-  | selectattr('lang','equalto',_lang)
-  | selectattr('page','equalto',_slug)
-  | selectattr('enabled','ne',False)
-  | list %}
-{% if page_blocks|length %}
-  <section class="section">
-    <div class="container grid">
-      {% for b in page_blocks|sort(attribute='order') %}
-        <article class="card">
-          {% if b.title %}<h3>{{ b.title }}</h3>{% endif %}
-          {% if b.lead %}<p class="muted" data-md>{{ b.lead }}</p>{% endif %}
-          {% if b.body_md %}<div class="prose" data-md>{{ b.body_md }}</div>{% endif %}
-          {% if b.cta_label and b.href %}<p><a class="btn" href="{{ b.href }}">{{ b.cta_label }}</a></p>{% endif %}
-        </article>
-      {% endfor %}
-    </div>
-  </section>
-{% endif %}
-
-{% include '_partials/footer.html' %}
 {# ========= Licencje & ubezpieczenia (Company) ========= #}
-{% set _lang   = page.lang or 'pl' %}
-{% set _slug   = page.slugKey or page.slug or 'licenses-insurance' %}
-{% set BRAND   = (company[0].name if company is defined and company|length > 0 and company[0].name else 'Kras-Trans') %}
-{% set PHONE   = (company and company[0].telephone) or '+48793927467' %}
-{% set HREFMAP = (hreflang if hreflang is defined else {}) %}
 {% set STR = {
   'pl': {
     'h1': (page.h1 or page.title or 'Licencje i ubezpieczenia'),
@@ -48,50 +35,52 @@
   },
   'en': {
     'h1': (page.h1 or page.title or 'Licences & insurance'),
-    'lead':'Safety and compliance: haulage licences, OCP/CMR insurance and downloads.',
-    'dl':'Downloads','ins':'Insurance','lic':'Licences','faq':'FAQ',
-    'cta':'Download CMR template','cta2':'Contact us',
-    'crumb_company':'Company','crumb_page':'Licences & insurance'
+    'lead': 'Safety and compliance: haulage licences, OCP/CMR insurance and downloads.',
+    'dl': 'Downloads',
+    'ins': 'Insurance',
+    'lic': 'Licences',
+    'faq': 'FAQ',
+    'cta': 'Download CMR template',
+    'cta2': 'Contact us',
+    'crumb_company': 'Company',
+    'crumb_page': 'Licences & insurance'
   }
-}[_lang] %}
+}.get(_lang, {}) %}
 
-{% set _canon  = page.canonical_path or '/' ~ _lang ~ '/' ~ (_slug ~ '/' if _slug else '') %}
-{% set _hreflang_map = HREFMAP[_slug] if HREFMAP and (_slug in HREFMAP) else {} %}
+{% set _canon = ALT.get(_lang) or link_for(_slug, _lang) %}
 
 <!doctype html>
 <html lang="{{ _lang }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{{ page.seo_title or STR.h1 ~ ' — ' ~ BRAND }}</title>
-  <meta name="description" content="{{ page.meta_desc or STR.lead }}">
+  <title>{{ page.seo_title or STR.get('h1') ~ ' — ' ~ BRAND }}</title>
+  <meta name="description" content="{{ page.meta_desc or STR.get('lead') }}">
   <link rel="canonical" href="{{ _canon }}">
-  {# alternatywne wersje językowe #}
-  {% for L,href in _hreflang_map.items() %}
-  <link rel="alternate" hreflang="{{ 'uk' if L=='ua' else L }}" href="{{ href }}">{% endfor %}
-  {% if _hreflang_map %}<link rel="alternate" hreflang="x-default" href="{{ _hreflang_map.get('en') or _hreflang_map.get('pl') }}">{% endif %}
+  {% for code, href in ALT.items() %}
+  <link rel="alternate" hreflang="{{ 'uk' if code == 'ua' else code }}" href="{{ href }}">
+  {% endfor %}
+  {% if ALT %}<link rel="alternate" hreflang="x-default" href="{{ ALT.get('en') or ALT.get('pl') }}">{% endif %}
 
   <meta property="og:type" content="website">
-  <meta property="og:title" content="{{ page.og_title or page.seo_title or STR.h1 }}">
-  <meta property="og:description" content="{{ page.og_desc or page.meta_desc or STR.lead }}">
+  <meta property="og:title" content="{{ page.og_title or page.seo_title or STR.get('h1') }}">
+  <meta property="og:description" content="{{ page.og_desc or page.meta_desc or STR.get('lead') }}">
   <meta property="og:image" content="{{ page.og_image or '/assets/media/og-default.jpg' }}">
   <meta property="og:url" content="{{ _canon }}">
   <meta name="theme-color" content="#ff7a1a">
 
-  {# globalne style (używamy istniejących plików) #}
   <link rel="preload" href="/assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/assets/fonts/InterVariable-Italic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/assets/css/app.css">
 
-  {# JSON-LD: Breadcrumbs + FAQ (z bloków) #}
   {% set faqs = (blocks|selectattr('block','equalto','faq')|selectattr('page','equalto',_slug)|selectattr('lang','equalto',_lang)|list) if blocks is defined else [] %}
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
     "@type":"BreadcrumbList",
     "itemListElement":[
-      {"@type":"ListItem","position":1,"name":"{{ STR.crumb_company }}","item":"/{{ _lang }}/o-firmie/"},
-      {"@type":"ListItem","position":2,"name":"{{ STR.crumb_page }}","item":"{{ _canon }}"}
+      {"@type":"ListItem","position":1,"name":"{{ STR.get('crumb_company','Firma') }}","item":"{{ link_for('about', _lang) }}"},
+      {"@type":"ListItem","position":2,"name":"{{ STR.get('crumb_page','Licencje & ubezpieczenia') }}","item":"{{ _canon }}"}
     ]
   }
   </script>
@@ -118,16 +107,16 @@
     <section class="section --line">
       <div class="container hero-wrap">
         <div>
-          <span class="claim">{{ STR.crumb_company }}</span>
-          <h1>{{ page.h1 or STR.h1 }}</h1>
-          <p class="lead" data-md>{{ page.lead or STR.lead }}</p>
+          <span class="claim">{{ STR.get('crumb_company') }}</span>
+          <h1>{{ page.h1 or STR.get('h1') }}</h1>
+          <p class="lead" data-md>{{ page.lead or STR.get('lead') }}</p>
 
           <p style="margin-top:18px">
             <a class="btn primary btn--shine" href="/assets/docs/cmr.pdf" download>
-              <span class="btn__label">{{ STR.cta }}</span>
+              <span class="btn__label">{{ STR.get('cta') }}</span>
               <span class="btn__spinner" aria-hidden="true"></span>
             </a>
-            <a class="btn" href="/{{ _lang }}/kontakt/">{{ STR.cta2 }}</a>
+            <a class="btn" href="/{{ _lang }}/kontakt/">{{ STR.get('cta2') }}</a>
           </p>
         </div>
 
@@ -154,7 +143,7 @@
       <div class="container cards cards--wrap">
         <article class="card" style="grid-column: span 6">
           <div class="pad">
-            <h2>{{ STR.lic }}</h2>
+            <h2>{{ STR.get('lic') }}</h2>
             {% if _items_lic|length %}
               <ul>
                 {% for it in _items_lic|sort(attribute='order') %}
@@ -169,7 +158,7 @@
 
         <article class="card" style="grid-column: span 6">
           <div class="pad">
-            <h2>{{ STR.ins }}</h2>
+            <h2>{{ STR.get('ins') }}</h2>
             {% if _items_ins|length %}
               <ul>
                 {% for it in _items_ins|sort(attribute='order') %}
@@ -184,7 +173,7 @@
 
         <article class="card" style="grid-column: span 12">
           <div class="pad">
-            <h2>{{ STR.dl }}</h2>
+            <h2>{{ STR.get('dl') }}</h2>
             {% if _items_dl|length %}
             <div class="cards cards--wrap">
               {% for it in _items_dl|sort(attribute='order') %}
@@ -208,7 +197,7 @@
     {% if faqs|length %}
     <section class="section --line" id="faq">
       <div class="container">
-        <h2 style="text-align:center">{{ STR.faq }}</h2>
+        <h2 style="text-align:center">{{ STR.get('faq') }}</h2>
         <div class="cards cards--wrap" style="margin-top:14px">
           {% for f in faqs|sort(attribute='order') %}
           <details class="card" style="grid-column: span 12">
@@ -245,3 +234,4 @@
   </script>
 </body>
 </html>
+
