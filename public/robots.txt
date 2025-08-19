@@ -1,9 +1,0 @@
-{% if site_url and ('localhost' in site_url or 'preview' in site_url) %}
-User-agent: *
-Disallow: /
-# X-Robots-Tag: noindex
-{% else %}
-User-agent: *
-Allow: /
-Sitemap: {{ site_url }}/sitemap.xml
-{% endif %}
