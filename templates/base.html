@@ -1,154 +1,176 @@
-{% if assets.preload %}
-  {% for p in assets.preload %}
-    <link rel="preload" as="{{ p.as }}" href="{{ p.href }}"{% if p.fetchpriority %} fetchpriority="{{ p.fetchpriority }}"{% endif %}>
-  {% endfor %}
-{% endif %}
-{% if assets.css %}
-  {% for href in assets.css %}
-    <link rel="stylesheet" href="{{ href }}">
-  {% endfor %}
-{% endif %}
-
-</head>{# =====================================================================
-   KRAS-TRANS • BASE LAYOUT (vMAX)
-   - i18n + hreflang (z buildera)
-   - SEO: canonical, robots (noindex), OG/Twitter
-   - Performance: preconnect, preload, fetchpriority (dla krytycznych zasobów)
-   - A11y: skip-link, lang/dir, focus styles (w CSS), proper landmarks
-   - Security/Privacy: GA4 tylko po zgodzie (hook), GSC meta
-   - Header/Footer: include z _partials/ z fallbackiem
-   ===================================================================== #}
-{% set L = page.lang or site.defaultLang or 'pl' %}
 <!doctype html>
-<html lang="{{ L }}" dir="ltr" data-theme="auto" data-anim-mode="calm">
+<html lang="{{ page.lang or site.defaultLang or 'pl' }}" class="no-js" data-color-scheme="light dark">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta http-equiv="x-ua-compatible" content="IE=edge" />
-  {# --- Robots (respect noindex flag) --- #}
-  {% if page.noindex %}<meta name="robots" content="noindex,follow" />{% endif %}
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="referrer" content="{{ site.privacy.referrerPolicy or 'strict-origin-when-cross-origin' }}" />
+  <meta name="theme-color" content="#0ea5e9" />
+  <meta name="color-scheme" content="light dark" />
 
-  <title>{{ page.seo_title or page.h1 }}</title>
+  <title>{{ page.seo_title or page.title }}</title>
   <meta name="description" content="{{ page.meta_desc }}" />
-  <link rel="canonical" href="{{ page.canonical }}" />
+  {% if page.noindex %}<meta name="robots" content="noindex,follow" />{% else %}<meta name="robots" content="index,follow" />{% endif %}
+  <link rel="canonical" href="{{ page.canonical or canonical }}" />
 
-  {# --- Hreflang alternates (z buildera) --- #}
+  {# --- HREFLANG (z buildera) --- #}
+  {% if alternates %}
+    {% for code, href in alternates.items() %}
+      <link rel="alternate" hreflang="{{ code }}" href="{{ href }}" />
+    {% endfor %}
+  {% endif %}
   {% if hreflang %}
-    {% for lang_code, href in hreflang.items() %}
-      <link rel="alternate" hreflang="{{ lang_code }}" href="{{ href }}" />
+    {% for code, href in hreflang.items() %}
+      <link rel="alternate" hreflang="{{ code }}" href="{{ href }}" />
     {% endfor %}
   {% endif %}
 
-  {# --- OpenGraph / Twitter --- #}
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="{{ site.brand }}" />
-  <meta property="og:title" content="{{ page.seo_title or page.h1 }}" />
-  <meta property="og:description" content="{{ page.meta_desc }}" />
-  <meta property="og:url" content="{{ page.canonical }}" />
-  <meta property="og:image" content="{{ page.og_image }}" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="{{ page.seo_title or page.h1 }}" />
-  <meta name="twitter:description" content="{{ page.meta_desc }}" />
-  <meta name="twitter:image" content="{{ page.og_image }}" />
-
-  {# --- GSC verification (z env globals) --- #}
+  {# --- Weryfikacja GSC --- #}
   {% if gsc_verification %}<meta name="google-site-verification" content="{{ gsc_verification }}" />{% endif %}
 
-  {# --- Resource Hints & Preloads --- #}
-  <link rel="preconnect" href="https://script.google.com" crossorigin />
-  <link rel="dns-prefetch" href="https://script.google.com" />
-  <link rel="preload" href="/assets/css/header.css" as="style" />
-  <link rel="preload" href="/assets/css/home.css" as="style" />
-  <link rel="preload" href="/assets/media/logo.png" as="image" fetchpriority="high" />
-  {# Możesz dodać preload hero konkretnej strony: patrz page.html (heroLCP) #}
+  {# --- Open Graph / Twitter --- #}
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="{{ site.brand }}" />
+  <meta property="og:url" content="{{ page.canonical or canonical }}" />
+  <meta property="og:title" content="{{ page.seo_title or page.title }}" />
+  <meta property="og:description" content="{{ page.meta_desc }}" />
+  <meta property="og:image" content="{{ site.url or site.base_url }}{{ page.og_image }}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{ page.seo_title or page.title }}" />
+  <meta name="twitter:description" content="{{ page.meta_desc }}" />
+  <meta name="twitter:image" content="{{ site.url or site.base_url }}{{ page.og_image }}" />
 
-  {# --- Stylesheets --- #}
-  <link rel="stylesheet" href="/assets/css/header.css" />
-  <link rel="stylesheet" href="/assets/css/home.css" />
+  {# --- Ikony / Manifest --- #}
+  <link rel="icon" href="/assets/img/favicon.ico" sizes="any" />
+  <link rel="icon" href="/assets/img/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/manifest.webmanifest" />
 
-  {# --- Anti-FOUC: natychmiastowy motyw (localStorage → data-theme) --- #}
-  <script>
-    (function(){
-      try{
-        var d=document.documentElement, k='kt:theme';
-        var saved=localStorage.getItem(k);
-        if(saved==='light'||saved==='dark'){ d.setAttribute('data-theme', saved); }
-        else if(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches){ d.setAttribute('data-theme','dark'); }
-      }catch(e){}
-    })();
-  </script>
+  {# --- Preconnecty tylko gdy potrzebne --- #}
+  {% if 'script.google.com' in (cms_endpoint or '') %}
+    <link rel="preconnect" href="https://script.google.com" crossorigin />
+  {% endif %}
+  {% if ga_id %}
+    <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+  {% endif %}
 
-  {# --- JSON-LD z buildera (Organization/Breadcrumb/FAQ etc.) --- #}
-  {{ jsonld | safe }}
+  {# --- LCP image preload (preferowany ręcznie: page.lcp_image) --- #}
+  {% if page.lcp_image %}
+    <link rel="preload" as="image" fetchpriority="high"
+          {% if page.lcp_image.srcset %}imagesrcset="{{ page.lcp_image.srcset }}"{% endif %}
+          href="{{ page.lcp_image.src or page.lcp_image }}" />
+  {% endif %}
 
-  {# --- RSS/Atom (jeśli włączone) --- #}
-  <link rel="alternate" type="application/rss+xml"  title="{{ site.brand }} RSS"  href="/{{ L }}/feed.xml" />
-  <link rel="alternate" type="application/atom+xml" title="{{ site.brand }} Atom" href="/{{ L }}/atom.xml" />
+  {# --- Preloady/CSS z pages.yml → assets --- #}
+  {% if assets.preload %}
+    {% for p in assets.preload %}
+      <link rel="preload" as="{{ p.as }}" href="{{ p.href }}"{% if p.fetchpriority %} fetchpriority="{{ p.fetchpriority }}"{% endif %} />
+    {% endfor %}
+  {% endif %}
+  {% if assets.css %}
+    {% for href in assets.css %}
+      <link rel="stylesheet" href="{{ href }}" />
+    {% endfor %}
+  {% endif %}
 
-  {# --- Theme color dla PWA/OS bars --- #}
-  <meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)" />
-  <meta name="theme-color" content="#ffffff"  media="(prefers-color-scheme: light)" />
+  {# --- Self-host fonts (Inter Variable) + critical a11y CSS (≤~2KB) --- #}
+  <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable.woff2" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable-Italic.woff2" crossorigin>
+  <style>
+    @font-face{font-family:'InterVariable';src:url('/assets/fonts/InterVariable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
+    @font-face{font-family:'InterVariable';src:url('/assets/fonts/InterVariable-Italic.woff2') format('woff2');font-weight:100 900;font-style:italic;font-display:swap}
+    :root{--brand:#0ea5e9;--focus:#22C3A6;--fg:#0b1020}
+    html{scroll-behavior:smooth}
+    body{margin:0;font-family:'InterVariable',system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial,'Noto Sans','Liberation Sans',sans-serif;color:#1f2937;background:#fff}
+    .wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+    .skip-link{position:absolute;left:-999px;top:auto;width:1px;height:1px;overflow:hidden}
+    .skip-link:focus{left:12px;top:8px;width:auto;height:auto;background:#111;color:#fff;padding:8px 12px;border-radius:12px;z-index:100}
+    :focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+    .site-header{position:sticky;top:0;z-index:50;backdrop-filter:saturate(180%) blur(12px);background:rgba(255,255,255,.72);border-bottom:1px solid rgba(0,0,0,.06)}
+    @media (prefers-color-scheme: dark){body{background:#0b1020;color:#e5e7eb}.site-header{background:rgba(15,23,42,.62);border-color:rgba(255,255,255,.08)}}
+  </style>
+
+  {# --- Endpoint CMS dla skryptów klienckich --- #}
+  <meta name="cms-endpoint" content="{{ cms_endpoint }}" />
+
+  <script>document.documentElement.classList.remove('no-js');</script>
 </head>
+<body>
+  <a class="skip-link" href="#main">{{ (i18n.skip_to_content if i18n else '') or 'Skip to content' }}</a>
 
-<body class="kt-body">
-  <!-- Skip link (a11y) -->
-  <a class="visually-hidden" href="#main">Przejdź do treści</a>
+  {# --- Header partial --- #}
+  {% if header_path %}
+    {% include header_path %}
+  {% else %}
+    {% include "__partials/header.html" %}
+  {% endif %}
 
-  {# ----- Header: najpierw _partials/, fallback do header.html ----- #}
-  {% include "_partials/header.html" ignore missing %}
-  {% include "header.html" ignore missing %}
-
-  <main id="main" role="main">
-    {# ----- Zawartość stron / sekcji ----- #}
+  <main id="main" tabindex="-1" role="main">
     {% block content %}{% endblock %}
   </main>
 
-  {# ----- Footer: najpierw _partials/, fallback do footer.html ----- #}
-  {% include "_partials/footer.html" ignore missing %}
-  {% include "footer.html" ignore missing %}
+  {# --- Footer partial --- #}
+  {% if footer_path %}
+    {% include footer_path %}
+  {% else %}
+    {% include "__partials/footer.html" %}
+  {% endif %}
 
-  {# ====== Scripts (defer, bez blokady) ====== #}
-  <script defer src="/assets/js/header.js"
-          data-api="{{ cms_endpoint }}"
-          data-default-lang="{{ site.defaultLang }}"></script>
+  {# --- JSON-LD (Organization, Website, Breadcrumb, per-typ) z buildera --- #}
+  {% if jsonld %}{{ jsonld|safe }}{% endif %}
 
-  {# home.js możesz włączać globalnie — jest lekki i warunkowy #}
-  <script defer src="/assets/js/home.js"></script>
+  {# --- Skrypty z pages.yml → assets.js (defer) --- #}
+  {% if assets.js %}
+    {% for src in assets.js %}
+      <script defer src="{{ src }}"></script>
+    {% endfor %}
+  {% endif %}
 
-  {# ====== GA4 (po zgodzie, hook pod CMP) ======
-     Jeśli masz CMP, w tym miejscu ustaw consent mode i dopiero wtedy załaduj GA.
-     Poniżej minimalny loader aktywowany tylko gdy ga_id istnieje. #}
-  {% if ga_id %}
+  {# --- Loader „late JS” (>50KB): opcjonalnie assets.js_late w pages.yml --- #}
   <script>
   (function(){
-    // Hook: jeżeli masz CMP, zawołaj window.ktConsentGranted() po akceptacji.
-    function loadGA(id){
-      if(window.__gaLoaded) return; window.__gaLoaded = true;
-      var s=document.createElement('script'); s.async=true; s.src='https://www.googletagmanager.com/gtag/js?id='+id;
-      document.head.appendChild(s);
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){ dataLayer.push(arguments); }
-      window.gtag = gtag;
-      gtag('js', new Date());
-      gtag('config', id, {anonymize_ip:true});
+    function loadLate(){
+      // 1) Przenieś skrypty oznaczone data-late
+      document.querySelectorAll('script[data-late]').forEach(function(s){
+        var n=document.createElement('script');
+        for (var i=0;i<s.attributes.length;i++){var a=s.attributes[i]; if(a.name!=='data-late') n.setAttribute(a.name,a.value);}
+        n.defer = s.defer || true; s.remove(); document.body.appendChild(n);
+      });
+      // 2) Wczytaj JS z opcjonalnej sekcji assets.js_late (po load/idle)
+      {% if assets.js_late %}
+        try { var late={{ assets.js_late | tojson }}; late.forEach(function(src){ var n=document.createElement('script'); n.defer=true; n.src=src; document.body.appendChild(n); }); } catch(e){}
+      {% endif %}
     }
-    // Auto-load (bez CMP) — jeśli chcesz tylko po zgodzie, wywołaj loadGA z CMP.
-    if(!('ktConsentGranted' in window)){
-      window.ktConsentGranted = function(){ loadGA('{{ ga_id }}'); };
-    }
-    // domyślnie ładujemy od razu; usuń poniższą linię, jeśli GA ma czekać na zgodę
-    loadGA('{{ ga_id }}');
+    if('requestIdleCallback' in window){ requestIdleCallback(loadLate,{timeout:1500}); }
+    else { window.addEventListener('load', loadLate); }
   })();
+  </script>
+
+  {# --- Fallback: jeśli cms.js nie podpięty w assets.js, doładuj --- #}
+  <script>
+    (function(){
+      if(!document.querySelector('script[src*="/assets/js/cms.js"],script[data-src*="/assets/js/cms.js"]')){
+        var s=document.createElement('script'); s.defer=true; s.src='/assets/js/cms.js'; document.body.appendChild(s);
+      }
+    })();
+  </script>
+
+  {# --- Google Analytics po idle/zgodzie (lekkie) --- #}
+  {% if ga_id %}
+  <script>
+    (function(id){
+      function loadGA(){ if(window.__gaLoaded) return; window.__gaLoaded=true;
+        var s=document.createElement('script'); s.async=true; s.src='https://www.googletagmanager.com/gtag/js?id='+id; document.head.appendChild(s);
+        window.dataLayer=window.dataLayer||[]; function gtag(){dataLayer.push(arguments);} window.gtag=gtag; gtag('js', new Date()); gtag('config', id, {anonymize_ip:true});
+      }
+      if(window.ktConsentGranted===true){ loadGA(); }
+      else if('requestIdleCallback' in window){ requestIdleCallback(loadGA,{timeout:2000}); }
+      else { window.addEventListener('load', loadGA); }
+    })('{{ ga_id }}');
   </script>
   {% endif %}
 
-  {# ====== NoScript fallback ====== #}
-  <noscript><style>.reel{scroll-snap-type:none}.tile3d{transition:none}</style></noscript>
-   {% if assets.js %}
-  {% for src in assets.js %}
-    <script defer src="{{ src }}"></script>
-  {% endfor %}
-{% endif %}
-
+  {# --- Noscript: minimalny layout, bez CLS --- #}
+  <noscript><style>.site-header{position:sticky}.reel{scroll-snap-type:none}</style></noscript>
 </body>
 </html>
