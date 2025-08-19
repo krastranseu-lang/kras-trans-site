@@ -1,0 +1,43 @@
+<!-- FILE: templates/components/cms-status.html -->
+<div class="kt-cms-status" role="status" aria-live="polite" style="font:14px/1.4 system-ui, sans-serif">
+  <span data-role="state">ładowanie…</span>
+  <small class="kt-muted" style="color:#666"> | endpoint: <code id="kt-cms-endpoint"></code></small>
+</div>
+
+<script defer>
+  (function () {
+    function set(txt) {
+      var el = document.querySelector('.kt-cms-status [data-role="state"]');
+      if (el) el.textContent = txt;
+    }
+    window.addEventListener('kt:cms:state', function (e) {
+      var s = e.detail && e.detail.state;
+      var src = e.detail && e.detail.source ? (" (" + e.detail.source + ")") : '';
+      if (s === 'loading') set('ładowanie…');
+      else if (s === 'ready') set('gotowe' + src);
+      else if (s === 'stale') set('tryb offline – dane z cache');
+      else if (s === 'fallback') set('tryb awaryjny – strings.json');
+      else if (s === 'error') set('błąd połączenia');
+      else if (s === 'cleared') set('cache wyczyszczony');
+    });
+
+    // pokaż endpoint i od razu pobierz dane
+    function showEndpoint() {
+      var el = document.getElementById('kt-cms-endpoint');
+      if (el && window.KTCMS) el.textContent = window.KTCMS.endpoint;
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', showEndpoint);
+    } else {
+      showEndpoint();
+    }
+
+    // jednorazowe pobranie (nie blokuje first paint)
+    if (window.KTCMS) window.KTCMS.get().catch(function(){});
+  })();
+</script>
+
+<!-- Użycie w layout:
+<link rel="preconnect" href="https://script.google.com">
+<script src="/assets/js/cms.js" defer data-api="https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec?key=kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"></script>
+-->
