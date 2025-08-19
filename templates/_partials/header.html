@@ -1,92 +1,164 @@
-<!-- ===============  HEADER COMPONENT  =============== -->
-<!-- Wstaw NA POCZĄTKU <body> (żeby był widoczny natychmiast) -->
-<!-- ================== HEADER (Kras-Trans) ================== -->
-<link rel="preload" href="/assets/media/logo-firma-transportowa-kras-trans.png" as="image" imagesizes="(max-width: 600px) 160px, 200px">
+<!-- templates/header.html -->
+<!-- Global Header (Kras-Trans) — glassmorphism, i18n, mega-menu, mobile dock -->
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preload" href="/assets/css/header.css" as="style">
+<link rel="preload" href="/assets/media/logo.png" as="image" imagesizes="36px" imagesrcset="/assets/media/logo.png 1x, /assets/media/logo@2x.png 2x">
+<link rel="preload" href="/assets/flags/pl.svg" as="image" type="image/svg+xml">
 
-<header id="kt-header"
-        class="kt-header"
-        data-cms-url="https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec?key=kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
-        data-default-lang="pl"
-        data-logo-src="/assets/media/logo-firma-transportowa-kras-trans.png">
+<!-- Anti-FOUC: theme + i18n redirect (runs ASAP) -->
+<script>
+(function () {
+  try {
+    const d = document.documentElement;
+    // THEME
+    const lsKey = 'kt:theme';
+    const saved = localStorage.getItem(lsKey);
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    d.setAttribute('data-theme', (saved === 'light' || saved === 'dark') ? saved : (prefersDark ? 'dark' : 'light'));
+    // I18N redirect (if path missing /xx/ where xx ∈ locales)
+    var LOCALES = ['pl','en','de','fr','it','ru','ua'];
+    var p = location.pathname.replace(/^\/+/, '').split('/');
+    var lang = p[0];
+    if (!LOCALES.includes(lang)) {
+      var def = 'pl';
+      // do not redirect assets or special paths
+      var first = (p[0] || '').toLowerCase();
+      if (!first || !/^assets|static|api|cms|admin$/.test(first)) {
+        var rest = p.join('/');
+        var target = '/' + def + '/' + (rest ? rest : '');
+        target = target.replace(/\/+$/,'/') // ensure trailing slash
+        var url = target + location.search + location.hash;
+        location.replace(url);
+      }
+    }
+  } catch (e) {}
+})();
+</script>
 
-  <!-- Anti-FOUC (motyw) – mikroskrypt przed stylami: -->
-  <script>
-    (function(){
-      try{
-        var p = localStorage.getItem('kt-theme');
-        if(!p){ p = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark':'light'; }
-        document.documentElement.setAttribute('data-theme', p);
-      }catch(e){}
-    })();
-  </script>
+<!-- Optional critical CSS inline (keep tiny) -->
+<style>
+/* == assets/css/header.critical.css (inline) == */
+:root{
+  --kt-bg-glass-light: rgba(255,255,255,.78);
+  --kt-bg-glass-dark: rgba(12,16,24,.55);
+  --kt-text-light:#0D1B2A; --kt-text-dark:#EAF2FF; --kt-muted-light:#5A6475; --kt-muted-dark:#A4B1C5;
+  --kt-accent-1:#19E3C1; --kt-accent-2:#00BFA5;
+  --kt-shadow: 0 6px 28px rgba(0,0,0,.16);
+  --kt-max: 1240px; --kt-h:64px; --kt-r:14px;
+}
+html[data-theme="light"]{color-scheme:light;}
+html[data-theme="dark"]{color-scheme:dark;}
+#site-header{position:sticky;top:0;z-index:50;background:transparent}
+.kt-topbar{height:var(--kt-h); display:flex; align-items:center; justify-content:space-between; gap:12px;
+  backdrop-filter:saturate(140%) blur(12px); -webkit-backdrop-filter:saturate(140%) blur(12px);
+  background:var(--kt-bg, var(--kt-bg-glass-light)); box-shadow:var(--kt-shadow)}
+html[data-theme="light"] .kt-topbar{--kt-bg:var(--kt-bg-glass-light); color:var(--kt-text-light)}
+html[data-theme="dark"] .kt-topbar{--kt-bg:var(--kt-bg-glass-dark); color:var(--kt-text-dark)}
+.kt-wrap{width:100%; max-width:var(--kt-max); margin:0 auto; padding:0 16px; display:flex; align-items:center; gap:16px}
+.kt-brand img{height:36px;width:auto; display:block}
+@media (max-width:1100px){ .kt-brand img{height:32px} }
+@media (max-width:860px){ .kt-brand img{height:28px} }
+.kt-actions{display:flex; align-items:center; gap:10px}
+.kt-burger{display:none; width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:transparent}
+@media (max-width:860px){ .kt-burger{display:inline-flex; align-items:center; justify-content:center}}
+.kt-nav{display:flex; align-items:center; gap:18px}
+@media (max-width:1100px){ .kt-nav{gap:12px} }
+@media (max-width:860px){ .kt-nav{display:none} }
+.kt-cta{padding:.6rem .9rem; border-radius:12px; background:var(--kt-accent-1); color:#001318; font-weight:650}
+#ktMega{position:fixed; left:0; right:0; top:var(--megaTop, 64px); transform:translateZ(0); will-change:opacity, transform; opacity:0; pointer-events:none}
+#ktMega.open{opacity:1; pointer-events:auto}
+#ktDock{display:none}
+@media (max-width:860px){
+  #ktDock{position:sticky; bottom:0; z-index:55; display:block}
+  .kt-dock{position:fixed; left:0; right:0; bottom:0; background:var(--kt-bg, rgba(12,16,24,.75)); backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px); padding:8px 10px; display:grid; grid-template-columns:repeat(4,1fr); gap:8px; box-shadow:0 -10px 18px rgba(0,0,0,.18)}
+  .kt-fab{position:fixed; right:14px; bottom:72px; width:56px;height:56px;border-radius:16px;background:var(--kt-accent-1); color:#001318; display:grid; place-items:center; box-shadow:0 8px 24px rgba(25,227,193,.45)}
+}
+.kt-visually-hidden{position:absolute!important; width:1px;height:1px;margin:-1px;border:0;padding:0;clip:rect(0 0 0 0);overflow:hidden}
+</style>
 
-  <!-- CRITICAL MINIMAL STYLES (tylko layout paska – właściwe style w header.css) -->
-  <link rel="preload" as="style" href="/assets/css/header.css" onload="this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="/assets/css/header.css"></noscript>
+<header id="site-header"
+  role="banner"
+  data-api="https://script.google.com/macros/s/<DEPLOY_ID>/exec?key=<API_KEY>"
+  data-default-lang="pl"
+  data-logo-src="/assets/media/logo.png"
+  aria-label="Kras-Trans global header">
 
-  <!-- Pasek (glass, sticky) -->
-  <div class="kt-bar">
-    <a class="kt-brand" href="/" aria-label="Home">
-      <img class="kt-logo" alt="Kras-Trans" width="168" height="28"
-           src="/assets/media/logo-firma-transportowa-kras-trans.png"
-           loading="eager" decoding="async">
-    </a>
-
-    <nav class="kt-nav" aria-label="Main">
-      <ul class="kt-nav-list" id="kt-nav-list">
-        <!-- Skeleton (zastępowany po fetchu CMS) -->
-        <li class="kt-skel"></li>
-        <li class="kt-skel"></li>
-        <li class="kt-skel"></li>
-        <li class="kt-skel"></li>
-        <li class="kt-skel"></li>
-      </ul>
-    </nav>
-
-    <div class="kt-actions">
-      <!-- Języki -->
-      <div class="kt-lang" id="kt-lang">
-        <button class="kt-lang-btn" id="kt-lang-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Wybierz język">
-          <img class="kt-flag" alt="" src="/assets/flags/pl.svg" width="18" height="18">
-          <span class="kt-lang-code">PL</span>
-          <svg class="kt-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>
-        </button>
-        <ul class="kt-lang-list" id="kt-lang-list" role="listbox" aria-label="Języki" hidden></ul>
-      </div>
-
-      <!-- Motyw -->
-      <button class="kt-theme" id="kt-theme" aria-label="Przełącz motyw">
-        <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4V2m0 20v-2m8-8h2M2 12H4m13.66 6.66l1.41 1.41M4.93 4.93l1.41 1.41m0 11.32l-1.41 1.41M19.07 4.93l-1.41 1.41M12 7a5 5 0 100 10 5 5 0 000-10z"/></svg>
-        <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-      </button>
-
-      <!-- CTA (etykieta i href z CMS/Strings/Nav) -->
-      <a class="kt-cta" id="kt-cta" href="#">
-        <span id="kt-cta-label">…</span>
+  <div class="kt-topbar">
+    <div class="kt-wrap">
+      <!-- Brand -->
+      <a class="kt-brand" id="ktBrand" href="/" aria-label="Kras-Trans">
+        <img id="ktLogo" src="/assets/media/logo.png" alt="Kras-Trans" width="128" height="36" decoding="async">
       </a>
 
-      <!-- Burger (mobile) -->
-      <button class="kt-burger" id="kt-burger" aria-label="Menu">
-        <span></span><span></span><span></span>
-      </button>
+      <!-- Primary nav -->
+      <nav id="ktNav" class="kt-nav" role="navigation" aria-label="Primary">
+        <!-- Fallback items will be injected instantly by JS -->
+      </nav>
+
+      <!-- Actions: lang, theme, CTA -->
+      <div class="kt-actions">
+        <div class="kt-lang">
+          <button id="ktLangBtn" class="kt-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Change language">
+            <img id="ktLangFlag" src="/assets/flags/pl.svg" alt="PL" width="20" height="20">
+          </button>
+          <ul id="ktLangList" class="kt-lang-list" role="listbox" aria-label="Languages" hidden>
+            <!-- injected -->
+          </ul>
+        </div>
+
+        <button id="ktThemeBtn" class="kt-btn" aria-pressed="false" aria-label="Toggle theme">
+          <!-- icon via CSS -->
+          <span class="kt-visually-hidden">Theme</span>
+        </button>
+
+        <a id="ktCTA" class="kt-cta" href="/pl/wycena/" data-i18n="cta_quote_primary">Wycena transportu</a>
+
+        <button id="ktBurger" class="kt-burger" aria-label="Open menu" aria-controls="ktMobile" aria-expanded="false">
+          <!-- burger icon via CSS -->
+          <span class="kt-visually-hidden">Menu</span>
+        </button>
+      </div>
     </div>
   </div>
 
-  <!-- Mega menu (zwarty dock) -->
-  <div class="kt-mega" id="kt-mega" role="region" aria-live="polite" hidden>
-    <div class="kt-mega-inner" id="kt-mega-inner"><!-- kolumny z JS --></div>
+  <!-- Mega dock -->
+  <div id="ktMega" aria-hidden="true">
+    <div id="ktMegaInner" class="kt-wrap" role="region" aria-label="Expanded menu panel">
+      <!-- dynamic -->
+    </div>
   </div>
 
-  <!-- Drawer mobile -->
-  <aside class="kt-mobile" id="kt-mobile" hidden aria-hidden="true">
-    <div class="kt-mobile-head">
-      <span>Menu</span>
-      <button class="kt-mobile-close" id="kt-mobile-close" aria-label="Zamknij">✕</button>
+  <!-- Mobile drawer -->
+  <aside id="ktMobile" class="kt-mobile" aria-hidden="true" aria-label="Mobile menu" hidden>
+    <div class="kt-mobile-backdrop" data-close="mobile"></div>
+    <div class="kt-mobile-panel" role="dialog" aria-modal="true" aria-labelledby="ktMobileTitle">
+      <div class="kt-mobile-head">
+        <h2 id="ktMobileTitle">Menu</h2>
+        <button id="ktMobileClose" class="kt-btn" aria-label="Close menu" data-close="mobile">✕</button>
+      </div>
+      <nav id="ktMobileNav" class="kt-mobile-nav" aria-label="Mobile primary">
+        <!-- injected -->
+      </nav>
     </div>
-    <nav class="kt-mobile-nav" id="kt-mobile-nav" aria-label="Mobile"></nav>
   </aside>
 
-  <!-- Logika -->
-  <script defer src="/assets/js/header.js"></script>
+  <!-- Bottom dock (mobile) -->
+  <div id="ktDock" aria-hidden="false">
+    <nav class="kt-dock" aria-label="Quick actions">
+      <!-- injected -->
+    </nav>
+    <button id="ktDockFab" class="kt-fab" aria-label="Open menu">☰</button>
+  </div>
 </header>
-<!-- =============  /HEADER COMPONENT  ============= -->
+
+<!-- Main header script (deferred) -->
+<script id="ktHeaderScript"
+  src="/assets/js/header.js"
+  defer
+  data-api="https://script.google.com/macros/s/<DEPLOY_ID>/exec?key=<API_KEY>"
+  data-default-lang="pl">
+</script>
+
+<!-- Normal stylesheet -->
+<link rel="stylesheet" href="/assets/css/header.css">
