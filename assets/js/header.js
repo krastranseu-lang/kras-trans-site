@@ -236,6 +236,43 @@ function setupLangControls(lang){
     e.preventDefault();
     setLangToPath(a.dataset.lang);
   });
+  /* === PATCH: mega menu UX + dostępność === */
+(function enhanceMega(){
+  const mega = document.getElementById('ktMega');
+  const inner = document.getElementById('ktMegaInner');
+  const header = document.getElementById('site-header');
+
+  // 1) dłuższy czas domknięcia – 420ms
+  if (typeof onNavLeave === 'function') {
+    // nadpisujemy domknięcie jeśli istnieje
+    const oldLeave = onNavLeave;
+    window.onNavLeave = function(){
+      clearTimeout(megaTimer);
+      megaTimer = setTimeout(()=>{
+        mega.classList.remove('active');
+        mega.setAttribute('aria-hidden','true');
+        megaOpen = false;
+      }, 420);
+    };
+  }
+
+  // 2) aktualizacja topa na resize/scroll
+  function setMegaTop(){
+    const rect = header.getBoundingClientRect();
+    document.documentElement.style.setProperty('--megaTop', `${rect.bottom}px`);
+  }
+  window.addEventListener('resize', setMegaTop, {passive:true});
+  window.addEventListener('scroll', setMegaTop,  {passive:true});
+  setMegaTop();
+
+  // 3) dostępność – focus
+  mega.addEventListener('focusin', ()=>{ clearTimeout(megaTimer); mega.classList.add('active'); mega.setAttribute('aria-hidden','false'); });
+  mega.addEventListener('focusout', (e)=>{
+    if (!mega.contains(e.relatedTarget)) {
+      mega.classList.remove('active'); mega.setAttribute('aria-hidden','true');
+    }
+  });
+})();
   document.addEventListener('click', (e)=>{
     if(!$('#langSwitch').contains(e.target)) $('#langMenu').setAttribute('hidden','');
   });
