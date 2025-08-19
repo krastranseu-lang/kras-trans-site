@@ -160,3 +160,34 @@ html[data-theme="dark"] #iconMoon{ display:block; }
 /* Accessibility focus */
 :focus-visible{ outline:2px solid var(--kt-accent-2); outline-offset:2px; }
 /* ============================================================ */
+
+/* === PATCH: logo, warstwy, pełna szerokość, UX === */
+:root{
+  /* łatwa kontrola rozmiaru logo i max szerokości panelu */
+  --kt-logo-h: 36px;            /* było 28–32px */
+  --kt-max: 1440px;             /* jeśli wolisz, zmień tu */
+}
+
+.kt-brand img{ height: var(--kt-logo-h); width:auto; }
+
+.kt-mega{ z-index: 1100; }              /* nad headerem i innymi sticky */
+.kt-mega-inner{ width: 100%; }          /* pełna szerokość kontenera */
+.kt-mega--full .kt-mega-inner{
+  max-width: none;                       /* wymuś pełną szerokość panelu */
+  padding-left: max(16px, var(--kt-pad));
+  padding-right: max(16px, var(--kt-pad));
+}
+
+/* cień/odcięcie od belki, żeby panel wizualnie „wyrósł” spod paska */
+.kt-mega-panel{
+  box-shadow: 0 22px 40px rgba(0,0,0,.36), 0 1px 0 rgba(255,255,255,.03) inset;
+}
+
+/* strzałka bez podbijania tekstu */
+.kt-nav-link .chev{ transform: translateY(1px); }
+
+/* CTA – stała szerokość max i brak „rozjeżdżania” */
+.kt-cta{ max-width: 220px; }
+
+/* trochę większy próg zwijania na hover intent (wizualne) */
+.kt-mega{ transition: opacity .2s ease, transform .2s ease; }
