@@ -1,4 +1,15 @@
-{# =====================================================================
+{% if assets.preload %}
+  {% for p in assets.preload %}
+    <link rel="preload" as="{{ p.as }}" href="{{ p.href }}"{% if p.fetchpriority %} fetchpriority="{{ p.fetchpriority }}"{% endif %}>
+  {% endfor %}
+{% endif %}
+{% if assets.css %}
+  {% for href in assets.css %}
+    <link rel="stylesheet" href="{{ href }}">
+  {% endfor %}
+{% endif %}
+
+</head>{# =====================================================================
    KRAS-TRANS • BASE LAYOUT (vMAX)
    - i18n + hreflang (z buildera)
    - SEO: canonical, robots (noindex), OG/Twitter
@@ -133,5 +144,11 @@
 
   {# ====== NoScript fallback ====== #}
   <noscript><style>.reel{scroll-snap-type:none}.tile3d{transition:none}</style></noscript>
+   {% if assets.js %}
+  {% for src in assets.js %}
+    <script defer src="{{ src }}"></script>
+  {% endfor %}
+{% endif %}
+
 </body>
 </html>
