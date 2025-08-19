@@ -85,10 +85,10 @@ templates:
   page: "templates/page.html"
   location: "templates/location.html"
   blog_index: "templates/blog_index.html"
-  blog_post:  "templates/blog_post.html"
-  reviews:    "templates/reviews.html"
+  blog_post: "templates/blog_post.html"
+  reviews: "templates/reviews.html"
   jobs_index: "templates/jobs_index.html"
-  job_item:   "templates/job_item.html"
+  job_item: "templates/job_item.html"
 
 template_rules:
   by_type:
