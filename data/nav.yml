@@ -1,0 +1,71 @@
+# Definicja mega‑menu – etykiety po językach
+pl:
+main:
+- label: "Usługi"
+children:
+- label: "Transport międzynarodowy"
+url: "/pl/#services"
+- label: "Spedycja"
+url: "/pl/#freight"
+- label: "Magazynowanie"
+url: "/pl/#warehouse"
+- label: "Flota"
+children:
+- label: "EURO6"
+url: "/pl/#fleet"
+- label: "Naczepy"
+url: "/pl/#trailers"
+- label: "Kontakt"
+url: "/pl/#contact"
+
+
+en:
+main:
+- label: "Services"
+children:
+- label: "International transport"
+url: "/en/#services"
+- label: "Freight forwarding"
+url: "/en/#freight"
+- label: "Warehousing"
+url: "/en/#warehouse"
+- label: "Fleet"
+children:
+- label: "EURO6"
+url: "/en/#fleet"
+- label: "Trailers"
+url: "/en/#trailers"
+- label: "Contact"
+url: "/en/#contact"
+
+
+de:
+main:
+- label: "Leistungen"
+children:
+- label: "Internationaler Transport"
+url: "/de/#services"
+- label: "Spedition"
+url: "/de/#freight"
+- label: "Lagerhaltung"
+url: "/de/#warehouse"
+- label: "Fuhrpark"
+children:
+- label: "EURO6"
+url: "/de/#fleet"
+- label: "Auflieger"
+url: "/de/#trailers"
+- label: "Kontakt"
+url: "/de/#contact"
+
+
+fr:
+main:
+- label: "Services"
+children:
+- label: "Transport international"
+url: "/fr/#services"
+- label: "Expédition"
+url: "/fr/#freight"
+- label: "Stockage"
+url: "/ua/#contact"
