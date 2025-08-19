@@ -45,8 +45,35 @@ OUT  = pathlib.Path("dist")
 OUT.mkdir(parents=True, exist_ok=True)
 UTC  = lambda dt=None: (dt or datetime.now(timezone.utc)).isoformat(timespec="seconds")
 
-def read_yaml(path:"str|pathlib.Path")->Dict[str,Any]:
-    with open(path, "r", encoding="utf-8") as f: return yaml.safe_load(f)
+def read_yaml(path: "str|pathlib.Path") -> Dict[str, Any]:
+    import yaml, sys
+    p = pathlib.Path(path)
+    raw = p.read_text("utf-8")
+
+    # Normalizacja, żeby YAML nie walił się na tabach/BOM/CRLF
+    if raw.startswith("\ufeff"):  # BOM
+        raw = raw.lstrip("\ufeff")
+    raw = raw.replace("\r\n", "\n").replace("\r", "\n")
+    raw = raw.replace("\t", "  ")  # TAB -> 2 spacje (YAML nie akceptuje tabów)
+
+    try:
+        return yaml.safe_load(raw)
+    except yaml.YAMLError as e:
+        # Pokaż dokładnie, na której linii jest problem (łatwiej zlokalizować)
+        print("[YAML] Parse error:", e, file=sys.stderr)
+        try:
+            mark = getattr(e, "problem_mark", None)
+            if mark:
+                err_line = mark.line + 1
+                start = max(1, err_line - 3)
+                end = err_line + 3
+                for i, line in enumerate(raw.split("\n"), 1):
+                    if start <= i <= end:
+                        prefix = ">>" if i == err_line else "  "
+                        print(f"{prefix} {i:4d}: {line}", file=sys.stderr)
+        finally:
+            raise
+
 
 def read_text(p: pathlib.Path) -> str:
     return p.read_text("utf-8") if p.exists() else ""
