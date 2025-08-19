@@ -1,0 +1,503 @@
+version: 6
+
+# ============================ 1) CONSTANTS / KEYS ===========================
+constants:
+  SITE_URL: "https://kras-trans.com"
+  APPS_URL: "https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec"
+  APPS_KEY: "kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
+  GA_ID: "G-5FYE42J3BE"
+  GSC_VERIFICATION: "Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y"
+  BING_SITE_AUTH_USER: ""          # jeśli masz – wstaw; builder wygeneruje dist/BingSiteAuth.xml
+  INDEXNOW_KEY: ""                 # jeśli masz – wstaw; builder wygeneruje /{key}.txt
+  NEWS_ENABLED: false
+
+# =============================== 2) SITE / I18N =============================
+site:
+  brand: "Kras-Trans"
+  legalName: "Kras-Trans Sp. z o.o."
+  url: "${SITE_URL}"
+  defaultLang: "pl"
+  locales:
+    pl: { name: "Polski",  flag: "/assets/flags/pl.svg" }
+    en: { name: "English", flag: "/assets/flags/en.svg" }
+    de: { name: "Deutsch", flag: "/assets/flags/de.svg" }
+    fr: { name: "Français",flag: "/assets/flags/fr.svg" }
+    it: { name: "Italiano",flag: "/assets/flags/it.svg" }
+    ru: { name: "Русский", flag: "/assets/flags/ru.svg" }
+    ua: { name: "Українська", flag: "/assets/flags/ua.svg" }
+  contacts:
+    phone: "+48 793 927 467"
+    email: "contact@kras-trans.eu"
+    nip: "726 266 23 03"
+    address: "ul. Trzcinowa 14/11, 91-495 Łódź, Polska"
+    sameAs:
+      - "https://www.instagram.com/kras_trans.express.eu?igsh=bHZkODhlazFicGt2&utm_source=qr"
+      - "https://www.linkedin.com/company/kras-trans"
+      - "https://www.facebook.com/share/sS2jgJPwdgvrF4az/?mibextid=LQQJ4d"
+  analytics:
+    ga4:
+      measurement_id: "${GA_ID}"
+      defer: true
+      consent_mode_hook: true
+  verification:
+    google: "${GSC_VERIFICATION}"
+    bing_wmt_meta: ""
+    bing_site_auth_user: "${BING_SITE_AUTH_USER}"
+  privacy:
+    referrerPolicy: "strict-origin-when-cross-origin"
+
+# =============================== 3) CMS SOURCE ==============================
+cms:
+  endpoint: "${APPS_URL}"
+  key: "${APPS_KEY}"
+  expects:
+    - ok
+    - pages
+    - routes
+    - nav
+    - strings
+    - faq
+    - places
+    - autolinks
+    - hreflang
+    - sitemap
+    - redirects
+    - company
+    - blocks
+  client:
+    cache: false
+    enforceLangRedirect: true
+
+# ============================== 4) PATHS/ROUTING ============================
+paths:
+  src:  { templates: "templates", assets: "assets", data: "data", tools: "tools" }
+  out:  "dist"
+
+routing:
+  locales_regex: "^(pl|en|de|fr|it|ru|ua)$"
+  enforce_lang_prefix: true
+  trailing_slash: true
+
+# ============================== 5) TEMPLATES ================================
+templates:
+  base: "templates/base.html"
+  header: "templates/header.html"
+  page: "templates/page.html"
+  location: "templates/location.html"
+  blog_index: "templates/blog_index.html"
+  blog_post:  "templates/blog_post.html"
+  reviews:    "templates/reviews.html"
+  jobs_index: "templates/jobs_index.html"
+  job_item:   "templates/job_item.html"
+
+template_rules:
+  by_type:
+    home:        "templates/page.html"
+    page:        "templates/page.html"
+    service:     "templates/page.html"
+    city_service:"templates/location.html"
+    contact:     "templates/page.html"
+    blog:        "templates/blog_index.html"
+    blog_post:   "templates/blog_post.html"
+    job:         "templates/job_item.html"
+  by_slugKey:
+    pricing: "templates/page.html"
+    quote:   "templates/page.html"
+    contact: "templates/page.html"
+  by_slug_pattern:
+    - { match: "^uslugi/.+$", template: "templates/page.html" }
+    - { match: "^blog/.+$",   template: "templates/blog_post.html" }
+
+# =============================== 6) ASSETS =================================
+assets:
+  css: ["/assets/css/header.css","/assets/css/home.css"]
+  js:  ["/assets/js/header.js","/assets/js/home.js"]
+  preload:
+    - { as: "style", href: "/assets/css/header.css" }
+    - { as: "image", href: "/assets/media/logo.png", fetchpriority: "high" }
+  flagsPath: "/assets/flags"
+
+# ================================ 7) HEADER ================================
+header:
+  ctaSlugKey: "quote"
+  hoverIntent: { open_ms: 140, close_ms: 380 }
+  mega:
+    columnsDefault: 4
+    groups:
+      services: { columns: 5, order: 60 }
+      manage:   { columns: 4, order: 50 }
+      company:  { columns: 3, order: 70 }
+      support:  { columns: 3, order: 80 }
+  dock:
+    items:
+      - slugKey: "home"
+        icon: "🏠"
+        labels: { pl:"Start", en:"Home", de:"Start", fr:"Accueil", it:"Home", ru:"Главная", ua:"Головна" }
+      - slugKey: "services"
+        icon: "🧭"
+        labels: { pl:"Usługi", en:"Services", de:"Leistungen", fr:"Services", it:"Servizi", ru:"Услуги", ua:"Послуги" }
+      - slugKey: "quote"
+        icon: "💸"
+        labels: { pl:"Wycena", en:"Quote", de:"Angebot", fr:"Devis", it:"Preventivo", ru:"Расчёт", ua:"Кошторис" }
+      - slugKey: "contact"
+        icon: "🤙"
+        labels: { pl:"Kontakt", en:"Contact", de:"Kontakt", fr:"Contact", it:"Contatti", ru:"Контакты", ua:"Контакт" }
+
+# ============================== 8) NAVIGATION ===============================
+navigation:
+  top:
+    - { slugKey:"pricing",   order:10,  labels:{ pl:"Cennik", en:"Pricing", de:"Preise", fr:"Tarifs", it:"Prezzi", ru:"Цены", ua:"Ціни" } }
+    - { slugKey:"order",     order:20,  labels:{ pl:"Zamów", en:"Order", de:"Auftrag", fr:"Commande", it:"Ordina", ru:"Заказ", ua:"Замовити" } }
+    - { slugKey:"schedules", order:30,  labels:{ pl:"Harmonogramy", en:"Schedules", de:"Fahrpläne", fr:"Horaires", it:"Orari", ru:"Расписание", ua:"Розклади" } }
+    - { slugKey:"tracking",  order:40,  labels:{ pl:"Śledzenie", en:"Tracking", de:"Verfolgung", fr:"Suivi", it:"Tracciamento", ru:"Отслеживание", ua:"Відстеження" } }
+    - { slugKey:"manage",    order:50,  labels:{ pl:"Zarządzaj", en:"Manage", de:"Verwalten", fr:"Gérer", it:"Gestisci", ru:"Управлять", ua:"Керувати" } }
+    - { slugKey:"services",  order:60,  labels:{ pl:"Usługi", en:"Services", de:"Leistungen", fr:"Services", it:"Servizi", ru:"Услуги", ua:"Послуги" } }
+    - { slugKey:"company",   order:70,  labels:{ pl:"Firma", en:"Company", de:"Unternehmen", fr:"Entreprise", it:"Azienda", ru:"Компания", ua:"Компанія" } }
+    - { slugKey:"support",   order:80,  labels:{ pl:"Wsparcie", en:"Support", de:"Support", fr:"Support", it:"Supporto", ru:"Поддержка", ua:"Підтримка" } }
+    - { slugKey:"blog",      order:90,  labels:{ pl:"Blog", en:"Blog", de:"Blog", fr:"Blog", it:"Blog", ru:"Блог", ua:"Блог" } }
+    - { slugKey:"contact",   order:100, labels:{ pl:"Kontakt", en:"Contact", de:"Kontakt", fr:"Contact", it:"Contatti", ru:"Контакты", ua:"Контакт" } }
+
+# ============================== 9) EXTERNAL DATA ============================
+sources:
+  cities_csv:
+    path: "assets/media/city.csv"
+    dialect: "auto"
+    map_columns:
+      city:        ["city","miasto"]
+      voivodeship: ["voivodeship","region","wojewodztwo","województwo"]
+      slug:        ["slug","link"]
+      lang:        ["lang","język","jezyk"]
+  keywords_csv:
+    path: "assets/media/slowa kluczowe.csv"
+    dialect: "auto"
+    map_columns:
+      lang:   ["lang","jezyk","język"]
+      term:   ["keyword","słowo","slowo","fraza"]
+      type:   ["type","kategoria","rodzaj"]
+      weight: ["weight","waga","priorytet"]
+      anchor: ["anchor","tekst_linku"]
+
+# ================================ 10) COLLECTIONS ===========================
+collections:
+  pages:
+    source: "cms.pages"
+    filter: { publish: true }
+    perLocale: true
+    templates:
+      home:        "templates/page.html"
+      page:        "templates/page.html"
+      service:     "templates/page.html"
+      city_service:"templates/location.html"
+      contact:     "templates/page.html"
+      blog:        "templates/blog_index.html"
+      blog_post:   "templates/blog_post.html"
+      job:         "templates/job_item.html"
+    output: { pattern: "/{lang}/{slug}/", ensureTrailingSlash: true }
+    seo:
+      titleSuffix: " | Kras-Trans"
+      canonicalFrom: "canonical_path"
+      og_image_fallback: "/assets/media/og-default.webp"
+      breadcrumbs: true
+      hreflang: from-cms
+
+  city_service:
+    generate: true
+    places:
+      merge:
+        - "cms.places"
+        - "sources.cities_csv"
+    services: "cms.pages[type=service]"
+    langs: ["pl","en","de","fr","it","ru","ua"]
+    limits: { perLang: 4000, maxPages: 20000 }   # 10k+ całkowicie realne
+    slugPolicy: { pattern: "{service.slug}-{city.slug}", transliterate: true, lowercase: true }
+    fields:
+      type: "city_service"
+      template: "templates/location.html"
+      publish: true
+      h1: "{service.h1} — {city.name}"
+      title: "{service.title or service.h1} — {city.name}"
+      seo_title: "{service.h1} — {city.name} | Kras-Trans"
+      meta_desc: "Transport i spedycja — {service.h1} w {city.name}. Wycena w 15 min, kontakt 24/7."
+      hero_alt: "{service.h1} {city.name}"
+      lead: "{service.lead or service.title}"
+    quality:
+      thin_min_chars: 900
+    linkGraph:
+      neighbors: { byRegion: 3, altServices: 3 }   # zwiększamy zasięg dla 10k+
+      cards:
+        style: "tiles"
+        explainer:
+          enabled: true
+          words: { min: 60, max: 90 }
+          source:
+            type: "cms.blocks"
+            where: { type: "explainer", enabled: true }
+            fields: { title: "title", body: "body_md", lang: "lang" }
+
+blog:
+  enabled: true
+  pagination: { perPage: 12, path: "/{lang}/blog/page/{n}/", relPrevNext: true, page2_noindex: false }
+  feeds: { rss: "/{lang}/feed.xml", atom: "/{lang}/atom.xml" }
+  news_sitemap: { enabled: "${NEWS_ENABLED}", window_hours: 48 }
+
+# ============================== 11) AUTOLINKS ===============================
+autolinks:
+  source: "cms.autolinks"     # anchor/href/lang/enabled (+ opcj. rel/target)
+  inline:
+    maxPerPage: 8             # lekko zwiększamy dla dużych treści
+    minDistanceChars: 160
+    boundary: "word"
+    ignoreSelectors: [".hero","nav",".footer","h1","h2"]
+  fallback:
+    enabled: true
+    limit: 6
+    style: "cards"
+    explainer:
+      use_templates: false
+      source:
+        type: "cms.blocks"     # wyłącznie z arkusza
+        where: { type: "explainer", enabled: true }
+        fields: { title: "title", body: "body_md", lang: "lang" }
+      words: { min: 60, max: 90 }
+
+# =============================== 12) KEYWORDS ===============================
+keywords:
+  dynamic_phrases:
+    pl:
+      - "transport {city}"
+      - "firma transportowa {city}"
+      - "firma spedycyjna {city}"
+      - "logistyka {city}"
+      - "spedycja {city}"
+      - "transport krajowy {city}"
+      - "transport międzynarodowy {city}"
+      - "transport palet {city}"
+      - "transport ekspresowy {city}"
+      - "operator logistyczny {city}"
+      - "usługi transportowe {city}"
+      - "ekspresowe przewozy {city}"
+      - "transport bus 3,5 t {city}"
+      - "FTL {city}"
+      - "przeprowadzki {city}"
+    en:
+      - "transport {city}"
+      - "logistics {city}"
+      - "logistics company {city}"
+      - "freight forwarding {city}"
+      - "freight company {city}"
+      - "shipping company {city}"
+      - "road freight {city}"
+      - "pallet transport {city}"
+      - "express transport {city}"
+      - "express trucking {city}"
+      - "domestic transport {city}"
+      - "international transport {city}"
+      - "FTL {city}"
+      - "relocation services {city}"
+    de:
+      - "transport {city}"
+      - "transportunternehmen {city}"
+      - "logistik {city}"
+      - "logistikunternehmen {city}"
+      - "spedition {city}"
+      - "speditionsunternehmen {city}"
+      - "straßengüterverkehr {city}"
+      - "palettentransport {city}"
+      - "express-transport {city}"
+      - "inlandstransport {city}"
+      - "internationaler transport {city}"
+      - "umzüge {city}"
+      - "FTL {city}"
+    fr:
+      - "transport {city}"
+      - "entreprise de transport {city}"
+      - "logistique {city}"
+      - "société de logistique {city}"
+      - "transitaire {city}"
+      - "société d’expédition {city}"
+      - "transport routier {city}"
+      - "transport de palettes {city}"
+      - "transport express {city}"
+      - "transport national {city}"
+      - "transport international {city}"
+      - "déménagements {city}"
+      - "FTL {city}"
+    it:
+      - "trasporto {city}"
+      - "azienda di trasporti {city}"
+      - "logistica {city}"
+      - "società di logistica {city}"
+      - "spedizioni {city}"
+      - "azienda di spedizioni {city}"
+      - "trasporto su strada {city}"
+      - "trasporto pallet {city}"
+      - "trasporto espresso {city}"
+      - "trasporto nazionale {city}"
+      - "trasporto internazionale {city}"
+      - "traslochi {city}"
+      - "FTL {city}"
+    ru:
+      - "транспорт {city}"
+      - "транспортная компания {city}"
+      - "логистика {city}"
+      - "логистическая компания {city}"
+      - "экспедиторская компания {city}"
+      - "грузоперевозки {city}"
+      - "автоперевозки {city}"
+      - "перевозка палет {city}"
+      - "экспресс доставка {city}"
+      - "внутрироссийские перевозки {city}"
+      - "международные перевозки {city}"
+      - "переезды {city}"
+      - "FTL {city}"
+    ua:
+      - "транспорт {city}"
+      - "транспортна компанія {city}"
+      - "логістика {city}"
+      - "логістична компанія {city}"
+      - "експедиторська компанія {city}"
+      - "вантажні перевезення {city}"
+      - "автологістика {city}"
+      - "перевезення палет {city}"
+      - "експрес доставка {city}"
+      - "внутрішні перевезення {city}"
+      - "міжнародні перевезення {city}"
+      - "переїзди {city}"
+      - "FTL {city}"
+  sources:
+    - "sources.keywords_csv"
+    - "cms.strings[keywords_*]"
+
+# ================================ 13) SEO/SCHEMA ============================
+seo:
+  titles:       { min: 30, max: 60, suffix: " | Kras-Trans" }
+  descriptions: { min: 70, max: 160 }
+  h1:           { required: true }
+  canonical:    { enforce_https: true, trailing_slash: true }
+  robots:
+    default: { index: true, follow: true }
+    noindex_rules:
+      thin_content: { enabled: true, min_chars: 900, scope: ["city_service"] }
+  hreflang:     { source: "cms.hreflang", x_default_on_home: true }
+  open_graph:   { default_image: "/assets/media/og-default.webp" }
+  twitter:      { card: "summary_large_image" }
+  schema:
+    enable:
+      organization: true
+      website_home: true
+      breadcrumb: true
+      faq: true
+      service: true
+      article: true
+      jobposting: true
+      localbusiness_city_service: true
+  scoring:
+    enabled: true
+    fields: { primary: "primary_keywords", secondary: "secondary_keywords" }
+    density: { min_pct: 0.5, max_pct: 2.0 }
+    coverage: { min_unique_words: 200, min_internal_links: 3, min_images: 1 }
+    near_duplicate: { simhash_threshold: 0.90 }
+
+# ============================== 14) SITEMAPS/INDEXING ======================
+sitemap:
+  enabled: true
+  index: true
+  shard_size: 45000
+  include_alternates: true
+  path: "/sitemap.xml"
+  priority_by_type:
+    home: 1.0
+    service: 0.9
+    city_service: 0.8
+    page: 0.7
+    blog: 0.6
+    blog_post: 0.5
+  changefreq_by_type:
+    home: "daily"
+    service: "weekly"
+    city_service: "weekly"
+    page: "monthly"
+  news:
+    enabled: "${NEWS_ENABLED}"
+    ttl_hours: 48
+
+indexing:
+  discovery:
+    robots_sitemap: true
+    submit_sitemap_once: true
+  google:
+    indexing_api:
+      enabled_for_types: ["job"]
+  bing:
+    indexnow:
+      enabled: true
+      endpoint: "https://api.indexnow.org/IndexNow"
+      key: "${INDEXNOW_KEY}"
+      batch_size: 1000
+  ui_button:
+    enabled: true
+    label_pl: "Powiadom wyszukiwarki"
+    scope: ["sitemap","changed_urls"]
+    rate_limit_minutes: 30
+
+# =============================== 15) ROBOTS/SEC/A11Y =======================
+robots:
+  allowAll: true
+  extra:
+    - "User-agent: *"
+    - "Allow: /"
+    - "Sitemap: ${SITE_URL}/sitemap.xml"
+
+security:
+  externalLinks: "noopener"
+  targetBlankExternal: true
+  csp_suggestion:
+    default-src: ["'self'"]
+    img-src:     ["'self'","data:","https:"]
+    style-src:   ["'self'","'unsafe-inline'"]
+    script-src:  ["'self'","https://script.google.com"]
+    connect-src: ["'self'","https://script.google.com"]
+
+a11y:
+  require_alt: true
+  min_contrast: "AA"
+  focus_outline_color: "#22C3A6"
+  skip_to_content: true
+
+# ============================== 16) REPORTS/TESTS ==========================
+reports:
+  out_dir: "dist/_reports"
+  print_top_warnings: 100
+  write_json: true
+  metrics:
+    - pages_count
+    - generated_city_service
+    - indexable_count
+    - autolinks_inline_count
+    - autolinks_fallback_count
+    - thin_content_count
+    - duplicate_titles_count
+    - keyword_density_outside_range
+
+testing:
+  acceptance:
+    - "URL bez /xx/ → redirect do /pl/"
+    - "Logo → /{lang}/"
+    - "Zmiana języka → /{lang}/{homeSlug?}/"
+    - "Mega-menu: open 140ms, close 360–420ms"
+    - "Bottom-dock: sticky + FAB"
+    - "Lighthouse: Perf≥95, A11y≥95, BP≥95, SEO≥98"
+    - "CLS ≈ 0"
+  smoke:
+    - "dist/sitemap.xml"
+    - "dist/robots.txt"
+    - "dist/pl/index.html"
+
+# ============================== 17) BUILD / PERF ===========================
+build:
+  engine: "jinja2"
+  markdown: true
+  critical_css: { header_inline: true, header_budget_bytes: 2000 }
+  scripts: { deferAll: true, sourcemaps: false }
+  images:  { convert: { avif: true, webp: true, quality: 78 } }
+  page_speed_hints: { preload_lcp_image: true, preconnect_cms: true }
