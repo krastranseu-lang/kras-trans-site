@@ -1,9 +1,21 @@
-version: 1
+version: 5
 
+# —————————————————— 1) STAŁE / KLUCZE ——————————————————
+constants:
+  SITE_URL: "https://kras-trans.com"
+  APPS_URL: "https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec"
+  APPS_KEY: "kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
+  GA_ID: "G-5FYE42J3BE"
+  GSC_VERIFICATION: "Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y"
+  BING_SITE_AUTH_USER: "14E8C53A3FC003C7810857FCFA9310A0"   # wygenerujemy dist/BingSiteAuth.xml
+  INDEXNOW_KEY: ""                    # podasz później (builder zrobi /{key}.txt)
+  NEWS_ENABLED: false                 # news-sitemap włączymy po starcie blog/news
+
+# —————————————————— 2) STRONA / I18N / KONTAKT ——————————————————
 site:
   brand: "Kras-Trans"
   legalName: "Kras-Trans Sp. z o.o."
-  url: "https://kras-trans.com"
+  url: "${SITE_URL}"
   defaultLang: "pl"
   locales:
     pl: { name: "Polski",  flag: "/assets/flags/pl.svg" }
@@ -13,334 +25,431 @@ site:
     it: { name: "Italiano",flag: "/assets/flags/it.svg" }
     ru: { name: "Русский", flag: "/assets/flags/ru.svg" }
     ua: { name: "Українська", flag: "/assets/flags/ua.svg" }
-  brandAssets:
-    logo:   "/assets/media/logo.png"
-    logo2x: "/assets/media/logo@2x.png"
-    ogDefault: "/assets/media/og-default.webp"
   contacts:
-    phone: "+48 123 456 789"
-    email: "info@kras-trans.com"
-    address: "Łódź, Polska"
-    social:
-      - { id: "facebook", href: "https://facebook.com/krastrans" }
-      - { id: "linkedin", href: "https://linkedin.com/company/kras-trans" }
+    phone: "+48 793 927 467"
+    email: "contact@kras-trans.eu"
+    nip: "726 266 23 03"
+    address: "ul. Trzcinowa 14/11, 91-495 Łódź, Polska"
+    sameAs:
+      - "https://www.instagram.com/kras_trans.express.eu?igsh=bHZkODhlazFicGt2&utm_source=qr"
+      - "https://www.linkedin.com/company/kras-trans"
+      - "https://www.facebook.com/share/sS2jgJPwdgvrF4az/?mibextid=LQQJ4d"
   analytics:
-    ga_id_env: "GA_ID"                  # pobierze z ENV (workflow)
+    ga4:
+      measurement_id: "${GA_ID}"
+      defer: true
+      consent_mode_hook: true
   verification:
-    gsc_env: "GSC_VERIFICATION"         # meta name="google-site-verification"
-  security:
+    google: "${GSC_VERIFICATION}"          # <meta name="google-site-verification">
+    bing_wmt_meta: ""                      # <meta name="msvalidate.01" ...> (opcjonalne)
+    bing_site_auth_user: "${BING_SITE_AUTH_USER}"  # generator wygeneruje BingSiteAuth.xml
+  privacy:
     referrerPolicy: "strict-origin-when-cross-origin"
-    externalLinks: "noopener"           # wszystkie linki off-site dostają rel
-    targetBlankExternal: true
-    csp:
-      # minimalistyczne CSP – rozszerzymy później przy wdrożeniu formularzy
-      default-src: ["'self'"]
-      img-src:     ["'self'", "data:", "https:"]
-      style-src:   ["'self'", "'unsafe-inline'"]
-      script-src:  ["'self'", "https://script.google.com"]
-      connect-src: ["'self'", "https://script.google.com"]
 
+# —————————————————— 3) CMS (Apps Script) ——————————————————
 cms:
-  # Endpoint podawany z Secrets w Actions; build.py użyje APPS_URL/APPS_KEY
-  endpoint_env: "APPS_URL"
-  key_env: "APPS_KEY"
-  # Struktura oczekiwana z Apps Script (masz to w doGet) — ważne przy walidacji:
-  expects: ["ok","updated","pages","nav","routes","strings","faq","places","autolinks","hreflang","sitemap"]
+  endpoint: "${APPS_URL}"
+  key: "${APPS_KEY}"
+  expects: ["ok","pages","routes","nav","strings","faq","places","autolinks","hreflang","sitemap","redirects","company","blocks"]
   client:
-    # Na etapie P0: bez cache po stronie przeglądarki – zmiany w arkuszu widać od razu
     cache: false
-    # Gdy URL nie ma /{lang}/ → przekieruj do domyślnego
     enforceLangRedirect: true
 
+# —————————————————— 4) ŚCIEŻKI / ROUTING ——————————————————
 paths:
-  src:
-    templates: "templates"
-    assets:    "assets"
-    data:      "data"
-    tools:     "tools"
-  out: "dist"
+  src:  { templates: "templates", assets: "assets", data: "data", tools: "tools" }
+  out:  "dist"
 
+routing:
+  locales_regex: "^(pl|en|de|fr|it|ru|ua)$"
+  enforce_lang_prefix: true
+  trailing_slash: true
+
+# —————————————————— 5) TEMPLATES / ASSETS ——————————————————
 templates:
   base: "templates/base.html"
   header: "templates/header.html"
+  # domyślny
   page: "templates/page.html"
-  # opcjonalne (kompilacja nie zawiedzie, gdy brak — sprawdza to sanity z workflow)
+  # typy specjalne
+  location:   "templates/location.html"
   blog_index: "templates/blog_index.html"
   blog_post:  "templates/blog_post.html"
-  case_index: "templates/case_index.html"
-  case_item:  "templates/case_item.html"
   reviews:    "templates/reviews.html"
-  location:   "templates/location.html"
   jobs_index: "templates/jobs_index.html"
   job_item:   "templates/job_item.html"
 
+# REGUŁY „różne HTML dla różnych podstron” (automatyczny dobór)
+template_rules:
+  by_type:
+    home:      "templates/page.html"
+    page:      "templates/page.html"
+    service:   "templates/page.html"
+    city_service: "templates/location.html"
+    blog:      "templates/blog_index.html"
+    blog_post: "templates/blog_post.html"
+    reviews:   "templates/reviews.html"
+    job:       "templates/job_item.html"
+  by_slugKey:
+    pricing:   "templates/page.html"
+    contact:   "templates/page.html"
+    quote:     "templates/page.html"
+  by_slug_pattern:
+    - { match: "^uslugi/.+$", template: "templates/page.html" }
+    - { match: "^blog/.+$",   template: "templates/blog_post.html" }
+
 assets:
-  css:
-    # Header i baza strony (spójne z motywami z home.css)
-    - "/assets/css/header.css"
-    - "/assets/css/home.css"
-  js:
-    - "/assets/js/header.js"
-    - "/assets/js/home.js"
+  css: ["/assets/css/header.css","/assets/css/home.css"]
+  js:  ["/assets/js/header.js","/assets/js/home.js"]
   preload:
     - { as: "style", href: "/assets/css/header.css" }
-    - { as: "image", href: "/assets/media/logo.png" }
+    - { as: "image", href: "/assets/media/logo.png", fetchpriority: "high" }
   flagsPath: "/assets/flags"
 
+# —————————————————— 6) NAGŁÓWEK / DOCK (pełne i18n) ——————————————————
 header:
-  # konfiguracja headera/mega-menu i mobilnego docka
   ctaSlugKey: "quote"
+  hoverIntent: { open_ms: 140, close_ms: 380 }
   mega:
     columnsDefault: 4
     groups:
-      services:
-        labelKey: "Usługi"     # fallback; właściwe etykiety pobierzemy z CMS->nav/strings
-        columns: 5
-        order: 60
-      manage:
-        labelKey: "Zarządzaj"
-        columns: 4
-        order: 50
-      company:
-        labelKey: "Firma"
-        columns: 3
-        order: 70
-      support:
-        labelKey: "Wsparcie"
-        columns: 3
-        order: 80
+      services: { columns: 5, order: 60 }
+      manage:   { columns: 4, order: 50 }
+      company:  { columns: 3, order: 70 }
+      support:  { columns: 3, order: 80 }
   dock:
     items:
-      - { slugKey: "home",     icon: "🏠", label_pl: "Start" }
-      - { slugKey: "services", icon: "🧭", label_pl: "Usługi" }
-      - { slugKey: "quote",    icon: "💸", label_pl: "Wycena" }
-      - { slugKey: "contact",  icon: "🤙", label_pl: "Kontakt" }
+      - slugKey: "home"
+        icon: "🏠"
+        labels: { pl:"Start", en:"Home", de:"Start", fr:"Accueil", it:"Home", ru:"Главная", ua:"Головна" }
+      - slugKey: "services"
+        icon: "🧭"
+        labels: { pl:"Usługi", en:"Services", de:"Leistungen", fr:"Services", it:"Servizi", ru:"Услуги", ua:"Послуги" }
+      - slugKey: "quote"
+        icon: "💸"
+        labels: { pl:"Wycena", en:"Quote", de:"Angebot", fr:"Devis", it:"Preventivo", ru:"Расчёт", ua:"Кошторис" }
+      - slugKey: "contact"
+        icon: "🤙"
+        labels: { pl:"Kontakt", en:"Contact", de:"Kontakt", fr:"Contact", it:"Contatti", ru:"Контакты", ua:"Контакт" }
 
-routes:
-  # Źródłem prawdy są CMS->Routes (slugKey → slugi per język).
-  # Tu definiujemy tylko listę slugKey używanych w nawigacji/IA.
-  keys:
-    - home
-    - pricing
-    - order
-    - schedules
-    - tracking
-    - manage
-    - services
-    - company
-    - support
-    - blog
-    - contact
-    # Dodatkowe, często używane podstrony:
-    - quote
-    - fleet
-    - careers
-    - reviews
-    - api
-    - documents
-    - invoices
-    - finances
-    - faq
-    - legal
-    - media
-    - team
-    - cases
-
+# —————————————————— 7) TOP-NAWIGACJA (pełne i18n, zgodnie z tabelą) ——————————————————
 navigation:
-  # Kolejność top-level — fallback (gdyby CMS nie miał kolejności)
   top:
-    - { label: "Cennik",     slugKey: "pricing", order: 10 }
-    - { label: "Zamów",      slugKey: "order",   order: 20 }
-    - { label: "Harmonogramy", slugKey: "schedules", order: 30 }
-    - { label: "Śledzenie",  slugKey: "tracking",order: 40 }
-    - { label: "Zarządzaj",  slugKey: "manage",  order: 50 }
-    - { label: "Usługi",     slugKey: "services",order: 60 }
-    - { label: "Firma",      slugKey: "company", order: 70 }
-    - { label: "Wsparcie",   slugKey: "support", order: 80 }
-    - { label: "Blog",       slugKey: "blog",    order: 90 }
-    - { label: "Kontakt",    slugKey: "contact", order: 100 }
-  # „Usługi” — plan kolumn (fallback; właściwy layout steruje CMS.nav[col])
-  services_columns:
-    - "Transport (krajowy, międzynarodowy, palety, ekspres)"
-    - "SLA / Operacje (SLA, busy 3,5 t)"
-    - "Wsparcie (dyspozytor, logistyka kontraktowa)"
-    - "Specjalizacje (TIR/FTL, przeprowadzki, e‑commerce)"
-    - "Oferta (cennik, wycena)"
+    - slugKey: "pricing"
+      order: 10
+      labels: { pl:"Cennik", en:"Pricing", de:"Preise", fr:"Tarifs", it:"Prezzi", ru:"Цены", ua:"Ціни" }
+    - slugKey: "order"
+      order: 20
+      labels: { pl:"Zamów", en:"Order", de:"Auftrag", fr:"Commande", it:"Ordina", ru:"Заказ", ua:"Замовити" }
+    - slugKey: "schedules"
+      order: 30
+      labels: { pl:"Harmonogramy", en:"Schedules", de:"Fahrpläne", fr:"Horaires", it:"Orari", ru:"Расписание", ua:"Розклади" }
+    - slugKey: "tracking"
+      order: 40
+      labels: { pl:"Śledzenie", en:"Tracking", de:"Verfolgung", fr:"Suivi", it:"Tracciamento", ru:"Отслеживание", ua:"Відстеження" }
+    - slugKey: "manage"
+      order: 50
+      labels: { pl:"Zarządzaj", en:"Manage", de:"Verwalten", fr:"Gérer", it:"Gestisci", ru:"Управлять", ua:"Керувати" }
+    - slugKey: "services"
+      order: 60
+      labels: { pl:"Usługi", en:"Services", de:"Leistungen", fr:"Services", it:"Servizi", ru:"Услуги", ua:"Послуги" }
+    - slugKey: "company"
+      order: 70
+      labels: { pl:"Firma", en:"Company", de:"Unternehmen", fr:"Entreprise", it:"Azienda", ru:"Компания", ua:"Компанія" }
+    - slugKey: "support"
+      order: 80
+      labels: { pl:"Wsparcie", en:"Support", de:"Support", fr:"Support", it:"Supporto", ru:"Поддержка", ua:"Підтримка" }
+    - slugKey: "blog"
+      order: 90
+      labels: { pl:"Blog", en:"Blog", de:"Blog", fr:"Blog", it:"Blog", ru:"Блог", ua:"Блог" }
+    - slugKey: "contact"
+      order: 100
+      labels: { pl:"Kontakt", en:"Contact", de:"Kontakt", fr:"Contact", it:"Contatti", ru:"Контакты", ua:"Контакт" }
 
+# —————————————————— 8) DODATKOWE ŹRÓDŁA (CSV) ——————————————————
+sources:
+  cities_csv:
+    path: "assets/media/city.csv"          # Twój plik z miastami
+    dialect: "auto"
+    map_columns:
+      city:        ["city","miasto"]
+      voivodeship: ["voivodeship","region","wojewodztwo","województwo"]
+      slug:        ["slug","link"]
+      lang:        ["lang","język","jezyk"]
+  keywords_csv:
+    path: "assets/media/slowa kluczowe.csv"
+    dialect: "auto"
+    map_columns:
+      lang:   ["lang","jezyk","język"]
+      term:   ["keyword","słowo","slowo","fraza"]
+      type:   ["type","kategoria","rodzaj"]   # primary/secondary/brand/service
+      weight: ["weight","waga","priorytet"]
+      anchor: ["anchor","tekst_linku"]
+
+# —————————————————— 9) KOLEKCJE ——————————————————
 collections:
-  # 1) Strony podstawowe z CMS Pages
   pages:
     source: "cms.pages"
     filter: { publish: true }
     perLocale: true
-    # mapping typ→szablon; gdy brak — użyj "page.html"
-    templates:
-      home: "templates/page.html"
-      page: "templates/page.html"
-      service: "templates/page.html"
-      city_service: "templates/location.html"
-      contact: "templates/page.html"
-      blog: "templates/blog_index.html"
-      blog_post: "templates/blog_post.html"
-    output:
-      pattern: "/{lang}/{slug}/"            # pusty slug → "/{lang}/"
-      ensureTrailingSlash: true
+    templates: { home:"templates/page.html", page:"templates/page.html", service:"templates/page.html",
+                 city_service:"templates/location.html", contact:"templates/page.html", blog:"templates/blog_index.html",
+                 blog_post:"templates/blog_post.html", job:"templates/job_item.html" }
+    output: { pattern: "/{lang}/{slug}/", ensureTrailingSlash: true }
     seo:
       titleSuffix: " | Kras-Trans"
-      canonicalFrom: "canonical_path"       # jeżeli brak → konstruujemy z lang/slug
+      canonicalFrom: "canonical_path"
       og_image_fallback: "/assets/media/og-default.webp"
       breadcrumbs: true
-      hreflang: from-cms                    # użyj cms.hreflang[slugKey]
-  # 2) Generator „Miasto × Usługa” (skala 10k+)
+      hreflang: from-cms
+
   city_service:
     generate: true
-    # Źródła do kombinacji:
-    places:   "cms.places"                  # arkusz Places (miasta/woj.) — z Apps Script
-    services: "cms.pages[type=service]"     # bierz tylko opublikowane usługi
+    places:
+      merge:
+        - "cms.places"
+        - "sources.cities_csv"
+    services: "cms.pages[type=service]"
     langs: ["pl","en","de","fr","it","ru","ua"]
-    limits:
-      maxPages: 20000                        # bezpieczny sufit
-      perLang: 4000
-    # Polityka budowy slugów/tytułów (gdy CMS nie poda gotowych):
-    slugPolicy:
-      # pattern może wykorzystać: {service.slug}, {city.slug}, {city.voivodeship}
-      pattern: "{service.slug}-{city.slug}"
-      transliterate: true
-      lowercase: true
+    limits: { perLang: 4000, maxPages: 20000 }  # 4000 = liczba STRON na język
+    slugPolicy: { pattern: "{service.slug}-{city.slug}", transliterate: true, lowercase: true }
     fields:
       type: "city_service"
       template: "templates/location.html"
       publish: true
-      # generowanie SEO/CTA – fallback (CMS i tak potrafi to policzyć, ale trzymamy zgodność)
       h1: "{service.h1} — {city.name}"
-      title: "{service.title} — {city.name}"
+      title: "{service.title or service.h1} — {city.name}"
       seo_title: "{service.h1} — {city.name} | Kras-Trans"
       meta_desc: "Transport i spedycja — {service.h1} w {city.name}. Wycena w 15 min, kontakt 24/7."
       hero_alt: "{service.h1} {city.name}"
       lead: "{service.lead or service.title}"
-    output:
-      pattern: "/{lang}/{slug}/"
-      ensureTrailingSlash: true
+    quality:
+      thin_min_chars: 900
     linkGraph:
-      # Autolinkowanie między sąsiadującymi miastami/usługami
-      maxOutlinks: 6
-      cityNeighbors: 2
-      serviceAlternatives: 2
+      neighbors: { byRegion: 2, altServices: 2 }
+      cards:
+        style: "tiles"
+        explainer:
+          enabled: true
+          words: { min: 60, max: 90 }
+          source:
+            type: "cms.blocks"                     # teksty WYŁĄCZNIE z arkusza
+            where: { type: "explainer", enabled: true }
+            fields: { title: "title", body: "body_md", lang: "lang" }
 
+blog:
+  enabled: true
+  pagination: { perPage: 12, path: "/{lang}/blog/page/{n}/", relPrevNext: true, page2_noindex: false }
+  feeds: { rss: "/{lang}/feed.xml", atom: "/{lang}/atom.xml" }
+  news_sitemap: { enabled: "${NEWS_ENABLED}", window_hours: 48 }
+
+# —————————————————— 10) AUTO-LINKI (wyłącznie z arkusza) ——————————————————
 autolinks:
-  source: "cms.autolinks"   # arkusz AutoLinks (masz w Apps Script)
-  insert:
+  source: "cms.autolinks"                # kolumny: lang|anchor|href|enabled|(opcjonalnie rel|target)
+  inline:
     maxPerPage: 6
     minDistanceChars: 160
-    titleAttr: true         # tytuł linku = anchor
-  sanitize:
-    stripNestedLinks: true
-    ignoreSelectors: [".hero", ".footer", "nav"]
+    boundary: "word"
+    ignoreSelectors: [".hero","nav",".footer","h1","h2"]
+  fallback:
+    enabled: true
+    limit: 4
+    style: "cards"
+    explainer:
+      use_templates: false               # brak twardych stringów w YML
+      source:
+        type: "cms.blocks"               # weź mikro-akapity z arkusza
+        where: { type: "explainer", enabled: true }
+        fields: { title: "title", body: "body_md", lang: "lang" }
+      words: { min: 60, max: 90 }
 
+# —————————————————— 11) SŁOWA KLUCZOWE / SCORING ——————————————————
+keywords:
+  # Frazy dynamiczne (rozszerzone) — budowane na podstawie miast
+  dynamic_phrases:
+    pl:
+      - "transport {city}"
+      - "firma transportowa {city}"
+      - "firma spedycyjna {city}"
+      - "logistyka {city}"
+      - "spedycja {city}"
+      - "transport krajowy {city}"
+      - "transport międzynarodowy {city}"
+      - "transport palet {city}"
+      - "transport ekspresowy {city}"
+      - "operator logistyczny {city}"
+      - "usługi transportowe {city}"
+    en:
+      - "transport {city}"
+      - "logistics {city}"
+      - "logistics company {city}"
+      - "freight forwarding {city}"
+      - "freight company {city}"
+      - "shipping company {city}"
+      - "road freight {city}"
+      - "pallet transport {city}"
+      - "express transport {city}"
+    de:
+      - "transport {city}"
+      - "transportunternehmen {city}"
+      - "logistik {city}"
+      - "logistikunternehmen {city}"
+      - "spedition {city}"
+      - "speditionsunternehmen {city}"
+      - "straßengüterverkehr {city}"
+      - "palettentransport {city}"
+      - "express-transport {city}"
+    fr:
+      - "transport {city}"
+      - "entreprise de transport {city}"
+      - "logistique {city}"
+      - "société de logistique {city}"
+      - "transitaire {city}"
+      - "société d’expédition {city}"
+      - "transport routier {city}"
+      - "transport de palettes {city}"
+      - "transport express {city}"
+    it:
+      - "trasporto {city}"
+      - "azienda di trasporti {city}"
+      - "logistica {city}"
+      - "società di logistica {city}"
+      - "spedizioni {city}"
+      - "azienda di spedizioni {city}"
+      - "trasporto su strada {city}"
+      - "trasporto pallet {city}"
+      - "trasporto espresso {city}"
+    ru:
+      - "транспорт {city}"
+      - "транспортная компания {city}"
+      - "логистика {city}"
+      - "логистическая компания {city}"
+      - "экспедиторская компания {city}"
+      - "грузоперевозки {city}"
+      - "автоперевозки {city}"
+      - "перевозка палет {city}"
+      - "экспресс доставка {city}"
+    ua:
+      - "транспорт {city}"
+      - "транспортна компанія {city}"
+      - "логістика {city}"
+      - "логістична компанія {city}"
+      - "експедиторська компанія {city}"
+      - "вантажні перевезення {city}"
+      - "автологістика {city}"
+      - "перевезення палет {city}"
+      - "експрес доставка {city}"
+  # Źródła słów (Twoje CSV + ewentualne listy w CMS Strings)
+  sources:
+    - "sources.keywords_csv"
+    - "cms.strings[keywords_*]"
+
+# —————————————————— 12) SEO / HREFLANG / SCHEMA / SCORING ——————————————————
 seo:
-  openGraph:
-    type: "website"
-    site_name: "Kras-Trans"
-  twitter:
-    card: "summary_large_image"
+  titles:       { min: 30, max: 60, suffix: " | Kras-Trans" }
+  descriptions: { min: 70, max: 160 }
+  h1:           { required: true }
+  canonical:    { enforce_https: true, trailing_slash: true }
   robots:
-    # globalne domyślne
-    index: true
-    follow: true
-  pagination:
-    relPrevNext: true
-  breadcrumbs:
-    jsonld: true
+    default: { index: true, follow: true }
+    noindex_rules:
+      thin_content: { enabled: true, min_chars: 900, scope: ["city_service"] }
+  hreflang:     { source: "cms.hreflang", x_default_on_home: true }
+  open_graph:   { default_image: "/assets/media/og-default.webp" }
+  twitter:      { card: "summary_large_image" }
+  schema:
+    enable:
+      organization: true
+      website_home: true
+      breadcrumb: true
+      faq: true
+      service: true
+      article: true
+      jobposting: true
+      localbusiness_city_service: true
+  scoring:
+    enabled: true
+    fields: { primary: "primary_keywords", secondary: "secondary_keywords" }
+    density: { min_pct: 0.5, max_pct: 2.0 }     # raportujemy, niczego nie „upycha”
+    coverage: { min_unique_words: 200, min_internal_links: 3, min_images: 1 }
+    near_duplicate: { simhash_threshold: 0.90 }
 
+# —————————————————— 13) SITEMAPS / INDEXNOW ——————————————————
 sitemap:
   enabled: true
+  index: true
+  shard_size: 45000
+  include_alternates: true
   path: "/sitemap.xml"
-  include:
-    - "/pl/**"
-    - "/en/**"
-    - "/de/**"
-    - "/fr/**"
-    - "/it/**"
-    - "/ru/**"
-    - "/ua/**"
-  exclude:
-    - "/**/draft/**"
-  priority:
-    home: 1.0
-    service: 0.9
-    city_service: 0.8
-    page: 0.7
-    blog: 0.6
-    blog_post: 0.5
-  changefreq:
-    home: "daily"
-    service: "weekly"
-    city_service: "weekly"
-    page: "monthly"
+  priority_by_type: { home: 1.0, service: 0.9, city_service: 0.8, page: 0.7, blog: 0.6, blog_post: 0.5 }
+  changefreq_by_type: { home: "daily", service: "weekly", city_service: "weekly", page: "monthly" }
+  news: { enabled: "${NEWS_ENABLED}", ttl_hours: 48 }
 
+indexing:
+  discovery:
+    robots_sitemap: true
+    submit_sitemap_once: true
+  google:
+    indexing_api:
+      enabled_for_types: ["job"]   # tylko JobPosting zgodnie z zasadami
+  bing:
+    indexnow:
+      enabled: true
+      endpoint: "https://api.indexnow.org/IndexNow"
+      key: "${INDEXNOW_KEY}"
+      batch_size: 1000
+  ui_button:
+    enabled: true
+    label_pl: "Powiadom wyszukiwarki"
+    scope: ["sitemap","changed_urls"]
+    rate_limit_minutes: 30
+
+# —————————————————— 14) ROBOTS / SECURITY / A11y ——————————————————
 robots:
-  # Prosty robots.txt z odniesieniem do sitemap
   allowAll: true
-  cleanParam: []
   extra:
     - "User-agent: *"
     - "Allow: /"
-    - "Sitemap: https://kras-trans.com/sitemap.xml"
+    - "Sitemap: ${SITE_URL}/sitemap.xml"
 
-redirects:
-  # 1) Z CMS (arkusz Redirects) — front/prompter je czyta w trakcie builda
-  fromCms: true
-  # 2) Brak /{lang}/ w URL → redirect do domyślnego języka
-  enforceLang: true
-  defaultLang: "pl"
+security:
+  externalLinks: "noopener"
+  targetBlankExternal: true
+  csp_suggestion:
+    default-src: ["'self'"]
+    img-src:     ["'self'","data:","https:"]
+    style-src:   ["'self'","'unsafe-inline'"]
+    script-src:  ["'self'","https://script.google.com"]
+    connect-src: ["'self'","https://script.google.com"]
 
-performance:
-  goals:
-    lcp_ms: 2500
-    tbt_ms: 100
-    cls: 0.02
-  images:
-    generate:
-      avif: true
-      webp: true
-      quality: 78
-    lqip:
-      enabled: true
-      size: 12
-  scripts:
-    deferAll: true
-    module: false
-    sourcemaps: false
-  css:
-    inlineCriticalHeader: true   # 1–2 KB crit. CSS dla paska
-    minify: true
+a11y:
+  require_alt: true
+  min_contrast: "AA"
+  focus_outline_color: "#22C3A6"
+  skip_to_content: true
 
-features:
-  header:
-    hoverIntent: { open_ms: 140, close_ms: 380 }
-    bottomDock: true
-    themeToggle: true
-  blog:
-    enabled: true
-    rss: true
-  jobs:
-    enabled: true
-  reviews:
-    enabled: true
-  tracking:
-    liveMap: false   # placeholder pod przyszłe osadzenie map
-  forms:
-    leads:
-      endpoint: "post {APPS_URL}?key={APPS_KEY}&action=lead"
-      method: "POST"
+# —————————————————— 15) RAPORTY / TESTY ——————————————————
+reports:
+  out_dir: "dist/_reports"
+  print_top_warnings: 50
+  write_json: true
+  metrics:
+    - pages_count
+    - generated_city_service
+    - indexable_count
+    - autolinks_inline_count
+    - autolinks_fallback_count
+    - thin_content_count
+    - duplicate_titles_count
+    - keyword_density_outside_range
 
 testing:
   acceptance:
     - "URL bez /xx/ → redirect do /pl/"
-    - "Logo → zawsze /{lang}/"
+    - "Logo → /{lang}/"
     - "Zmiana języka → /{lang}/{homeSlug?}/"
     - "Mega-menu: open 140ms, close 360–420ms"
-    - "Bottom-dock: sticky na mobile + FAB"
+    - "Bottom-dock: sticky + FAB"
     - "Lighthouse: Perf≥95, A11y≥95, BP≥95, SEO≥98"
     - "CLS ≈ 0"
   smoke:
@@ -348,14 +457,11 @@ testing:
     - "dist/robots.txt"
     - "dist/pl/index.html"
 
+# —————————————————— 16) BUILD / PERFORMANCE ——————————————————
 build:
-  # Parametry używane przez tools/build.py (dzisiejsza wersja „mini”)
   engine: "jinja2"
   markdown: true
-  env:
-    site_url_env: "SITE_URL"
-    brand_env: "BRAND"
-    cname_env: "CNAME"
-  snapshots:
-    zip: true
-    path: "dist/download/site.zip"
+  critical_css: { header_inline: true, header_budget_bytes: 2000 }
+  scripts: { deferAll: true, sourcemaps: false }
+  images:  { convert: { avif: true, webp: true, quality: 78 } }
+  page_speed_hints: { preload_lcp_image: true, preconnect_cms: true }
