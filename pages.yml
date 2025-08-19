@@ -6,7 +6,7 @@ constants:
   APPS_URL: "https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec"
   APPS_KEY: "kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
   GA_ID: "G-5FYE42J3BE"
-  GSC_VERIFICATION: "Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y"
+  GSC_VERIFICATION: "google4377ff145fac0f52.html"
   BING_SITE_AUTH_USER: ""          # jeśli masz – wstaw; builder wygeneruje dist/BingSiteAuth.xml
   INDEXNOW_KEY: ""                 # jeśli masz – wstaw; builder wygeneruje /{key}.txt
   NEWS_ENABLED: false
