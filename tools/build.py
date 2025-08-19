@@ -43,6 +43,12 @@ except Exception as e:
 ROOT = pathlib.Path(".")
 OUT  = pathlib.Path("dist")
 OUT.mkdir(parents=True, exist_ok=True)
+# skopiuj assets -> dist/assets
+ASSETS_DIR = pathlib.Path("assets")
+if ASSETS_DIR.exists():
+    import shutil
+    shutil.copytree(ASSETS_DIR, OUT / "assets", dirs_exist_ok=True)
+
 UTC  = lambda dt=None: (dt or datetime.now(timezone.utc)).isoformat(timespec="seconds")
 
 def read_yaml(path: "str|pathlib.Path") -> Dict[str, Any]:
