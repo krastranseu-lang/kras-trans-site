@@ -1,69 +1,89 @@
-<!-- KRAS-TRANS • Header (final) -->
-<!-- Mini critical – pasek od razu widoczny -->
-<style>
-  #site-header{position:sticky;top:0;z-index:70}
-  #site-header .brand img{height:72px}
-</style>
+<!-- ===============  HEADER COMPONENT  =============== -->
+<!-- Wstaw NA POCZĄTKU <body> (żeby był widoczny natychmiast) -->
+<header id="kt-header"
+        class="kt-header"
+        data-cms-url="https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec?key=kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
+        data-default-lang="pl"
+        data-logo-src="/assets/media/logo-firma-transportowa-kras-trans.png">
 
-<link rel="stylesheet" href="/assets/css/header.css">
+  <!-- Anti-FOUC (motyw) – mikroskrypt przed stylami: -->
+  <script>
+    (function(){
+      try{
+        var p = localStorage.getItem('kt-theme');
+        if(!p){ p = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark':'light'; }
+        document.documentElement.setAttribute('data-theme', p);
+      }catch(e){}
+    })();
+  </script>
 
-<header id="site-header"
-        class="kt-header glass"
-        data-sticky
-        data-lang="{{ page.lang or 'pl' }}"
-        data-api="https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec?key=kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
-        data-cms="/data/cms.json"
-        data-open-delay="140"
-        data-close-delay="520"
-        data-mega-maxh="420">
+  <!-- CRITICAL MINIMAL STYLES (tylko layout paska – właściwe style w header.css) -->
+  <link rel="preload" as="style" href="/assets/css/header.css" onload="this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/assets/css/header.css"></noscript>
 
-  <div class="kt-header__bar">
-    <!-- LOGO -->
-    <a class="brand" data-bind="brand-url" href="#">
-      <img src="/assets/media/logo-firma-transportowa-kras-trans.png"
-           alt="Kras-Trans" decoding="async" fetchpriority="high" />
+  <!-- Pasek (glass, sticky) -->
+  <div class="kt-bar">
+    <a class="kt-brand" href="/" aria-label="Home">
+      <img class="kt-logo" alt="Kras-Trans" width="168" height="28"
+           src="/assets/media/logo-firma-transportowa-kras-trans.png"
+           loading="eager" decoding="async">
     </a>
 
-    <!-- Hamburger tylko <1100px -->
-    <button class="hamburger" aria-expanded="false" aria-label="Menu">
-      <span></span><span></span><span></span>
-    </button>
-
-    <!-- NAV (wypełnia JS z CMS/cache) -->
-    <nav class="main-nav" aria-label="" data-i18n-aria="nav_main">
-      <ul class="menu" role="menubar" data-nav-root></ul>
+    <nav class="kt-nav" aria-label="Main">
+      <ul class="kt-nav-list" id="kt-nav-list">
+        <!-- Skeleton (zastępowany po fetchu CMS) -->
+        <li class="kt-skel"></li>
+        <li class="kt-skel"></li>
+        <li class="kt-skel"></li>
+        <li class="kt-skel"></li>
+        <li class="kt-skel"></li>
+      </ul>
     </nav>
 
-    <!-- AKCJE: język + tryb + CTA -->
-    <div class="header-actions">
-      <div class="lang" data-lang-switcher aria-open="false">
-        <button class="lang__btn" aria-haspopup="listbox" aria-expanded="false">
-          <span class="flag" data-lang-flag></span>
-          <span class="lang__code" data-lang-code></span>
+    <div class="kt-actions">
+      <!-- Języki -->
+      <div class="kt-lang" id="kt-lang">
+        <button class="kt-lang-btn" id="kt-lang-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Wybierz język">
+          <img class="kt-flag" alt="" src="/assets/flags/pl.svg" width="18" height="18">
+          <span class="kt-lang-code">PL</span>
+          <svg class="kt-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>
         </button>
-        <ul class="lang__list" role="listbox" data-lang-list></ul>
+        <ul class="kt-lang-list" id="kt-lang-list" role="listbox" aria-label="Języki" hidden></ul>
       </div>
 
-      <button id="theme-toggle" class="theme" aria-pressed="false" aria-label="Theme">
-        <!-- Wbudowane SVG – zawsze widoczne -->
-        <svg class="sun" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-          <path fill="currentColor" d="M12 18a6 6 0 1 0 0-12a6 6 0 0 0 0 12Zm0 4a1 1 0 0 1-1-1v-1a1 1 0 1 1 2 0v1a1 1 0 0 1-1 1Zm0-18a1 1 0 0 1-1-1V2a1 1 0 1 1 2 0v1a1 1 0 0 1-1 1Zm10 7h-1a1 1 0 1 1 0-2h1a1 1 0 1 1 0 2ZM3 12H2a1 1 0 0 1 0-2h1a1 1 0 1 1 0 2Zm15.66 6.66a1 1 0 0 1-1.41 0l-.71-.71a1 1 0 0 1 1.41-1.41l.71.71a1 1 0 0 1 0 1.41ZM7.46 6.46A1 1 0 0 1 6.05 5l.71-.71A1 1 0 1 1 8.17 5.7L7.46 6.46Zm10.19-2.17A1 1 0 0 1 18.83 5.7L18.12 5a1 1 0 0 1 1.41-1.41l.12.12ZM5.88 19a1 1 0 0 1-1.41 0l-.12-.12A1 1 0 1 1 5.76 17.5l.12.12a1 1 0 0 1 0 1.41Z"/>
-        </svg>
-        <svg class="moon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-          <path fill="currentColor" d="M21.64 13a9 9 0 1 1-10.63-10.6a.5.5 0 0 1 .57.75A7 7 0 1 0 20.89 12.8a.5.5 0 0 1 .75.56Z"/>
-        </svg>
+      <!-- Motyw -->
+      <button class="kt-theme" id="kt-theme" aria-label="Przełącz motyw">
+        <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4V2m0 20v-2m8-8h2M2 12H4m13.66 6.66l1.41 1.41M4.93 4.93l1.41 1.41m0 11.32l-1.41 1.41M19.07 4.93l-1.41 1.41M12 7a5 5 0 100 10 5 5 0 000-10z"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
       </button>
 
-      <a class="btn btn-quote" href="#" data-cta="quote"><span data-i18n="cta_quote_primary"></span></a>
+      <!-- CTA (etykieta i href z CMS/Strings/Nav) -->
+      <a class="kt-cta" id="kt-cta" href="#">
+        <span id="kt-cta-label">…</span>
+      </a>
+
+      <!-- Burger (mobile) -->
+      <button class="kt-burger" id="kt-burger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </div>
 
-  <!-- Delikatny separator -->
-  <svg class="header-wave" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true">
-    <path d="M0,32 C240,64 480,0 720,24 C960,48 1200,48 1440,16 L1440,60 L0,60 Z"></path>
-  </svg>
+  <!-- Mega menu (zwarty dock) -->
+  <div class="kt-mega" id="kt-mega" role="region" aria-live="polite" hidden>
+    <div class="kt-mega-inner" id="kt-mega-inner"><!-- kolumny z JS --></div>
+  </div>
 
-  <div class="nav-scrim" hidden></div>
+  <!-- Drawer mobile -->
+  <aside class="kt-mobile" id="kt-mobile" hidden aria-hidden="true">
+    <div class="kt-mobile-head">
+      <span>Menu</span>
+      <button class="kt-mobile-close" id="kt-mobile-close" aria-label="Zamknij">✕</button>
+    </div>
+    <nav class="kt-mobile-nav" id="kt-mobile-nav" aria-label="Mobile"></nav>
+  </aside>
+
+  <!-- Logika -->
+  <script defer src="/assets/js/header.js"></script>
 </header>
-
-<script src="/assets/js/header.js" defer></script>
+<!-- =============  /HEADER COMPONENT  ============= -->
