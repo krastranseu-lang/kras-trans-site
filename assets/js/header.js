@@ -1,3 +1,8 @@
+<script id="ktHeaderScript"
+        data-api="{{ cms_endpoint }}"
+        data-defaultlang="{{ page.lang or site.defaultLang or 'pl' }}">
+</script>
+
 /* assets/js/header.js */
 /* Kras-Trans Header: fallback → hydrate CMS (TTL 6h), hover-intent, i18n, mobile drawer */
 (() => {
