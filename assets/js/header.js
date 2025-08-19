@@ -1,374 +1,533 @@
-/* ================== HEADER JS (Kras-Trans) ================== */
-const API_URL = document.currentScript.dataset.api;  // Apps Script endpoint
-const CACHE_NS = 'kt_nav_v2';
-const CACHE_TTL = 6 * 60 * 60 * 1000;                // 6h
-const LOCALES = ['pl','en','de','fr','it','ru','ua'];
+/* assets/js/header.js */
+/* Kras-Trans Header: fallback → hydrate CMS (TTL 6h), hover-intent, i18n, mobile drawer */
+(() => {
+  'use strict';
 
-const FALLBACK = {
-  pl: {
-    items: [
-      { key:'cennik', label:'Cennik', children:[
-        {label:'Cennik usług', href:'/pl/cennik/'},
-        {label:'Kalkulator', href:'/pl/kalkulator/'},
-        {label:'Promocje', href:'/pl/promocje/'},
-        {label:'Płatności', href:'/pl/platnosci/'},
-      ]},
-      { key:'zamow', label:'Zamów', children:[
-        {label:'Zamów bus 3,5 t', href:'/pl/zamow-busy-35t/'},
-        {label:'Zamów TIR', href:'/pl/zamow-tir/'},
-        {label:'Stała linia (SLA)', href:'/pl/sla/'},
-        {label:'Poproś o wycenę', href:'/pl/wycena/'},
-      ]},
-      { key:'harmonogramy', label:'Harmonogramy', children:[
-        {label:'Okna załadunku', href:'/pl/okna-zaladunku/'},
-        {label:'Okna rozładunku', href:'/pl/okna-rozladunku/'},
-        {label:'Kalendarz zakazów ruchu UE', href:'/pl/kalendarz-zakazow/'},
-        {label:'Święta w UE', href:'/pl/swieta/'},
-      ]},
-      { key:'sledzenie', label:'Śledzenie', children:[
-        {label:'Śledź przesyłkę', href:'/pl/sledzenie/'},
-        {label:'Historia dostaw', href:'/pl/historia-dostaw/'},
-        {label:'POD i dokumenty CMR', href:'/pl/pod-cmr/'},
-        {label:'Powiadomienia', href:'/pl/powiadomienia/'},
-      ]},
-      { key:'zarzadzaj', label:'Zarządzaj', children:[
-        {label:'Panel klienta', href:'/pl/panel-klienta/'},
-        {label:'Zlecenia', href:'/pl/zlecenia/'},
-        {label:'Integracje (API)', href:'/pl/integracje/'},
-        {label:'Wysyłaj dokumenty', href:'/pl/wyslij-dokumenty/'},
-      ]},
-      { key:'uslugi', label:'Usługi', children:[
-        {label:'Transport krajowy', href:'/pl/transport-krajowy/'},
-        {label:'Transport międzynarodowy', href:'/pl/transport-miedzynarodowy/'},
-        {label:'Transport palet', href:'/pl/transport-paletowy/'},
-        {label:'Transport ekspresowy 24/7', href:'/pl/transport-ekspresowy/'},
-        {label:'ADR', href:'/pl/adr/'},
-        {label:'SLA i stałe linie', href:'/pl/sla/'},
-        {label:'Busy 3,5 t', href:'/pl/busy-35t/'},
-        {label:'High‑value / elektronika', href:'/pl/high-value/'},
-        {label:'Dedykowany dyspozytor', href:'/pl/dedykowany-dyspozytor/'},
-        {label:'Transport TIR (FTL)', href:'/pl/ftl/'},
-        {label:'Przeprowadzki firm', href:'/pl/przeprowadzki/'},
-        {label:'Logistyka kontraktowa', href:'/pl/contract-logistics/'},
-        {label:'E‑commerce B2B', href:'/pl/ecommerce/'},
-        {label:'Cennik', href:'/pl/cennik/'},
-        {label:'Wycena online', href:'/pl/wycena/'},
-      ]},
-      { key:'firma', label:'Firma', children:[
-        {label:'O nas', href:'/pl/o-nas/'},
-        {label:'Zespół', href:'/pl/zespol/'},
-        {label:'Case studies', href:'/pl/case-studies/'},
-        {label:'Flota', href:'/pl/flota/'},
-        {label:'Opinie', href:'/pl/opinie/'},
-        {label:'Certyfikaty', href:'/pl/certyfikaty/'},
-        {label:'Zrównoważony rozwój', href:'/pl/esg/'},
-        {label:'Kariera', href:'/pl/praca/'},
-        {label:'Dla mediów', href:'/pl/media/'},
-        {label:'Kontakt', href:'/pl/kontakt/'},
-        {label:'Prawne', href:'/pl/prawne/'},
-      ]},
-      { key:'wsparcie', label:'Wsparcie', children:[
-        {label:'FAQ', href:'/pl/faq/'},
-        {label:'Informacje lokalne', href:'/pl/informacje-lokalne/'},
-        {label:'Instrukcje', href:'/pl/instrukcje/'},
-        {label:'Kontakt ze wsparciem', href:'/pl/wsparcie/'},
-      ]},
-      { key:'blog', label:'Blog', href:'/pl/blog/' },
-      { key:'kontakt', label:'Kontakt', href:'/pl/kontakt/' }
-    ]
-  },
-  // Możesz przetłumaczyć kolejne – fallback nie przeszkadza hydratacji.
-  en: { items: [] }, de:{items:[]}, fr:{items:[]}, it:{items:[]}, ru:{items:[]}, ua:{items:[]}
-};
+  // --------- CONSTS
+  const LOCALES = ['pl','en','de','fr','it','ru','ua'];
+  const HOVER_OPEN_DELAY = 140;
+  const HOVER_CLOSE_DELAY = 380;
+  const CACHE_TTL = 6 * 60 * 60 * 1000; // 6h
+  const SCRIPT = document.getElementById('ktHeaderScript') || document.currentScript;
+  const HEADER = document.getElementById('site-header');
+  const DEFAULT_LANG = (HEADER?.dataset.defaultLang) || (SCRIPT?.dataset.defaultLang) || 'pl';
+  const CMS_ENDPOINT = (SCRIPT?.dataset.api) || (HEADER?.dataset.api) || '';
+  const LOGO_SRC = HEADER?.dataset.logoSrc || '/assets/media/logo.png';
 
-/* ------------- narzędzia ------------- */
-const $ = sel => document.querySelector(sel);
-const $$ = sel => Array.from(document.querySelectorAll(sel));
-const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
-const getLang = () => {
-  const m = location.pathname.match(/^\/([a-z]{2})\b/i);
-  return m ? m[1].toLowerCase() : 'pl';
-};
-const setLangToPath = (lang) => {
-  const cur = getLang();
-  if (cur === lang) return;
-  const rest = location.pathname.replace(/^\/[a-z]{2}/i, '').replace(/^\/?/, '/');
-  location.href = `/${lang}${rest}`;
-};
-const cacheGet = (key) => {
-  try{
-    const raw = localStorage.getItem(`${CACHE_NS}:${key}`);
-    if(!raw) return null;
-    const obj = JSON.parse(raw);
-    if(Date.now() - obj.ts > CACHE_TTL) return null;
-    return obj.data;
-  }catch{ return null; }
-};
-const cacheSet = (key, data) => {
-  try{ localStorage.setItem(`${CACHE_NS}:${key}`, JSON.stringify({ts:Date.now(), data})); }catch{}
-};
+  // --------- UTIL
+  const qs  = (s, root=document) => root.querySelector(s);
+  const qsa = (s, root=document) => Array.from(root.querySelectorAll(s));
+  const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
+  const sameOrigin = (href) => { try{ const u=new URL(href, location.href); return u.origin===location.origin } catch(_){ return false } };
+  const now = () => (window.performance?.now?.() || Date.now());
 
-/* ------------- rendering ------------- */
-function renderMainNav(items){
-  const ul = $('#ktMainNav');
-  ul.innerHTML = '';
-  items.forEach(item=>{
-    const li = document.createElement('li');
-    if(item.children && item.children.length){
-      li.innerHTML = `
-        <a href="#" class="kt-nav-link" data-key="${item.key}" role="button" aria-expanded="false">
-          <span>${item.label}</span>
-          <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-        </a>`;
-      // mega
-      li.addEventListener('mouseenter', ()=> openMega(item));
-      li.addEventListener('mouseleave', onNavLeave);
-    }else{
-      li.innerHTML = `<a class="kt-nav-link" href="${item.href||'#'}"><span>${item.label}</span></a>`;
-    }
-    ul.appendChild(li);
-  });
-}
-
-function col(label, links){
-  const wrap = document.createElement('div');
-  wrap.className = 'kt-col';
-  if(label) wrap.innerHTML = `<h6>${label}</h6>`;
-  const frag = document.createDocumentFragment();
-  links.forEach(l=>{
-    const a = document.createElement('a');
-    a.className = 'kt-link';
-    a.href = l.href || '#';
-    a.textContent = l.label;
-    frag.appendChild(a);
-  });
-  wrap.appendChild(frag);
-  return wrap;
-}
-
-let megaTimer = null, megaOpen = false;
-function openMega(item){
-  clearTimeout(megaTimer);
-  const mega = $('#ktMega'), inner = $('#ktMegaInner');
-  mega.classList.add('active');
-  megaOpen = true;
-
-  // pozycja względem headera
-  const hdr = $('#site-header');
-  document.documentElement.style.setProperty('--megaTop', `${hdr.getBoundingClientRect().bottom}px`);
-
-  // zbuduj panel
-  inner.innerHTML = '';
-  const panel = document.createElement('div');
-  panel.className = 'kt-mega-panel';
-  const grid = document.createElement('div');
-  grid.className = 'kt-mega-grid';
-
-  // heurystyka – rozbitka usług na 5 kolumn (jak u Maersk)
-  if(item.key === 'uslugi' && item.children){
-    const CH = item.children;
-    grid.append(
-      col('Transport', CH.slice(0,4)),
-      col(null, [CH[4], CH[5], CH[6]]),
-      col(null, [CH[7], CH[8], CH[9]]),
-      col(null, [CH[10], CH[11]]),
-      col(null, [CH[12], CH[13], CH[14]])
-    );
-  }else if(item.children){
-    // zwykłe 3–5 kolumn
-    const perCol = clamp(Math.ceil(item.children.length / 4), 3, 6);
-    for(let i=0;i<item.children.length;i+=perCol){
-      grid.append(col(null, item.children.slice(i, i+perCol)));
-    }
-  }
-  panel.appendChild(grid);
-  inner.appendChild(panel);
-}
-function onNavLeave(){
-  clearTimeout(megaTimer);
-  megaTimer = setTimeout(()=>{
-    $('#ktMega').classList.remove('active');
-    megaOpen = false;
-  }, 260); // hover intent – daj czas dojechać myszką
-}
-$('#ktMega')?.addEventListener('mouseleave', onNavLeave);
-$('#ktMega')?.addEventListener('mouseenter', ()=>{ clearTimeout(megaTimer); });
-
-/* ------------- język + motyw ------------- */
-function setupLangControls(lang){
-  // Logo i CTA w aktualnym języku
-  $('#brandLink').href = `/${lang}/`;
-  $('#quoteBtn').href = `/${lang}/wycena/`;
-
-  // Flaga i lista
-  $('#langFlag').src = `/assets/flags/${lang === 'en' ? 'gb' : lang}.svg`;
-  $('#langCode').textContent = lang.toUpperCase();
-
-  const LANGS = [
-    {code:'pl', label:'Polski'},
-    {code:'en', label:'English'},
-    {code:'de', label:'Deutsch'},
-    {code:'fr', label:'Français'},
-    {code:'it', label:'Italiano'},
-    {code:'ru', label:'Русский'},
-    {code:'ua', label:'Українська'},
-  ];
-  const ul = $('#langMenu');
-  ul.innerHTML = '';
-  LANGS.forEach(l=>{
-    const li = document.createElement('li');
-    li.innerHTML = `<a class="kt-lang-item" href="#" data-lang="${l.code}">
-        <img class="flag" src="/assets/flags/${l.code==='en'?'gb':l.code}.svg" alt="">
-        <span>${l.label}</span>
-      </a>`;
-    ul.appendChild(li);
-  });
-
-  $('#langBtn').onclick = ()=>{
-    const m = $('#langMenu'), btn = $('#langBtn');
-    const vis = m.hasAttribute('hidden') ? false : true;
-    btn.setAttribute('aria-expanded', String(!vis));
-    if(vis) m.setAttribute('hidden',''); else m.removeAttribute('hidden');
-  };
-  ul.addEventListener('click', (e)=>{
-    const a = e.target.closest('[data-lang]');
-    if(!a) return;
-    e.preventDefault();
-    setLangToPath(a.dataset.lang);
-  });
-  /* === PATCH: mega menu UX + dostępność === */
-(function enhanceMega(){
-  const mega = document.getElementById('ktMega');
-  const inner = document.getElementById('ktMegaInner');
-  const header = document.getElementById('site-header');
-
-  // 1) dłuższy czas domknięcia – 420ms
-  if (typeof onNavLeave === 'function') {
-    // nadpisujemy domknięcie jeśli istnieje
-    const oldLeave = onNavLeave;
-    window.onNavLeave = function(){
-      clearTimeout(megaTimer);
-      megaTimer = setTimeout(()=>{
-        mega.classList.remove('active');
-        mega.setAttribute('aria-hidden','true');
-        megaOpen = false;
-      }, 420);
-    };
+  function setMegaTop() {
+    const r = HEADER.getBoundingClientRect();
+    document.documentElement.style.setProperty('--megaTop', `${Math.round(r.bottom)}px`);
   }
 
-  // 2) aktualizacja topa na resize/scroll
-  function setMegaTop(){
-    const rect = header.getBoundingClientRect();
-    document.documentElement.style.setProperty('--megaTop', `${rect.bottom}px`);
-  }
-  window.addEventListener('resize', setMegaTop, {passive:true});
-  window.addEventListener('scroll', setMegaTop,  {passive:true});
-  setMegaTop();
-
-  // 3) dostępność – focus
-  mega.addEventListener('focusin', ()=>{ clearTimeout(megaTimer); mega.classList.add('active'); mega.setAttribute('aria-hidden','false'); });
-  mega.addEventListener('focusout', (e)=>{
-    if (!mega.contains(e.relatedTarget)) {
-      mega.classList.remove('active'); mega.setAttribute('aria-hidden','true');
-    }
-  });
-})();
-  document.addEventListener('click', (e)=>{
-    if(!$('#langSwitch').contains(e.target)) $('#langMenu').setAttribute('hidden','');
-  });
-
-  // Motyw
-  const root = document.documentElement;
-  const saved = localStorage.getItem('kt_theme');
-  if(saved){ root.setAttribute('data-theme', saved); }
-  else{
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-  }
-  $('#themeToggle').onclick = ()=>{
-    const cur = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    root.setAttribute('data-theme', cur);
-    localStorage.setItem('kt_theme', cur);
-  };
-}
-
-/* ------------- fallback + CMS hydration ------------- */
-async function hydrateFromCMS(lang){
-  // Cache?
-  const CKEY = `${lang}`;
-  const cached = cacheGet(CKEY);
-  if(cached && cached.items?.length){
-    renderMainNav(cached.items);
+  function langFromPath() {
+    const seg = location.pathname.replace(/^\/+/, '').split('/')[0];
+    return LOCALES.includes(seg) ? seg : DEFAULT_LANG;
   }
 
-  try{
-    const url = new URL(API_URL);
-    url.searchParams.set('lang', lang);
-    // wymagany format: .doGet() zwraca JSON { nav: [...], routes: [...], strings: [...] }
-    const res = await fetch(url, { credentials:'omit', cache:'no-cache' });
-    if(!res.ok) throw new Error('Bad response');
-    const json = await res.json();
-
-    const normalized = normalizeNavFromCMS(json, lang);
-    if(normalized.items?.length){
-      cacheSet(CKEY, normalized);
-      renderMainNav(normalized.items);
-    }
-  }catch(err){
-    // cicho – zostaw fallback
-    // console.debug('NAV hydrate fail', err);
+  function buildUrl(lang, slugKey, routes) {
+    const r = routes.find(x => x.slugKey === slugKey);
+    const slug = r && r[lang] || '';
+    return `/${lang}/${slug ? slug + '/' : ''}`;
   }
-}
 
-/* konwersja struktury z Twojego Apps Script → nasz format */
-function normalizeNavFromCMS(payload, lang){
-  const rows = Array.isArray(payload?.nav) ? payload.nav : [];
-  // oczekujemy: { lang, label, href, parent, order, enabled }
-  const tree = {};
-  rows.filter(r => (r.enabled !== false) && (!r.lang || r.lang.toLowerCase()===lang))
-      .sort((a,b)=> (Number(a.order||0) - Number(b.order||0)))
-      .forEach(r=>{
-        const parent = (r.parent||'').trim();
-        const node = { label: r.label?.trim()||'', href: r.href?.trim()||'#' };
-        if(parent){
-          tree[parent] = tree[parent] || { key: slug(parent), label: parent, children: [] };
-          tree[parent].children.push(node);
-        }else{
-          tree[r.label] = tree[r.label] || { key: slug(r.label), label: r.label, href: r.href?.trim() };
+  function prefetch(href) {
+    if (!sameOrigin(href)) return;
+    if (document.head.querySelector(`link[rel="prefetch"][href="${href}"]`)) return;
+    const l = document.createElement('link');
+    l.rel = 'prefetch'; l.as='document'; l.href = href;
+    document.head.appendChild(l);
+  }
+
+  function sanitizeText(el, text) {
+    el.textContent = text != null ? String(text) : '';
+  }
+
+  function isExternal(href) {
+    try { const u = new URL(href, location.href); return u.origin !== location.origin; } catch { return false; }
+  }
+
+  // --------- FALLBACK DATA (instant render)
+  const FALLBACK = (() => {
+    const routes = [
+      { slugKey:'home',      pl:'', en:'', de:'', fr:'', it:'', ru:'', ua:'' },
+      { slugKey:'pricing',   pl:'cennik', en:'pricing', de:'preise', fr:'tarifs', it:'prezzi', ru:'ceny', ua:'tsiny' },
+      { slugKey:'order',     pl:'zamow', en:'order', de:'auftrag', fr:'commande', it:'ordina', ru:'zakaz', ua:'zamovyty' },
+      { slugKey:'schedule',  pl:'harmonogramy', en:'schedules', de:'fahrplaene', fr:'horaires', it:'orari', ru:'raspisanie', ua:'rozklady' },
+      { slugKey:'tracking',  pl:'sledzenie', en:'tracking', de:'verfolgung', fr:'suivi', it:'tracciamento', ru:'otslezhivanie', ua:'vidstezhennya' },
+      { slugKey:'manage',    pl:'zarzadzaj', en:'manage', de:'verwalten', fr:'gerer', it:'gestisci', ru:'upravlenie', ua:'keruvannya' },
+      { slugKey:'services',  pl:'uslugi', en:'services', de:'leistungen', fr:'services', it:'servizi', ru:'uslugi', ua:'poslugy' },
+      { slugKey:'company',   pl:'firma', en:'company', de:'unternehmen', fr:'entreprise', it:'azienda', ru:'kompaniya', ua:'kompaniya' },
+      { slugKey:'support',   pl:'wsparcie', en:'support', de:'support', fr:'support', it:'supporto', ru:'podderzhka', ua:'pidtrymka' },
+      { slugKey:'blog',      pl:'blog', en:'blog', de:'blog', fr:'blog', it:'blog', ru:'blog', ua:'blog' },
+      { slugKey:'contact',   pl:'kontakt', en:'contact', de:'kontakt', fr:'contact', it:'contatti', ru:'kontakt', ua:'kontakt' },
+      { slugKey:'quote',     pl:'wycena', en:'quote', de:'angebot', fr:'devis', it:'preventivo', ru:'raschet', ua:'koshtorys' }
+    ];
+    const strings = [
+      { key:'cta_quote_primary', pl:'Wycena transportu', en:'Get a quote', de:'Angebot anfordern', fr:'Obtenir un devis', it:'Richiedi preventivo', ru:'Рассчитать стоимость', ua:'Отримати пропозицію' },
+      { key:'brand_alt', pl:'Kras-Trans', en:'Kras-Trans', de:'Kras-Trans', fr:'Kras-Trans', it:'Kras-Trans', ru:'Kras-Trans', ua:'Kras-Trans' }
+    ];
+    // Top level order (spec)
+    const TOP = ['pricing','order','schedule','tracking','manage','services','company','support','blog','contact'];
+    const nav = [];
+    for (const lang of LOCALES) {
+      // Top level
+      for (const key of TOP) {
+        nav.push({ lang, label: ({
+            pricing:{pl:'Cennik',en:'Pricing',de:'Preise',fr:'Tarifs',it:'Prezzi',ru:'Цены',ua:'Ціни'},
+            order:{pl:'Zamów',en:'Order',de:'Auftrag',fr:'Commande',it:'Ordina',ru:'Заказ',ua:'Замовити'},
+            schedule:{pl:'Harmonogramy',en:'Schedules',de:'Fahrpläne',fr:'Horaires',it:'Orari',ru:'Расписание',ua:'Розклади'},
+            tracking:{pl:'Śledzenie',en:'Tracking',de:'Verfolgung',fr:'Suivi',it:'Tracciamento',ru:'Отслеживание',ua:'Відстеження'},
+            manage:{pl:'Zarządzaj',en:'Manage',de:'Verwalten',fr:'Gérer',it:'Gestisci',ru:'Управляй',ua:'Керуй'},
+            services:{pl:'Usługi',en:'Services',de:'Leistungen',fr:'Services',it:'Servizi',ru:'Услуги',ua:'Послуги'},
+            company:{pl:'Firma',en:'Company',de:'Unternehmen',fr:'Entreprise',it:'Azienda',ru:'Компания',ua:'Компанія'},
+            support:{pl:'Wsparcie',en:'Support',de:'Support',fr:'Support',it:'Supporto',ru:'Поддержка',ua:'Підтримка'},
+            blog:{pl:'Blog',en:'Blog',de:'Blog',fr:'Blog',it:'Blog',ru:'Блог',ua:'Блог'},
+            contact:{pl:'Kontakt',en:'Contact',de:'Kontakt',fr:'Contact',it:'Contatti',ru:'Контакты',ua:'Контакт'}
+          }[key]||{})[lang], href: buildUrl(lang, key, routes), parent:'', order:TOP.indexOf(key)*10+10, enabled:true
+        });
+      }
+      // Services columns
+      const svc = [
+        {t:'Transport', items:['transport-krajowy','transport-miedzynarodowy','palety','ekspres'] , col:1},
+        {t:'SLA/Operacje', items:['sla','busy-3-5t'], col:2},
+        {t:'Wsparcie', items:['dyspozytor','logistyka-kontraktowa'], col:3},
+        {t:'Specjalizacje', items:['tir-ftl','przeprowadzki','ecommerce'], col:4},
+        {t:'Oferta', items:['cennik','wycena'], col:5}
+      ];
+      const map = {
+        'transport-krajowy': {pl:'Transport krajowy',en:'Domestic transport',de:'Inlands­transport',fr:'Transport national',it:'Trasporto nazionale',ru:'Внутрироссийские перевозки',ua:'Внутрішні перевезення'},
+        'transport-miedzynarodowy': {pl:'Transport międzynarodowy',en:'International transport',de:'International',fr:'International',it:'Internazionale',ru:'Международные перевозки',ua:'Міжнародні перевезення'},
+        'palety': {pl:'Transport palet',en:'Pallet transport',de:'Paletten­transport',fr:'Transport de palettes',it:'Trasporto pallet',ru:'Перевозка палет',ua:'Перевезення палет'},
+        'ekspres': {pl:'Ekspres',en:'Express',de:'Express',fr:'Express',it:'Espresso',ru:'Экспресс',ua:'Експрес'},
+        'sla': {pl:'SLA',en:'SLA',de:'SLA',fr:'SLA',it:'SLA',ru:'SLA',ua:'SLA'},
+        'busy-3-5t': {pl:'Busy 3,5 t',en:'3.5t vans',de:'3,5t Transporter',fr:'Vans 3,5 t',it:'Furgoni 3,5 t',ru:'Фургоны 3,5 т',ua:'Фургони 3,5 т'},
+        'dyspozytor': {pl:'Dyspozytor',en:'Dispatcher',de:'Disponent',fr:'Dispatcher',it:'Dispatcher',ru:'Диспетчер',ua:'Диспетчер'},
+        'logistyka-kontraktowa': {pl:'Logistyka kontraktowa',en:'Contract logistics',de:'Kontraktlogistik',fr:'Logistique contractuelle',it:'Logistica contrattuale',ru:'Контрактная логистика',ua:'Контрактна логістика'},
+        'tir-ftl': {pl:'TIR / FTL',en:'TIR / FTL',de:'TIR / FTL',fr:'TIR / FTL',it:'TIR / FTL',ru:'TIR / FTL',ua:'TIR / FTL'},
+        'przeprowadzki': {pl:'Przeprowadzki',en:'Relocations',de:'Umzüge',fr:'Déménagements',it:'Traslochi',ru:'Переезды',ua:'Переїзди'},
+        'ecommerce': {pl:'E‑commerce',en:'E‑commerce',de:'E‑Commerce',fr:'E‑commerce',it:'E‑commerce',ru:'E‑commerce',ua:'E‑commerce'},
+        'cennik': {pl:'Cennik',en:'Pricing',de:'Preise',fr:'Tarifs',it:'Prezzi',ru:'Цены',ua:'Ціни'},
+        'wycena': {pl:'Wycena',en:'Quote',de:'Angebot',fr:'Devis',it:'Preventivo',ru:'Расчет',ua:'Кошторис'}
+      };
+      for (const g of svc) {
+        for (const key of g.items) {
+          nav.push({
+            lang, label: map[key][lang], href: buildUrl(lang, key, [
+              ...routes,
+              {slugKey:'transport-krajowy', pl:'transport-krajowy', en:'domestic-transport', de:'inland', fr:'national', it:'nazionale', ru:'vnutri', ua:'vnutrishni'},
+              {slugKey:'transport-miedzynarodowy', pl:'transport-miedzynarodowy', en:'international-transport', de:'international', fr:'international', it:'internazionale', ru:'mezhdunarodnyj', ua:'mizhnarodni'},
+              {slugKey:'palety', pl:'transport-palet', en:'pallet-transport', de:'paletten', fr:'palettes', it:'pallet', ru:'palety', ua:'palety'},
+              {slugKey:'ekspres', pl:'ekspres', en:'express', de:'express', fr:'express', it:'espresso', ru:'express', ua:'express'},
+              {slugKey:'sla', pl:'sla', en:'sla', de:'sla', fr:'sla', it:'sla', ru:'sla', ua:'sla'},
+              {slugKey:'busy-3-5t', pl:'busy-3-5t', en:'vans-3-5t', de:'transporter-3-5t', fr:'vans-3-5t', it:'furgoni-3-5t', ru:'furgony-3-5t', ua:'furgony-3-5t'},
+              {slugKey:'dyspozytor', pl:'dyspozytor', en:'dispatcher', de:'disponent', fr:'dispatcher', it:'dispatcher', ru:'dispatcher', ua:'dispatcher'},
+              {slugKey:'logistyka-kontraktowa', pl:'logistyka-kontraktowa', en:'contract-logistics', de:'kontraktlogistik', fr:'logistique-contractuelle', it:'logistica-contrattuale', ru:'kontraktnaya-logistika', ua:'kontraktna-logistyka'},
+              {slugKey:'tir-ftl', pl:'tir-ftl', en:'tir-ftl', de:'tir-ftl', fr:'tir-ftl', it:'tir-ftl', ru:'tir-ftl', ua:'tir-ftl'},
+              {slugKey:'przeprowadzki', pl:'przeprowadzki', en:'relocations', de:'umzuege', fr:'demenagements', it:'traslochi', ru:'pereezdy', ua:'pereyizdy'},
+              {slugKey:'ecommerce', pl:'ecommerce', en:'ecommerce', de:'ecommerce', fr:'ecommerce', it:'ecommerce', ru:'ecommerce', ua:'ecommerce'},
+              {slugKey:'cennik', pl:'cennik', en:'pricing', de:'preise', fr:'tarifs', it:'prezzi', ru:'ceny', ua:'tsiny'},
+              {slugKey:'wycena', pl:'wycena', en:'quote', de:'angebot', fr:'devis', it:'preventivo', ru:'raschet', ua:'koshtorys'}
+            ]), parent: ({pl:'Usługi',en:'Services',de:'Leistungen',fr:'Services',it:'Servizi',ru:'Услуги',ua:'Послуги'})[lang],
+            order:10, enabled:true, col:g.col
+          });
         }
-      });
+      }
+    }
+    return { ok:true, nav, routes, strings };
+  })();
 
-  // Konwersja → lista
-  const items = [];
-  const order = Object.values(tree).sort((a,b)=> (a.key>b.key?1:-1));
-  order.forEach(v => items.push(v));
-  // dopnij blog/kontakt jeśli przyszły bez parenta
-  if(!items.find(i=>i.key==='blog') && payload?.routes){ /* opcjonalnie */ }
-  return { items };
-}
-function slug(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-'); }
-
-/* ------------- init ------------- */
-function init(){
-  const lang = getLang();
-  setupLangControls(lang);
-
-  // od razu fallback (natychmiast)
-  const fall = FALLBACK[lang]?.items?.length ? FALLBACK[lang] : FALLBACK.pl;
-  renderMainNav(fall.items);
-
-  // potem hydratuj z CMS
-  hydrateFromCMS(lang);
-
-  // shrink on scroll (lekko)
-  const header = $('#site-header');
-  const onScroll = ()=>{
-    if(window.scrollY > 8) header.classList.add('scrolled');
-    else header.classList.remove('scrolled');
+  // --------- STATE
+  const state = {
+    lang: langFromPath(),
+    data: null // cms
   };
-  onScroll();
-  document.addEventListener('scroll', onScroll, {passive:true});
-}
 
-document.addEventListener('DOMContentLoaded', init);
-/* ============================================================= */
+  // --------- CACHE
+  const cacheKey = (lang) => `kt:cms:${lang}`;
+  const saveCache = (lang, data) => { try { localStorage.setItem(cacheKey(lang), JSON.stringify({ts:Date.now(), data})); } catch(e){} };
+  const readCache = (lang) => {
+    try {
+      const raw = localStorage.getItem(cacheKey(lang)); if (!raw) return null;
+      const obj = JSON.parse(raw); if (Date.now()-obj.ts > CACHE_TTL) return null;
+      return obj.data;
+    } catch(e){ return null; }
+  };
+
+  // --------- FETCH
+  async function fetchCMS(endpoint) {
+    if (!endpoint) throw new Error('CMS endpoint missing');
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort('timeout'), 12000);
+    const res = await fetch(endpoint, { signal: ctrl.signal, cache: 'no-store' });
+    clearTimeout(t);
+    const json = await res.json();
+    if (!json || !json.ok) throw new Error('CMS returned not ok');
+    return json;
+  }
+
+  // --------- RENDER HELPERS
+  function stringsMap(stringsArray, lang) {
+    const m = {};
+    for (const s of stringsArray) m[s.key] = s[lang] ?? s['pl'] ?? '';
+    return m;
+  }
+
+  function topNavByLang(nav, lang) {
+    const nn = nav.filter(n => n.enabled !== false && n.lang === lang);
+    const top = nn.filter(n => !n.parent || n.parent === '');
+    const children = nn.filter(n => !!n.parent);
+    top.sort((a,b)=> (a.order||0)-(b.order||0));
+    children.sort((a,b)=> (a.order||0)-(b.order||0));
+    const byParent = new Map();
+    for (const c of children) {
+      const p = (c.parent||'').toLowerCase();
+      if (!byParent.has(p)) byParent.set(p, []);
+      byParent.get(p).push(c);
+    }
+    return { top, byParent };
+  }
+
+  function isPointerFine() { return matchMedia('(pointer:fine)').matches; }
+
+  function makeA(href, label) {
+    const a = document.createElement('a');
+    a.href = href;
+    a.className = 'kt-link';
+    a.rel = isExternal(href) ? 'noopener' : '';
+    if (isExternal(href)) a.target = '_blank';
+    sanitizeText(a, label);
+    a.addEventListener('pointerenter', () => prefetch(href), {passive:true});
+    return a;
+  }
+
+  // --------- BUILD TOP NAV + MEGA
+  function buildTopbar(data) {
+    const { top, byParent } = topNavByLang(data.nav, state.lang);
+    const container = qs('#ktNav');
+    container.innerHTML = '';
+    for (const item of top) {
+      const li = document.createElement('div');
+      li.className = 'kt-item';
+      const hasChildren = byParent.has((item.label || '').toLowerCase());
+      const a = makeA(item.href, item.label);
+      if (hasChildren) {
+        a.setAttribute('aria-haspopup','true');
+        a.setAttribute('aria-expanded','false');
+        a.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowDown') { e.preventDefault(); openMega(item, a, byParent.get((item.label||'').toLowerCase())); focusFirstMegaLink(); }
+        });
+        li.dataset.mega = '1';
+        attachHoverIntent(li, () => openMega(item, a, byParent.get((item.label||'').toLowerCase())), closeMega);
+      } else {
+        attachHoverIntent(li, () => {}, () => {});
+      }
+      li.appendChild(a);
+      container.appendChild(li);
+    }
+  }
+
+  function distributeColumns(children, forcedCols=4) {
+    // group by col if provided (1..5), else chunk evenly
+    const byCol = new Map();
+    const withCol = children.filter(c => Number.isInteger(c.col));
+    if (withCol.length) {
+      for (const c of children) {
+        const k = clamp(parseInt(c.col||1,10),1,5);
+        if (!byCol.has(k)) byCol.set(k, []);
+        byCol.get(k).push(c);
+      }
+      const cols = Array.from(byCol.keys()).sort((a,b)=>a-b).map(k => byCol.get(k));
+      return cols;
+    } else {
+      const cols = Math.min(forcedCols, Math.max(1, Math.ceil(children.length / 6)));
+      const out = Array.from({length:cols}, () => []);
+      children.forEach((c,i)=> out[i%cols].push(c));
+      return out;
+    }
+  }
+
+  function openMega(parentItem, anchorEl, children) {
+    const mega = qs('#ktMega');
+    const inner = qs('#ktMegaInner', mega);
+    // Populate
+    inner.innerHTML = '';
+    const cols = distributeColumns(children, parentItem.label && parentItem.label.toLowerCase() === 'usługi' ? 5 : 4);
+    cols.forEach((list, idx) => {
+      const col = document.createElement('div');
+      col.className = 'kt-mega-col';
+      for (const c of list) {
+        const link = document.createElement('a');
+        link.className = 'kt-mega-link';
+        link.href = c.href;
+        if (isExternal(c.href)) { link.rel='noopener'; link.target='_blank'; }
+        sanitizeText(link, c.label);
+        link.addEventListener('pointerenter', () => prefetch(c.href), {passive:true});
+        col.appendChild(link);
+      }
+      inner.appendChild(col);
+    });
+    // Show
+    mega.classList.add('open');
+    mega.setAttribute('aria-hidden','false');
+    anchorEl.setAttribute('aria-expanded','true');
+    currentOpenAnchor = anchorEl;
+  }
+
+  function closeMega() {
+    const mega = qs('#ktMega');
+    if (mega.classList.contains('open')) {
+      mega.classList.remove('open');
+      mega.setAttribute('aria-hidden','true');
+    }
+    if (currentOpenAnchor) currentOpenAnchor.setAttribute('aria-expanded','false');
+    currentOpenAnchor = null;
+  }
+
+  // Hover intent with corridor
+  let openTimer=null, closeTimer=null, currentOpenAnchor=null, corridorActive=false, lastPos=null;
+  function attachHoverIntent(host, onOpen, onClose) {
+    const enter = () => {
+      clearTimeout(closeTimer);
+      openTimer = setTimeout(() => { onOpen(); corridorActive=true; }, HOVER_OPEN_DELAY);
+    };
+    const leave = () => {
+      clearTimeout(openTimer);
+      closeTimer = setTimeout(() => { corridorActive=false; onClose(); }, HOVER_CLOSE_DELAY);
+    };
+    host.addEventListener('pointerenter', enter);
+    host.addEventListener('pointerleave', leave);
+    document.addEventListener('pointermove', (e) => {
+      if (!corridorActive) return;
+      lastPos = {x:e.clientX,y:e.clientY};
+      // simple corridor: if pointer is between nav item baseline and mega top, keep open
+      const bar = HEADER.getBoundingClientRect();
+      const mega = qs('#ktMega');
+      if (!mega) return;
+      const m = mega.getBoundingClientRect();
+      const inside = (lastPos.y >= (bar.bottom-8) && lastPos.y <= (m.top+40));
+      if (inside) { clearTimeout(closeTimer); }
+    }, {passive:true});
+  }
+
+  function focusFirstMegaLink() {
+    const first = qs('#ktMegaInner a');
+    if (first) first.focus();
+  }
+
+  // --------- MOBILE
+  let trapRestore = null;
+  function openMobile() {
+    const mob = qs('#ktMobile');
+    mob.hidden = false;
+    mob.classList.add('open');
+    mob.setAttribute('aria-hidden','false');
+    qs('#ktBurger').setAttribute('aria-expanded','true');
+    trapFocus(mob);
+  }
+  function closeMobile() {
+    const mob = qs('#ktMobile');
+    mob.classList.remove('open');
+    mob.setAttribute('aria-hidden','true');
+    qs('#ktBurger').setAttribute('aria-expanded','false');
+    setTimeout(()=>{ mob.hidden = true; }, 200);
+    releaseFocus();
+  }
+  function trapFocus(panel) {
+    const focusables = qsa('a,button,input,select,textarea,[tabindex]:not([tabindex="-1"])', panel).filter(x => !x.hasAttribute('disabled'));
+    const first = focusables[0], last = focusables[focusables.length-1];
+    trapRestore = document.activeElement;
+    (first||panel).focus();
+    panel.addEventListener('keydown', onKey);
+    function onKey(e){
+      if (e.key === 'Tab') {
+        if (e.shiftKey && document.activeElement === first){ e.preventDefault(); (last||first).focus(); }
+        else if (!e.shiftKey && document.activeElement === last){ e.preventDefault(); (first||last).focus(); }
+      }
+      if (e.key === 'Escape') { e.preventDefault(); closeMobile(); }
+    }
+  }
+  function releaseFocus(){
+    const mob = qs('#ktMobile');
+    mob.removeEventListener('keydown', onKeyDownVoid);
+    if (trapRestore) trapRestore.focus();
+    function onKeyDownVoid(){}
+  }
+
+  // --------- BOTTOM DOCK
+  function buildDock(data) {
+    const strings = stringsMap(data.strings, state.lang);
+    const routes = data.routes;
+    const dock = qs('#ktDock .kt-dock');
+    dock.innerHTML = '';
+    const items = [
+      {key:'home', t:{pl:'Start',en:'Home',de:'Start',fr:'Accueil',it:'Home',ru:'Главная',ua:'Головна'}, emoji:'🏠'},
+      {key:'services', t:{pl:'Usługi',en:'Services',de:'Leistungen',fr:'Services',it:'Servizi',ru:'Услуги',ua:'Послуги'}, emoji:'🧭'},
+      {key:'quote', t:{pl:'Wycena',en:'Quote',de:'Angebot',fr:'Devis',it:'Preventivo',ru:'Расчет',ua:'Кошторис'}, emoji:'💸'},
+      {key:'contact', t:{pl:'Kontakt',en:'Contact',de:'Kontakt',fr:'Contact',it:'Contatti',ru:'Контакты',ua:'Контакт'}, emoji:'🤙'}
+    ];
+    for (const it of items) {
+      const a = document.createElement('a');
+      a.href = buildUrl(state.lang, it.key, routes);
+      a.innerHTML = `<div class="e" aria-hidden="true">${it.emoji}</div><div class="t">${it.t[state.lang]||it.t.pl}</div>`;
+      a.addEventListener('pointerenter', () => prefetch(a.href), {passive:true});
+      dock.appendChild(a);
+    }
+    qs('#ktDockFab').onclick = openMobile;
+  }
+
+  // --------- LANG MENU
+  function buildLangMenu(data) {
+    const list = qs('#ktLangList');
+    list.innerHTML = '';
+    for (const l of LOCALES) {
+      const li = document.createElement('li');
+      const a = document.createElement('button');
+      a.type='button';
+      a.className = 'kt-lang-item';
+      a.dataset.lang = l;
+      a.innerHTML = `<img src="/assets/flags/${l}.svg" width="22" height="14" alt="${l.toUpperCase()}"> <span>${l.toUpperCase()}</span>`;
+      a.addEventListener('click', () => switchLang(l, data.routes));
+      li.appendChild(a);
+      list.appendChild(li);
+    }
+    const btn = qs('#ktLangBtn');
+    btn.addEventListener('click', () => toggleLangMenu());
+  }
+  function toggleLangMenu(force) {
+    const list = qs('#ktLangList');
+    const btn = qs('#ktLangBtn');
+    const open = (force===true) || (list.hasAttribute('hidden'));
+    if (open) { list.removeAttribute('hidden'); btn.setAttribute('aria-expanded','true'); }
+    else { list.setAttribute('hidden',''); btn.setAttribute('aria-expanded','false'); }
+  }
+  function switchLang(lang, routes) {
+    const home = buildUrl(lang, 'home', routes);
+    location.href = home;
+  }
+
+  // --------- THEME
+  function initTheme(strings) {
+    const btn = qs('#ktThemeBtn');
+    const k = 'kt:theme';
+    let cur = document.documentElement.getAttribute('data-theme') || 'light';
+    btn.setAttribute('aria-pressed', String(cur==='dark'));
+    btn.addEventListener('click', () => {
+      cur = (cur==='dark') ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', cur);
+      localStorage.setItem(k, cur);
+      btn.setAttribute('aria-pressed', String(cur==='dark'));
+    });
+  }
+
+  // --------- MOBILE NAV BUILD
+  function buildMobileNav(data) {
+    const { top, byParent } = topNavByLang(data.nav, state.lang);
+    const root = qs('#ktMobileNav'); root.innerHTML='';
+    for (const item of top) {
+      const box = document.createElement('div'); box.className='kt-m-item';
+      const head = document.createElement('div'); head.className='kt-m-top';
+      const link = document.createElement('a'); link.href=item.href; sanitizeText(link, item.label); link.className='kt-m-link';
+      link.addEventListener('pointerenter', () => prefetch(link.href), {passive:true});
+      head.appendChild(link);
+      const hasChildren = byParent.has((item.label||'').toLowerCase());
+      if (hasChildren) {
+        const exp = document.createElement('button'); exp.textContent='▾'; exp.setAttribute('aria-expanded','false'); exp.className='kt-btn';
+        exp.addEventListener('click', () => {
+          const opened = exp.getAttribute('aria-expanded')==='true';
+          exp.setAttribute('aria-expanded', String(!opened));
+          childrenBox.hidden = opened;
+        });
+        head.appendChild(exp);
+      }
+      box.appendChild(head);
+      const childrenBox = document.createElement('div'); childrenBox.className='kt-m-children'; childrenBox.hidden = true;
+      if (hasChildren) {
+        for (const c of byParent.get((item.label||'').toLowerCase())) {
+          const a = document.createElement('a'); a.href=c.href; a.className='kt-m-link'; sanitizeText(a, c.label);
+          if (isExternal(c.href)) { a.rel='noopener'; a.target='_blank'; }
+          a.addEventListener('pointerenter', () => prefetch(a.href), {passive:true});
+          childrenBox.appendChild(a);
+        }
+      }
+      box.appendChild(childrenBox);
+      root.appendChild(box);
+    }
+  }
+
+  // --------- BRAND + CTA
+  function updateBrandAndCTA(data) {
+    const strings = stringsMap(data.strings, state.lang);
+    const brand = qs('#ktBrand');
+    brand.href = buildUrl(state.lang, 'home', data.routes);
+    const img = qs('#ktLogo'); img.src = LOGO_SRC; img.alt = strings['brand_alt'] || 'Kras-Trans';
+    const cta = qs('#ktCTA'); sanitizeText(cta, strings['cta_quote_primary']||'Get a quote');
+    cta.href = buildUrl(state.lang, 'quote', data.routes);
+    const flag = qs('#ktLangFlag'); flag.src = `/assets/flags/${state.lang}.svg`; flag.alt = state.lang.toUpperCase();
+  }
+
+  // --------- ESC & GLOBAL EVENTS
+  function globalKeys() {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeMega(); toggleLangMenu(false);
+        closeMobile();
+      }
+    });
+  }
+
+  function handleResize() { setMegaTop(); }
+  function handleScroll() { setMegaTop(); }
+
+  // --------- HYDRATE FLOW
+  async function hydrate() {
+    let data = readCache(state.lang) || null;
+    if (!data) {
+      try {
+        data = await fetchCMS(CMS_ENDPOINT);
+        saveCache(state.lang, data);
+      } catch (e) {
+        // keep fallback
+        data = null;
+      }
+    }
+    state.data = data || FALLBACK;
+    renderAll(state.data);
+  }
+
+  function renderAll(data) {
+    updateBrandAndCTA(data);
+    buildTopbar(data);
+    buildMobileNav(data);
+    buildLangMenu(data);
+    buildDock(data);
+  }
+
+  // --------- INIT (fallback immediate)
+  function init() {
+    setMegaTop();
+    // Render fallback instantly
+    state.data = FALLBACK;
+    renderAll(state.data);
+
+    // Events
+    globalKeys();
+    window.addEventListener('resize', handleResize, {passive:true});
+    window.addEventListener('scroll', handleScroll, {passive:true});
+    qs('#ktBurger')?.addEventListener('click', openMobile);
+    qs('#ktMobileClose')?.addEventListener('click', closeMobile);
+    qs('#ktMobile .kt-mobile-backdrop')?.addEventListener('click', closeMobile);
+    initTheme();
+
+    // Hydrate from CMS (async)
+    hydrate();
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
