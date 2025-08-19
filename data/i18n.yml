@@ -1,0 +1,60 @@
+pl:
+nav:
+home: "Strona główna"
+cta:
+contact: "Skontaktuj się"
+quote: "Wyceń transport"
+hero:
+headline: "Transport międzynarodowy bez niespodzianek"
+sub: "Flota EURO6, monitoring 24/7 i terminowość."
+
+
+en:
+nav:
+home: "Home"
+cta:
+contact: "Contact us"
+quote: "Get a quote"
+hero:
+headline: "International road transport without surprises"
+sub: "EURO6 fleet, 24/7 tracking and on‑time delivery."
+
+
+de:
+nav: { home: "Startseite" }
+cta: { contact: "Kontakt", quote: "Preis anfragen" }
+hero:
+headline: "Internationaler Straßentransport ohne Überraschungen"
+sub: "EURO6‑Flotte, 24/7 Tracking und Pünktlichkeit."
+
+
+fr:
+nav: { home: "Accueil" }
+cta: { contact: "Contact", quote: "Demander un devis" }
+hero:
+headline: "Transport routier international sans surprises"
+sub: "Flotte EURO6, suivi 24/7 et ponctualité."
+
+
+it:
+nav: { home: "Home" }
+cta: { contact: "Contattaci", quote: "Richiedi un preventivo" }
+hero:
+headline: "Trasporto stradale internazionale senza sorprese"
+sub: "Flotta EURO6, tracking 24/7 e puntualità."
+
+
+ru:
+nav: { home: "Главная" }
+cta: { contact: "Связаться", quote: "Рассчитать перевозку" }
+hero:
+headline: "Международные автоперевозки без сюрпризов"
+sub: "Парк EURO6, мониторинг 24/7 и соблюдение сроков."
+
+
+ua:
+nav: { home: "Головна" }
+cta: { contact: "Зв'язатися", quote: "Розрахувати перевезення" }
+hero:
+headline: "Міжнародні автоперевезення без сюрпризів"
+sub: "Парк EURO6, моніторинг 24/7 та пунктуальність."
