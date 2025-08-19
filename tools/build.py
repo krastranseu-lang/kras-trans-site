@@ -49,6 +49,12 @@ if ASSETS_DIR.exists():
     import shutil
     shutil.copytree(ASSETS_DIR, OUT / "assets", dirs_exist_ok=True)
 
+# skopiuj assets -> dist/assets
+ASSETS_DIR = pathlib.Path("assets")
+if ASSETS_DIR.exists():
+    import shutil
+    shutil.copytree(ASSETS_DIR, OUT / "assets", dirs_exist_ok=True)
+
 UTC  = lambda dt=None: (dt or datetime.now(timezone.utc)).isoformat(timespec="seconds")
 
 def read_yaml(path: "str|pathlib.Path") -> Dict[str, Any]:
@@ -220,6 +226,8 @@ env.globals.update({
     "ga_id": GA_ID,
     "gsc_verification": GSC
 })
+env.globals.update({"assets": CFG.get("assets", {})})
+
 
 # ---------------------------- ZAŁADUJ DANE ---------------------------------
 CMS = load_cms()
