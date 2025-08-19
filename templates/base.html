@@ -1,0 +1,137 @@
+{# =====================================================================
+   KRAS-TRANS • BASE LAYOUT (vMAX)
+   - i18n + hreflang (z buildera)
+   - SEO: canonical, robots (noindex), OG/Twitter
+   - Performance: preconnect, preload, fetchpriority (dla krytycznych zasobów)
+   - A11y: skip-link, lang/dir, focus styles (w CSS), proper landmarks
+   - Security/Privacy: GA4 tylko po zgodzie (hook), GSC meta
+   - Header/Footer: include z _partials/ z fallbackiem
+   ===================================================================== #}
+{% set L = page.lang or site.defaultLang or 'pl' %}
+<!doctype html>
+<html lang="{{ L }}" dir="ltr" data-theme="auto" data-anim-mode="calm">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta http-equiv="x-ua-compatible" content="IE=edge" />
+  {# --- Robots (respect noindex flag) --- #}
+  {% if page.noindex %}<meta name="robots" content="noindex,follow" />{% endif %}
+
+  <title>{{ page.seo_title or page.h1 }}</title>
+  <meta name="description" content="{{ page.meta_desc }}" />
+  <link rel="canonical" href="{{ page.canonical }}" />
+
+  {# --- Hreflang alternates (z buildera) --- #}
+  {% if hreflang %}
+    {% for lang_code, href in hreflang.items() %}
+      <link rel="alternate" hreflang="{{ lang_code }}" href="{{ href }}" />
+    {% endfor %}
+  {% endif %}
+
+  {# --- OpenGraph / Twitter --- #}
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="{{ site.brand }}" />
+  <meta property="og:title" content="{{ page.seo_title or page.h1 }}" />
+  <meta property="og:description" content="{{ page.meta_desc }}" />
+  <meta property="og:url" content="{{ page.canonical }}" />
+  <meta property="og:image" content="{{ page.og_image }}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{ page.seo_title or page.h1 }}" />
+  <meta name="twitter:description" content="{{ page.meta_desc }}" />
+  <meta name="twitter:image" content="{{ page.og_image }}" />
+
+  {# --- GSC verification (z env globals) --- #}
+  {% if gsc_verification %}<meta name="google-site-verification" content="{{ gsc_verification }}" />{% endif %}
+
+  {# --- Resource Hints & Preloads --- #}
+  <link rel="preconnect" href="https://script.google.com" crossorigin />
+  <link rel="dns-prefetch" href="https://script.google.com" />
+  <link rel="preload" href="/assets/css/header.css" as="style" />
+  <link rel="preload" href="/assets/css/home.css" as="style" />
+  <link rel="preload" href="/assets/media/logo.png" as="image" fetchpriority="high" />
+  {# Możesz dodać preload hero konkretnej strony: patrz page.html (heroLCP) #}
+
+  {# --- Stylesheets --- #}
+  <link rel="stylesheet" href="/assets/css/header.css" />
+  <link rel="stylesheet" href="/assets/css/home.css" />
+
+  {# --- Anti-FOUC: natychmiastowy motyw (localStorage → data-theme) --- #}
+  <script>
+    (function(){
+      try{
+        var d=document.documentElement, k='kt:theme';
+        var saved=localStorage.getItem(k);
+        if(saved==='light'||saved==='dark'){ d.setAttribute('data-theme', saved); }
+        else if(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches){ d.setAttribute('data-theme','dark'); }
+      }catch(e){}
+    })();
+  </script>
+
+  {# --- JSON-LD z buildera (Organization/Breadcrumb/FAQ etc.) --- #}
+  {{ jsonld | safe }}
+
+  {# --- RSS/Atom (jeśli włączone) --- #}
+  <link rel="alternate" type="application/rss+xml"  title="{{ site.brand }} RSS"  href="/{{ L }}/feed.xml" />
+  <link rel="alternate" type="application/atom+xml" title="{{ site.brand }} Atom" href="/{{ L }}/atom.xml" />
+
+  {# --- Theme color dla PWA/OS bars --- #}
+  <meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#ffffff"  media="(prefers-color-scheme: light)" />
+</head>
+
+<body class="kt-body">
+  <!-- Skip link (a11y) -->
+  <a class="visually-hidden" href="#main">Przejdź do treści</a>
+
+  {# ----- Header: najpierw _partials/, fallback do header.html ----- #}
+  {% include "_partials/header.html" ignore missing %}
+  {% include "header.html" ignore missing %}
+
+  <main id="main" role="main">
+    {# ----- Zawartość stron / sekcji ----- #}
+    {% block content %}{% endblock %}
+  </main>
+
+  {# ----- Footer: najpierw _partials/, fallback do footer.html ----- #}
+  {% include "_partials/footer.html" ignore missing %}
+  {% include "footer.html" ignore missing %}
+
+  {# ====== Scripts (defer, bez blokady) ====== #}
+  <script defer src="/assets/js/header.js"
+          data-api="{{ cms_endpoint }}"
+          data-default-lang="{{ site.defaultLang }}"></script>
+
+  {# home.js możesz włączać globalnie — jest lekki i warunkowy #}
+  <script defer src="/assets/js/home.js"></script>
+
+  {# ====== GA4 (po zgodzie, hook pod CMP) ======
+     Jeśli masz CMP, w tym miejscu ustaw consent mode i dopiero wtedy załaduj GA.
+     Poniżej minimalny loader aktywowany tylko gdy ga_id istnieje. #}
+  {% if ga_id %}
+  <script>
+  (function(){
+    // Hook: jeżeli masz CMP, zawołaj window.ktConsentGranted() po akceptacji.
+    function loadGA(id){
+      if(window.__gaLoaded) return; window.__gaLoaded = true;
+      var s=document.createElement('script'); s.async=true; s.src='https://www.googletagmanager.com/gtag/js?id='+id;
+      document.head.appendChild(s);
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){ dataLayer.push(arguments); }
+      window.gtag = gtag;
+      gtag('js', new Date());
+      gtag('config', id, {anonymize_ip:true});
+    }
+    // Auto-load (bez CMP) — jeśli chcesz tylko po zgodzie, wywołaj loadGA z CMP.
+    if(!('ktConsentGranted' in window)){
+      window.ktConsentGranted = function(){ loadGA('{{ ga_id }}'); };
+    }
+    // domyślnie ładujemy od razu; usuń poniższą linię, jeśli GA ma czekać na zgodę
+    loadGA('{{ ga_id }}');
+  })();
+  </script>
+  {% endif %}
+
+  {# ====== NoScript fallback ====== #}
+  <noscript><style>.reel{scroll-snap-type:none}.tile3d{transition:none}</style></noscript>
+</body>
+</html>
