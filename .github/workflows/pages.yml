@@ -1,230 +1,361 @@
-name: Deploy to GitHub Pages (Kras-Trans)
+version: 1
 
-on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
+site:
+  brand: "Kras-Trans"
+  legalName: "Kras-Trans Sp. z o.o."
+  url: "https://kras-trans.com"
+  defaultLang: "pl"
+  locales:
+    pl: { name: "Polski",  flag: "/assets/flags/pl.svg" }
+    en: { name: "English", flag: "/assets/flags/en.svg" }
+    de: { name: "Deutsch", flag: "/assets/flags/de.svg" }
+    fr: { name: "Français",flag: "/assets/flags/fr.svg" }
+    it: { name: "Italiano",flag: "/assets/flags/it.svg" }
+    ru: { name: "Русский", flag: "/assets/flags/ru.svg" }
+    ua: { name: "Українська", flag: "/assets/flags/ua.svg" }
+  brandAssets:
+    logo:   "/assets/media/logo.png"
+    logo2x: "/assets/media/logo@2x.png"
+    ogDefault: "/assets/media/og-default.webp"
+  contacts:
+    phone: "+48 123 456 789"
+    email: "info@kras-trans.com"
+    address: "Łódź, Polska"
+    social:
+      - { id: "facebook", href: "https://facebook.com/krastrans" }
+      - { id: "linkedin", href: "https://linkedin.com/company/kras-trans" }
+  analytics:
+    ga_id_env: "GA_ID"                  # pobierze z ENV (workflow)
+  verification:
+    gsc_env: "GSC_VERIFICATION"         # meta name="google-site-verification"
+  security:
+    referrerPolicy: "strict-origin-when-cross-origin"
+    externalLinks: "noopener"           # wszystkie linki off-site dostają rel
+    targetBlankExternal: true
+    csp:
+      # minimalistyczne CSP – rozszerzymy później przy wdrożeniu formularzy
+      default-src: ["'self'"]
+      img-src:     ["'self'", "data:", "https:"]
+      style-src:   ["'self'", "'unsafe-inline'"]
+      script-src:  ["'self'", "https://script.google.com"]
+      connect-src: ["'self'", "https://script.google.com"]
 
-# uprawnienia dla Pages (nowy model z id-token)
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+cms:
+  # Endpoint podawany z Secrets w Actions; build.py użyje APPS_URL/APPS_KEY
+  endpoint_env: "APPS_URL"
+  key_env: "APPS_KEY"
+  # Struktura oczekiwana z Apps Script (masz to w doGet) — ważne przy walidacji:
+  expects: ["ok","updated","pages","nav","routes","strings","faq","places","autolinks","hreflang","sitemap"]
+  client:
+    # Na etapie P0: bez cache po stronie przeglądarki – zmiany w arkuszu widać od razu
+    cache: false
+    # Gdy URL nie ma /{lang}/ → przekieruj do domyślnego
+    enforceLangRedirect: true
 
-# jedna instancja na raz
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
+paths:
+  src:
+    templates: "templates"
+    assets:    "assets"
+    data:      "data"
+    tools:     "tools"
+  out: "dist"
 
-jobs:
-  build:
-    name: Build static site
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+templates:
+  base: "templates/base.html"
+  header: "templates/header.html"
+  page: "templates/page.html"
+  # opcjonalne (kompilacja nie zawiedzie, gdy brak — sprawdza to sanity z workflow)
+  blog_index: "templates/blog_index.html"
+  blog_post:  "templates/blog_post.html"
+  case_index: "templates/case_index.html"
+  case_item:  "templates/case_item.html"
+  reviews:    "templates/reviews.html"
+  location:   "templates/location.html"
+  jobs_index: "templates/jobs_index.html"
+  job_item:   "templates/job_item.html"
 
-    env:
-      # stałe projektu (możesz nadpisać przy kroku Build)
-      SITE_URL: https://kras-trans.com
-      DEFAULT_LANG: pl
-      BRAND: "Kras-Trans"
-      GA_ID: "G-5FYE42J3BE"
-      GSC_VERIFICATION: "Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y"
-      CNAME: kras-trans.com
-      APPS_URL: ${{ secrets.APPS_URL }}
-      APPS_KEY: ${{ secrets.APPS_KEY }}
+assets:
+  css:
+    # Header i baza strony (spójne z motywami z home.css)
+    - "/assets/css/header.css"
+    - "/assets/css/home.css"
+  js:
+    - "/assets/js/header.js"
+    - "/assets/js/home.js"
+  preload:
+    - { as: "style", href: "/assets/css/header.css" }
+    - { as: "image", href: "/assets/media/logo.png" }
+  flagsPath: "/assets/flags"
 
-    steps:
-      # ————————————————————————————————
-      # 0) Repo
-      # ————————————————————————————————
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+header:
+  # konfiguracja headera/mega-menu i mobilnego docka
+  ctaSlugKey: "quote"
+  mega:
+    columnsDefault: 4
+    groups:
+      services:
+        labelKey: "Usługi"     # fallback; właściwe etykiety pobierzemy z CMS->nav/strings
+        columns: 5
+        order: 60
+      manage:
+        labelKey: "Zarządzaj"
+        columns: 4
+        order: 50
+      company:
+        labelKey: "Firma"
+        columns: 3
+        order: 70
+      support:
+        labelKey: "Wsparcie"
+        columns: 3
+        order: 80
+  dock:
+    items:
+      - { slugKey: "home",     icon: "🏠", label_pl: "Start" }
+      - { slugKey: "services", icon: "🧭", label_pl: "Usługi" }
+      - { slugKey: "quote",    icon: "💸", label_pl: "Wycena" }
+      - { slugKey: "contact",  icon: "🤙", label_pl: "Kontakt" }
 
-      - name: Show commit info
-        run: |
-          echo "SHA: $GITHUB_SHA"
-          echo "Actor: $GITHUB_ACTOR"
-          echo "Ref: $GITHUB_REF"
+routes:
+  # Źródłem prawdy są CMS->Routes (slugKey → slugi per język).
+  # Tu definiujemy tylko listę slugKey używanych w nawigacji/IA.
+  keys:
+    - home
+    - pricing
+    - order
+    - schedules
+    - tracking
+    - manage
+    - services
+    - company
+    - support
+    - blog
+    - contact
+    # Dodatkowe, często używane podstrony:
+    - quote
+    - fleet
+    - careers
+    - reviews
+    - api
+    - documents
+    - invoices
+    - finances
+    - faq
+    - legal
+    - media
+    - team
+    - cases
 
-      # ————————————————————————————————
-      # 1) Narzędzia systemowe
-      # ————————————————————————————————
-      - name: Install jq + zip + tree
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq zip tree
+navigation:
+  # Kolejność top-level — fallback (gdyby CMS nie miał kolejności)
+  top:
+    - { label: "Cennik",     slugKey: "pricing", order: 10 }
+    - { label: "Zamów",      slugKey: "order",   order: 20 }
+    - { label: "Harmonogramy", slugKey: "schedules", order: 30 }
+    - { label: "Śledzenie",  slugKey: "tracking",order: 40 }
+    - { label: "Zarządzaj",  slugKey: "manage",  order: 50 }
+    - { label: "Usługi",     slugKey: "services",order: 60 }
+    - { label: "Firma",      slugKey: "company", order: 70 }
+    - { label: "Wsparcie",   slugKey: "support", order: 80 }
+    - { label: "Blog",       slugKey: "blog",    order: 90 }
+    - { label: "Kontakt",    slugKey: "contact", order: 100 }
+  # „Usługi” — plan kolumn (fallback; właściwy layout steruje CMS.nav[col])
+  services_columns:
+    - "Transport (krajowy, międzynarodowy, palety, ekspres)"
+    - "SLA / Operacje (SLA, busy 3,5 t)"
+    - "Wsparcie (dyspozytor, logistyka kontraktowa)"
+    - "Specjalizacje (TIR/FTL, przeprowadzki, e‑commerce)"
+    - "Oferta (cennik, wycena)"
 
-      # ————————————————————————————————
-      # 2) Wstępna walidacja sekretów (czy nie puste)
-      # ————————————————————————————————
-      - name: Preflight secrets check
-        if: env.APPS_URL != '' && env.APPS_KEY != ''
-        run: |
-          set -euo pipefail
-          test -n "${APPS_URL:-}" || { echo "::error::Missing secret APPS_URL"; exit 1; }
-          test -n "${APPS_KEY:-}" || { echo "::error::Missing secret APPS_KEY"; exit 1; }
-          echo "APPS_URL/KEY present ✓"
+collections:
+  # 1) Strony podstawowe z CMS Pages
+  pages:
+    source: "cms.pages"
+    filter: { publish: true }
+    perLocale: true
+    # mapping typ→szablon; gdy brak — użyj "page.html"
+    templates:
+      home: "templates/page.html"
+      page: "templates/page.html"
+      service: "templates/page.html"
+      city_service: "templates/location.html"
+      contact: "templates/page.html"
+      blog: "templates/blog_index.html"
+      blog_post: "templates/blog_post.html"
+    output:
+      pattern: "/{lang}/{slug}/"            # pusty slug → "/{lang}/"
+      ensureTrailingSlash: true
+    seo:
+      titleSuffix: " | Kras-Trans"
+      canonicalFrom: "canonical_path"       # jeżeli brak → konstruujemy z lang/slug
+      og_image_fallback: "/assets/media/og-default.webp"
+      breadcrumbs: true
+      hreflang: from-cms                    # użyj cms.hreflang[slugKey]
+  # 2) Generator „Miasto × Usługa” (skala 10k+)
+  city_service:
+    generate: true
+    # Źródła do kombinacji:
+    places:   "cms.places"                  # arkusz Places (miasta/woj.) — z Apps Script
+    services: "cms.pages[type=service]"     # bierz tylko opublikowane usługi
+    langs: ["pl","en","de","fr","it","ru","ua"]
+    limits:
+      maxPages: 20000                        # bezpieczny sufit
+      perLang: 4000
+    # Polityka budowy slugów/tytułów (gdy CMS nie poda gotowych):
+    slugPolicy:
+      # pattern może wykorzystać: {service.slug}, {city.slug}, {city.voivodeship}
+      pattern: "{service.slug}-{city.slug}"
+      transliterate: true
+      lowercase: true
+    fields:
+      type: "city_service"
+      template: "templates/location.html"
+      publish: true
+      # generowanie SEO/CTA – fallback (CMS i tak potrafi to policzyć, ale trzymamy zgodność)
+      h1: "{service.h1} — {city.name}"
+      title: "{service.title} — {city.name}"
+      seo_title: "{service.h1} — {city.name} | Kras-Trans"
+      meta_desc: "Transport i spedycja — {service.h1} w {city.name}. Wycena w 15 min, kontakt 24/7."
+      hero_alt: "{service.h1} {city.name}"
+      lead: "{service.lead or service.title}"
+    output:
+      pattern: "/{lang}/{slug}/"
+      ensureTrailingSlash: true
+    linkGraph:
+      # Autolinkowanie między sąsiadującymi miastami/usługami
+      maxOutlinks: 6
+      cityNeighbors: 2
+      serviceAlternatives: 2
 
-      # ————————————————————————————————
-      # 3) Pobranie CMS z Apps Script (odporne)
-      # ————————————————————————————————
-      - name: Fetch CMS JSON from Apps Script (robust)
-        if: env.APPS_URL != '' && env.APPS_KEY != ''
-        run: |
-          set -euo pipefail
-          mkdir -p data
+autolinks:
+  source: "cms.autolinks"   # arkusz AutoLinks (masz w Apps Script)
+  insert:
+    maxPerPage: 6
+    minDistanceChars: 160
+    titleAttr: true         # tytuł linku = anchor
+  sanitize:
+    stripNestedLinks: true
+    ignoreSelectors: [".hero", ".footer", "nav"]
 
-          # mała walidacja formatu URL (informacyjnie)
-          echo "$APPS_URL" | grep -Eq '^https://script\.google\.com/macros/s/.+/(exec|dev)$' || {
-            echo "::warning::APPS_URL nie wygląda na /exec ani /dev Web App — sprawdź w Apps Script › Deployments."
-          }
+seo:
+  openGraph:
+    type: "website"
+    site_name: "Kras-Trans"
+  twitter:
+    card: "summary_large_image"
+  robots:
+    # globalne domyślne
+    index: true
+    follow: true
+  pagination:
+    relPrevNext: true
+  breadcrumbs:
+    jsonld: true
 
-          ATTEMPTS=5
-          i=1
-          while [ $i -le $ATTEMPTS ]; do
-            echo "Attempt $i/$ATTEMPTS…"
-            HTTP_CODE=$(curl --silent --show-error --location \
-              --retry 5 --retry-delay 2 --retry-all-errors \
-              --connect-timeout 20 --max-time 60 \
-              --write-out "%{http_code}" \
-              --output data/cms.json \
-              "$APPS_URL?key=$APPS_KEY" || true)
+sitemap:
+  enabled: true
+  path: "/sitemap.xml"
+  include:
+    - "/pl/**"
+    - "/en/**"
+    - "/de/**"
+    - "/fr/**"
+    - "/it/**"
+    - "/ru/**"
+    - "/ua/**"
+  exclude:
+    - "/**/draft/**"
+  priority:
+    home: 1.0
+    service: 0.9
+    city_service: 0.8
+    page: 0.7
+    blog: 0.6
+    blog_post: 0.5
+  changefreq:
+    home: "daily"
+    service: "weekly"
+    city_service: "weekly"
+    page: "monthly"
 
-            if [ "$HTTP_CODE" = "200" ] && jq -e '.ok==true and (.pages|type=="array")' data/cms.json >/dev/null 2>&1; then
-              echo "CMS OK ✓"
-              break
-            fi
+robots:
+  # Prosty robots.txt z odniesieniem do sitemap
+  allowAll: true
+  cleanParam: []
+  extra:
+    - "User-agent: *"
+    - "Allow: /"
+    - "Sitemap: https://kras-trans.com/sitemap.xml"
 
-            echo "HTTP=$HTTP_CODE"; echo "Head of response:"; head -c 600 data/cms.json || true; echo
-            sleep $((2*i))
-            i=$((i+1))
-          done
+redirects:
+  # 1) Z CMS (arkusz Redirects) — front/prompter je czyta w trakcie builda
+  fromCms: true
+  # 2) Brak /{lang}/ w URL → redirect do domyślnego języka
+  enforceLang: true
+  defaultLang: "pl"
 
-          test -s data/cms.json || { echo "::error::CMS JSON missing/empty"; exit 1; }
-          jq -e '.ok==true' data/cms.json >/dev/null || { echo "::error::CMS .ok != true"; cat data/cms.json; exit 1; }
+performance:
+  goals:
+    lcp_ms: 2500
+    tbt_ms: 100
+    cls: 0.02
+  images:
+    generate:
+      avif: true
+      webp: true
+      quality: 78
+    lqip:
+      enabled: true
+      size: 12
+  scripts:
+    deferAll: true
+    module: false
+    sourcemaps: false
+  css:
+    inlineCriticalHeader: true   # 1–2 KB crit. CSS dla paska
+    minify: true
 
-          echo "Updated: $(jq -r '.updated // "n/a"' data/cms.json)"
-          echo "Pages:   $(jq -r '.pages | length' data/cms.json)"
+features:
+  header:
+    hoverIntent: { open_ms: 140, close_ms: 380 }
+    bottomDock: true
+    themeToggle: true
+  blog:
+    enabled: true
+    rss: true
+  jobs:
+    enabled: true
+  reviews:
+    enabled: true
+  tracking:
+    liveMap: false   # placeholder pod przyszłe osadzenie map
+  forms:
+    leads:
+      endpoint: "post {APPS_URL}?key={APPS_KEY}&action=lead"
+      method: "POST"
 
-      # ————————————————————————————————
-      # 4) Zapis kopii cms.json jako artefakt
-      # ————————————————————————————————
-      - name: Keep a copy of cms.json (artifact)
-        uses: actions/upload-artifact@v4
-        with:
-          name: cms.json
-          path: data/cms.json
-          if-no-files-found: error
-          retention-days: 7
+testing:
+  acceptance:
+    - "URL bez /xx/ → redirect do /pl/"
+    - "Logo → zawsze /{lang}/"
+    - "Zmiana języka → /{lang}/{homeSlug?}/"
+    - "Mega-menu: open 140ms, close 360–420ms"
+    - "Bottom-dock: sticky na mobile + FAB"
+    - "Lighthouse: Perf≥95, A11y≥95, BP≥95, SEO≥98"
+    - "CLS ≈ 0"
+  smoke:
+    - "dist/sitemap.xml"
+    - "dist/robots.txt"
+    - "dist/pl/index.html"
 
-      # ————————————————————————————————
-      # 5) Python + cache pip
-      # ————————————————————————————————
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-          cache: 'pip'
-
-      - name: Install build deps (requirements.txt)
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          else
-            # awaryjnie — minimalny zestaw
-            pip install Jinja2>=3.1 Markdown>=3.6 python-slugify requests beautifulsoup4 lxml
-          fi
-          python -c "import jinja2, markdown, bs4, lxml, slugify, requests; print('Python deps OK ✓')"
-
-      # ————————————————————————————————
-      # 6) Sanity check — szablony Jinja
-      # ————————————————————————————————
-      - name: Sanity check (templates compile)
-        run: |
-          python - <<'PY'
-          from jinja2 import Environment, FileSystemLoader
-          import os, sys
-          env = Environment(loader=FileSystemLoader("templates"))
-          # lista priorytetowych — reszta może być fallbackiem na page.html
-          must = ["page.html"]
-          optional = [
-              "blog_index.html","blog_post.html",
-              "case_index.html","case_item.html",
-              "reviews.html","location.html",
-              "jobs_index.html","job_item.html"
-          ]
-          for t in must:
-              env.get_template(t)
-          for t in optional:
-              try: env.get_template(t)
-              except: pass
-          print("Templates OK ✓")
-          PY
-
-      # ————————————————————————————————
-      # 7) Build
-      # ————————————————————————————————
-      - name: Build site (HTML + sitemap/robots + ZIP)
-        env:
-          SITE_URL: ${{ env.SITE_URL }}
-          DEFAULT_LANG: ${{ env.DEFAULT_LANG }}
-          BRAND: ${{ env.BRAND }}
-          GA_ID: ${{ env.GA_ID }}
-          GSC_VERIFICATION: ${{ env.GSC_VERIFICATION }}
-          CNAME: ${{ env.CNAME }}
-        run: |
-          set -euo pipefail
-          python -u tools/build.py
-          echo "Built tree:"
-          tree -a dist | sed -e 's/^/  /'
-
-      # ————————————————————————————————
-      # 8) Smoke-test dist (pl/home, sitemap, robots)
-      # ————————————————————————————————
-      - name: Smoke test dist
-        run: |
-          set -e
-          test -f dist/sitemap.xml || { echo "::error::Missing dist/sitemap.xml"; exit 1; }
-          test -f dist/robots.txt  || { echo "::error::Missing dist/robots.txt";  exit 1; }
-          # Home po polsku (root redirect generujemy jako /index.html → /pl/)
-          test -f dist/pl/index.html || { echo "::error::Missing dist/pl/index.html (home)"; exit 1; }
-          echo "Smoke tests OK ✓"
-
-      # ————————————————————————————————
-      # 9) Snapshot ZIP + dodatkowe artefakty
-      # ————————————————————————————————
-      - name: Upload site snapshot (ZIP)
-        uses: actions/upload-artifact@v4
-        with:
-          name: site-snapshot
-          path: dist/download/site.zip
-          if-no-files-found: warn
-          retention-days: 7
-
-      # ————————————————————————————————
-      # 10) Artefakt do Pages
-      # ————————————————————————————————
-      - name: Upload artifact for Pages
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy:
-    name: Deploy to GitHub Pages
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      # Configure Pages (ustawia środowisko i token OIDC)
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      # Publikacja artefaktu z joba build
-      - id: deployment
-        name: Deploy
-        uses: actions/deploy-pages@v4
+build:
+  # Parametry używane przez tools/build.py (dzisiejsza wersja „mini”)
+  engine: "jinja2"
+  markdown: true
+  env:
+    site_url_env: "SITE_URL"
+    brand_env: "BRAND"
+    cname_env: "CNAME"
+  snapshots:
+    zip: true
+    path: "dist/download/site.zip"
