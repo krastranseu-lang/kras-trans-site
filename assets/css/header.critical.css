@@ -1,0 +1,31 @@
+/* assets/css/header.critical.css (inline copy) */
+:root{
+  --kt-bg-glass-light: rgba(255,255,255,.78);
+  --kt-bg-glass-dark: rgba(12,16,24,.55);
+  --kt-text-light:#0D1B2A; --kt-text-dark:#EAF2FF; --kt-muted-light:#5A6475; --kt-muted-dark:#A4B1C5;
+  --kt-accent-1:#19E3C1; --kt-accent-2:#00BFA5; --kt-shadow: 0 6px 28px rgba(0,0,0,.16);
+  --kt-max: 1240px; --kt-h:64px; --kt-r:14px;
+}
+#site-header{position:sticky;top:0;z-index:50;background:transparent}
+.kt-topbar{height:var(--kt-h); display:flex; align-items:center; justify-content:space-between; gap:12px;
+  backdrop-filter:saturate(140%) blur(12px); -webkit-backdrop-filter:saturate(140%) blur(12px);
+  background:var(--kt-bg, var(--kt-bg-glass-light)); box-shadow:var(--kt-shadow)}
+html[data-theme="light"] .kt-topbar{--kt-bg:var(--kt-bg-glass-light); color:#0D1B2A}
+html[data-theme="dark"] .kt-topbar{--kt-bg:var(--kt-bg-glass-dark); color:#EAF2FF}
+.kt-wrap{width:100%; max-width:var(--kt-max); margin:0 auto; padding:0 16px; display:flex; align-items:center; gap:16px}
+.kt-brand img{height:36px;width:auto}
+@media (max-width:1100px){ .kt-brand img{height:32px} }
+@media (max-width:860px){ .kt-brand img{height:28px} }
+.kt-actions{display:flex; align-items:center; gap:10px}
+.kt-burger{display:none;width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:transparent}
+@media (max-width:860px){ .kt-burger{display:inline-flex; align-items:center; justify-content:center}}
+#ktMega{position:fixed; left:0; right:0; top:var(--megaTop, 64px); transform:translateZ(0); will-change:opacity, transform; opacity:0; pointer-events:none}
+#ktMega.open{opacity:1; pointer-events:auto}
+#ktDock{display:none}
+@media (max-width:860px){
+  #ktDock{position:sticky; bottom:0; z-index:55; display:block}
+  .kt-dock{position:fixed; left:0; right:0; bottom:0; background:var(--kt-bg, rgba(12,16,24,.75)); backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px); padding:8px 10px; display:grid; grid-template-columns:repeat(4,1fr); gap:8px; box-shadow:0 -10px 18px rgba(0,0,0,.18)}
+  .kt-fab{position:fixed; right:14px; bottom:72px; width:56px;height:56px;border-radius:16px;background:#19E3C1; color:#001318; display:grid; place-items:center; box-shadow:0 8px 24px rgba(25,227,193,.45)}
+}
+.kt-visually-hidden{position:absolute!important; width:1px;height:1px;margin:-1px;border:0;padding:0;clip:rect(0 0 0 0);overflow:hidden}
