@@ -112,6 +112,7 @@ template_rules:
 assets:
   css: ["/assets/css/header.css","/assets/css/home.css"]
   js:  ["/assets/js/header.js","/assets/js/home.js"]
+  js_late: ["/assets/js/mapbox.js","/assets/js/reviews.js"]   # ← cięższe skrypty, ładują się „po idle”
   preload:
     - { as: "style", href: "/assets/css/header.css" }
     - { as: "image", href: "/assets/media/logo.png", fetchpriority: "high" }
