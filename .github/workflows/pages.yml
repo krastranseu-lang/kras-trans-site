@@ -1,17 +1,17 @@
-version: 5
+version: 6
 
-# —————————————————— 1) STAŁE / KLUCZE ——————————————————
+# ============================ 1) CONSTANTS / KEYS ===========================
 constants:
   SITE_URL: "https://kras-trans.com"
   APPS_URL: "https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec"
   APPS_KEY: "kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
   GA_ID: "G-5FYE42J3BE"
   GSC_VERIFICATION: "Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y"
-  BING_SITE_AUTH_USER: "14E8C53A3FC003C7810857FCFA9310A0"   # wygenerujemy dist/BingSiteAuth.xml
-  INDEXNOW_KEY: ""                    # podasz później (builder zrobi /{key}.txt)
-  NEWS_ENABLED: false                 # news-sitemap włączymy po starcie blog/news
+  BING_SITE_AUTH_USER: ""          # jeśli masz – wstaw; builder wygeneruje dist/BingSiteAuth.xml
+  INDEXNOW_KEY: ""                 # jeśli masz – wstaw; builder wygeneruje /{key}.txt
+  NEWS_ENABLED: false
 
-# —————————————————— 2) STRONA / I18N / KONTAKT ——————————————————
+# =============================== 2) SITE / I18N =============================
 site:
   brand: "Kras-Trans"
   legalName: "Kras-Trans Sp. z o.o."
@@ -40,22 +40,35 @@ site:
       defer: true
       consent_mode_hook: true
   verification:
-    google: "${GSC_VERIFICATION}"          # <meta name="google-site-verification">
-    bing_wmt_meta: ""                      # <meta name="msvalidate.01" ...> (opcjonalne)
-    bing_site_auth_user: "${BING_SITE_AUTH_USER}"  # generator wygeneruje BingSiteAuth.xml
+    google: "${GSC_VERIFICATION}"
+    bing_wmt_meta: ""
+    bing_site_auth_user: "${BING_SITE_AUTH_USER}"
   privacy:
     referrerPolicy: "strict-origin-when-cross-origin"
 
-# —————————————————— 3) CMS (Apps Script) ——————————————————
+# =============================== 3) CMS SOURCE ==============================
 cms:
   endpoint: "${APPS_URL}"
   key: "${APPS_KEY}"
-  expects: ["ok","pages","routes","nav","strings","faq","places","autolinks","hreflang","sitemap","redirects","company","blocks"]
+  expects:
+    - ok
+    - pages
+    - routes
+    - nav
+    - strings
+    - faq
+    - places
+    - autolinks
+    - hreflang
+    - sitemap
+    - redirects
+    - company
+    - blocks
   client:
     cache: false
     enforceLangRedirect: true
 
-# —————————————————— 4) ŚCIEŻKI / ROUTING ——————————————————
+# ============================== 4) PATHS/ROUTING ============================
 paths:
   src:  { templates: "templates", assets: "assets", data: "data", tools: "tools" }
   out:  "dist"
@@ -65,39 +78,37 @@ routing:
   enforce_lang_prefix: true
   trailing_slash: true
 
-# —————————————————— 5) TEMPLATES / ASSETS ——————————————————
+# ============================== 5) TEMPLATES ================================
 templates:
   base: "templates/base.html"
   header: "templates/header.html"
-  # domyślny
   page: "templates/page.html"
-  # typy specjalne
-  location:   "templates/location.html"
+  location: "templates/location.html"
   blog_index: "templates/blog_index.html"
   blog_post:  "templates/blog_post.html"
   reviews:    "templates/reviews.html"
   jobs_index: "templates/jobs_index.html"
   job_item:   "templates/job_item.html"
 
-# REGUŁY „różne HTML dla różnych podstron” (automatyczny dobór)
 template_rules:
   by_type:
-    home:      "templates/page.html"
-    page:      "templates/page.html"
-    service:   "templates/page.html"
-    city_service: "templates/location.html"
-    blog:      "templates/blog_index.html"
-    blog_post: "templates/blog_post.html"
-    reviews:   "templates/reviews.html"
-    job:       "templates/job_item.html"
+    home:        "templates/page.html"
+    page:        "templates/page.html"
+    service:     "templates/page.html"
+    city_service:"templates/location.html"
+    contact:     "templates/page.html"
+    blog:        "templates/blog_index.html"
+    blog_post:   "templates/blog_post.html"
+    job:         "templates/job_item.html"
   by_slugKey:
-    pricing:   "templates/page.html"
-    contact:   "templates/page.html"
-    quote:     "templates/page.html"
+    pricing: "templates/page.html"
+    quote:   "templates/page.html"
+    contact: "templates/page.html"
   by_slug_pattern:
     - { match: "^uslugi/.+$", template: "templates/page.html" }
     - { match: "^blog/.+$",   template: "templates/blog_post.html" }
 
+# =============================== 6) ASSETS =================================
 assets:
   css: ["/assets/css/header.css","/assets/css/home.css"]
   js:  ["/assets/js/header.js","/assets/js/home.js"]
@@ -106,7 +117,7 @@ assets:
     - { as: "image", href: "/assets/media/logo.png", fetchpriority: "high" }
   flagsPath: "/assets/flags"
 
-# —————————————————— 6) NAGŁÓWEK / DOCK (pełne i18n) ——————————————————
+# ================================ 7) HEADER ================================
 header:
   ctaSlugKey: "quote"
   hoverIntent: { open_ms: 140, close_ms: 380 }
@@ -132,44 +143,24 @@ header:
         icon: "🤙"
         labels: { pl:"Kontakt", en:"Contact", de:"Kontakt", fr:"Contact", it:"Contatti", ru:"Контакты", ua:"Контакт" }
 
-# —————————————————— 7) TOP-NAWIGACJA (pełne i18n, zgodnie z tabelą) ——————————————————
+# ============================== 8) NAVIGATION ===============================
 navigation:
   top:
-    - slugKey: "pricing"
-      order: 10
-      labels: { pl:"Cennik", en:"Pricing", de:"Preise", fr:"Tarifs", it:"Prezzi", ru:"Цены", ua:"Ціни" }
-    - slugKey: "order"
-      order: 20
-      labels: { pl:"Zamów", en:"Order", de:"Auftrag", fr:"Commande", it:"Ordina", ru:"Заказ", ua:"Замовити" }
-    - slugKey: "schedules"
-      order: 30
-      labels: { pl:"Harmonogramy", en:"Schedules", de:"Fahrpläne", fr:"Horaires", it:"Orari", ru:"Расписание", ua:"Розклади" }
-    - slugKey: "tracking"
-      order: 40
-      labels: { pl:"Śledzenie", en:"Tracking", de:"Verfolgung", fr:"Suivi", it:"Tracciamento", ru:"Отслеживание", ua:"Відстеження" }
-    - slugKey: "manage"
-      order: 50
-      labels: { pl:"Zarządzaj", en:"Manage", de:"Verwalten", fr:"Gérer", it:"Gestisci", ru:"Управлять", ua:"Керувати" }
-    - slugKey: "services"
-      order: 60
-      labels: { pl:"Usługi", en:"Services", de:"Leistungen", fr:"Services", it:"Servizi", ru:"Услуги", ua:"Послуги" }
-    - slugKey: "company"
-      order: 70
-      labels: { pl:"Firma", en:"Company", de:"Unternehmen", fr:"Entreprise", it:"Azienda", ru:"Компания", ua:"Компанія" }
-    - slugKey: "support"
-      order: 80
-      labels: { pl:"Wsparcie", en:"Support", de:"Support", fr:"Support", it:"Supporto", ru:"Поддержка", ua:"Підтримка" }
-    - slugKey: "blog"
-      order: 90
-      labels: { pl:"Blog", en:"Blog", de:"Blog", fr:"Blog", it:"Blog", ru:"Блог", ua:"Блог" }
-    - slugKey: "contact"
-      order: 100
-      labels: { pl:"Kontakt", en:"Contact", de:"Kontakt", fr:"Contact", it:"Contatti", ru:"Контакты", ua:"Контакт" }
+    - { slugKey:"pricing",   order:10,  labels:{ pl:"Cennik", en:"Pricing", de:"Preise", fr:"Tarifs", it:"Prezzi", ru:"Цены", ua:"Ціни" } }
+    - { slugKey:"order",     order:20,  labels:{ pl:"Zamów", en:"Order", de:"Auftrag", fr:"Commande", it:"Ordina", ru:"Заказ", ua:"Замовити" } }
+    - { slugKey:"schedules", order:30,  labels:{ pl:"Harmonogramy", en:"Schedules", de:"Fahrpläne", fr:"Horaires", it:"Orari", ru:"Расписание", ua:"Розклади" } }
+    - { slugKey:"tracking",  order:40,  labels:{ pl:"Śledzenie", en:"Tracking", de:"Verfolgung", fr:"Suivi", it:"Tracciamento", ru:"Отслеживание", ua:"Відстеження" } }
+    - { slugKey:"manage",    order:50,  labels:{ pl:"Zarządzaj", en:"Manage", de:"Verwalten", fr:"Gérer", it:"Gestisci", ru:"Управлять", ua:"Керувати" } }
+    - { slugKey:"services",  order:60,  labels:{ pl:"Usługi", en:"Services", de:"Leistungen", fr:"Services", it:"Servizi", ru:"Услуги", ua:"Послуги" } }
+    - { slugKey:"company",   order:70,  labels:{ pl:"Firma", en:"Company", de:"Unternehmen", fr:"Entreprise", it:"Azienda", ru:"Компания", ua:"Компанія" } }
+    - { slugKey:"support",   order:80,  labels:{ pl:"Wsparcie", en:"Support", de:"Support", fr:"Support", it:"Supporto", ru:"Поддержка", ua:"Підтримка" } }
+    - { slugKey:"blog",      order:90,  labels:{ pl:"Blog", en:"Blog", de:"Blog", fr:"Blog", it:"Blog", ru:"Блог", ua:"Блог" } }
+    - { slugKey:"contact",   order:100, labels:{ pl:"Kontakt", en:"Contact", de:"Kontakt", fr:"Contact", it:"Contatti", ru:"Контакты", ua:"Контакт" } }
 
-# —————————————————— 8) DODATKOWE ŹRÓDŁA (CSV) ——————————————————
+# ============================== 9) EXTERNAL DATA ============================
 sources:
   cities_csv:
-    path: "assets/media/city.csv"          # Twój plik z miastami
+    path: "assets/media/city.csv"
     dialect: "auto"
     map_columns:
       city:        ["city","miasto"]
@@ -182,19 +173,25 @@ sources:
     map_columns:
       lang:   ["lang","jezyk","język"]
       term:   ["keyword","słowo","slowo","fraza"]
-      type:   ["type","kategoria","rodzaj"]   # primary/secondary/brand/service
+      type:   ["type","kategoria","rodzaj"]
       weight: ["weight","waga","priorytet"]
       anchor: ["anchor","tekst_linku"]
 
-# —————————————————— 9) KOLEKCJE ——————————————————
+# ================================ 10) COLLECTIONS ===========================
 collections:
   pages:
     source: "cms.pages"
     filter: { publish: true }
     perLocale: true
-    templates: { home:"templates/page.html", page:"templates/page.html", service:"templates/page.html",
-                 city_service:"templates/location.html", contact:"templates/page.html", blog:"templates/blog_index.html",
-                 blog_post:"templates/blog_post.html", job:"templates/job_item.html" }
+    templates:
+      home:        "templates/page.html"
+      page:        "templates/page.html"
+      service:     "templates/page.html"
+      city_service:"templates/location.html"
+      contact:     "templates/page.html"
+      blog:        "templates/blog_index.html"
+      blog_post:   "templates/blog_post.html"
+      job:         "templates/job_item.html"
     output: { pattern: "/{lang}/{slug}/", ensureTrailingSlash: true }
     seo:
       titleSuffix: " | Kras-Trans"
@@ -211,7 +208,7 @@ collections:
         - "sources.cities_csv"
     services: "cms.pages[type=service]"
     langs: ["pl","en","de","fr","it","ru","ua"]
-    limits: { perLang: 4000, maxPages: 20000 }  # 4000 = liczba STRON na język
+    limits: { perLang: 4000, maxPages: 20000 }   # 10k+ całkowicie realne
     slugPolicy: { pattern: "{service.slug}-{city.slug}", transliterate: true, lowercase: true }
     fields:
       type: "city_service"
@@ -226,14 +223,14 @@ collections:
     quality:
       thin_min_chars: 900
     linkGraph:
-      neighbors: { byRegion: 2, altServices: 2 }
+      neighbors: { byRegion: 3, altServices: 3 }   # zwiększamy zasięg dla 10k+
       cards:
         style: "tiles"
         explainer:
           enabled: true
           words: { min: 60, max: 90 }
           source:
-            type: "cms.blocks"                     # teksty WYŁĄCZNIE z arkusza
+            type: "cms.blocks"
             where: { type: "explainer", enabled: true }
             fields: { title: "title", body: "body_md", lang: "lang" }
 
@@ -243,29 +240,28 @@ blog:
   feeds: { rss: "/{lang}/feed.xml", atom: "/{lang}/atom.xml" }
   news_sitemap: { enabled: "${NEWS_ENABLED}", window_hours: 48 }
 
-# —————————————————— 10) AUTO-LINKI (wyłącznie z arkusza) ——————————————————
+# ============================== 11) AUTOLINKS ===============================
 autolinks:
-  source: "cms.autolinks"                # kolumny: lang|anchor|href|enabled|(opcjonalnie rel|target)
+  source: "cms.autolinks"     # anchor/href/lang/enabled (+ opcj. rel/target)
   inline:
-    maxPerPage: 6
+    maxPerPage: 8             # lekko zwiększamy dla dużych treści
     minDistanceChars: 160
     boundary: "word"
     ignoreSelectors: [".hero","nav",".footer","h1","h2"]
   fallback:
     enabled: true
-    limit: 4
+    limit: 6
     style: "cards"
     explainer:
-      use_templates: false               # brak twardych stringów w YML
+      use_templates: false
       source:
-        type: "cms.blocks"               # weź mikro-akapity z arkusza
+        type: "cms.blocks"     # wyłącznie z arkusza
         where: { type: "explainer", enabled: true }
         fields: { title: "title", body: "body_md", lang: "lang" }
       words: { min: 60, max: 90 }
 
-# —————————————————— 11) SŁOWA KLUCZOWE / SCORING ——————————————————
+# =============================== 12) KEYWORDS ===============================
 keywords:
-  # Frazy dynamiczne (rozszerzone) — budowane na podstawie miast
   dynamic_phrases:
     pl:
       - "transport {city}"
@@ -279,6 +275,10 @@ keywords:
       - "transport ekspresowy {city}"
       - "operator logistyczny {city}"
       - "usługi transportowe {city}"
+      - "ekspresowe przewozy {city}"
+      - "transport bus 3,5 t {city}"
+      - "FTL {city}"
+      - "przeprowadzki {city}"
     en:
       - "transport {city}"
       - "logistics {city}"
@@ -289,6 +289,11 @@ keywords:
       - "road freight {city}"
       - "pallet transport {city}"
       - "express transport {city}"
+      - "express trucking {city}"
+      - "domestic transport {city}"
+      - "international transport {city}"
+      - "FTL {city}"
+      - "relocation services {city}"
     de:
       - "transport {city}"
       - "transportunternehmen {city}"
@@ -299,6 +304,10 @@ keywords:
       - "straßengüterverkehr {city}"
       - "palettentransport {city}"
       - "express-transport {city}"
+      - "inlandstransport {city}"
+      - "internationaler transport {city}"
+      - "umzüge {city}"
+      - "FTL {city}"
     fr:
       - "transport {city}"
       - "entreprise de transport {city}"
@@ -309,6 +318,10 @@ keywords:
       - "transport routier {city}"
       - "transport de palettes {city}"
       - "transport express {city}"
+      - "transport national {city}"
+      - "transport international {city}"
+      - "déménagements {city}"
+      - "FTL {city}"
     it:
       - "trasporto {city}"
       - "azienda di trasporti {city}"
@@ -319,6 +332,10 @@ keywords:
       - "trasporto su strada {city}"
       - "trasporto pallet {city}"
       - "trasporto espresso {city}"
+      - "trasporto nazionale {city}"
+      - "trasporto internazionale {city}"
+      - "traslochi {city}"
+      - "FTL {city}"
     ru:
       - "транспорт {city}"
       - "транспортная компания {city}"
@@ -329,6 +346,10 @@ keywords:
       - "автоперевозки {city}"
       - "перевозка палет {city}"
       - "экспресс доставка {city}"
+      - "внутрироссийские перевозки {city}"
+      - "международные перевозки {city}"
+      - "переезды {city}"
+      - "FTL {city}"
     ua:
       - "транспорт {city}"
       - "транспортна компанія {city}"
@@ -339,12 +360,15 @@ keywords:
       - "автологістика {city}"
       - "перевезення палет {city}"
       - "експрес доставка {city}"
-  # Źródła słów (Twoje CSV + ewentualne listy w CMS Strings)
+      - "внутрішні перевезення {city}"
+      - "міжнародні перевезення {city}"
+      - "переїзди {city}"
+      - "FTL {city}"
   sources:
     - "sources.keywords_csv"
     - "cms.strings[keywords_*]"
 
-# —————————————————— 12) SEO / HREFLANG / SCHEMA / SCORING ——————————————————
+# ================================ 13) SEO/SCHEMA ============================
 seo:
   titles:       { min: 30, max: 60, suffix: " | Kras-Trans" }
   descriptions: { min: 70, max: 160 }
@@ -370,20 +394,32 @@ seo:
   scoring:
     enabled: true
     fields: { primary: "primary_keywords", secondary: "secondary_keywords" }
-    density: { min_pct: 0.5, max_pct: 2.0 }     # raportujemy, niczego nie „upycha”
+    density: { min_pct: 0.5, max_pct: 2.0 }
     coverage: { min_unique_words: 200, min_internal_links: 3, min_images: 1 }
     near_duplicate: { simhash_threshold: 0.90 }
 
-# —————————————————— 13) SITEMAPS / INDEXNOW ——————————————————
+# ============================== 14) SITEMAPS/INDEXING ======================
 sitemap:
   enabled: true
   index: true
   shard_size: 45000
   include_alternates: true
   path: "/sitemap.xml"
-  priority_by_type: { home: 1.0, service: 0.9, city_service: 0.8, page: 0.7, blog: 0.6, blog_post: 0.5 }
-  changefreq_by_type: { home: "daily", service: "weekly", city_service: "weekly", page: "monthly" }
-  news: { enabled: "${NEWS_ENABLED}", ttl_hours: 48 }
+  priority_by_type:
+    home: 1.0
+    service: 0.9
+    city_service: 0.8
+    page: 0.7
+    blog: 0.6
+    blog_post: 0.5
+  changefreq_by_type:
+    home: "daily"
+    service: "weekly"
+    city_service: "weekly"
+    page: "monthly"
+  news:
+    enabled: "${NEWS_ENABLED}"
+    ttl_hours: 48
 
 indexing:
   discovery:
@@ -391,7 +427,7 @@ indexing:
     submit_sitemap_once: true
   google:
     indexing_api:
-      enabled_for_types: ["job"]   # tylko JobPosting zgodnie z zasadami
+      enabled_for_types: ["job"]
   bing:
     indexnow:
       enabled: true
@@ -404,7 +440,7 @@ indexing:
     scope: ["sitemap","changed_urls"]
     rate_limit_minutes: 30
 
-# —————————————————— 14) ROBOTS / SECURITY / A11y ——————————————————
+# =============================== 15) ROBOTS/SEC/A11Y =======================
 robots:
   allowAll: true
   extra:
@@ -428,10 +464,10 @@ a11y:
   focus_outline_color: "#22C3A6"
   skip_to_content: true
 
-# —————————————————— 15) RAPORTY / TESTY ——————————————————
+# ============================== 16) REPORTS/TESTS ==========================
 reports:
   out_dir: "dist/_reports"
-  print_top_warnings: 50
+  print_top_warnings: 100
   write_json: true
   metrics:
     - pages_count
@@ -457,7 +493,7 @@ testing:
     - "dist/robots.txt"
     - "dist/pl/index.html"
 
-# —————————————————— 16) BUILD / PERFORMANCE ——————————————————
+# ============================== 17) BUILD / PERF ===========================
 build:
   engine: "jinja2"
   markdown: true
