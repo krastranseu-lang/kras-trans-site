@@ -1,8 +1,8 @@
 {# =====================================================================
-   KRAS-TRANS • PAGE/HOME (v2)
-   - 100% sheet-driven (Strings/Routes/Blocks)
-   - ARIA & a11y polished, fluid type, container queries, better LCP
-   - Nie trzymamy żadnych stałych tekstów (tylko z CMS lub pages.yml)
+   KRAS-TRANS • PAGE/HOME (v3)
+   - 2 tryby animacji (Calm/Vivid) + pamięć w localStorage
+   - i18n przez makro t(), linki z routes
+   - zgodny z headerem i build.py
    ===================================================================== #}
 {% set lang = (page.lang or 'pl') %}
 {% macro t(key, fallback='') -%}
@@ -24,153 +24,151 @@
 {% set services = pages | selectattr('publish','!=',false) | selectattr('lang','equalto',lang) | selectattr('type','equalto','service') | sort(attribute='order') | list %}
 {% set faqs     = faq   | selectattr('enabled','!=',false) | selectattr('lang','equalto',lang) | list %}
 {% set posts    = blog  | selectattr('lang','equalto',lang) | sort(attribute='date', reverse=true) | list %}
-
 <!doctype html>
-<html lang="{{ lang }}" dir="ltr" data-theme="auto">
+<html lang="{{ lang }}" dir="ltr" data-theme="auto" data-anim-mode="calm">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>{{ page.seo_title or page.h1 }}</title>
   <meta name="description" content="{{ page.meta_desc }}" />
   <link rel="canonical" href="{{ page.canonical }}" />
-  {% for L, href in hreflang.items() %}
-    <link rel="alternate" hreflang="{{ L }}" href="{{ href }}" />
-  {% endfor %}
+  {% for L, href in hreflang.items() %}<link rel="alternate" hreflang="{{ L }}" href="{{ href }}" />{% endfor %}
   <meta property="og:type" content="website" />
   <meta property="og:title" content="{{ page.seo_title or page.h1 }}" />
   <meta property="og:description" content="{{ page.meta_desc }}" />
   <meta property="og:image" content="{{ page.og_image }}" />
+
   <link rel="preconnect" href="https://script.google.com" crossorigin />
   <link rel="preload" href="/assets/css/header.css" as="style" />
   <link rel="preload" href="/assets/css/home.css" as="style" />
   <link rel="stylesheet" href="/assets/css/header.css" />
   <link rel="stylesheet" href="/assets/css/home.css" />
+
   {{ jsonld | safe }}
 </head>
 <body class="kt-body">
   {% include "header.html" %}
 
-  <!-- Skip link a11y -->
   <a class="visually-hidden" href="#main">{{ t('skip_to_content') or 'Przejdź do treści' }}</a>
 
-  <!-- Hero (LCP-aware; dynamic sizes/fetchpriority poprawi JS) -->
+  <!-- HERO -->
   <section id="hero" class="section hero container" data-anim="reveal-hero" aria-labelledby="hero-title">
-    <p class="claim">{{ t('claim') }}</p>
-    <h1 id="hero-title">{{ page.h1 }}</h1>
-    {% if page.lead %}<p class="lead">{{ page.lead }}</p>{% endif %}
-    <div class="cta-row">
-      {% if page.cta_label %}<a class="btn btn-primary" href="{{ url_by_slugkey('quote') }}">{{ page.cta_label }}</a>{% endif %}
-      {% if page.cta_secondary %}<a class="btn btn-ghost" href="{{ url_by_slugkey('contact') }}">{{ page.cta_secondary }}</a>{% endif %}
-      {% if company and company[0].telephone %}<a class="btn btn-ghost" href="tel:{{ company[0].telephone }}">{{ company[0].telephone }}</a>{% endif %}
+    <div class="hero-top">
+      <p class="claim">{{ t('claim') or 'Transport i spedycja' }}</p>
+      <h1 id="hero-title">{{ page.h1 }}</h1>
+      {% if page.lead %}<p class="lead">{{ page.lead }}</p>{% endif %}
+      <div class="cta-row">
+        <a class="btn btn-primary" href="{{ url_by_slugkey('quote') }}">{{ page.cta_label or t('cta_quote') or 'Wycena transportu' }}</a>
+        <a class="btn btn-ghost" href="{{ url_by_slugkey('contact') }}">{{ page.cta_secondary or t('cta_contact') or 'Kontakt' }}</a>
+      </div>
+      <div class="hero-switch">
+        <button id="animCalm"  class="switch active" aria-pressed="true"  data-mode="calm">Calm</button>
+        <button id="animVivid" class="switch"          aria-pressed="false" data-mode="vivid">Vivid</button>
+      </div>
     </div>
 
     <ul class="hero-stats" role="list">
       {% for i in range(1,5) %}
-        <li><strong data-counter="{{ t('kpi_' ~ i ~ '_value') }}">{{ t('kpi_' ~ i ~ '_value') }}</strong><span>{{ t('kpi_' ~ i ~ '_label') }}</span></li>
+      <li>
+        <strong data-counter="{{ t('kpi_' ~ i ~ '_value') }}">{{ t('kpi_' ~ i ~ '_value') }}</strong>
+        <span>{{ t('kpi_' ~ i ~ '_label') }}</span>
+      </li>
       {% endfor %}
     </ul>
 
     <picture class="hero-media">
       <source srcset="{{ page.hero_image|default('/assets/media/hero.avif') }}" type="image/avif" />
-      <img id="heroLCP" src="{{ page.hero_image|default('/assets/media/hero.webp') }}" width="1280" height="720" alt="{{ page.hero_alt or page.h1 }}" decoding="async" />
+      <img id="heroLCP" src="{{ page.hero_image|default('/assets/media/hero.webp') }}"
+           width="1280" height="720" alt="{{ page.hero_alt or page.h1 }}" decoding="async" />
     </picture>
     <div class="divider-bottom" aria-hidden="true"></div>
   </section>
 
-  <!-- Usługi -->
+  <!-- USŁUGI -->
   <section id="services" class="section tiles alt-2 container" data-anim="stagger-up" aria-labelledby="services-title">
     <div class="section-head">
-      <h2 id="services-title">{{ t('services_h2') }}</h2>
-      <p>{{ t('services_sub') }}</p>
+      <h2 id="services-title">{{ t('services_h2') or 'Usługi' }}</h2>
+      <p>{{ t('services_sub') or 'Transport krajowy i międzynarodowy, ekspres, palety i więcej.' }}</p>
     </div>
-    <div class="reel" role="list" aria-label="{{ t('services_aria') }}">
+    <div class="reel" role="list" aria-label="{{ t('services_aria') or 'Lista usług' }}">
       {% for p in services %}
-        <article class="tile3d" role="listitem" itemscope itemtype="https://schema.org/Service">
-          <h3 itemprop="name">{{ p.h1 or p.title }}</h3>
-          <p itemprop="description">{{ p.lead }}</p>
-          <a class="tile-link" href="{{ page_url(p) }}">{{ t('services_readmore') }}</a>
-        </article>
-      {% endfor %}
-      <article class="tile3d" role="listitem">
-        <h3>{{ t('services_all_title') }}</h3>
-        <p>{{ t('services_all_desc') }}</p>
-        <a class="tile-link" href="{{ url_by_slugkey('services') }}">{{ t('services_all_cta') }}</a>
+      <article class="tile3d" role="listitem" itemscope itemtype="https://schema.org/Service">
+        <h3 itemprop="name">{{ p.h1 or p.title }}</h3>
+        <p itemprop="description">{{ p.lead }}</p>
+        <a class="tile-link" href="{{ page_url(p) }}">{{ t('services_readmore') or 'Zobacz' }}</a>
       </article>
+      {% endfor %}
     </div>
   </section>
 
-  <!-- Branże -->
+  <!-- BRANŻE -->
   <section id="industries" class="section tiles alt-1 container" data-anim="stagger-fade" aria-labelledby="ind-title">
     <div class="section-head">
-      <h2 id="ind-title">{{ t('ind_h2') }}</h2>
-      <p>{{ t('ind_sub') }}</p>
+      <h2 id="ind-title">{{ t('ind_h2') or 'Branże i zastosowania' }}</h2>
+      <p>{{ t('ind_sub') or 'Obsługujemy e-commerce, FTL, przeprowadzki i inne.' }}</p>
     </div>
-    <div class="reel" role="list" aria-label="{{ t('ind_aria') }}">
+    <div class="reel" role="list">
       {% for i in range(1,6) %}
-      <article class="tile3d" role="listitem"><h3>{{ t('ind_' ~ i ~ '_title') }}</h3><p>{{ t('ind_' ~ i ~ '_desc') }}</p></article>
+      <article class="tile3d" role="listitem"><h3>{{ t('ind_' ~ i ~ '_title') or 'Segment ' ~ i }}</h3><p>{{ t('ind_' ~ i ~ '_desc') or 'Opis…' }}</p></article>
       {% endfor %}
     </div>
   </section>
 
-  <!-- Blog/insights -->
+  <!-- BLOG -->
   <section id="insights" class="section tiles bg-noise container" data-anim="stagger-zoom" aria-labelledby="insights-title">
     <div class="section-head">
-      <h2 id="insights-title">{{ t('ins_h2') }}</h2>
-      <p>{{ t('ins_sub') }}</p>
+      <h2 id="insights-title">{{ t('ins_h2') or 'Poradniki i aktualności' }}</h2>
+      <p>{{ t('ins_sub') or 'Nowości i case studies.' }}</p>
     </div>
-    <div class="reel" role="list" aria-label="{{ t('ins_aria') }}">
+    <div class="reel" role="list">
       {% for b in posts[:6] %}
-        <article class="tile3d" role="listitem" itemscope itemtype="https://schema.org/BlogPosting">
-          <h3 itemprop="headline">{{ b.title }}</h3>
-          <p itemprop="description">{{ b.lead }}</p>
-          <a class="tile-link" href="{{ b.canonical_path }}">{{ t('ins_read') }}</a>
-        </article>
+      <article class="tile3d" role="listitem" itemscope itemtype="https://schema.org/BlogPosting">
+        <h3 itemprop="headline">{{ b.title }}</h3>
+        <p itemprop="description">{{ b.lead }}</p>
+        <a class="tile-link" href="{{ b.canonical_path }}">{{ t('ins_read') or 'Czytaj' }}</a>
+      </article>
       {% endfor %}
-      <article class="tile3d"><h3>{{ t('ins_all_title') }}</h3><p>{{ t('ins_all_desc') }}</p><a class="tile-link" href="{{ url_by_slugkey('blog') }}">{{ t('ins_all_cta') }}</a></article>
     </div>
   </section>
 
   <!-- FAQ -->
   <section id="faq" class="section faq container" data-anim="accordion" aria-labelledby="faq-title">
     <div class="section-head">
-      <h2 id="faq-title">{{ t('faq_h2') }}</h2>
-      <p>{{ t('faq_sub') }}</p>
+      <h2 id="faq-title">{{ t('faq_h2') or 'FAQ' }}</h2>
+      <p>{{ t('faq_sub') or 'Najczęstsze pytania.' }}</p>
     </div>
     {% for f in faqs[:12] %}
-      <details class="qa">
-        <summary>{{ f.q }}</summary>
-        <div class="a"><p>{{ f.a }}</p></div>
-      </details>
+    <details class="qa">
+      <summary>{{ f.q }}</summary>
+      <div class="a"><p>{{ f.a }}</p></div>
+    </details>
     {% endfor %}
   </section>
 
-  <!-- CTA końcowe -->
+  <!-- CTA KOŃCOWE -->
   <section id="final-cta" class="section final-cta container" data-anim="glow" aria-labelledby="final-cta-title">
-    <h2 id="final-cta-title">{{ t('final_h2') }}</h2>
-    <p>{{ t('final_sub') }}</p>
+    <h2 id="final-cta-title">{{ t('final_h2') or 'Zacznijmy współpracę' }}</h2>
+    <p>{{ t('final_sub') or 'Wycena w 15 minut, kontakt 24/7.' }}</p>
     <div class="cta-row">
-      <a class="btn btn-primary" href="{{ url_by_slugkey('quote') }}">{{ t('final_cta_primary') }}</a>
-      <a class="btn btn-ghost" href="{{ url_by_slugkey('contact') }}">{{ t('final_cta_secondary') }}</a>
+      <a class="btn btn-primary" href="{{ url_by_slugkey('quote') }}">{{ t('final_cta_primary') or 'Wycena transportu' }}</a>
+      <a class="btn btn-ghost" href="{{ url_by_slugkey('contact') }}">{{ t('final_cta_secondary') or 'Kontakt' }}</a>
     </div>
   </section>
 
   <!-- FOOTER -->
   <footer id="contact" class="footer section" aria-labelledby="contact-title">
     <div class="container">
-      <h2 id="contact-title" class="visually-hidden">{{ t('contact_h2') }}</h2>
+      <h2 id="contact-title" class="visually-hidden">{{ t('contact_h2') or 'Kontakt' }}</h2>
       <div class="footer-grid">
         <div class="col">
           <img src="/assets/media/logo.png" alt="Kras-Trans" width="160" height="44" loading="lazy" />
-          {% if company and company[0] %}
-            <p>{{ company[0].address or 'ul. Trzcinowa 14/11, 91-495 Łódź, Polska' }}</p>
-            <p>{{ company[0].legal_name or 'Kras-Trans Sp. z o.o.' }}</p>
-          {% endif %}
+          <p>ul. Trzcinowa 14/11, 91-495 Łódź, Polska</p>
+          <p>Kras-Trans Sp. z o.o.</p>
         </div>
         <div class="col">
           <ul class="contact-list" role="list">
             <li><a href="mailto:contact@kras-trans.eu">contact@kras-trans.eu</a></li>
             <li><a href="tel:+48793927467">+48 793 927 467</a></li>
-            <li><a href="{{ url_by_slugkey('contact') }}">{{ t('contact_form') }}</a></li>
           </ul>
         </div>
         <div class="col">
