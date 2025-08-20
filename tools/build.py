@@ -52,6 +52,86 @@ except Exception as e:
     print("Brak wymaganych pakietów. Zainstaluj requirements.txt.", file=sys.stderr)
     raise
 
+# --- SSR (HOME): składamy sekcje 1:1 z CMS na etapie builda ---------------
+def _routes_map() -> Dict[str, Dict[str, str]]:
+    """mapa slugKey -> { lang: '/{lang}/{slug}/' } na podstawie CMS.hreflang lub z Pages"""
+    out: Dict[str, Dict[str, str]] = {}
+    hre = CMS.get("hreflang") or {}
+    for key, m in hre.items():
+        out[key] = {}
+        for L, href in (m or {}).items():
+            # href to pełny URL — zamieniamy na ścieżkę
+            try:
+                path = "/" + href.split("://",1)[-1].split("/",1)[-1]  # po domenie
+                out[key][L] = path if path.endswith("/") else (path + "/")
+            except Exception:
+                pass
+    # fallback z pages, jeśli brak hreflang
+    if not out:
+        for p in CMS.get("pages", []):
+            lang = (p.get("lang") or DEFAULT_LANG).lower()
+            slugKey = p.get("slugKey") or (p.get("slug") or "")
+            if not slugKey: slugKey = "home"
+            out.setdefault(slugKey, {})
+            out[slugKey][lang] = f"/{lang}/{(p.get('slug') or '') + '/' if p.get('slug') else ''}"
+    return out
+
+def _ssr_home(lang:str) -> Dict[str, Any]:
+    """Zwraca gotowe sekcje HOME (hero/services/faq) do wstrzyknięcia w HTML."""
+    L = (lang or DEFAULT_LANG).lower()
+    pages = [dict(p) for p in CMS.get("pages", []) if (p.get("lang") or DEFAULT_LANG).lower()==L and p.get("publish", True)]
+    strings = { (s.get("key") or s.get("Key") or "").strip(): s for s in CMS.get("strings", []) }
+    STR = lambda key: (strings.get(key, {}).get(L) or strings.get(key, {}).get("pl") or "").strip()
+    # HERO: bierzemy rekord home
+    home = next((p for p in pages if (p.get("slugKey") or p.get("slug") or "") in ("home","")), {})
+    hero = {
+        "title": home.get("h1") or home.get("title") or "",
+        "lead":  home.get("lead") or "",
+        "kpi":   [],  # możesz zasilić z Blocks/testimonials, jeśli w arkuszu
+        "cta_primary":   {"label": home.get("cta_label") or STR("cta_quote_primary"),   "slugKey": "quote"},
+        "cta_secondary": {"label": home.get("cta_secondary") or STR("cta_quote_secondary"), "slugKey": "contact"},
+        "image": {"src": home.get("hero_image") or home.get("og_image") or "",
+                  "srcset":"", "alt": home.get("hero_alt") or home.get("h1") or ""}
+    }
+    # SERVICES: wszystkie type=service dla języka
+    svcs=[]
+    for s in pages:
+        if (s.get("type") or "").lower()!="service": continue
+        svcs.append({
+            "icon":"", "title": s.get("h1") or s.get("title") or "",
+            "desc": s.get("lead") or "",
+            "slugKey": s.get("slugKey") or (s.get("slug") or ""),
+            "cta": {"label": STR("cta_quote_secondary") or ""}
+        })
+    svcs.sort(key=lambda x: (next((p.get("order",0) for p in pages if (p.get("slugKey")==x["slugKey"])), 0)))
+    # FAQ: tylko enabled + dopięte do home (page_slug='home' lub puste − global)
+    faqs=[]
+    for f in CMS.get("faq", []):
+        fL = (f.get("lang") or L).lower()
+        if fL!=L: continue
+        enabled = str(f.get("enabled","true")).lower() not in ("false","0","no")
+        if not enabled: continue
+        pg = (f.get("page_slug") or f.get("slugKey") or "") or "home"
+        if pg in ("", "home"):
+            faqs.append({"q": f.get("q",""), "a": f.get("a","")})
+    # Sekcyjne nagłówki z Strings (opcjonalnie)
+    sect_titles = {
+        "services": STR("services_h2"), "faq": STR("faq_h2")
+    }
+    sect_subs   = {
+        "services": STR("services_sub"), "faq": STR("faq_sub")
+    }
+    return {
+        "hero": hero,
+        "services": svcs,
+        "faq": faqs,
+        "home": {"section_titles": sect_titles, "section_subtitles": sect_subs},
+        "routes": _routes_map()
+    }
+
+
+
+
 # --------------------------- POMOCNICZE ------------------------------------
 ROOT = pathlib.Path(".")
 OUT  = pathlib.Path("dist")
