@@ -1,4 +1,92 @@
 <header id="site-header" class="site-header sq" data-api="/nav/global" aria-busy="true">
+  <!-- INLINE, SCOPED CSS (tylko dla headera) -->
+  <style>
+    /* ===== SCOPE: tylko #site-header ===== */
+    #site-header { --bg-elev: rgba(255,255,255,.85); --line: rgba(0,0,0,.08);
+                   --ink: #0b1020; --brand:#0ea5e9; --ease: cubic-bezier(.2,.7,.2,1);
+                   --mega-h:0px; position:sticky; top:0; z-index:60;
+                   backdrop-filter:saturate(180%) blur(12px);
+                   background: var(--bg-elev); border-bottom:1px solid var(--line);
+                   transition: box-shadow .25s ease, background .25s ease; }
+    @media (prefers-color-scheme: dark){
+      #site-header { --bg-elev: rgba(15,23,42,.62); --line: rgba(255,255,255,.08); --ink:#e5e7eb; }
+    }
+    #site-header.sq--shadow { box-shadow: 0 8px 20px rgba(0,0,0,.06); }
+    #site-header .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+    @media (min-width:768px){ #site-header .wrap { padding: 0 24px; } }
+
+    /* bar */
+    #site-header .bar { display:grid; grid-template-columns: 160px 1fr auto; align-items:center; gap:10px; padding: 10px 0; }
+    #site-header .brand { display:inline-flex; align-items:center; gap:10px; padding:4px 0; color:inherit; text-decoration:none; }
+    #site-header .actions { display:flex; gap:10px; align-items:center; }
+
+    /* burger */
+    #site-header .menu-toggle { width:40px; height:40px; border-radius:12px; border:1px solid var(--line); background:transparent; position:relative; display:none; }
+    #site-header .menu-toggle::before, #site-header .menu-toggle::after {
+      content:""; position:absolute; left:10px; right:10px; height:2px; background:currentColor; transition:.25s var(--ease);
+    }
+    #site-header .menu-toggle::before { top:14px }  #site-header .menu-toggle::after { bottom:14px }
+    #site-header .menu-toggle[aria-expanded="true"]::before { transform: translateY(6px) rotate(45deg) }
+    #site-header .menu-toggle[aria-expanded="true"]::after  { transform: translateY(-6px) rotate(-45deg) }
+
+    /* primary nav */
+    #site-header .sq-nav .nav__list { list-style:none; margin:0; padding:0; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+    #site-header .sq-nav .nav__list > li { position:relative }
+    #site-header .sq-nav .nav__list > li > a,
+    #site-header .sq-nav .nav__list > li > button {
+      appearance:none; background:transparent; border:0; color:inherit; font:inherit; line-height:1; cursor:pointer;
+      padding:10px 12px; border-radius:12px; display:inline-flex; align-items:center; gap:6px; text-decoration:none;
+    }
+    #site-header .sq-nav .nav__list > li:hover > a { background: rgba(0,0,0,.04); text-decoration:none; }
+    @media (prefers-color-scheme: dark){ #site-header .sq-nav .nav__list > li:hover > a { background: rgba(255,255,255,.06); } }
+
+    /* mega panel */
+    #site-header .mega { position:absolute; left:0; right:0; top:100%; pointer-events:none;
+      transform: translateY(-8px); opacity:0; transition: transform .24s var(--ease), opacity .24s var(--ease); }
+    #site-header .mega[data-state="open"] { pointer-events:auto; transform: translateY(0); opacity:1; }
+    #site-header .mega .mega__wrap { padding: 12px 0 18px; }
+    #site-header .mega .mega__panels { max-height: var(--mega-h); overflow:hidden; transition: max-height .28s var(--ease); }
+    #site-header .mega__section { padding: 4px 0 8px; }
+    #site-header .mega__grid { display:grid; gap:12px; grid-template-columns: repeat(2, minmax(0,1fr)); }
+    @media (min-width: 860px){ #site-header .mega__grid { grid-template-columns: repeat(3, minmax(0,1fr)) } }
+    @media (min-width: 1100px){ #site-header .mega__grid { grid-template-columns: repeat(4, minmax(0,1fr)) } }
+    #site-header .mega .card { background:#fff; border:1px solid var(--line); border-radius: 14px; padding:12px; box-shadow: 0 6px 24px rgba(10,10,20,.08) }
+    @media (prefers-color-scheme: dark){ #site-header .mega .card { background: rgba(255,255,255,.06) } }
+
+    /* langs */
+    #site-header .langs { display:flex; gap:6px; align-items:center; }
+
+    /* mobile drawer */
+    #site-header .mobile-menu { position: fixed; inset:0; background: rgba(0,0,0,.4); backdrop-filter: blur(2px); z-index: 80; }
+    #site-header .mobile-menu[hidden] { display:none }
+    #site-header .mobile-menu__inner {
+      position:absolute; top:0; right:0; bottom:0; width:min(420px, 92vw);
+      background: var(--bg-elev); border-left:1px solid var(--line); transform: translateX(100%);
+      transition: transform .28s var(--ease);
+      display: grid; grid-template-rows: 1fr auto auto; gap: 12px; padding:16px;
+    }
+    #site-header .mobile-menu[data-open="true"] .mobile-menu__inner { transform: translateX(0) }
+    #site-header .mobile-nav__list { list-style:none; margin:0; padding:0; display:grid; gap:6px }
+    #site-header .mobile-nav__list li a, #site-header .mobile-nav__list li button {
+      display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px;
+      border-radius:12px; border:1px solid var(--line); background:#fff; color:inherit; text-decoration:none;
+    }
+    @media (prefers-color-scheme: dark){ #site-header .mobile-nav__list li a, #site-header .mobile-nav__list li button { background: rgba(255,255,255,.06) } }
+
+    /* buttons */
+    #site-header .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      padding:10px 14px; border-radius:14px; border:1px solid var(--line); background:#fff; color:var(--ink);
+      font-weight:600; text-decoration:none; transition: transform .15s ease, background .2s ease; }
+    #site-header .btn:hover { text-decoration:none; transform: translateY(-1px); }
+    #site-header .btn-primary { background: var(--brand); color: #fff; border-color: transparent; }
+
+    /* responsive: hide primary nav under 980px */
+    @media (max-width: 980px){
+      #site-header .sq-nav { display:none }
+      #site-header .menu-toggle { display:inline-block }
+    }
+  </style>
+
   <div class="wrap bar">
     <!-- BRAND -->
     <a class="brand" data-bind="href: routes.home|slug" aria-label="">
@@ -6,12 +94,12 @@
            data-bind="attr:{src: nav.logo.src, alt: nav.logo.alt}" alt="">
     </a>
 
-    <!-- PRIMARY NAV (CMS wstrzykuje <li>…; dzieci z podmenu powinny mieć data-panel="id") -->
+    <!-- PRIMARY NAV (CMS wstrzykuje <li>…; elementy z podmenu: li[data-panel="…"]) -->
     <nav id="primaryNav" class="nav sq-nav" role="navigation" aria-label="">
       <ul class="nav__list" data-bind="html: nav.primary_html"></ul>
     </nav>
 
-    <!-- AKCJE: języki + CTA + hamburger -->
+    <!-- LANGS + CTA + HAMBURGER -->
     <div class="actions">
       <div class="langs" data-api="/nav/langs" data-bind="html: nav.langs_html"></div>
       <a class="btn btn-primary" data-bind="href: nav.cta.slugKey|slug, text: nav.cta.label"></a>
@@ -19,14 +107,14 @@
     </div>
   </div>
 
-  <!-- MEGA PANEL (Squarespace-like). CMS wstrzykuje sekcje z id/data-panel zgodnymi z data-panel w li -->
+  <!-- MEGA PANEL (Squarespace-like). CMS wstrzykuje sekcje: .mega__section[data-panel="services"] -->
   <div id="mega" class="mega" data-state="closed" aria-hidden="true">
     <div class="mega__wrap wrap">
       <div class="mega__panels" data-bind="html: nav.mega_html"></div>
     </div>
   </div>
 
-  <!-- MOBILE DRAWER: jeśli CMS nie da mobile_html, używamy primary_html -->
+  <!-- MOBILE DRAWER -->
   <div id="mobileMenu" class="mobile-menu" hidden>
     <div class="mobile-menu__inner">
       <nav class="mobile-nav" aria-label="">
@@ -36,4 +124,99 @@
       <a class="btn btn-primary mobile-cta" data-bind="href: nav.cta.slugKey|slug, text: nav.cta.label"></a>
     </div>
   </div>
+
+  <!-- INLINE, SCOPED JS (tylko dla headera) -->
+  <script>
+  (function(){
+    const $  = (s, r=document)=>r.querySelector(s);
+    const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
+
+    const header = document.getElementById('site-header');
+    if(!header) return;
+    const primary = document.querySelector('#primaryNav .nav__list');
+    const mega    = document.getElementById('mega');
+    const panels  = mega ? mega.querySelector('.mega__panels') : null;
+    const toggle  = document.getElementById('menuToggle');
+    const drawer  = document.getElementById('mobileMenu');
+    const inner   = drawer ? drawer.querySelector('.mobile-menu__inner') : null;
+
+    /* cień podczas scrolla */
+    function shadow(){ header.classList.toggle('sq--shadow', (document.documentElement.scrollTop||0) > 8); }
+    shadow(); window.addEventListener('scroll', shadow, {passive:true});
+
+    /* hover-intent na desktopie */
+    const OPEN_MS=140, CLOSE_MS=380;
+    let openTimer=0, closeTimer=0, currentId=null;
+
+    function closeMega(){
+      if(!mega) return;
+      mega.dataset.state='closed';
+      mega.setAttribute('aria-hidden','true');
+      header.style.setProperty('--mega-h','0px');
+      currentId=null;
+      primary?.querySelectorAll('[aria-expanded="true"]').forEach(el=>el.setAttribute('aria-expanded','false'));
+    }
+    function openMega(id){
+      if(!mega||!panels) return;
+      const sel = `.mega__section[data-panel="${id}"], .mega__section#panel-${id}`;
+      panels.querySelectorAll('.mega__section').forEach(sec=>sec.hidden=true);
+      const panel = panels.querySelector(sel);
+      if(!panel){ closeMega(); return; }
+      panel.hidden=false;
+      header.style.setProperty('--mega-h', panel.scrollHeight+'px');
+      mega.dataset.state='open';
+      mega.setAttribute('aria-hidden','false');
+      currentId=id;
+    }
+    function armOpen(id, triggerEl){
+      clearTimeout(closeTimer); clearTimeout(openTimer);
+      openTimer = setTimeout(()=>{
+        primary?.querySelectorAll('[aria-expanded="true"]').forEach(el=>el.setAttribute('aria-expanded','false'));
+        triggerEl?.setAttribute('aria-expanded','true');
+        openMega(id);
+      }, OPEN_MS);
+    }
+    function armClose(){ clearTimeout(openTimer); clearTimeout(closeTimer); closeTimer=setTimeout(closeMega, CLOSE_MS); }
+
+    /* delegacja na top-nav */
+    if (primary && mega){
+      primary.addEventListener('pointerenter', e=>{
+        const li = e.target.closest('li[data-panel]'); if(!li) return;
+        armOpen(li.getAttribute('data-panel'), li.querySelector('a,button'));
+      });
+      primary.addEventListener('pointerleave', armClose);
+      primary.addEventListener('focusin', e=>{
+        const li = e.target.closest('li[data-panel]'); if(!li) return;
+        armOpen(li.getAttribute('data-panel'), li.querySelector('a,button'));
+      });
+      primary.addEventListener('focusout', armClose);
+      mega.addEventListener('pointerenter', ()=>{ clearTimeout(closeTimer); });
+      mega.addEventListener('pointerleave', armClose);
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeMega(); });
+    }
+
+    /* auto-mapowanie: jeśli li nie ma data-panel, a mega ma sekcje -> przypnij wg kolejności */
+    if (primary && panels){
+      const liNo = primary.querySelectorAll('li:not([data-panel])');
+      const sections = $$('.mega__section', panels);
+      liNo.forEach((li,i)=>{
+        const id = sections[i]?.getAttribute('data-panel') || ('auto-'+i);
+        if (!li.hasAttribute('data-panel') && sections[i]){
+          li.setAttribute('data-panel', id);
+          sections[i].setAttribute('data-panel', id);
+          if(!sections[i].id) sections[i].id = 'panel-'+id;
+        }
+      });
+    }
+
+    /* mobile drawer */
+    function openDrawer(){ drawer.hidden=false; requestAnimationFrame(()=>drawer.setAttribute('data-open','true')); toggle.setAttribute('aria-expanded','true'); }
+    function closeDrawer(){ drawer.removeAttribute('data-open'); toggle.setAttribute('aria-expanded','false'); setTimeout(()=>{ drawer.hidden=true; }, 280); }
+    toggle?.addEventListener('click', ()=>{
+      const exp = toggle.getAttribute('aria-expanded')==='true'; exp?closeDrawer():openDrawer();
+    });
+    drawer?.addEventListener('click', e=>{ if(e.target===drawer) closeDrawer(); });
+
+  })();
+  </script>
 </header>
