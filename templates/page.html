@@ -1,189 +1,323 @@
 {# =====================================================================
-   KRAS-TRANS • PAGE/HOME (v3)
-   - 2 tryby animacji (Calm/Vivid) + pamięć w localStorage
-   - i18n przez makro t(), linki z routes
-   - zgodny z headerem i build.py
+   KRAS-TRANS • HOME (Jinja2)
+   - Kreatywny, rozbudowany, bez twardych tekstów (treści z arkuszy)
+   - Wymagane w kontekście: page, pages, strings, faq, blog, company, routes, nav
+   - CSS/JS: header.css, home.css, header.js, home.js (z poprzednich kroków)
    ===================================================================== #}
 {% set lang = (page.lang or 'pl') %}
 {% macro t(key, fallback='') -%}
+  {# bezpieczne pobranie klucza ze Strings; fallback na pl/en #}
   {%- set val = '' -%}
   {%- for s in strings if (s.key or s.Key) == key -%}
     {%- set val = (s[lang] or s[lang|upper] or s.pl or s.PL or s.en or s.EN) -%}
   {%- endfor -%}
   {{- (val or fallback) -}}
 {%- endmacro %}
+
 {% macro url_by_slugkey(slugKey) -%}
   {%- set s = '' -%}
-  {%- for r in routes if r.slugKey == slugKey -%}{%- set s = r[lang] -%}{%- endfor -%}
+  {%- for r in routes if r.slugKey == slugKey -%}
+    {%- set s = r[lang] -%}
+  {%- endfor -%}
   /{{ lang }}/{{ s ~ '/' if s else '' }}
 {%- endmacro %}
+
 {% macro page_url(p) -%}
   {{- p.canonical_path if p.canonical_path else ('/' ~ lang ~ '/' ~ (p.slug ~ '/' if p.slug else '')) -}}
 {%- endmacro %}
 
-{% set services = pages | selectattr('publish','!=',false) | selectattr('lang','equalto',lang) | selectattr('type','equalto','service') | sort(attribute='order') | list %}
-{% set faqs     = faq   | selectattr('enabled','!=',false) | selectattr('lang','equalto',lang) | list %}
-{% set posts    = blog  | selectattr('lang','equalto',lang) | sort(attribute='date', reverse=true) | list %}
+{% set services = pages
+  | selectattr('publish','!=',false)
+  | selectattr('lang','equalto',lang)
+  | selectattr('type','equalto','service')
+  | sort(attribute='order') | list
+%}
+
+{% set faqs = faq
+  | selectattr('enabled','!=',false)
+  | selectattr('lang','equalto',lang)
+  | list
+%}
+
+{% set posts = blog
+  | selectattr('lang','equalto',lang)
+  | sort(attribute='date', reverse=true) | list
+%}
+
 <!doctype html>
-<html lang="{{ lang }}" dir="ltr" data-theme="auto" data-anim-mode="calm">
+<html lang="{{ lang }}" dir="ltr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>{{ page.seo_title or page.h1 }}</title>
-  <meta name="description" content="{{ page.meta_desc }}" />
-  <link rel="canonical" href="{{ page.canonical }}" />
-  {% for L, href in hreflang.items() %}<link rel="alternate" hreflang="{{ L }}" href="{{ href }}" />{% endfor %}
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="{{ page.seo_title or page.h1 }}" />
-  <meta property="og:description" content="{{ page.meta_desc }}" />
-  <meta property="og:image" content="{{ page.og_image }}" />
-
-  <link rel="preconnect" href="https://script.google.com" crossorigin />
-  <link rel="preload" href="/assets/css/header.css" as="style" />
-  <link rel="preload" href="/assets/css/home.css" as="style" />
-  <link rel="stylesheet" href="/assets/css/header.css" />
-  <link rel="stylesheet" href="/assets/css/home.css" />
-
-  {{ jsonld | safe }}
+  <meta name="description" content="{{ page.meta_desc }}">
+  <link rel="canonical" href="{{ page.canonical_path }}">
+  <link rel="preload" as="style" href="/assets/css/header.css">
+  <link rel="preload" as="style" href="/assets/css/home.css">
+  <link rel="stylesheet" href="/assets/css/header.css">
+  <link rel="stylesheet" href="/assets/css/home.css">
+  {# OG/Twitter #}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ page.seo_title or page.h1 }}">
+  <meta property="og:description" content="{{ page.meta_desc }}">
+  <meta property="og:image" content="{{ page.og_image }}">
 </head>
 <body class="kt-body">
-  {% include "header.html" %}
 
-  <a class="visually-hidden" href="#main">{{ t('skip_to_content') or 'Przejdź do treści' }}</a>
+  {# ====== GLOBAL HEADER (Twój istniejący komponent) ====== #}
+  {% include '_partials/header.html' %}
 
-  <!-- HERO -->
-  <section id="hero" class="section hero container" data-anim="reveal-hero" aria-labelledby="hero-title">
-    <div class="hero-top">
-      <p class="claim">{{ t('claim') or 'Transport i spedycja' }}</p>
+  {# ====== LOGO LAUNCHPAD (animowany rozjazd na JS) ====== #}
+  <div class="logo-launchpad" aria-hidden="true">
+    <img class="logo-piece logo-left"  src="/assets/media/logo-left.svg"  alt="" width="240" height="80" loading="eager" decoding="async">
+    <img class="logo-piece logo-right" src="/assets/media/logo-right.svg" alt="" width="240" height="80" loading="eager" decoding="async">
+  </div>
+
+  {# ====== HERO ====== #}
+  <section id="hero" class="section hero" data-anim="reveal-hero" aria-labelledby="hero-title">
+    <div class="container">
+      <p class="claim">{{ t('claim') }}</p>
       <h1 id="hero-title">{{ page.h1 }}</h1>
-      {% if page.lead %}<p class="lead">{{ page.lead }}</p>{% endif %}
+      <p class="lead">{{ page.lead }}</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="{{ url_by_slugkey('quote') }}">{{ page.cta_label or t('cta_quote') or 'Wycena transportu' }}</a>
-        <a class="btn btn-ghost" href="{{ url_by_slugkey('contact') }}">{{ page.cta_secondary or t('cta_contact') or 'Kontakt' }}</a>
+        {% if page.cta_label %}<a class="btn btn-primary" href="{{ url_by_slugkey('quote') if routes else '/'+lang+'/wycena/' }}">{{ page.cta_label }}</a>{% endif %}
+        {% if page.cta_secondary %}<a class="btn btn-ghost" href="{{ url_by_slugkey('contact') if routes else '/'+lang+'/kontakt/' }}">{{ page.cta_secondary }}</a>{% endif %}
+        {% if company and company[0].telephone %}<a class="btn btn-ghost" href="tel:{{ company[0].telephone }}">{{ t('short_call') or company[0].telephone }}</a>{% endif %}
       </div>
-      <div class="hero-switch">
-        <button id="animCalm"  class="switch active" aria-pressed="true"  data-mode="calm">Calm</button>
-        <button id="animVivid" class="switch"          aria-pressed="false" data-mode="vivid">Vivid</button>
+
+      <ul class="hero-stats" role="list">
+        <li><strong data-counter="{{ t('kpi_1_value') }}">{{ t('kpi_1_value') }}</strong><span>{{ t('kpi_1_label') }}</span></li>
+        <li><strong data-counter="{{ t('kpi_2_value') }}">{{ t('kpi_2_value') }}</strong><span>{{ t('kpi_2_label') }}</span></li>
+        <li><strong data-counter="{{ t('kpi_3_value') }}">{{ t('kpi_3_value') }}</strong><span>{{ t('kpi_3_label') }}</span></li>
+        <li><strong data-counter="{{ t('kpi_4_value') }}">{{ t('kpi_4_value') }}</strong><span>{{ t('kpi_4_label') }}</span></li>
+      </ul>
+
+      <picture class="hero-media">
+        <source srcset="{{ page.hero_image|default('/assets/media/hero.avif') }}" type="image/avif">
+        <img src="{{ page.hero_image|default('/assets/media/hero.webp') }}" width="1280" height="720" alt="{{ page.hero_alt }}">
+      </picture>
+    </div>
+    <div class="divider-bottom"></div>
+  </section>
+
+  {# ====== WHY (Dlaczego) — 4 kafelki z Strings ====== #}
+  <section id="why" class="section tiles alt-1" data-anim="stagger-up" aria-labelledby="why-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="why-title">{{ t('why_h2') }}</h2>
+        <p>{{ t('why_sub') }}</p>
+      </div>
+      <div class="reel" role="list" aria-label="{{ t('why_aria') }}">
+        {% for i in range(1,5) %}
+          <article class="tile3d" role="listitem">
+            <h3>{{ t('why_' ~ i ~ '_title') }}</h3>
+            <p>{{ t('why_' ~ i ~ '_desc') }}</p>
+          </article>
+        {% endfor %}
       </div>
     </div>
+  </section>
 
-    <ul class="hero-stats" role="list">
-      {% for i in range(1,5) %}
-      <li>
-        <strong data-counter="{{ t('kpi_' ~ i ~ '_value') }}">{{ t('kpi_' ~ i ~ '_value') }}</strong>
-        <span>{{ t('kpi_' ~ i ~ '_label') }}</span>
-      </li>
+  {# ====== USŁUGI (auto z Pages: type=service) ====== #}
+  <section id="services" class="section tiles alt-2" data-anim="stagger-up" aria-labelledby="services-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="services-title">{{ t('services_h2') }}</h2>
+        <p>{{ t('services_sub') }}</p>
+      </div>
+      <div class="reel" role="list" aria-label="{{ t('services_aria') }}">
+        {% for p in services %}
+          <article class="tile3d" role="listitem" itemscope itemtype="https://schema.org/Service">
+            <h3 itemprop="name">{{ p.h1 or p.title }}</h3>
+            <p itemprop="description">{{ p.lead }}</p>
+            <a class="tile-link" href="{{ page_url(p) }}">{{ t('services_readmore') }}</a>
+          </article>
+        {% endfor %}
+        {# opcjonalny kafelek "wszystkie usługi" #}
+        <article class="tile3d" role="listitem">
+          <h3>{{ t('services_all_title') }}</h3>
+          <p>{{ t('services_all_desc') }}</p>
+          <a class="tile-link" href="{{ url_by_slugkey('services') }}">{{ t('services_all_cta') }}</a>
+        </article>
+      </div>
+    </div>
+    <div class="divider-bottom"></div>
+  </section>
+
+  {# ====== BRANŻE ====== #}
+  <section id="industries" class="section tiles bg-grid" data-anim="stagger-fade" aria-labelledby="ind-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="ind-title">{{ t('ind_h2') }}</h2>
+        <p>{{ t('ind_sub') }}</p>
+      </div>
+      <div class="reel" role="list" aria-label="{{ t('ind_aria') }}">
+        {% for i in range(1,7) %}
+          <article class="tile3d" role="listitem">
+            <h3>{{ t('ind_' ~ i ~ '_title') }}</h3>
+            <p>{{ t('ind_' ~ i ~ '_desc') }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {# ====== ZASIĘG / KORYTARZE ====== #}
+  <section id="coverage" class="section tiles alt-3" data-anim="parallax" aria-labelledby="cov-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="cov-title">{{ t('cov_h2') }}</h2>
+        <p>{{ t('cov_sub') }}</p>
+      </div>
+      <div class="reel" role="list" aria-label="{{ t('cov_aria') }}">
+        {% for i in range(1,6) %}
+          <article class="tile3d" role="listitem">
+            <h3>{{ t('cov_' ~ i ~ '_title') }}</h3>
+            <p>{{ t('cov_' ~ i ~ '_desc') }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {# ====== PROCES (kroki) ====== #}
+  <section id="process" class="section tiles bg-dots" data-anim="timeline" aria-labelledby="proc-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="proc-title">{{ t('proc_h2') }}</h2>
+        <p>{{ t('proc_sub') }}</p>
+      </div>
+      <ol class="steps" aria-label="{{ t('proc_aria') }}">
+        {% for i in range(1,6) %}
+          <li class="tile3d">
+            <h3>{{ t('proc_' ~ i ~ '_title') }}</h3>
+            <p>{{ t('proc_' ~ i ~ '_desc') }}</p>
+          </li>
+        {% endfor %}
+      </ol>
+    </div>
+  </section>
+
+  {# ====== KPI / DLACZEGO — liczby (opcjonalnie z Strings) ====== #}
+  <section id="trust" class="section tiles alt-4" data-anim="counter" aria-labelledby="trust-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="trust-title">{{ t('trust_h2') }}</h2>
+        <p>{{ t('trust_sub') }}</p>
+      </div>
+      <div class="reel" role="list" aria-label="{{ t('trust_aria') }}">
+        {% for i in range(1,5) %}
+          <article class="tile3d" role="listitem">
+            <div class="kpi"><span class="v" data-counter="{{ t('trust_' ~ i ~ '_value') }}">{{ t('trust_' ~ i ~ '_value') }}</span><span class="l">{{ t('trust_' ~ i ~ '_label') }}</span></div>
+            <p>{{ t('trust_' ~ i ~ '_desc') }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {# ====== CENNIK + WYCENA ====== #}
+  <section id="pricing" class="section tiles" data-anim="flip" aria-labelledby="pricing-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="pricing-title">{{ t('pricing_h2') }}</h2>
+        <p>{{ t('pricing_sub') }}</p>
+      </div>
+      <div class="reel" role="list" aria-label="{{ t('pricing_aria') }}">
+        <article class="tile3d">
+          <h3>{{ t('pricing_price_title') }}</h3>
+          <p>{{ t('pricing_price_desc') }}</p>
+          <a class="tile-link" href="{{ url_by_slugkey('pricing') }}">{{ t('pricing_price_cta') }}</a>
+        </article>
+        <article class="tile3d">
+          <h3>{{ t('pricing_quote_title') }}</h3>
+          <p>{{ t('pricing_quote_desc') }}</p>
+          <a class="tile-link" href="{{ url_by_slugkey('quote') }}">{{ t('pricing_quote_cta') }}</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  {# ====== CASES / BLOG (ostatnie wpisy) ====== #}
+  <section id="insights" class="section tiles bg-noise" data-anim="stagger-zoom" aria-labelledby="insights-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="insights-title">{{ t('ins_h2') }}</h2>
+        <p>{{ t('ins_sub') }}</p>
+      </div>
+      <div class="reel" role="list" aria-label="{{ t('ins_aria') }}">
+        {% for b in posts[:6] %}
+          <article class="tile3d" role="listitem" itemscope itemtype="https://schema.org/BlogPosting">
+            <h3 itemprop="headline">{{ b.title }}</h3>
+            <p itemprop="description">{{ b.lead }}</p>
+            <a class="tile-link" href="{{ b.canonical_path }}">{{ t('ins_read') }}</a>
+          </article>
+        {% endfor %}
+        <article class="tile3d"><h3>{{ t('ins_all_title') }}</h3><p>{{ t('ins_all_desc') }}</p><a class="tile-link" href="{{ url_by_slugkey('blog') }}">{{ t('ins_all_cta') }}</a></article>
+      </div>
+    </div>
+  </section>
+
+  {# ====== FAQ (globalne + przypięte do home) ====== #}
+  <section id="faq" class="section faq" data-anim="accordion" aria-labelledby="faq-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="faq-title">{{ t('faq_h2') }}</h2>
+        <p>{{ t('faq_sub') }}</p>
+      </div>
+      {% for f in faqs[:12] %}
+        <details class="qa">
+          <summary>{{ f.q }}</summary>
+          <div class="a"><p>{{ f.a }}</p></div>
+        </details>
       {% endfor %}
-    </ul>
-
-    <picture class="hero-media">
-      <source srcset="{{ page.hero_image|default('/assets/media/hero.avif') }}" type="image/avif" />
-      <img id="heroLCP" src="{{ page.hero_image|default('/assets/media/hero.webp') }}"
-           width="1280" height="720" alt="{{ page.hero_alt or page.h1 }}" decoding="async" />
-    </picture>
-    <div class="divider-bottom" aria-hidden="true"></div>
-  </section>
-
-  <!-- USŁUGI -->
-  <section id="services" class="section tiles alt-2 container" data-anim="stagger-up" aria-labelledby="services-title">
-    <div class="section-head">
-      <h2 id="services-title">{{ t('services_h2') or 'Usługi' }}</h2>
-      <p>{{ t('services_sub') or 'Transport krajowy i międzynarodowy, ekspres, palety i więcej.' }}</p>
-    </div>
-    <div class="reel" role="list" aria-label="{{ t('services_aria') or 'Lista usług' }}">
-      {% for p in services %}
-      <article class="tile3d" role="listitem" itemscope itemtype="https://schema.org/Service">
-        <h3 itemprop="name">{{ p.h1 or p.title }}</h3>
-        <p itemprop="description">{{ p.lead }}</p>
-        <a class="tile-link" href="{{ page_url(p) }}">{{ t('services_readmore') or 'Zobacz' }}</a>
-      </article>
-      {% endfor %}
     </div>
   </section>
 
-  <!-- BRANŻE -->
-  <section id="industries" class="section tiles alt-1 container" data-anim="stagger-fade" aria-labelledby="ind-title">
-    <div class="section-head">
-      <h2 id="ind-title">{{ t('ind_h2') or 'Branże i zastosowania' }}</h2>
-      <p>{{ t('ind_sub') or 'Obsługujemy e-commerce, FTL, przeprowadzki i inne.' }}</p>
-    </div>
-    <div class="reel" role="list">
-      {% for i in range(1,6) %}
-      <article class="tile3d" role="listitem"><h3>{{ t('ind_' ~ i ~ '_title') or 'Segment ' ~ i }}</h3><p>{{ t('ind_' ~ i ~ '_desc') or 'Opis…' }}</p></article>
-      {% endfor %}
-    </div>
-  </section>
-
-  <!-- BLOG -->
-  <section id="insights" class="section tiles bg-noise container" data-anim="stagger-zoom" aria-labelledby="insights-title">
-    <div class="section-head">
-      <h2 id="insights-title">{{ t('ins_h2') or 'Poradniki i aktualności' }}</h2>
-      <p>{{ t('ins_sub') or 'Nowości i case studies.' }}</p>
-    </div>
-    <div class="reel" role="list">
-      {% for b in posts[:6] %}
-      <article class="tile3d" role="listitem" itemscope itemtype="https://schema.org/BlogPosting">
-        <h3 itemprop="headline">{{ b.title }}</h3>
-        <p itemprop="description">{{ b.lead }}</p>
-        <a class="tile-link" href="{{ b.canonical_path }}">{{ t('ins_read') or 'Czytaj' }}</a>
-      </article>
-      {% endfor %}
+  {# ====== CTA KOŃCOWE ====== #}
+  <section id="final-cta" class="section final-cta" data-anim="glow" aria-labelledby="final-cta-title">
+    <div class="container">
+      <h2 id="final-cta-title">{{ t('final_h2') }}</h2>
+      <p>{{ t('final_sub') }}</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="{{ url_by_slugkey('quote') }}">{{ t('final_cta_primary') }}</a>
+        <a class="btn btn-ghost" href="{{ url_by_slugkey('contact') }}">{{ t('final_cta_secondary') }}</a>
+      </div>
     </div>
   </section>
 
-  <!-- FAQ -->
-  <section id="faq" class="section faq container" data-anim="accordion" aria-labelledby="faq-title">
-    <div class="section-head">
-      <h2 id="faq-title">{{ t('faq_h2') or 'FAQ' }}</h2>
-      <p>{{ t('faq_sub') or 'Najczęstsze pytania.' }}</p>
-    </div>
-    {% for f in faqs[:12] %}
-    <details class="qa">
-      <summary>{{ f.q }}</summary>
-      <div class="a"><p>{{ f.a }}</p></div>
-    </details>
-    {% endfor %}
-  </section>
-
-  <!-- CTA KOŃCOWE -->
-  <section id="final-cta" class="section final-cta container" data-anim="glow" aria-labelledby="final-cta-title">
-    <h2 id="final-cta-title">{{ t('final_h2') or 'Zacznijmy współpracę' }}</h2>
-    <p>{{ t('final_sub') or 'Wycena w 15 minut, kontakt 24/7.' }}</p>
-    <div class="cta-row">
-      <a class="btn btn-primary" href="{{ url_by_slugkey('quote') }}">{{ t('final_cta_primary') or 'Wycena transportu' }}</a>
-      <a class="btn btn-ghost" href="{{ url_by_slugkey('contact') }}">{{ t('final_cta_secondary') or 'Kontakt' }}</a>
-    </div>
-  </section>
-
-  <!-- FOOTER -->
+  {# ====== STOPKA ====== #}
   <footer id="contact" class="footer section" aria-labelledby="contact-title">
     <div class="container">
-      <h2 id="contact-title" class="visually-hidden">{{ t('contact_h2') or 'Kontakt' }}</h2>
+      <h2 id="contact-title" class="visually-hidden">{{ t('contact_h2') }}</h2>
       <div class="footer-grid">
         <div class="col">
-          <img src="/assets/media/logo.png" alt="Kras-Trans" width="160" height="44" loading="lazy" />
-          <p>ul. Trzcinowa 14/11, 91-495 Łódź, Polska</p>
-          <p>Kras-Trans Sp. z o.o.</p>
+          <img src="/assets/media/logo-transport-kras-trans.svg" alt="Kras-Trans" width="160" height="44" loading="lazy">
+          {% if company and company[0] %}
+            <p>{{ company[0].address }}</p>
+            <p>{{ company[0].legal_name }}</p>
+          {% endif %}
         </div>
         <div class="col">
           <ul class="contact-list" role="list">
-            <li><a href="mailto:contact@kras-trans.eu">contact@kras-trans.eu</a></li>
-            <li><a href="tel:+48793927467">+48 793 927 467</a></li>
+            {% if company and company[0].email %}<li><a href="mailto:{{ company[0].email }}">{{ company[0].email }}</a></li>{% endif %}
+            {% if company and company[0].telephone %}<li><a href="tel:{{ company[0].telephone }}">{{ company[0].telephone }}</a></li>{% endif %}
+            <li><a href="{{ url_by_slugkey('contact') }}">{{ t('contact_form') }}</a></li>
           </ul>
         </div>
         <div class="col">
           <ul class="social" role="list">
-            <li><a rel="noopener" target="_blank" href="https://www.instagram.com/kras_trans.express.eu?igsh=bHZkODhlazFicGt2&utm_source=qr">Instagram</a></li>
-            <li><a rel="noopener" target="_blank" href="https://www.linkedin.com/company/kras-trans">LinkedIn</a></li>
-            <li><a rel="noopener" target="_blank" href="https://www.facebook.com/share/sS2jgJPwdgvrF4az/?mibextid=LQQJ4d">Facebook</a></li>
+            <li><a rel="noopener" target="_blank" href="{{ t('soc_ig') }}">{{ t('soc_ig_label') }}</a></li>
+            <li><a rel="noopener" target="_blank" href="{{ t('soc_li') }}">{{ t('soc_li_label') }}</a></li>
+            <li><a rel="noopener" target="_blank" href="{{ t('soc_fb') }}">{{ t('soc_fb_label') }}</a></li>
           </ul>
         </div>
         <div class="col">
-          <nav class="mini-nav" aria-label="{{ t('quick_links') or 'Szybkie linki' }}">
-            <a href="{{ url_by_slugkey('pricing') }}">{{ t('nav_pricing') or 'Cennik' }}</a>
-            <a href="{{ url_by_slugkey('services') }}">{{ t('nav_services') or 'Usługi' }}</a>
-            <a href="{{ url_by_slugkey('company') }}">{{ t('nav_company') or 'Firma' }}</a>
-            <a href="{{ url_by_slugkey('faq') }}">{{ t('nav_faq') or 'FAQ' }}</a>
+          <nav class="mini-nav" aria-label="{{ t('quick_links') }}">
+            <a href="{{ url_by_slugkey('pricing') }}">{{ t('nav_pricing') }}</a>
+            <a href="{{ url_by_slugkey('services') }}">{{ t('nav_services') }}</a>
+            <a href="{{ url_by_slugkey('company') }}">{{ t('nav_company') }}</a>
+            <a href="{{ url_by_slugkey('faq') }}">{{ t('nav_faq') }}</a>
           </nav>
         </div>
       </div>
@@ -191,8 +325,7 @@
     </div>
   </footer>
 
-  <main id="main"></main>
-
+  {# ====== SCRIPTS ====== #}
   <script defer src="/assets/js/header.js"></script>
   <script defer src="/assets/js/home.js"></script>
 </body>
