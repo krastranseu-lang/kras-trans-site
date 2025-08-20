@@ -617,7 +617,7 @@ def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:
         has_gtm_anywhere = bool(soup.find("script", src=re.compile(r"googletagmanager\.com/gtag/js")))
         has_config_anywhere = bool(soup.find("script", string=re.compile(r"gtag\('config',\s*['\"]"+re.escape(GA_ID))))
         if not has_gtm_anywhere:
-            s = soup.new_tag("script", async=True, src=f"https://www.googletagmanager.com/gtag/js?id={GA_ID}")
+            s = soup.new_tag("script", async=True, src=f"https://www.googletagmanager.com/gtag/js?id={G-5FYE42J3BE}")
             head.append(s)
         if not has_config_anywhere:
             conf = soup.new_tag("script")
