@@ -189,12 +189,21 @@ env = Environment(
     loader=FileSystemLoader(CFG["paths"]["src"]["templates"]),
     autoescape=select_autoescape(["html"])
 )
+
+# Globalne dane dostępne w KAŻDYM szablonie
 env.globals.update({
-    "site": CFG.get("site",{}),
+    "site": CFG.get("site", {}),
     "cms_endpoint": (f"{APPS_URL}?key={APPS_KEY}" if APPS_URL and APPS_KEY else ""),
     "ga_id": GA_ID,
     "gsc_verification": GSC,
+    # assets: css/js/js_late/preload z pages.yml
     "assets": CFG.get("assets", {})
+})
+
+# Nawigacja + konfiguracja headera (partials/header.html)
+env.globals.update({
+    "nav": CFG.get("navigation", {}),
+    "header_cfg": CFG.get("header", {})
 })
 
 # --------------------------- CMS: load + fallback ---------------------------
