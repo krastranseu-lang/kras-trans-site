@@ -8,6 +8,12 @@
   <meta name="theme-color" content="#0ea5e9" />
   <meta name="color-scheme" content="light dark" />
 
+  {# --- CMS endpoint dostępny od razu dla skryptów --- #}
+  <meta name="cms-endpoint" content="{{ cms_endpoint }}" />
+
+  {# --- Preload hook na LCP (JS może uzupełnić/zmienić atrybuty) --- #}
+  <link id="heroPreload" rel="preload" as="image">
+
   <title>{{ page.seo_title or page.title }}</title>
   <meta name="description" content="{{ page.meta_desc }}" />
   {% if page.noindex %}<meta name="robots" content="noindex,follow" />{% else %}<meta name="robots" content="index,follow" />{% endif %}
@@ -28,7 +34,7 @@
   {# --- Weryfikacja GSC --- #}
   {% if gsc_verification %}<meta name="google-site-verification" content="{{ gsc_verification }}" />{% endif %}
 
-  {# --- Open Graph / Twitter --- #}
+  {# --- Open Graph / Twitter (builder też potrafi do-inject; zostawiamy SSR dla pewności) --- #}
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="{{ site.brand }}" />
   <meta property="og:url" content="{{ page.canonical or canonical }}" />
@@ -54,7 +60,7 @@
     <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
   {% endif %}
 
-  {# --- LCP image preload (preferowany ręcznie: page.lcp_image) --- #}
+  {# --- LCP image preload (SSR, gdy znamy obraz) + hook heroPreload (CSR) --- #}
   {% if page.lcp_image %}
     <link rel="preload" as="image" fetchpriority="high"
           {% if page.lcp_image.srcset %}imagesrcset="{{ page.lcp_image.srcset }}"{% endif %}
@@ -73,7 +79,7 @@
     {% endfor %}
   {% endif %}
 
-  {# --- Self-host fonts (Inter Variable) + critical a11y CSS (≤~2KB) --- #}
+  {# --- Self-host fonts + minimal critical CSS a11y --- #}
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable-Italic.woff2" crossorigin>
   <style>
@@ -90,53 +96,48 @@
     @media (prefers-color-scheme: dark){body{background:#0b1020;color:#e5e7eb}.site-header{background:rgba(15,23,42,.62);border-color:rgba(255,255,255,.08)}}
   </style>
 
-  {# --- Endpoint CMS dla skryptów klienckich --- #}
-  <meta name="cms-endpoint" content="{{ cms_endpoint }}" />
-
   <script>document.documentElement.classList.remove('no-js');</script>
 </head>
 <body>
   <a class="skip-link" href="#main">{{ (i18n.skip_to_content if i18n else '') or 'Skip to content' }}</a>
 
-  {# --- Header partial --- #}
+  {# --- Header partial (preferuj własną ścieżkę; fallback do naszego) --- #}
   {% if header_path %}
     {% include header_path %}
   {% else %}
-    {% include "__partials/header.html" %}
+    {% include "_partials/header.html" %}
   {% endif %}
 
   <main id="main" tabindex="-1" role="main">
     {% block content %}{% endblock %}
   </main>
 
-  {# --- Footer partial --- #}
+  {# --- Footer partial (preferuj własną ścieżkę; fallback do naszego) --- #}
   {% if footer_path %}
     {% include footer_path %}
   {% else %}
-    {% include "__partials/footer.html" %}
+    {% include "_partials/footer.html" %}
   {% endif %}
 
-  {# --- JSON-LD (Organization, Website, Breadcrumb, per-typ) z buildera --- #}
+  {# --- JSON-LD z buildera --- #}
   {% if jsonld %}{{ jsonld|safe }}{% endif %}
 
-  {# --- Skrypty z pages.yml → assets.js (defer) --- #}
+  {# --- JS z pages.yml → assets.js (defer) --- #}
   {% if assets.js %}
     {% for src in assets.js %}
       <script defer src="{{ src }}"></script>
     {% endfor %}
   {% endif %}
 
-  {# --- Loader „late JS” (>50KB): opcjonalnie assets.js_late w pages.yml --- #}
+  {# --- Late loader (opcjonalne assets.js_late) --- #}
   <script>
   (function(){
     function loadLate(){
-      // 1) Przenieś skrypty oznaczone data-late
       document.querySelectorAll('script[data-late]').forEach(function(s){
         var n=document.createElement('script');
         for (var i=0;i<s.attributes.length;i++){var a=s.attributes[i]; if(a.name!=='data-late') n.setAttribute(a.name,a.value);}
         n.defer = s.defer || true; s.remove(); document.body.appendChild(n);
       });
-      // 2) Wczytaj JS z opcjonalnej sekcji assets.js_late (po load/idle)
       {% if assets.js_late %}
         try { var late={{ assets.js_late | tojson }}; late.forEach(function(src){ var n=document.createElement('script'); n.defer=true; n.src=src; document.body.appendChild(n); }); } catch(e){}
       {% endif %}
@@ -144,6 +145,12 @@
     if('requestIdleCallback' in window){ requestIdleCallback(loadLate,{timeout:1500}); }
     else { window.addEventListener('load', loadLate); }
   })();
+  </script>
+
+  {# --- CMS_ENDPOINT stała (fallback do meta) --- #}
+  <script>
+    window.CMS_ENDPOINT = window.CMS_ENDPOINT
+      || (document.querySelector('meta[name="cms-endpoint"]')?.content || '');
   </script>
 
   {# --- Fallback: jeśli cms.js nie podpięty w assets.js, doładuj --- #}
@@ -155,7 +162,7 @@
     })();
   </script>
 
-  {# --- Google Analytics po idle/zgodzie (lekkie) --- #}
+  {# --- Google Analytics (lekki, po idle/zgodzie) --- #}
   {% if ga_id %}
   <script>
     (function(id){
@@ -170,7 +177,6 @@
   </script>
   {% endif %}
 
-  {# --- Noscript: minimalny layout, bez CLS --- #}
   <noscript><style>.site-header{position:sticky}.reel{scroll-snap-type:none}</style></noscript>
 </body>
 </html>
