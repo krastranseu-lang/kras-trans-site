@@ -612,17 +612,22 @@ def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:
     if cms_endpoint and not head.find("meta", attrs={"name":"cms-endpoint"}):
         add_meta(name="cms-endpoint", content=cms_endpoint)
 
-    # GA (gtag)
-    if (GA_ID or "").strip():
-        has_gtm_anywhere = bool(soup.find("script", src=re.compile(r"googletagmanager\.com/gtag/js")))
-        has_config_anywhere = bool(soup.find("script", string=re.compile(r"gtag\('config',\s*['\"]"+re.escape(GA_ID))))
-        if not has_gtm_anywhere:
-            s = soup.new_tag("script", async=True, src=f"https://www.googletagmanager.com/gtag/js?id={G-5FYE42J3BE}")
-            head.append(s)
-        if not has_config_anywhere:
-            conf = soup.new_tag("script")
-            conf.string = f"window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments);}}gtag('js',new Date());gtag('config','{GA_ID}');"
-            head.append(conf)
+# GA (gtag) – wstrzykuj tylko, jeśli w całym dokumencie nie ma już configu
+if (GA_ID or "").strip():
+    has_gtm_any = bool(soup.find("script", src=re.compile(r"googletagmanager\.com/gtag/js")))
+    has_conf_any = bool(soup.find("script", string=re.compile(r"gtag\('config',\s*['\"]"+re.escape(GA_ID))))
+    if not has_gtm_any:
+        s = soup.new_tag("script", attrs={"src": f"https://www.googletagmanager.com/gtag/js?id={GA_ID}"})
+        s.attrs["async"] = True  # 'async' nie może być argumentem nazwanym
+        head.append(s)
+    if not has_conf_any:
+        conf = soup.new_tag("script")
+        conf.string = (
+            "window.dataLayer=window.dataLayer||[];"
+            "function gtag(){dataLayer.push(arguments);}gtag('js',new Date());"
+            f"gtag('config','{GA_ID}',{{anonymize_ip:true}});"
+        )
+        head.append(conf)
 
     # JSON-LD (builder)
     # Jeśli szablon nie dodał <script type="application/ld+json"> z naszym JSONem – dołóż
