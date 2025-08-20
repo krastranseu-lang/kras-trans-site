@@ -1,22 +1,46 @@
 name: pages
 
 on:
+  workflow_dispatch:
+    inputs:
+      purge_cache:
+        description: 'Force cache-bust for cms.js (true/false)'
+        required: false
+        default: 'false'
   push:
-    branches: ["main"]
-  workflow_dispatch: {}
+    branches: [ "main" ]
+    # opcjonalnie – by nie odpalać przy zmianach md/licencji:
+    paths-ignore:
+      - "**/*.md"
+      - "LICENSE"
+      - ".gitignore"
+      - ".github/ISSUE_TEMPLATE/**"
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# 👉 koniec z mieleniem kolejek; każde kolejne uruchomienie anuluje poprzednie
 concurrency:
-  group: "pages"
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # dostarczamy podstawowe ENV do builda (SITE_URL itp.)
+      SITE_URL: ${{ vars.SITE_URL }}
+      GA_ID: ${{ vars.GA_ID }}
+      GSC_VERIFICATION: ${{ vars.GSC_VERIFICATION }}
+      INDEXNOW_KEY: ${{ vars.INDEXNOW_KEY }}
+      BING_SITE_AUTH_USER: ${{ vars.BING_SITE_AUTH_USER }}
+      NEWS_ENABLED: ${{ vars.NEWS_ENABLED }}
+      # BUILD_ID do cache-bustu
+      BUILD_ID: ${{ github.run_id }}
+      BUILD_NUM: ${{ github.run_number }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,48 +48,139 @@ jobs:
           fetch-depth: 0
           lfs: true
 
+      - name: Show commit info
+        run: |
+          echo "👉 Ref: $GITHUB_REF  SHA: $GITHUB_SHA  Actor: $GITHUB_ACTOR"
+          git --no-pager log -1 --pretty='format:%h %ad %an  %s' --date=iso
+          echo ""; echo "Changed files vs previous:"; git diff --name-only HEAD~1..HEAD || true
+
+      - name: Install jq + zip + tree
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq zip tree
+
+      - name: Resolve CMS secrets/vars (fallback logic)
+        shell: bash
+        run: |
+          # preferuj Variables, ale jeśli puste – weź z Secrets
+          echo "APPS_URL=${{ vars.APPS_URL != '' && vars.APPS_URL || secrets.APPS_URL }}" >> $GITHUB_ENV
+          echo "APPS_KEY=${{ vars.APPS_KEY != '' && vars.APPS_KEY || secrets.APPS_KEY }}" >> $GITHUB_ENV
+
+      - name: Preflight secrets check
+        shell: bash
+        run: |
+          if [ -z "${APPS_URL}" ] || [ -z "${APPS_KEY}" ]; then
+            echo "::warning ::APPS_URL/APPS_KEY nie ustawione – builder użyje data/cms.json (fallback)."
+          else
+            echo "APPS endpoint ok."
+          fi
+
+      - name: Fetch CMS JSON from Apps Script (robust; optional)
+        if: env.APPS_URL != '' && env.APPS_KEY != ''
+        shell: bash
+        run: |
+          set -e
+          mkdir -p data
+          URL="${APPS_URL}?key=${APPS_KEY}"
+          echo "GET $URL"
+          curl -fsSL --retry 4 --retry-delay 3 --connect-timeout 12 --max-time 45 "${URL}" -o data/cms.json
+          # sanity JSON (ok==true)
+          if ! jq -e '.ok == true' data/cms.json >/dev/null 2>&1; then
+            echo "::warning ::CMS JSON nie zawiera ok:true – zostawiamy plik do debug, build ma własny fallback."
+          fi
+          echo "📦 data/cms.json: $(wc -c < data/cms.json) bytes"
+
+      - name: Keep a copy of cms.json (artifact)
+        if: hashFiles('data/cms.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: cms-json-${{ github.run_id }}
+          path: data/cms.json
+          retention-days: 3
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install deps
+      - name: Install build deps (requirements.txt)
         run: |
           python -V
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Build site
+      - name: Sanity check (templates compile)
+        shell: bash
+        run: |
+          python - <<'PY'
+          from jinja2 import Environment, FileSystemLoader
+          env = Environment(loader=FileSystemLoader('templates'))
+          for t in ['base.html','page.html']:
+              env.get_template(t)
+          print("Templates OK")
+          PY
+
+      - name: Build site (HTML + sitemapy/robots)
         env:
-          SITE_URL: ${{ vars.SITE_URL }}   # masz już w Variables
-          APPS_URL: ${{ secrets.APPS_URL }}
-          APPS_KEY: ${{ secrets.APPS_KEY }}
+          # przekazanie CMS i pozostałych ENV do builda
+          APPS_URL: ${{ env.APPS_URL }}
+          APPS_KEY: ${{ env.APPS_KEY }}
+          SITE_URL: ${{ env.SITE_URL }}
+          GA_ID: ${{ env.GA_ID }}
+          GSC_VERIFICATION: ${{ env.GSC_VERIFICATION }}
+          INDEXNOW_KEY: ${{ env.INDEXNOW_KEY }}
+          BING_SITE_AUTH_USER: ${{ env.BING_SITE_AUTH_USER }}
+          NEWS_ENABLED: ${{ env.NEWS_ENABLED }}
         run: |
           python -u tools/build.py
-          test -d dist && echo "dist/ ready" || (echo "dist/ missing" && exit 1)
+          test -d dist || (echo "dist/ missing" && exit 1)
+          tree -L 2 dist | sed -n '1,120p'
+
+      - name: Smoke test dist
+        run: |
+          test -f dist/index.html || (echo "Brak dist/index.html" && exit 1)
+          test -f dist/robots.txt  || (echo "Brak dist/robots.txt" && exit 1)
+          test -f dist/sitemap.xml || (echo "Brak dist/sitemap.xml" && exit 1)
+
+      - name: Cache-bust cms.js in built HTML (safe rewrite)
+        shell: bash
+        run: |
+          BUST="${BUILD_NUM}-${BUILD_ID}"
+          echo "BUST=${BUST}"
+          # podmień tylko gdy występuje ścieżka bez query
+          grep -R --null -l '/assets/js/cms.js"' dist || { echo "cms.js nie występuje literalnie (OK)."; exit 0; }
+          while IFS= read -r -d '' f; do
+            sed -i 's#/assets/js/cms.js"#/assets/js/cms.js?v='"${BUST}"'"#g' "$f"
+          done < <(grep -R --null -l '/assets/js/cms.js"' dist)
+
+      - name: Make site snapshot (ZIP)
+        run: |
+          (cd dist && zip -q -r ../dist.zip .)
+          ls -lah dist.zip
+
+      - name: Upload site snapshot (ZIP)
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-snapshot-${{ github.run_id }}
+          path: dist.zip
+          retention-days: 5
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload artifact
+      - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
   deploy:
+    needs: build
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
+    timeout-minutes: 15
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
