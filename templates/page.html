@@ -1,73 +1,502 @@
 {% extends "base.html" %}
 {% block content %}
-{% set H = ssr.hero if ssr else {} %}
-{% set R = ssr.routes if ssr else {} %}
+{# =========================
+   KRAS-TRANS • HOME (SSR+CSR)
+   - Zero widocznych tekstów „na sztywno”
+   - SSR: korzysta z `ssr` (przekazany z build.py)
+   - CSR: data-api + data-bind (wypełni cms.js)
+   - Layout: nowoczesny, sekcje o różnych tłach, poziome „reel” na mobile
+   - A11y: aria-labelledby, aria-busy, role, details/summary, h1 single
+   ========================= #}
 
-<!-- HERO (SSR) -->
-<section id="hero" class="section hero" aria-labelledby="hero-title">
+{# ---------- Pomocnicze: href po slugKey z SSR + fallback --------- #}
+{% macro href_by_slugkey(key) -%}
+  {%- set L = page.lang or site.defaultLang or 'pl' -%}
+  {%- if ssr and ssr.routes and ssr.routes.get(key) and ssr.routes[key].get(L) -%}
+    {{ ssr.routes[key][L] }}
+  {%- else -%}
+    /{{ L }}/{{ '' if key=='home' else key ~ '/' }}
+  {%- endif -%}
+{%- endmacro %}
+
+{# ---------- Progress bar (wypełnia się wraz ze scrollem) ---------- #}
+<aside id="scroll-progress" class="progress" aria-hidden="true" data-component="scroll-progress">
+  <div class="progress__bar" style="transform: scaleX(0)"></div>
+  <ul class="progress__dots" role="list" aria-hidden="true">
+    {# nawigacja sekcyjna do podświetlenia w JS (bez tekstów) #}
+    <li data-target="#hero"></li>
+    <li data-target="#services"></li>
+    <li data-target="#industries"></li>
+    <li data-target="#coverage"></li>
+    <li data-target="#process"></li>
+    <li data-target="#trust"></li>
+    <li data-target="#testimonials"></li>
+    <li data-target="#partners"></li>
+    <li data-target="#fleet"></li>
+    <li data-target="#pricing"></li>
+    <li data-target="#insights"></li>
+    <li data-target="#faq"></li>
+    <li data-target="#final-cta"></li>
+  </ul>
+</aside>
+
+{# ================================================================
+   0) HERO — LCP obraz + KPI + CTA
+   ================================================================ #}
+{% set H = ssr.hero if ssr else {} %}
+<section id="hero" class="section section--hero theme-glass" aria-labelledby="hero-title"
+         data-api="/home/hero" aria-busy="{{ 'false' if ssr else 'true' }}">
   <div class="wrap hero__wrap">
     <div class="hero__copy">
-      <h1 id="hero-title" class="hero__title">{{ H.title }}</h1>
-      <p class="hero__lead">{{ H.lead }}</p>
+      <p class="hero__claim" data-bind="text: home.claim"></p>
+      <h1 id="hero-title" class="hero__title">
+        {{ H.title if ssr else '' }}
+      </h1>
+      <p class="hero__lead">{{ H.lead if ssr else '' }}</p>
+
       <div class="cta-row">
-        <a class="btn btn-primary" href="{{ '/' ~ (page.lang or 'pl') ~ '/' ~ (R['quote'][page.lang] | default('quote/') | replace('/' ~ (page.lang or 'pl') ~ '/', '')) }}">{{ H.cta_primary.label }}</a>
-        <a class="btn" href="{{ '/' ~ (page.lang or 'pl') ~ '/' ~ (R['contact'][page.lang] | default('contact/') | replace('/' ~ (page.lang or 'pl') ~ '/', '')) }}">{{ H.cta_secondary.label }}</a>
+        <a class="btn btn-primary"
+           href="{{ href_by_slugkey('quote') }}"
+           data-bind="href: hero.cta_primary.slugKey|slug, text: hero.cta_primary.label">
+          {{ H.cta_primary.label if ssr else '' }}
+        </a>
+        <a class="btn btn-ghost"
+           href="{{ href_by_slugkey('contact') }}"
+           data-bind="href: hero.cta_secondary.slugKey|slug, text: hero.cta_secondary.label">
+           {{ H.cta_secondary.label if ssr else '' }}
+        </a>
         {% if company and company[0] and company[0].telephone %}
-          <a class="btn btn-ghost" href="tel:{{ company[0].telephone }}">{{ company[0].telephone }}</a>
+          <a class="btn btn-ghost"
+             href="tel:{{ company[0].telephone }}"
+             data-bind="text: hero.cta_phone">
+             {{ company[0].telephone }}
+          </a>
         {% endif %}
       </div>
-      {% if H.kpi and H.kpi|length %}
-        <ul class="hero__kpi" role="list">
+
+      <ul class="hero__kpi" role="list">
+        {# SSR KPI (opcjonalnie) #}
+        {% if ssr and H.kpi %}
           {% for k in H.kpi %}
-            <li role="listitem"><strong>{{ k.value }}</strong><span>{{ k.label }}</span></li>
+            <li role="listitem"><strong data-counter="{{ k.value }}">{{ k.value }}</strong><span>{{ k.label }}</span></li>
           {% endfor %}
-        </ul>
+        {% else %}
+          {# CSR: cztery puste sloty do wypełnienia #}
+          {% for i in range(0,4) %}
+            <li role="listitem"><strong data-bind="text: hero.kpi[{{ i }}].value"></strong><span data-bind="text: hero.kpi[{{ i }}].label"></span></li>
+          {% endfor %}
+        {% endif %}
+      </ul>
+    </div>
+
+    <div class="hero__media">
+      <picture>
+        {# Możesz mieć srcset w JSON; JS podmieni, a builder doda preload #}
+        <img id="heroLCP" width="1280" height="720" decoding="async" loading="eager" fetchpriority="high"
+             src="{{ H.image.src if ssr else '' }}"
+             srcset="{{ H.image.srcset if ssr else '' }}"
+             alt="{{ H.image.alt if ssr else '' }}"
+             data-bind="attr: { src: hero.image.src, srcset: hero.image.srcset, alt: hero.image.alt }">
+      </picture>
+      <div class="hero__backdrop">
+        {# dekoracyjna siatka/gradient — czysto wizualne #}
+        <svg viewBox="0 0 600 600" aria-hidden="true" class="orbs">
+          <defs>
+            <radialGradient id="g1" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="var(--brand)" stop-opacity=".25"></stop>
+              <stop offset="100%" stop-color="transparent"></stop>
+            </radialGradient>
+          </defs>
+          <circle cx="140" cy="160" r="140" fill="url(#g1)"></circle>
+          <circle cx="420" cy="360" r="180" fill="url(#g1)"></circle>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="divider divider--bottom"></div>
+</section>
+
+{# ================================================================
+   1) SERVICES — kafle, reel na mobile
+   ================================================================ #}
+<section id="services" class="section section--altA" aria-labelledby="services-title"
+         data-api="/home/services" aria-busy="{{ 'false' if ssr else 'true' }}">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="services-title">
+        {{ ssr.home.section_titles.services if ssr else '' }}
+      </h2>
+      <p class="section__sub">
+        {{ ssr.home.section_subtitles.services if ssr else '' }}
+      </p>
+    </header>
+
+    <div class="reel services__reel" role="list" aria-label="" data-bind="aria: { label: home.aria_services }">
+      {% if ssr and ssr.services %}
+        {% for s in ssr.services %}
+          {% set href = ssr.routes[s.slugKey][page.lang] if ssr.routes.get(s.slugKey) else '/' ~ (page.lang or 'pl') ~ '/' ~ s.slugKey ~ '/' %}
+          <article class="card card--service" role="listitem" itemscope itemtype="https://schema.org/Service">
+            <div class="card__icon" aria-hidden="true">{{ s.icon|safe }}</div>
+            <h3 class="card__title" itemprop="name">{{ s.title }}</h3>
+            <p class="card__desc" itemprop="description">{{ s.desc }}</p>
+            <a class="card__link" href="{{ href }}">{{ s.cta.label }}</a>
+          </article>
+        {% endfor %}
+      {% else %}
+        {# CSR placeholder: 8 slotów #}
+        {% for i in range(0,8) %}
+          <article class="card card--service" role="listitem">
+            <div class="card__icon" aria-hidden="true" data-bind="html: services[{{ i }}].icon"></div>
+            <h3 class="card__title" data-bind="text: services[{{ i }}].title"></h3>
+            <p class="card__desc" data-bind="text: services[{{ i }}].desc"></p>
+            <a class="card__link" data-bind="href: services[{{ i }}].slugKey|slug, text: services[{{ i }}].cta.label"></a>
+          </article>
+        {% endfor %}
       {% endif %}
     </div>
-    <div class="hero__media">
-      <img id="heroLCP" width="1280" height="720" loading="eager" fetchpriority="high" decoding="async"
-           src="{{ H.image.src }}" srcset="{{ H.image.srcset }}" alt="{{ H.image.alt }}">
-    </div>
   </div>
+  <div class="divider divider--wave"></div>
 </section>
 
-<!-- SERVICES (SSR) -->
-<section id="services" class="section services" aria-labelledby="services-title">
+{# ================================================================
+   2) INDUSTRIES — siatka 3/4 kolumny
+   ================================================================ #}
+<section id="industries" class="section section--altB" aria-labelledby="ind-title"
+         data-api="/home/industries" aria-busy="{{ 'false' if ssr else 'true' }}">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="services-title">{{ ssr.home.section_titles.services if ssr else '' }}</h2>
-      <p class="section__sub">{{ ssr.home.section_subtitles.services if ssr else '' }}</p>
+      <h2 id="ind-title">{{ ssr.home.section_titles.industries if ssr and ssr.home.section_titles.industries else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.industries if ssr and ssr.home.section_subtitles.industries else '' }}</p>
     </header>
-    <div class="grid services__grid" role="list">
-      {% for s in (ssr.services or []) %}
-        <article class="card" role="listitem" itemscope itemtype="https://schema.org/Service">
-          <div class="card__icon" aria-hidden="true">{{ s.icon | safe }}</div>
-          <h3 class="card__title" itemprop="name">{{ s.title }}</h3>
-          <p class="card__desc" itemprop="description">{{ s.desc }}</p>
-          {% set href = (ssr.routes[s.slugKey][page.lang] if ssr and ssr.routes and ssr.routes.get(s.slugKey) else '/' ~ (page.lang or 'pl') ~ '/' ~ (s.slugKey ~ '/') ) %}
-          <a class="card__link" href="{{ href }}">{{ s.cta.label }}</a>
-        </article>
-      {% endfor %}
+    <div class="grid grid--auto" role="list">
+      {% if ssr and ssr.industries %}
+        {% for it in ssr.industries %}
+          <article class="tile3d" role="listitem">
+            <h3>{{ it.title }}</h3>
+            <p>{{ it.desc }}</p>
+          </article>
+        {% endfor %}
+      {% else %}
+        {% for i in range(0,6) %}
+          <article class="tile3d" role="listitem">
+            <h3 data-bind="text: industries[{{ i }}].title"></h3>
+            <p data-bind="text: industries[{{ i }}].desc"></p>
+          </article>
+        {% endfor %}
+      {% endif %}
     </div>
   </div>
 </section>
 
-<!-- FAQ (SSR) -->
-<section id="faq" class="section faq" aria-labelledby="faq-title">
+{# ================================================================
+   3) COVERAGE — korytarze, mini map-widget (dekor)
+   ================================================================ #}
+<section id="coverage" class="section section--altC" aria-labelledby="cov-title"
+         data-api="/home/coverage" aria-busy="{{ 'false' if ssr else 'true' }}">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="faq-title">{{ ssr.home.section_titles.faq if ssr else '' }}</h2>
-      <p class="section__sub">{{ ssr.home.section_subtitles.faq if ssr else '' }}</p>
+      <h2 id="cov-title">{{ ssr.home.section_titles.coverage if ssr and ssr.home.section_titles.coverage else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.coverage if ssr and ssr.home.section_subtitles.coverage else '' }}</p>
+    </header>
+    <div class="grid grid--auto" role="list">
+      {% if ssr and ssr.coverage %}
+        {% for it in ssr.coverage %}
+          <article class="card card--ghost" role="listitem">
+            <h3 class="card__title">{{ it.title }}</h3>
+            <p class="card__desc">{{ it.desc }}</p>
+          </article>
+        {% endfor %}
+      {% else %}
+        {% for i in range(0,6) %}
+          <article class="card card--ghost" role="listitem">
+            <h3 class="card__title" data-bind="text: coverage[{{ i }}].title"></h3>
+            <p class="card__desc" data-bind="text: coverage[{{ i }}].desc"></p>
+          </article>
+        {% endfor %}
+      {% endif %}
+    </div>
+    <div class="map-decor" aria-hidden="true">
+      <svg viewBox="0 0 800 120" preserveAspectRatio="none"><path d="M0,80 Q200,10 400,80 T800,80 L800,120 L0,120 Z" fill="currentColor" opacity=".06"/></svg>
+    </div>
+  </div>
+</section>
+
+{# ================================================================
+   4) PROCESS — timeline (ol > li)
+   ================================================================ #}
+<section id="process" class="section section--timeline" aria-labelledby="proc-title"
+         data-api="/home/process" aria-busy="{{ 'false' if ssr else 'true' }}">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="proc-title">{{ ssr.home.section_titles.process if ssr and ssr.home.section_titles.process else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.process if ssr and ssr.home.section_subtitles.process else '' }}</p>
+    </header>
+    <ol class="steps" role="list">
+      {% if ssr and ssr.process %}
+        {% for it in ssr.process %}
+          <li class="step" role="listitem"><h3>{{ it.title }}</h3><p>{{ it.desc }}</p></li>
+        {% endfor %}
+      {% else %}
+        {% for i in range(0,6) %}
+          <li class="step" role="listitem">
+            <h3 data-bind="text: process[{{ i }}].title"></h3>
+            <p data-bind="text: process[{{ i }}].desc"></p>
+          </li>
+        {% endfor %}
+      {% endif %}
+    </ol>
+  </div>
+</section>
+
+{# ================================================================
+   5) TRUST — KPI kafle
+   ================================================================ #}
+<section id="trust" class="section section--altD" aria-labelledby="trust-title"
+         data-api="/home/trust" aria-busy="{{ 'false' if ssr else 'true' }}">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="trust-title">{{ ssr.home.section_titles.trust if ssr and ssr.home.section_titles.trust else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.trust if ssr and ssr.home.section_subtitles.trust else '' }}</p>
+    </header>
+    <div class="grid grid--kpi" role="list">
+      {% if ssr and ssr.trust %}
+        {% for it in ssr.trust %}
+          <article class="kpi" role="listitem">
+            <div class="kpi__value" data-counter="{{ it.value }}">{{ it.value }}</div>
+            <div class="kpi__label">{{ it.label }}</div>
+            <p class="kpi__desc">{{ it.desc }}</p>
+          </article>
+        {% endfor %}
+      {% else %}
+        {% for i in range(0,6) %}
+          <article class="kpi" role="listitem">
+            <div class="kpi__value" data-bind="text: trust[{{ i }}].value"></div>
+            <div class="kpi__label" data-bind="text: trust[{{ i }}].label"></div>
+            <p class="kpi__desc" data-bind="text: trust[{{ i }}].desc"></p>
+          </article>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{# ================================================================
+   6) TESTIMONIALS — karuzela „reel”
+   ================================================================ #}
+<section id="testimonials" class="section section--altE" aria-labelledby="testi-title"
+         data-api="/home/testimonials" aria-busy="{{ 'false' if ssr else 'true' }}">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="testi-title">{{ ssr.home.section_titles.testimonials if ssr and ssr.home.section_titles.testimonials else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.testimonials if ssr and ssr.home.section_subtitles.testimonials else '' }}</p>
+    </header>
+    <div class="reel testimonials__reel" role="list">
+      {% if ssr and ssr.testimonials %}
+        {% for t in ssr.testimonials %}
+          <figure class="quote card card--quote" role="listitem" itemprop="review" itemscope itemtype="https://schema.org/Review">
+            <blockquote class="quote__text" itemprop="reviewBody">“{{ t.quote }}”</blockquote>
+            <figcaption class="quote__meta">
+              <span class="quote__author" itemprop="author">{{ t.author }}</span>
+              <span class="quote__role">{{ t.role }}</span>
+            </figcaption>
+          </figure>
+        {% endfor %}
+      {% else %}
+        {% for i in range(0,6) %}
+          <figure class="quote card card--quote" role="listitem">
+            <blockquote class="quote__text" data-bind="text: testimonials[{{ i }}].quote"></blockquote>
+            <figcaption class="quote__meta">
+              <span class="quote__author" data-bind="text: testimonials[{{ i }}].author"></span>
+              <span class="quote__role" data-bind="text: testimonials[{{ i }}].role"></span>
+            </figcaption>
+          </figure>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{# ================================================================
+   7) PARTNERS — paski logo
+   ================================================================ #}
+<section id="partners" class="section section--altF" aria-labelledby="partners-title"
+         data-api="/home/partners" aria-busy="{{ 'false' if ssr else 'true' }}">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="partners-title">{{ ssr.home.section_titles.partners if ssr and ssr.home.section_titles.partners else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.partners if ssr and ssr.home.section_subtitles.partners else '' }}</p>
+    </header>
+    <ul class="logos" role="list">
+      {% if ssr and ssr.partners %}
+        {% for p in ssr.partners %}
+          <li role="listitem">
+            <img loading="lazy" decoding="async"
+                 src="{{ p.src }}" alt="{{ p.alt }}">
+          </li>
+        {% endfor %}
+      {% else %}
+        {% for i in range(0,8) %}
+          <li role="listitem"><img loading="lazy" decoding="async" data-bind="attr: { src: partners[{{ i }}].src, alt: partners[{{ i }}].alt }"></li>
+        {% endfor %}
+      {% endif %}
+    </ul>
+  </div>
+</section>
+
+{# ================================================================
+   8) FLEET — kafle
+   ================================================================ #}
+<section id="fleet" class="section section--altG" aria-labelledby="fleet-title"
+         data-api="/home/fleet" aria-busy="{{ 'false' if ssr else 'true' }}">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="fleet-title">{{ ssr.home.section_titles.fleet if ssr and ssr.home.section_titles.fleet else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.fleet if ssr and ssr.home.section_subtitles.fleet else '' }}</p>
+    </header>
+    <div class="grid grid--cards" role="list">
+      {% if ssr and ssr.fleet %}
+        {% for f in ssr.fleet %}
+          <article class="card card--fleet" role="listitem">
+            <h3 class="card__title">{{ f.title }}</h3>
+            <p class="card__desc">{{ f.desc }}</p>
+          </article>
+        {% endfor %}
+      {% else %}
+        {% for i in range(0,6) %}
+          <article class="card card--fleet" role="listitem">
+            <h3 class="card__title" data-bind="text: fleet[{{ i }}].title"></h3>
+            <p class="card__desc" data-bind="text: fleet[{{ i }}].desc"></p>
+          </article>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{# ================================================================
+   9) PRICING / QUOTE — kafle linkujące
+   ================================================================ #}
+<section id="pricing" class="section section--altH" aria-labelledby="pricing-title"
+         data-api="/home/pricing" aria-busy="{{ 'false' if ssr else 'true' }}">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="pricing-title">{{ ssr.home.section_titles.pricing if ssr and ssr.home.section_titles.pricing else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.pricing if ssr and ssr.home.section_subtitles.pricing else '' }}</p>
+    </header>
+    <div class="grid grid--cards" role="list">
+      {% if ssr and ssr.pricing %}
+        {% for pr in ssr.pricing %}
+          <article class="card card--pricing" role="listitem">
+            <h3 class="card__title">{{ pr.title }}</h3>
+            <p class="card__desc">{{ pr.desc }}</p>
+            {% set k = pr.slugKey %}
+            <a class="card__link" href="{{ href_by_slugkey(k) }}">{{ pr.cta.label if pr.cta and pr.cta.label else '' }}</a>
+          </article>
+        {% endfor %}
+      {% else %}
+        {% for i in range(0,4) %}
+          <article class="card card--pricing" role="listitem">
+            <h3 class="card__title" data-bind="text: pricing[{{ i }}].title"></h3>
+            <p class="card__desc" data-bind="text: pricing[{{ i }}].desc"></p>
+            <a class="card__link" data-bind="href: pricing[{{ i }}].slugKey|slug, text: pricing[{{ i }}].cta.label"></a>
+          </article>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{# ================================================================
+   10) INSIGHTS — blog/cases (reel)
+   ================================================================ #}
+<section id="insights" class="section section--altI" aria-labelledby="ins-title"
+         data-api="/blog/latest" aria-busy="{{ 'false' if ssr else 'true' }}">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="ins-title">{{ ssr.home.section_titles.insights if ssr and ssr.home.section_titles.insights else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.insights if ssr and ssr.home.section_subtitles.insights else '' }}</p>
+    </header>
+    <div class="reel insights__reel" role="list">
+      {% if ssr and ssr.blog %}
+        {% for b in ssr.blog %}
+          <article class="card card--post" role="listitem" itemscope itemtype="https://schema.org/BlogPosting">
+            <h3 class="card__title" itemprop="headline">{{ b.title }}</h3>
+            <p class="card__desc" itemprop="description">{{ b.lead }}</p>
+            <a class="card__link" href="{{ b.canonical_path }}">{{ b.cta.label if b.cta and b.cta.label else '' }}</a>
+          </article>
+        {% endfor %}
+      {% else %}
+        {% for i in range(0,6) %}
+          <article class="card card--post" role="listitem">
+            <h3 class="card__title" data-bind="text: blog[{{ i }}].title"></h3>
+            <p class="card__desc" data-bind="text: blog[{{ i }}].lead"></p>
+            <a class="card__link" data-bind="href: blog[{{ i }}].canonical_path, text: blog[{{ i }}].cta.label"></a>
+          </article>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{# ================================================================
+   11) FAQ — details/summary
+   ================================================================ #}
+<section id="faq" class="section section--faq" aria-labelledby="faq-title"
+         data-api="/faq/list" aria-busy="{{ 'false' if ssr else 'true' }}">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="faq-title">{{ ssr.home.section_titles.faq if ssr and ssr.home.section_titles.faq else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.faq if ssr and ssr.home.section_subtitles.faq else '' }}</p>
     </header>
     <div class="faq-list" role="list">
-      {% for f in (ssr.faq or []) %}
-        <details class="qa" role="listitem">
-          <summary>{{ f.q }}</summary>
-          <div class="a"><p>{{ f.a }}</p></div>
-        </details>
-      {% endfor %}
+      {% if ssr and ssr.faq %}
+        {% for f in ssr.faq %}
+          <details class="qa" role="listitem">
+            <summary>{{ f.q }}</summary>
+            <div class="a"><p>{{ f.a }}</p></div>
+          </details>
+        {% endfor %}
+      {% else %}
+        {% for i in range(0,12) %}
+          <details class="qa" role="listitem">
+            <summary data-bind="text: faq[{{ i }}].q"></summary>
+            <div class="a"><p data-bind="text: faq[{{ i }}].a"></p></div>
+          </details>
+        {% endfor %}
+      {% endif %}
     </div>
   </div>
 </section>
+
+{# ================================================================
+   12) FINAL CTA — przyciski
+   ================================================================ #}
+<section id="final-cta" class="section section--final" data-api="/home/final"
+         aria-labelledby="final-cta-title" aria-busy="{{ 'false' if ssr else 'true' }}">
+  <div class="wrap">
+    <h2 id="final-cta-title">{{ ssr.final.title if ssr and ssr.final and ssr.final.title else '' }}</h2>
+    <p class="final__desc">{{ ssr.final.desc if ssr and ssr.final and ssr.final.desc else '' }}</p>
+    <div class="cta-row">
+      <a class="btn btn-primary"
+         href="{{ href_by_slugkey('quote') }}"
+         data-bind="href: final.cta_primary.slugKey|slug, text: final.cta_primary.label">
+        {{ ssr.final.cta_primary.label if ssr and ssr.final and ssr.final.cta_primary else '' }}
+      </a>
+      <a class="btn btn-ghost"
+         href="{{ href_by_slugkey('contact') }}"
+         data-bind="href: final.cta_secondary.slugKey|slug, text: final.cta_secondary.label">
+        {{ ssr.final.cta_secondary.label if ssr and ssr.final and ssr.final.cta_secondary else '' }}
+      </a>
+    </div>
+  </div>
+</section>
+
+{# ================================================================
+   Dodatkowe UI: przełącznik motywu (light/dark) — bez tekstów
+   ================================================================ #}
+<button class="theme-toggle" type="button" data-action="theme-toggle" aria-label="" data-bind="attr:{'aria-label': home.theme_toggle_aria}">
+  <svg width="24" height="24" aria-hidden="true" class="sun"><circle cx="12" cy="12" r="5"/></svg>
+  <svg width="24" height="24" aria-hidden="true" class="moon"><path d="M13 2a9 9 0 1 0 9 9A7 7 0 0 1 13 2z"/></svg>
+</button>
 
 {% endblock %}
