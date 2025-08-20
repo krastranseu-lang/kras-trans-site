@@ -813,52 +813,52 @@ document.getElementById('go').onclick = async () => {{
     print("\n".join(logs[:80] + (["…"] if len(logs)>80 else [])))
 
 # ----------------------------- SITEMAPS ------------------------------------
-def write_sitemaps(urls:List[Tuple[str,str,str]], alternates:Dict[str,Dict[str,str]]):
-    shard = int(CFG.get("sitemap",{}).get("shard_size", 45000))
-    groups=[ urls[i:i+shard] for i in range(0, len(urls), shard) ]
-    index=[]
-    for i,g in enumerate(groups or [[]]):
-        name=f"sitemap-{i+1}.xml"; path=OUT/name
-        lines=['<?xml version="1.0" encoding="UTF-8"?>','<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">']
-        for loc,lastmod,slugKey in g:
+def write_sitemaps(urls: List[Tuple[str, str, str]] | List[Tuple[str, str]] , alternates: Dict[str, Dict[str, str]] | None = None):
+    """
+    urls: [(loc, lastmod, slugKey?)] – trzeci element może nie wystąpić (wtedy alternates ignorujemy)
+    alternates: { slugKey: { 'pl': '...', 'en': '...', ... } }
+    """
+    alternates = alternates or {}
+    # wyciągnij slugKey jeśli jest; ujednolić do 3-elementowej krotki
+    norm_urls: List[Tuple[str, str, str]] = []
+    for u in urls:
+        if len(u) == 3:
+            norm_urls.append(u)  # (loc, lastmod, slugKey)
+        elif len(u) == 2:
+            loc, lastmod = u
+            norm_urls.append((loc, lastmod, ""))  # brak slugKey
+        else:
+            continue
+
+    shard = int(CFG.get("sitemap", {}).get("shard_size", 45000))
+    groups = [norm_urls[i:i+shard] for i in range(0, len(norm_urls), shard)]
+    index: List[Tuple[str, str]] = []
+
+    for i, g in enumerate(groups or [[]]):
+        name = f"sitemap-{i+1}.xml"
+        path = OUT / name
+        lines = ['<?xml version="1.0" encoding="UTF-8"?>',
+                 '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">']
+        for loc, lastmod, slugKey in g:
             lines.append("  <url>")
             lines.append(f"    <loc>{loc}</loc>")
             lines.append(f"    <lastmod>{lastmod}</lastmod>")
-            if CFG.get("sitemap",{}).get("include_alternates", True):
+            # alternates (hreflang) jeśli mamy slugKey i są wpisy
+            if slugKey and CFG.get("sitemap", {}).get("include_alternates", True):
                 for L, href in (alternates.get(slugKey, {}) or {}).items():
                     lines.append(f'    <xhtml:link rel="alternate" hreflang="{L}" href="{href}"/>')
             lines.append("  </url>")
         lines.append("</urlset>")
         write_text(path, "\n".join(lines))
         index.append((f"{SITE_URL}/{name}", UTC()))
+
     # index
-    idx=['<?xml version="1.0" encoding="UTF-8"?>','<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    for loc,lastmod in index:
+    idx = ['<?xml version="1.0" encoding="UTF-8"?>',
+           '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for loc, lastmod in index:
         idx.append(f"  <sitemap><loc>{loc}</loc><lastmod>{lastmod}</lastmod></sitemap>")
     idx.append("</sitemapindex>")
     write_text(OUT/"sitemap.xml", "\n".join(idx))
-
-def write_news_sitemap():
-    window_h = CFG.get("blog",{}).get("news_sitemap",{}).get("window_hours", 48)
-    limit_dt = datetime.now(timezone.utc) - timedelta(hours=window_h)
-    news=[]
-    for p in CMS.get("pages", []):
-        if (p.get("type")=="blog_post") and p.get("date"):
-            try:
-                d=datetime.fromisoformat((p["date"]).replace("Z","+00:00"))
-                if d>=limit_dt:
-                    news.append((canonical(SITE_URL, p.get("lang","pl"), p.get("slug",""), p.get("canonical_path")), d.isoformat()))
-            except: pass
-    if not news: return
-    lines=['<?xml version="1.0" encoding="UTF-8"?>','<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">']
-    for loc,dt in news:
-        lines.append("  <url>")
-        lines.append(f"    <loc>{loc}</loc>")
-        lines.append('    <news:news><news:publication><news:name>Kras-Trans</news:name><news:language>pl</news:language></news:publication>')
-        lines.append(f"      <news:publication_date>{dt}</news:publication_date><news:title>Aktualność</news:title></news:news>")
-        lines.append("  </url>")
-    lines.append("</urlset>")
-    write_text(OUT/"news-sitemap.xml", "\n".join(lines))
 
 # ------------------------------ SEARCH INDEX -------------------------------
 def build_search_indexes():
@@ -951,6 +951,7 @@ def internal_link_checker():
     if broken:
         lines=["BROKEN INTERNAL LINKS (first 100):"] + [f"{p} → {h}" for p,h in broken[:100]]
         write_text(OUT/"_reports"/"broken-links.txt", "\n".join(lines))
+
 
 # ------------------------------ MAIN ---------------------------------------
 if __name__=="__main__":
