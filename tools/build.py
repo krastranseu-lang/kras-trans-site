@@ -754,7 +754,7 @@ def build_all():
         # GSC HTML file verification (drugi, pewny sposób weryfikacji)
     html_file = (CFG.get("constants", {}).get("GSC_HTML_FILE") or "").strip()
     if html_file and html_file.startswith("google") and html_file.endswith(".html"):
-        token = re.sub(r"(^google|\\.html$)", "", html_file)  # wytnij 'google' i '.html'
+token = re.sub(r"(^google|\.html$)", "", html_file)   # wytnij 'google' i '.html'
         write_text(OUT / html_file, f"google-site-verification: {token}")
 
 
