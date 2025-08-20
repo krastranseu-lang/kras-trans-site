@@ -1,332 +1,269 @@
+{% extends "base.html" %}
 {# =====================================================================
-   KRAS-TRANS • HOME (Jinja2)
-   - Kreatywny, rozbudowany, bez twardych tekstów (treści z arkuszy)
-   - Wymagane w kontekście: page, pages, strings, faq, blog, company, routes, nav
-   - CSS/JS: header.css, home.css, header.js, home.js (z poprzednich kroków)
+   KRAS-TRANS • PAGE (HOME+GENERIC) – CMS-FIRST MAX
+   • Bez header/footer w tym pliku (są w base.html) – tu tylko <main> content
+   • Wszystkie treści docelowo z Arkuszy (Apps Script) przez REST → JSON
+   • Haczyki: elementy z atrybutem data-api, które wypełnia cms.js
+   • Ten plik NIE usuwa Twoich makr – dodaje tylko kolejne sekcje i haki
+   • Kontrakt danych (co ma zwracać API) opisany przy każdej sekcji
    ===================================================================== #}
-{% set lang = (page.lang or 'pl') %}
-{% macro t(key, fallback='') -%}
-  {# bezpieczne pobranie klucza ze Strings; fallback na pl/en #}
-  {%- set val = '' -%}
-  {%- for s in strings if (s.key or s.Key) == key -%}
-    {%- set val = (s[lang] or s[lang|upper] or s.pl or s.PL or s.en or s.EN) -%}
-  {%- endfor -%}
-  {{- (val or fallback) -}}
+
+{# --------------------------- USTAWIENIA LOCALE --------------------------- #}
+{% set lang = (page.lang or site.defaultLang or 'pl') %}
+
+{# --------------------------- MAKRAs: i18n + URL -------------------------- #}
+{% macro t(key, fb='') -%}
+  {# Fallback – dopóki nie przepniesz wszystkiego na CMS strings #}
+  {%- if i18n and (key in i18n) -%}
+    {{ i18n[key] }}
+  {%- else -%}
+    {{ fb }}
+  {%- endif -%}
 {%- endmacro %}
 
 {% macro url_by_slugkey(slugKey) -%}
-  {%- set s = '' -%}
-  {%- for r in routes if r.slugKey == slugKey -%}
-    {%- set s = r[lang] -%}
-  {%- endfor -%}
-  /{{ lang }}/{{ s ~ '/' if s else '' }}
+  {%- if slugKey=='home' -%}
+    /{{ lang }}/
+  {%- else -%}
+    /{{ lang }}/{{ slugKey }}/
+  {%- endif -%}
 {%- endmacro %}
 
 {% macro page_url(p) -%}
   {{- p.canonical_path if p.canonical_path else ('/' ~ lang ~ '/' ~ (p.slug ~ '/' if p.slug else '')) -}}
 {%- endmacro %}
 
-{% set services = pages
-  | selectattr('publish','!=',false)
-  | selectattr('lang','equalto',lang)
-  | selectattr('type','equalto','service')
-  | sort(attribute='order') | list
-%}
+{% block content %}
 
-{% set faqs = faq
-  | selectattr('enabled','!=',false)
-  | selectattr('lang','equalto',lang)
-  | list
-%}
-
-{% set posts = blog
-  | selectattr('lang','equalto',lang)
-  | sort(attribute='date', reverse=true) | list
-%}
-
-<!doctype html>
-<html lang="{{ lang }}" dir="ltr">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>{{ page.seo_title or page.h1 }}</title>
-  <meta name="description" content="{{ page.meta_desc }}">
-  <link rel="canonical" href="{{ page.canonical_path }}">
-  <link rel="preload" as="style" href="/assets/css/header.css">
-  <link rel="preload" as="style" href="/assets/css/home.css">
-  <link rel="stylesheet" href="/assets/css/header.css">
-  <link rel="stylesheet" href="/assets/css/home.css">
-  {# OG/Twitter #}
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="{{ page.seo_title or page.h1 }}">
-  <meta property="og:description" content="{{ page.meta_desc }}">
-  <meta property="og:image" content="{{ page.og_image }}">
-</head>
-<body class="kt-body">
-
-  {# ====== GLOBAL HEADER (Twój istniejący komponent) ====== #}
-  {% include '_partials/header.html' %}
-
-  {# ====== LOGO LAUNCHPAD (animowany rozjazd na JS) ====== #}
-  <div class="logo-launchpad" aria-hidden="true">
-    <img class="logo-piece logo-left"  src="/assets/media/logo-left.svg"  alt="" width="240" height="80" loading="eager" decoding="async">
-    <img class="logo-piece logo-right" src="/assets/media/logo-right.svg" alt="" width="240" height="80" loading="eager" decoding="async">
-  </div>
-
-  {# ====== HERO ====== #}
-  <section id="hero" class="section hero" data-anim="reveal-hero" aria-labelledby="hero-title">
-    <div class="container">
-      <p class="claim">{{ t('claim') }}</p>
-      <h1 id="hero-title">{{ page.h1 }}</h1>
-      <p class="lead">{{ page.lead }}</p>
+{# =====================================================================
+   0) HERO (LCP)
+   API: /home/hero  →  {
+     "title": {pl,en,...}, "lead": {pl,en,...},
+     "kpi": [{"value":"24/7","label":{pl,en,...}}, ... up to 4],
+     "cta_primary": {"label":{pl,en}, "slugKey":"quote"},
+     "cta_secondary": {"label":{pl,en}, "slugKey":"contact"},
+     "image": {"src":"/assets/media/hero.webp","srcset":"...","alt":{pl,en}}
+   }
+   ===================================================================== #}
+<section id="hero" class="section hero" aria-labelledby="hero-title" data-api="/home/hero">
+  <div class="wrap hero__wrap">
+    <div class="hero__copy">
+      <p class="hero__kicker" data-bind="lead:claim">{{ t('claim','Transport i spedycja') }}</p>
+      <h1 id="hero-title" class="hero__title" data-bind="text:title">{{ page.h1 or page.title }}</h1>
+      <p class="hero__lead" data-bind="text:lead">{{ page.lead }}</p>
       <div class="cta-row">
-        {% if page.cta_label %}<a class="btn btn-primary" href="{{ url_by_slugkey('quote') if routes else '/'+lang+'/wycena/' }}">{{ page.cta_label }}</a>{% endif %}
-        {% if page.cta_secondary %}<a class="btn btn-ghost" href="{{ url_by_slugkey('contact') if routes else '/'+lang+'/kontakt/' }}">{{ page.cta_secondary }}</a>{% endif %}
-        {% if company and company[0].telephone %}<a class="btn btn-ghost" href="tel:{{ company[0].telephone }}">{{ t('short_call') or company[0].telephone }}</a>{% endif %}
+        <a class="btn btn-primary" data-bind="href:cta_primary.slugKey|slug, text:cta_primary.label">{{ t('cta_quote','Wycena transportu') }}</a>
+        <a class="btn" data-bind="href:cta_secondary.slugKey|slug, text:cta_secondary.label">{{ t('cta_contact','Kontakt') }}</a>
       </div>
-
-      <ul class="hero-stats" role="list">
-        <li><strong data-counter="{{ t('kpi_1_value') }}">{{ t('kpi_1_value') }}</strong><span>{{ t('kpi_1_label') }}</span></li>
-        <li><strong data-counter="{{ t('kpi_2_value') }}">{{ t('kpi_2_value') }}</strong><span>{{ t('kpi_2_label') }}</span></li>
-        <li><strong data-counter="{{ t('kpi_3_value') }}">{{ t('kpi_3_value') }}</strong><span>{{ t('kpi_3_label') }}</span></li>
-        <li><strong data-counter="{{ t('kpi_4_value') }}">{{ t('kpi_4_value') }}</strong><span>{{ t('kpi_4_label') }}</span></li>
+      <ul class="hero__kpi" role="list">
+        {# 4 miejsca na KPI – JS nadpisze textContent #}
+        <li><strong data-bind="kpi[0].value">24/7</strong><span data-bind="kpi[0].label">{{ t('kpi_1','Monitorowanie') }}</span></li>
+        <li><strong data-bind="kpi[1].value">EURO6</strong><span data-bind="kpi[1].label">{{ t('kpi_2','Flota') }}</span></li>
+        <li><strong data-bind="kpi[2].value">99,2%</strong><span data-bind="kpi[2].label">{{ t('kpi_3','Terminowość') }}</span></li>
+        <li><strong data-bind="kpi[3].value">+500</strong><span data-bind="kpi[3].label">{{ t('kpi_4','Klienci') }}</span></li>
       </ul>
-
-      <picture class="hero-media">
-        <source srcset="{{ page.hero_image|default('/assets/media/hero.avif') }}" type="image/avif">
-        <img src="{{ page.hero_image|default('/assets/media/hero.webp') }}" width="1280" height="720" alt="{{ page.hero_alt }}">
+    </div>
+    <div class="hero__media">
+      <picture>
+        <source data-bind="attr: { imagesrcset: image.srcset }" type="image/avif" />
+        <img id="heroLCP"
+             src="{{ page.hero_image or '/assets/media/hero.webp' }}"
+             width="1280" height="720"
+             alt="{{ page.hero_alt or page.h1 }}"
+             data-bind="attr: { src: image.src, alt: image.alt }"
+             decoding="async" />
       </picture>
     </div>
-    <div class="divider-bottom"></div>
-  </section>
+  </div>
+  <div class="hero__divider" aria-hidden="true"></div>
+</section>
 
-  {# ====== WHY (Dlaczego) — 4 kafelki z Strings ====== #}
-  <section id="why" class="section tiles alt-1" data-anim="stagger-up" aria-labelledby="why-title">
-    <div class="container">
-      <div class="section-head">
-        <h2 id="why-title">{{ t('why_h2') }}</h2>
-        <p>{{ t('why_sub') }}</p>
-      </div>
-      <div class="reel" role="list" aria-label="{{ t('why_aria') }}">
-        {% for i in range(1,5) %}
-          <article class="tile3d" role="listitem">
-            <h3>{{ t('why_' ~ i ~ '_title') }}</h3>
-            <p>{{ t('why_' ~ i ~ '_desc') }}</p>
-          </article>
-        {% endfor %}
-      </div>
+{# =====================================================================
+   1) USŁUGI (kafle)
+   API: /home/services  →  { "services": [
+       { "icon":"🚚"|"/img.svg", "title":{pl,en}, "desc":{pl,en}, "slugKey":"service‑slug" }, ... ] }
+   ===================================================================== #}
+<section id="services" class="section services" aria-labelledby="services-title">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="services-title">{{ t('services_h2','Usługi') }}</h2>
+      <p class="section__sub">{{ t('services_sub','Transport krajowy i międzynarodowy, ekspres, palety i więcej.') }}</p>
+    </header>
+
+    <div class="grid services__grid" data-api="/home/services" aria-live="polite">
+      {# JS wstawi <article class="card"> na podstawie tablicy services #}
     </div>
-  </section>
 
-  {# ====== USŁUGI (auto z Pages: type=service) ====== #}
-  <section id="services" class="section tiles alt-2" data-anim="stagger-up" aria-labelledby="services-title">
-    <div class="container">
-      <div class="section-head">
-        <h2 id="services-title">{{ t('services_h2') }}</h2>
-        <p>{{ t('services_sub') }}</p>
-      </div>
-      <div class="reel" role="list" aria-label="{{ t('services_aria') }}">
-        {% for p in services %}
-          <article class="tile3d" role="listitem" itemscope itemtype="https://schema.org/Service">
-            <h3 itemprop="name">{{ p.h1 or p.title }}</h3>
-            <p itemprop="description">{{ p.lead }}</p>
-            <a class="tile-link" href="{{ page_url(p) }}">{{ t('services_readmore') }}</a>
-          </article>
-        {% endfor %}
-        {# opcjonalny kafelek "wszystkie usługi" #}
-        <article class="tile3d" role="listitem">
-          <h3>{{ t('services_all_title') }}</h3>
-          <p>{{ t('services_all_desc') }}</p>
-          <a class="tile-link" href="{{ url_by_slugkey('services') }}">{{ t('services_all_cta') }}</a>
-        </article>
-      </div>
+    <div class="section__cta">
+      <a class="btn" href="{{ url_by_slugkey('services') }}">{{ t('services_more','Wszystkie usługi') }}</a>
     </div>
-    <div class="divider-bottom"></div>
-  </section>
+  </div>
+</section>
 
-  {# ====== BRANŻE ====== #}
-  <section id="industries" class="section tiles bg-grid" data-anim="stagger-fade" aria-labelledby="ind-title">
-    <div class="container">
-      <div class="section-head">
-        <h2 id="ind-title">{{ t('ind_h2') }}</h2>
-        <p>{{ t('ind_sub') }}</p>
-      </div>
-      <div class="reel" role="list" aria-label="{{ t('ind_aria') }}">
-        {% for i in range(1,7) %}
-          <article class="tile3d" role="listitem">
-            <h3>{{ t('ind_' ~ i ~ '_title') }}</h3>
-            <p>{{ t('ind_' ~ i ~ '_desc') }}</p>
-          </article>
-        {% endfor %}
-      </div>
+{# =====================================================================
+   2) BRANŻE (kafle tematyczne)
+   API: /home/industries  →  { "items": [ {"title":{pl,en}, "desc":{pl,en}} ... ] }
+   ===================================================================== #}
+<section id="industries" class="section industries" aria-labelledby="ind-title">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="ind-title">{{ t('ind_h2','Branże i zastosowania') }}</h2>
+      <p class="section__sub">{{ t('ind_sub','Obsługujemy e‑commerce, FTL, przeprowadzki i inne.') }}</p>
+    </header>
+    <div class="grid industries__grid" data-api="/home/industries">
+      {# JS wypełni .card z title/desc #}
     </div>
-  </section>
+  </div>
+</section>
 
-  {# ====== ZASIĘG / KORYTARZE ====== #}
-  <section id="coverage" class="section tiles alt-3" data-anim="parallax" aria-labelledby="cov-title">
-    <div class="container">
-      <div class="section-head">
-        <h2 id="cov-title">{{ t('cov_h2') }}</h2>
-        <p>{{ t('cov_sub') }}</p>
-      </div>
-      <div class="reel" role="list" aria-label="{{ t('cov_aria') }}">
-        {% for i in range(1,6) %}
-          <article class="tile3d" role="listitem">
-            <h3>{{ t('cov_' ~ i ~ '_title') }}</h3>
-            <p>{{ t('cov_' ~ i ~ '_desc') }}</p>
-          </article>
-        {% endfor %}
-      </div>
-    </div>
-  </section>
+{# =====================================================================
+   3) ZASIĘG / KORYTARZE
+   API: /home/coverage → { "corridors": [ {"title":{pl,en}, "desc":{pl,en}} ... ] }
+   ===================================================================== #}
+<section id="coverage" class="section coverage" aria-labelledby="cov-title">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="cov-title">{{ t('cov_h2','Zasięg w UE') }}</h2>
+      <p class="section__sub">{{ t('cov_sub','Główne korytarze i regiony obsługi.') }}</p>
+    </header>
+    <div class="grid coverage__grid" data-api="/home/coverage"></div>
+  </div>
+</section>
 
-  {# ====== PROCES (kroki) ====== #}
-  <section id="process" class="section tiles bg-dots" data-anim="timeline" aria-labelledby="proc-title">
-    <div class="container">
-      <div class="section-head">
-        <h2 id="proc-title">{{ t('proc_h2') }}</h2>
-        <p>{{ t('proc_sub') }}</p>
-      </div>
-      <ol class="steps" aria-label="{{ t('proc_aria') }}">
-        {% for i in range(1,6) %}
-          <li class="tile3d">
-            <h3>{{ t('proc_' ~ i ~ '_title') }}</h3>
-            <p>{{ t('proc_' ~ i ~ '_desc') }}</p>
-          </li>
-        {% endfor %}
-      </ol>
-    </div>
-  </section>
+{# =====================================================================
+   4) PROCES (kroki)
+   API: /home/process → { "steps": [ {"title":{pl,en}, "desc":{pl,en}} … ] }
+   ===================================================================== #}
+<section id="process" class="section process" aria-labelledby="proc-title">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="proc-title">{{ t('proc_h2','Jak działamy') }}</h2>
+      <p class="section__sub">{{ t('proc_sub','Prosty proces od zapytania do dostawy.') }}</p>
+    </header>
+    <ol class="steps" data-api="/home/process"></ol>
+  </div>
+</section>
 
-  {# ====== KPI / DLACZEGO — liczby (opcjonalnie z Strings) ====== #}
-  <section id="trust" class="section tiles alt-4" data-anim="counter" aria-labelledby="trust-title">
-    <div class="container">
-      <div class="section-head">
-        <h2 id="trust-title">{{ t('trust_h2') }}</h2>
-        <p>{{ t('trust_sub') }}</p>
-      </div>
-      <div class="reel" role="list" aria-label="{{ t('trust_aria') }}">
-        {% for i in range(1,5) %}
-          <article class="tile3d" role="listitem">
-            <div class="kpi"><span class="v" data-counter="{{ t('trust_' ~ i ~ '_value') }}">{{ t('trust_' ~ i ~ '_value') }}</span><span class="l">{{ t('trust_' ~ i ~ '_label') }}</span></div>
-            <p>{{ t('trust_' ~ i ~ '_desc') }}</p>
-          </article>
-        {% endfor %}
-      </div>
-    </div>
-  </section>
+{# =====================================================================
+   5) KPI / TRUST (liczby / dowody)
+   API: /home/trust → { "items": [ {"value":"99%","label":{pl,en}, "desc":{pl,en}} … ] }
+   ===================================================================== #}
+<section id="trust" class="section trust" aria-labelledby="trust-title">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="trust-title">{{ t('trust_h2','Dowody jakości') }}</h2>
+      <p class="section__sub">{{ t('trust_sub','Liczby, certyfikaty, zadowoleni klienci.') }}</p>
+    </header>
+    <div class="grid trust__grid" data-api="/home/trust"></div>
+  </div>
+</section>
 
-  {# ====== CENNIK + WYCENA ====== #}
-  <section id="pricing" class="section tiles" data-anim="flip" aria-labelledby="pricing-title">
-    <div class="container">
-      <div class="section-head">
-        <h2 id="pricing-title">{{ t('pricing_h2') }}</h2>
-        <p>{{ t('pricing_sub') }}</p>
-      </div>
-      <div class="reel" role="list" aria-label="{{ t('pricing_aria') }}">
-        <article class="tile3d">
-          <h3>{{ t('pricing_price_title') }}</h3>
-          <p>{{ t('pricing_price_desc') }}</p>
-          <a class="tile-link" href="{{ url_by_slugkey('pricing') }}">{{ t('pricing_price_cta') }}</a>
-        </article>
-        <article class="tile3d">
-          <h3>{{ t('pricing_quote_title') }}</h3>
-          <p>{{ t('pricing_quote_desc') }}</p>
-          <a class="tile-link" href="{{ url_by_slugkey('quote') }}">{{ t('pricing_quote_cta') }}</a>
-        </article>
-      </div>
-    </div>
-  </section>
+{# =====================================================================
+   6) OPINIE / TESTIMONIALS
+   API: /home/testimonials → { "items": [ {"quote":{pl,en}, "author":"…", "role":"…"} ] }
+   ===================================================================== #}
+<section id="testimonials" class="section testimonials" aria-labelledby="testi-title">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="testi-title">{{ t('testi_h2','Mówią o nas') }}</h2>
+      <p class="section__sub">{{ t('testi_sub','Rekomendacje klientów i partnerów.') }}</p>
+    </header>
+    <div class="reel testimonials__reel" data-api="/home/testimonials"></div>
+  </div>
+</section>
 
-  {# ====== CASES / BLOG (ostatnie wpisy) ====== #}
-  <section id="insights" class="section tiles bg-noise" data-anim="stagger-zoom" aria-labelledby="insights-title">
-    <div class="container">
-      <div class="section-head">
-        <h2 id="insights-title">{{ t('ins_h2') }}</h2>
-        <p>{{ t('ins_sub') }}</p>
-      </div>
-      <div class="reel" role="list" aria-label="{{ t('ins_aria') }}">
-        {% for b in posts[:6] %}
-          <article class="tile3d" role="listitem" itemscope itemtype="https://schema.org/BlogPosting">
-            <h3 itemprop="headline">{{ b.title }}</h3>
-            <p itemprop="description">{{ b.lead }}</p>
-            <a class="tile-link" href="{{ b.canonical_path }}">{{ t('ins_read') }}</a>
-          </article>
-        {% endfor %}
-        <article class="tile3d"><h3>{{ t('ins_all_title') }}</h3><p>{{ t('ins_all_desc') }}</p><a class="tile-link" href="{{ url_by_slugkey('blog') }}">{{ t('ins_all_cta') }}</a></article>
-      </div>
-    </div>
-  </section>
+{# =====================================================================
+   7) PARTNERZY / LOGA
+   API: /home/partners → { "logos": [ {"src":"/logo.svg","alt":"…"} ] }
+   ===================================================================== #}
+<section id="partners" class="section partners" aria-label="Partnerzy">
+  <div class="wrap">
+    <ul class="logos" role="list" data-api="/home/partners"></ul>
+  </div>
+</section>
 
-  {# ====== FAQ (globalne + przypięte do home) ====== #}
-  <section id="faq" class="section faq" data-anim="accordion" aria-labelledby="faq-title">
-    <div class="container">
-      <div class="section-head">
-        <h2 id="faq-title">{{ t('faq_h2') }}</h2>
-        <p>{{ t('faq_sub') }}</p>
-      </div>
-      {% for f in faqs[:12] %}
-        <details class="qa">
-          <summary>{{ f.q }}</summary>
-          <div class="a"><p>{{ f.a }}</p></div>
-        </details>
-      {% endfor %}
-    </div>
-  </section>
+{# =====================================================================
+   8) FLOTA / SPRZĘT
+   API: /home/fleet → { "items": [ {"title":{pl,en}, "desc":{pl,en}} ] }
+   ===================================================================== #}
+<section id="fleet" class="section fleet" aria-labelledby="fleet-title">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="fleet-title">{{ t('fleet_h2','Flota i możliwości') }}</h2>
+      <p class="section__sub">{{ t('fleet_sub','EURO6, naczepy standard/mega, monitoring 24/7') }}</p>
+    </header>
+    <div class="grid fleet__grid" data-api="/home/fleet"></div>
+  </div>
+</section>
 
-  {# ====== CTA KOŃCOWE ====== #}
-  <section id="final-cta" class="section final-cta" data-anim="glow" aria-labelledby="final-cta-title">
-    <div class="container">
-      <h2 id="final-cta-title">{{ t('final_h2') }}</h2>
-      <p>{{ t('final_sub') }}</p>
+{# =====================================================================
+   9) CENNIK / WYCENA (CTA z CMS)
+   API: /home/pricing → { "tiles": [ {"title":{pl,en}, "desc":{pl,en}, "slugKey":"pricing"|"quote"} ] }
+   ===================================================================== #}
+<section id="pricing" class="section pricing" aria-labelledby="pricing-title">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="pricing-title">{{ t('pricing_h2','Cennik i wycena') }}</h2>
+      <p class="section__sub">{{ t('pricing_sub','Prosta wycena i dopasowane stawki') }}</p>
+    </header>
+    <div class="grid pricing__grid" data-api="/home/pricing"></div>
+  </div>
+</section>
+
+{# =====================================================================
+   10) BLOG / AKTUALNOŚCI (z CMS – opcjonalnie)
+   API: /blog/latest → { "items": [ {"title":{pl,en}, "lead":{pl,en}, "path":"/pl/blog/.../"} ] }
+   ===================================================================== #}
+<section id="insights" class="section insights" aria-labelledby="ins-title">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="ins-title">{{ t('ins_h2','Poradniki i aktualności') }}</h2>
+      <p class="section__sub">{{ t('ins_sub','Nowości i case studies') }}</p>
+    </header>
+    <div class="reel insights__reel" data-api="/blog/latest"></div>
+  </div>
+</section>
+
+{# =====================================================================
+   11) FAQ (akordeon z CMS)
+   API: /faq/list → [ {"q":{pl,en}, "a":{pl,en}} ]
+   ===================================================================== #}
+<section id="faq" class="section faq" aria-labelledby="faq-title">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="faq-title">{{ t('faq_h2','FAQ – pytania i odpowiedzi') }}</h2>
+      <p class="section__sub">{{ t('faq_sub','Najczęstsze pytania klientów') }}</p>
+    </header>
+    <div class="faq-list" data-api="/faq/list"></div>
+  </div>
+</section>
+
+{# =====================================================================
+   12) KOŃCOWE CTA (z CMS, ale ma też bezpieczne fallbacki)
+   API: /home/final → { "title":{pl,en}, "desc":{pl,en}, "cta_primary":{label,slugKey}, "cta_secondary":{label,slugKey} }
+   ===================================================================== #}
+<section id="final-cta" class="section final-cta" aria-labelledby="final-title" data-api="/home/final">
+  <div class="wrap final-cta__wrap">
+    <div class="final-cta__copy">
+      <h2 id="final-title" data-bind="text:title">{{ t('final_h2','Zacznijmy współpracę') }}</h2>
+      <p data-bind="text:desc">{{ t('final_sub','Wycena w 15 minut, kontakt 24/7') }}</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="{{ url_by_slugkey('quote') }}">{{ t('final_cta_primary') }}</a>
-        <a class="btn btn-ghost" href="{{ url_by_slugkey('contact') }}">{{ t('final_cta_secondary') }}</a>
+        <a class="btn btn-primary" data-bind="href:cta_primary.slugKey|slug, text:cta_primary.label">{{ t('final_cta_primary','Wycena transportu') }}</a>
+        <a class="btn" data-bind="href:cta_secondary.slugKey|slug, text:cta_secondary.label">{{ t('final_cta_secondary','Kontakt') }}</a>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  {# ====== STOPKA ====== #}
-  <footer id="contact" class="footer section" aria-labelledby="contact-title">
-    <div class="container">
-      <h2 id="contact-title" class="visually-hidden">{{ t('contact_h2') }}</h2>
-      <div class="footer-grid">
-        <div class="col">
-          <img src="/assets/media/logo-transport-kras-trans.svg" alt="Kras-Trans" width="160" height="44" loading="lazy">
-          {% if company and company[0] %}
-            <p>{{ company[0].address }}</p>
-            <p>{{ company[0].legal_name }}</p>
-          {% endif %}
-        </div>
-        <div class="col">
-          <ul class="contact-list" role="list">
-            {% if company and company[0].email %}<li><a href="mailto:{{ company[0].email }}">{{ company[0].email }}</a></li>{% endif %}
-            {% if company and company[0].telephone %}<li><a href="tel:{{ company[0].telephone }}">{{ company[0].telephone }}</a></li>{% endif %}
-            <li><a href="{{ url_by_slugkey('contact') }}">{{ t('contact_form') }}</a></li>
-          </ul>
-        </div>
-        <div class="col">
-          <ul class="social" role="list">
-            <li><a rel="noopener" target="_blank" href="{{ t('soc_ig') }}">{{ t('soc_ig_label') }}</a></li>
-            <li><a rel="noopener" target="_blank" href="{{ t('soc_li') }}">{{ t('soc_li_label') }}</a></li>
-            <li><a rel="noopener" target="_blank" href="{{ t('soc_fb') }}">{{ t('soc_fb_label') }}</a></li>
-          </ul>
-        </div>
-        <div class="col">
-          <nav class="mini-nav" aria-label="{{ t('quick_links') }}">
-            <a href="{{ url_by_slugkey('pricing') }}">{{ t('nav_pricing') }}</a>
-            <a href="{{ url_by_slugkey('services') }}">{{ t('nav_services') }}</a>
-            <a href="{{ url_by_slugkey('company') }}">{{ t('nav_company') }}</a>
-            <a href="{{ url_by_slugkey('faq') }}">{{ t('nav_faq') }}</a>
-          </nav>
-        </div>
-      </div>
-      <p class="copyright">© <span data-year>2025</span> Kras-Trans</p>
-    </div>
-  </footer>
+{# =====================================================================
+   13) GENERIC BODY (dla innych podstron – jeśli to nie HOME)
+   ===================================================================== #}
+{% if not (page.slug=='' or page.slugKey=='home' or page.type=='home') %}
+<section class="section content" id="content">
+  <div class="wrap">
+    {{ page.body_html | safe }}
+  </div>
+</section>
+{% endif %}
 
-  {# ====== SCRIPTS ====== #}
-  <script defer src="/assets/js/header.js"></script>
-  <script defer src="/assets/js/home.js"></script>
-</body>
-</html>
+{% endblock %}
