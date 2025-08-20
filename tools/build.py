@@ -550,23 +550,24 @@ def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:
     head = soup.find("head")
     if not head:
         head = soup.new_tag("head")
-        soup.html.insert(0, head) if soup.html else soup.insert(0, head)
+        if soup.html:
+            soup.html.insert(0, head)
+        else:
+            soup.insert(0, head)
 
     def has_selector(sel:str)->bool:
         return bool(head.select_one(sel))
 
-def add_meta(**attrs):
-    if not head.find("meta", attrs=attrs):
-        head.append(soup.new_tag("meta", attrs=attrs))
+    def add_meta(**attrs):
+        if not head.find("meta", attrs=attrs):
+            head.append(soup.new_tag("meta", attrs=attrs))
 
     def add_link(**attrs):
-        # uniqueness by (rel, hreflang) or (rel, href)
+        # unikaj duplikatów
         for link in head.find_all("link"):
-            ok=True
-            for k,v in attrs.items():
-                if link.get(k)!=v: ok=False; break
-            if ok: return
-        head.append(soup.new_tag("link", **attrs))
+            if all(link.get(k) == v for k, v in attrs.items()):
+                return
+        head.append(soup.new_tag("link", attrs=attrs))
 
     # canonical
     if page.get("canonical") and not has_selector('link[rel="canonical"]'):
@@ -591,8 +592,7 @@ def add_meta(**attrs):
     }
     for prop,val in og_map.items():
         if val and not head.find("meta", attrs={"property":prop}):
-            head.append(soup.new_tag("meta", **{"property":prop, "content":val}))
-    # Twitter
+            head.append(soup.new_tag("meta", attrs={"property":prop, "content":val}))
     if og_map["og:image"] and not head.find("meta", attrs={"name":"twitter:card"}):
         add_meta(name="twitter:card", content="summary_large_image")
     if og_map["og:title"] and not head.find("meta", attrs={"name":"twitter:title"}):
@@ -603,9 +603,8 @@ def add_meta(**attrs):
         add_meta(name="twitter:image", content=og_map["og:image"])
 
     # GSC verification
-    if (GSC or "").strip():
-        if not head.find("meta", attrs={"name":"google-site-verification"}):
-            add_meta(name="google-site-verification", content=GSC)
+    if (GSC or "").strip() and not head.find("meta", attrs={"name":"google-site-verification"}):
+        add_meta(name="google-site-verification", content=GSC)
 
     # cms-endpoint
     cms_endpoint = (f"{APPS_URL}?key={APPS_KEY}" if APPS_URL and APPS_KEY else "")
@@ -618,7 +617,7 @@ def add_meta(**attrs):
         has_conf_any = bool(soup.find("script", string=re.compile(r"gtag\('config',\s*['\"]"+re.escape(GA_ID))))
         if not has_gtm_any:
             s = soup.new_tag("script", attrs={"src": f"https://www.googletagmanager.com/gtag/js?id={GA_ID}"})
-            s["async"] = "async"   # 'async' ustawiamy jako atrybut, nie argument funkcji
+            s["async"] = "async"
             head.append(s)
         if not has_conf_any:
             conf = soup.new_tag("script")
@@ -629,13 +628,11 @@ def add_meta(**attrs):
             )
             head.append(conf)
 
-    # JSON-LD (builder)
-    # Jeśli szablon nie dodał <script type="application/ld+json"> z naszym JSONem – dołóż
-    has_ld = bool(head.find("script", attrs={"type":"application/ld+json"}))
-    if not has_ld:
+    # JSON-LD – dołóż tylko jeśli w całym dokumencie nie ma ld+json
+    if not soup.find("script", attrs={"type":"application/ld+json"}):
         try:
             ld = json.dumps(jsonld_blocks(page), ensure_ascii=False)
-            ld_tag = soup.new_tag("script", **{"type":"application/ld+json"})
+            ld_tag = soup.new_tag("script", attrs={"type":"application/ld+json"})
             ld_tag.string = ld
             head.append(ld_tag)
         except Exception:
@@ -751,12 +748,12 @@ def build_all():
 <script>location.replace('/{DEFAULT_LANG}/');</script>
 </head><body></body></html>"""
     write_text(OUT/"index.html", root_html)
-   # GSC HTML file verification (drugi, pewny sposób weryfikacji)
-html_file = (CFG.get("constants", {}).get("GSC_HTML_FILE") or "").strip()
-if html_file and html_file.startswith("google") and html_file.endswith(".html"):
-    # "google4377ff145fac0f52.html"  -> token: "4377ff145fac0f52"
-    token = html_file.replace("google", "", 1).removesuffix(".html")
-    write_text(OUT / html_file, f"google-site-verification: {token}")
+    # GSC HTML file verification (drugi, pewny sposób weryfikacji)
+    html_file = (CFG.get("constants", {}).get("GSC_HTML_FILE") or "").strip()
+    if html_file and html_file.startswith("google") and html_file.endswith(".html"):
+        # "google4377ff145fac0f52.html" -> token: "4377ff145fac0f52"
+        token = html_file.replace("google", "", 1).removesuffix(".html")
+        write_text(OUT / html_file, f"google-site-verification: {token}")
 
 
 
