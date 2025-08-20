@@ -949,6 +949,50 @@ def internal_link_checker():
         lines=["BROKEN INTERNAL LINKS (first 100):"] + [f"{p} → {h}" for p,h in broken[:100]]
         write_text(OUT/"_reports"/"broken-links.txt", "\n".join(lines))
 
+# ----------------------------- NEWS SITEMAP ---------------------------------
+def write_news_sitemap():
+    """
+    Generuje news-sitemap na podstawie CMS.pages[type=blog_post] w oknie czasowym.
+    Działa tylko gdy NEWS_ENABLED=True lub blog.news_sitemap.enabled=True.
+    """
+    enabled_cfg = bool(CFG.get("blog", {}).get("news_sitemap", {}).get("enabled", False))
+    if not (NEWS_ENABLED or enabled_cfg):
+        return  # nic do roboty
+
+    window_h = int(CFG.get("blog", {}).get("news_sitemap", {}).get("window_hours", 48))
+    limit_dt = datetime.now(timezone.utc) - timedelta(hours=window_h)
+
+    items = []
+    for p in CMS.get("pages", []):
+        if (p.get("type") == "blog_post") and p.get("date"):
+            try:
+                dt = datetime.fromisoformat(str(p["date"]).replace("Z", "+00:00"))
+                if dt >= limit_dt:
+                    loc = canonical(SITE_URL, p.get("lang", "pl"), p.get("slug", ""), p.get("canonical_path"))
+                    items.append((loc, dt.isoformat()))
+            except Exception:
+                pass
+
+    if not items:
+        return
+
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">'
+    ]
+    for loc, dt in items:
+        lines.append("  <url>")
+        lines.append(f"    <loc>{loc}</loc>")
+        lines.append('    <news:news>')
+        lines.append('      <news:publication><news:name>Kras-Trans</news:name><news:language>pl</news:language></news:publication>')
+        lines.append(f"      <news:publication_date>{dt}</news:publication_date>")
+        lines.append("      <news:title>Aktualność</news:title>")
+        lines.append("    </news:news>")
+        lines.append("  </url>")
+    lines.append("</urlset>")
+
+    write_text(OUT / "news-sitemap.xml", "\n".join(lines))
+
 
 # ------------------------------ MAIN ---------------------------------------
 if __name__=="__main__":
