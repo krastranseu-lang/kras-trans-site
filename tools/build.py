@@ -751,6 +751,12 @@ def build_all():
 <script>location.replace('/{DEFAULT_LANG}/');</script>
 </head><body></body></html>"""
     write_text(OUT/"index.html", root_html)
+        # GSC HTML file verification (drugi, pewny sposób weryfikacji)
+    html_file = (CFG.get("constants", {}).get("GSC_HTML_FILE") or "").strip()
+    if html_file and html_file.startswith("google") and html_file.endswith(".html"):
+        token = re.sub(r"(^google|\\.html$)", "", html_file)  # wytnij 'google' i '.html'
+        write_text(OUT / html_file, f"google-site-verification: {token}")
+
 
     # 404.html (prosty)
     write_text(OUT/"404.html", "<h1>404</h1><p>Nie znaleziono strony. <a href='/pl/'>Wróć do strony głównej</a>.</p>")
