@@ -1,251 +1,173 @@
-/*!
- * KTCMS – Apps Script fetcher v2 (MAX)
- * - wykrywa endpoint: window.CMS_ENDPOINT, <meta name="cms-endpoint">, <script id="ktHeaderScript" data-api="...">
- * - próbuje 4 warianty URL: /{resource}, ?action=, ?sheet=, ?page= (+lang=)
- * - localStorage cache (TTL, stale-while-revalidate), ETag/304
- * - retry/backoff, fallback do /data/cms.json
- * - zdarzenia: "ktcms:state" (loading/ready/stale/error), "ktcms:update"
- * - renderery: data-api="/home/services", "/faq/list" (możesz dodać kolejne)
- */
+/* Kras-Trans • cms.js (HOME MVP)
+   - czyta endpoint z <meta name="cms-endpoint"> / window.CMS_ENDPOINT
+   - obsługuje: action=home, home/hero, home/services, faq/list, routes
+   - fallback: gdy brak mikro-API, próbuje pełnego payloadu i sam wycina sekcje
+   - zero twardych tekstów – tylko bindy do templates/page.html
+*/
 (function () {
-  'use strict';
+  const LANG = (document.documentElement.getAttribute('lang') || 'pl').toLowerCase();
+  const ENDPOINT =
+    window.CMS_ENDPOINT ||
+    (document.querySelector('meta[name="cms-endpoint"]')?.content || '').trim();
 
-  // ------------------- KONFIG -------------------
-  const VER = 'v2';
-  const TTL_MS = 60 * 60 * 1000; // 1h
-  const DEBUG = /(\?|&)debug=cms\b/.test(location.search);
-  const DOC = document;
-  const HTML = DOC.documentElement;
-
-  function log(...a){ if(DEBUG) console.log('[CMS]', ...a); }
-  function warn(...a){ if(DEBUG) console.warn('[CMS]', ...a); }
-
-  // ------------------- ENDPOINT -------------------
-  function detectEndpoint(){
-    // 1) window
-    if (typeof window !== 'undefined' && window.CMS_ENDPOINT && String(window.CMS_ENDPOINT).trim()) {
-      return String(window.CMS_ENDPOINT).trim();
-    }
-    // 2) <meta>
-    const meta = DOC.querySelector('meta[name="cms-endpoint"]');
-    if (meta && meta.content) return meta.content.trim();
-    // 3) <script id="ktHeaderScript" data-api="...">
-    const scr = DOC.getElementById('ktHeaderScript');
-    if (scr && scr.dataset && scr.dataset.api) return scr.dataset.api.trim();
-    return '';
-  }
-  const ENDPOINT_BASE = detectEndpoint();
-
-  function langNow(){
-    return (HTML.getAttribute('lang') || DOC.getElementById('ktHeaderScript')?.dataset?.defaultlang || 'pl').slice(0,2);
+  if (!ENDPOINT) {
+    console.warn('[CMS] Brak CMS_ENDPOINT');
   }
 
-  function buildUrls(resource){
-    const base = (ENDPOINT_BASE || '').replace(/\/$/, '');
-    const name = String(resource||'home').replace(/^\//,'');
-    if (!base) return [];
-    const pfx = base.includes('?') ? '&' : '?';
-    const L = langNow();
-    // porządek ma znaczenie – Apps Script bywa różny
-    return [
-      `${base}/${name}`,                  // …/exec/home
-      `${base}${pfx}action=${name}`,      // …/exec?action=home
-      `${base}${pfx}sheet=${name}`,       // …/exec?sheet=home
-      `${base}${pfx}page=${name}`         // …/exec?page=home
-    ].map(u => `${u}&lang=${encodeURIComponent(L)}`);
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const setText = (el, v) => { if (el) el.textContent = v || ''; };
+  const setAttr = (el, map) => { if (!el) return; Object.entries(map||{}).forEach(([k,v]) => {
+    if (v!==undefined && v!==null && v!=='') el.setAttribute(k, v);
+  }); };
+
+  function routesHref(routes, slugKey, lang = LANG) {
+    if (!routes || !routes[slugKey]) return `/${lang}/`;
+    const s = routes[slugKey][lang] || '';
+    return `/${lang}/${s ? s + '/' : ''}`;
   }
 
-  // ------------------- CACHE / SWR -------------------
-  function k(resource){ return `ktcms:${VER}:${ENDPOINT_BASE}:${resource}:${langNow()}`; }
-  function load(key){ try{ return JSON.parse(localStorage.getItem(key) || 'null'); }catch{ return null; } }
-  function save(key,obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch{} }
-  function fresh(ts){ return ts && (Date.now() - ts) < TTL_MS; }
+  async function fetchJSON(pathOrNull) {
+    // Google Apps Script często robi 302 -> user_content; to OK.
+    const tries = [];
+    const base = new URL(ENDPOINT, location.origin);
 
-  async function fetchJson(url, etag){
-    const opt = { headers:{ 'Accept':'application/json' } };
-    if (etag) opt.headers['If-None-Match'] = etag;
-    const r = await fetch(url, opt);
-    if (r.status === 304) return { status:304, etag, data:null };
-    if (!r.ok) throw new Error('HTTP '+r.status);
-    const data = await r.json();
-    return { status:200, etag: (r.headers.get('ETag') || ''), data };
-  }
-
-  // zwraca obiekt: {ts, etag, data, from, swr?}
-  async function getResource(resource){
-    const key = k(resource);
-    const cached = load(key);
-
-    const emit = (state, extra={}) =>
-      window.dispatchEvent(new CustomEvent('ktcms:state', { detail:{ resource, state, ...extra }}));
-
-    // świeży cache → zwrot natychmiast + SWR
-    if (cached && fresh(cached.ts)){
-      emit('ready', { source:'cache', ts:cached.ts });
-      revalidate(resource, key, cached); // w tle
-      return { ...cached, from:'cache', swr:true };
-    }
-
-    emit('loading', { endpoint:ENDPOINT_BASE });
-
-    for (const url of buildUrls(resource)){
-      try{
-        log('try', url);
-        const r = await fetchJson(url, cached?.etag);
-        if (r.status === 304 && cached){
-          emit('ready', { source:'cache-304', ts:cached.ts });
-          return { ...cached, from:'cache' };
+    // prefer mikro-endpointy
+    if (pathOrNull) {
+      for (const param of ['action','path','a','u']) {
+        const u = new URL(base);
+        u.searchParams.set(param, pathOrNull);
+        u.searchParams.set('lang', LANG);
+        // klucz może być w samej bazie endpointu – nie nadpisujemy
+        if (!u.searchParams.get('key') && base.searchParams.get('key')) {
+          u.searchParams.set('key', base.searchParams.get('key'));
         }
-        if (r.status === 200){
-          const obj = { ts:Date.now(), etag: r.etag || null, data:r.data };
-          save(key, obj);
-          emit('ready', { source:'network', ts:obj.ts });
-          return { ...obj, from:'network' };
-        }
-      }catch(e){ warn('net', e.message); }
-    }
-
-    // fallback lokalny
-    try{
-      const rf = await fetch('/data/cms.json', { headers:{'Accept':'application/json'} });
-      if (rf.ok){
-        const j = await rf.json();
-        const obj = { ts:Date.now(), etag:null, data:j };
-        emit('fallback', { source:'local' });
-        return { ...obj, from:'local' };
-      }
-    }catch(_){}
-
-    // stary cache, jeśli jest
-    if (cached){
-      emit('stale', { source:'cache', ts:cached.ts });
-      return { ...cached, from:'cache', stale:true };
-    }
-
-    emit('error', { error:'no-data' });
-    return { ts:0, etag:null, data:{}, from:'none' };
-  }
-
-  async function revalidate(resource, key, cached){
-    for (const url of buildUrls(resource)){
-      try{
-        const r = await fetchJson(url, cached?.etag);
-        if (r.status === 200){
-          const obj = { ts:Date.now(), etag:r.etag || null, data:r.data };
-          save(key, obj);
-          window.dispatchEvent(new CustomEvent('ktcms:update', { detail:{resource} }));
-          log('revalidated', resource);
-          return;
-        }
-        if (r.status === 304) return;
-      }catch(_){}
-    }
-  }
-
-  // ------------------- i18n helpery / normalizacja -------------------
-  function langText(any, L){
-    if (!any) return '';
-    if (typeof any === 'string') return any;
-    return any[L] || any.pl || any.en || Object.values(any)[0] || '';
-  }
-
-  // model HOME
-  function normalizeHome(data){
-    if (data?.home?.services) return data.home;
-    if (Array.isArray(data?.home_services)) return { services: data.home_services };
-    if (Array.isArray(data?.pages)){
-      const hit = data.pages.find(p => (p.id==='home_services'||p.slugKey==='home_services'||p.type==='home_services'));
-      if (hit?.items) return { services: hit.items };
-    }
-    return { services: [] };
-  }
-
-  // model FAQ
-  function normalizeFaq(data){
-    if (Array.isArray(data?.faq)) return data.faq;
-    if (Array.isArray(data?.faqs)) return data.faqs;
-    if (Array.isArray(data?.pages)){
-      const hit = data.pages.find(p => (p.id==='faq'||p.slugKey==='faq'||p.type==='faq'));
-      if (Array.isArray(hit?.items)) return hit.items.map(x => ({ q:x.q||x.title||'', a:x.a||x.body||'' }));
-    }
-    return [];
-  }
-
-  // ------------------- renderery sekcji -------------------
-  function renderServices(node, home){
-    const L = langNow();
-    const items = Array.isArray(home.services) ? home.services : [];
-    node.innerHTML = items.map(s => `
-      <article class="card" role="article">
-        <div class="ico" aria-hidden="true">${s.icon || ''}</div>
-        <h3>${langText(s.title, L)}</h3>
-        <p>${langText(s.desc, L)}</p>
-      </article>
-    `).join('');
-  }
-
-  function renderFaq(node, faqList){
-    const L = langNow();
-    node.innerHTML = faqList.map(f => `
-      <details class="qa">
-        <summary>${langText(f.q||f.title, L)}</summary>
-        <div class="a"><p>${langText(f.a||f.answer||f.body, L)}</p></div>
-      </details>
-    `).join('');
-  }
-
-  // ------------------- HYDRATE (grupowanie po resource) -------------------
-  async function hydrate(){
-    const zones = Array.from(DOC.querySelectorAll('[data-api]'));
-    if (!zones.length) return;
-
-    // zgrupuj po resource ("/home/services" → "home")
-    const groups = zones.reduce((acc, z)=>{
-      const api = z.getAttribute('data-api') || '';
-      const res = api.replace(/^\//,'').split('/')[0] || 'home';
-      (acc[res] ||= []).push(z);
-      return acc;
-    }, {});
-
-    // obsłuż znane zasoby
-    for (const [res, arr] of Object.entries(groups)){
-      const pack = await getResource(res);
-      if (res === 'home'){
-        const model = normalizeHome(pack.data);
-        arr.forEach(z => { if (z.getAttribute('data-api').endsWith('/services')) renderServices(z, model); });
-        // SWR – odśwież po revalidate
-        window.addEventListener('ktcms:update', e=>{
-          if (e.detail?.resource !== 'home') return;
-          getResource('home').then(p => {
-            const m = normalizeHome(p.data);
-            arr.forEach(z => { if (z.getAttribute('data-api').endsWith('/services')) renderServices(z, m); });
-          });
-        });
-      }
-      if (res === 'faq'){
-        const list = normalizeFaq(pack.data);
-        arr.forEach(z => { if (z.getAttribute('data-api').endsWith('/list')) renderFaq(z, list); });
-        window.addEventListener('ktcms:update', e=>{
-          if (e.detail?.resource !== 'faq') return;
-          getResource('faq').then(p => {
-            const l = normalizeFaq(p.data);
-            arr.forEach(z => { if (z.getAttribute('data-api').endsWith('/list')) renderFaq(z, l); });
-          });
-        });
+        tries.push(u.toString());
       }
     }
+    // fallback: pełna paczka (bez parametrów)
+    {
+      const u = new URL(base);
+      if (!u.searchParams.get('key') && base.searchParams.get('key')) {
+        u.searchParams.set('key', base.searchParams.get('key'));
+      }
+      u.searchParams.set('lang', LANG);
+      tries.push(u.toString());
+    }
+
+    for (const url of tries) {
+      try {
+        const res = await fetch(url, { redirect: 'follow', mode: 'cors', credentials: 'omit' });
+        if (!res.ok) continue;
+        const j = await res.json();
+        if (j && j.ok !== false) return j;
+      } catch (e) {
+        // kontynuuj kolejne próby
+      }
+    }
+    return null;
   }
 
-  // body-class / skeleton
-  (function wireSkeleton(){
-    const ROOT = DOC.documentElement;
-    window.addEventListener('ktcms:state', (e)=>{
-      const s = e.detail?.state;
-      if (s === 'loading') ROOT.classList.add('kt-cms-loading');
-      else ROOT.classList.remove('kt-cms-loading');
+  // ------- HERO -------
+  async function hydrateHero() {
+    const sec = $('#hero[data-api]'); if (!sec) return;
+    const data = (await fetchJSON('home/hero')) || (await fetchJSON('home')) || (await fetchJSON(null));
+    if (!data) return;
+
+    // znormalizuj z pełnej paczki, jeśli brak mikro
+    if (!data.hero && data.pages) {
+      const home = data.pages.find(p => (p.lang||LANG)===LANG && ((p.slugKey||p.slug||'')==='home'));
+      data.hero = {
+        title: home?.h1 || home?.title || '',
+        lead: home?.lead || '',
+        kpi: [],
+        cta_primary:   { label: home?.cta_label || '',     slugKey: 'quote'   },
+        cta_secondary: { label: home?.cta_secondary || '', slugKey: 'contact' },
+        image: { src: (home?.hero_image || home?.og_image || ''), srcset: '', alt: (home?.hero_alt || home?.h1 || '') }
+      };
+      data.routes = data.hreflang ? null : data.routes; // może być brak
+    }
+
+    const { hero, routes } = data;
+    setText($('#hero-title'), hero?.title);
+    setText($('#hero .hero__lead'), hero?.lead);
+
+    const a1 = $('#hero .cta-row .btn.btn-primary');
+    const a2 = $('#hero .cta-row .btn:not(.btn-primary):not(.btn-ghost)');
+    if (a1) { a1.href = routesHref(data.routes, hero?.cta_primary?.slugKey); a1.textContent = hero?.cta_primary?.label || ''; }
+    if (a2) { a2.href = routesHref(data.routes, hero?.cta_secondary?.slugKey); a2.textContent = hero?.cta_secondary?.label || ''; }
+
+    setAttr($('#heroLCP'), {
+      src: (hero?.image?.src || '').trim(),
+      srcset: (hero?.image?.srcset || '').trim(),
+      alt: (hero?.image?.alt || '').trim()
     });
-  })();
 
-  if (!ENDPOINT_BASE) warn('Brak ENDPOINT – sprawdź <meta name="cms-endpoint"> lub window.CMS_ENDPOINT');
-  window.addEventListener('DOMContentLoaded', hydrate);
+    const list = $('#hero .hero__kpi');
+    const tpl = $('#tpl-hero-kpi');
+    if (list && tpl) {
+      list.innerHTML = '';
+      (hero?.kpi || []).forEach(item => {
+        const node = tpl.content.cloneNode(true);
+        setText(node.querySelector('strong'), item.value);
+        setText(node.querySelector('span'), item.label);
+        list.appendChild(node);
+      });
+    }
+    sec.setAttribute('aria-busy','false');
+  }
+
+  // ------- SERVICES -------
+  async function hydrateServices() {
+    const grid = $('#services .services__grid[data-api]'); if (!grid) return;
+    const data = (await fetchJSON('home/services')) || (await fetchJSON('home')) || (await fetchJSON(null));
+    if (!data) return;
+
+    // fallback z pełnej paczki
+    if (!data.services && data.pages) {
+      data.services = data.pages
+        .filter(p => (p.lang||LANG)===LANG && p.type==='service' && p.publish!==false)
+        .sort((a,b) => (a.order||0)-(b.order||0))
+        .map(s => ({ icon:'', title:s.h1||s.title||'', desc:s.lead||'', slugKey:(s.slugKey||s.slug||''), cta:{label:''} }));
+    }
+
+    const tpl = $('#tpl-service-card'); if (!tpl) return;
+    grid.innerHTML = '';
+    (data.services || []).forEach(svc => {
+      const node = tpl.content.cloneNode(true);
+      setText(node.querySelector('.card__title'), svc.title);
+      setText(node.querySelector('.card__desc'), svc.desc);
+      const a = node.querySelector('.card__link');
+      if (a) { a.href = routesHref(data.routes, svc.slugKey); a.textContent = (svc.cta?.label || ''); }
+      const ic = node.querySelector('.card__icon'); if (ic && svc.icon) ic.innerHTML = svc.icon;
+      grid.appendChild(node);
+    });
+
+    // nagłówki sekcji (jeśli API je zwróci)
+    setText($('#services-title'), data?.home?.section_titles?.services || '');
+    setText($('#services .section__sub'), data?.home?.section_subtitles?.services || '');
+    $('#services').setAttribute('aria-busy','false');
+  }
+
+  // ------- FAQ -------
+  async function hydrateFAQ() {
+    const list = $('#faq .faq-list[data-api]'); if (!list) return;
+    const data = (await fetchJSON('faq/list')) || (await fetchJSON(null));
+    const items = data?.faq || (data?.faq?.rows) || [];
+    const tpl = $('#tpl-faq-item'); if (!tpl) return;
+    list.innerHTML = '';
+    items.forEach(it => {
+      const node = tpl.content.cloneNode(true);
+      setText(node.querySelector('summary'), it.q || '');
+      setText(node.querySelector('.a p'), it.a || '');
+      list.appendChild(node);
+    });
+    $('#faq').setAttribute('aria-busy','false');
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    hydrateHero();
+    hydrateServices();
+    hydrateFAQ();
+  });
 })();
