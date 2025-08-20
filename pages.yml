@@ -111,8 +111,11 @@ template_rules:
 
 # =============================== 6) ASSETS =================================
 assets:
-  css: ["/assets/css/header.css","/assets/css/home.css"]
-  js:  ["/assets/js/header.js","/assets/js/cms.js","/assets/js/home.js"]   # ← dopisane cms.js
+  css:
+    - "/assets/css/site.css?v=1"
+  js:
+    - "/assets/js/site.js?v=1"
+    - "/assets/js/cms.js?v=build-001"   # zostaw, jeśli używasz CSR do odświeżania treści
   js_late: ["/assets/js/mapbox.js","/assets/js/reviews.js"]   # ← cięższe skrypty, ładują się „po idle”
   preload:
     - { as: "style", href: "/assets/css/header.css" }
