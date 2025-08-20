@@ -1,4 +1,4 @@
-<header id="site-header" class="site-header sq" aria-busy="false">
+<header id="site-header" class="site-header sq" data-api="/nav/global" aria-busy="true">
   <!-- INLINE, SCOPED CSS (tylko dla headera) -->
   <style>
     /* ===== SCOPE: tylko #site-header ===== */
@@ -22,7 +22,9 @@
 
     /* burger */
     #site-header .menu-toggle { width:40px; height:40px; border-radius:12px; border:1px solid var(--line); background:transparent; position:relative; display:none; }
-    #site-header .menu-toggle::before, #site-header .menu-toggle::after { content:""; position:absolute; left:10px; right:10px; height:2px; background:currentColor; transition:.25s var(--ease); }
+    #site-header .menu-toggle::before, #site-header .menu-toggle::after {
+      content:""; position:absolute; left:10px; right:10px; height:2px; background:currentColor; transition:.25s var(--ease);
+    }
     #site-header .menu-toggle::before { top:14px }  #site-header .menu-toggle::after { bottom:14px }
     #site-header .menu-toggle[aria-expanded="true"]::before { transform: translateY(6px) rotate(45deg) }
     #site-header .menu-toggle[aria-expanded="true"]::after  { transform: translateY(-6px) rotate(-45deg) }
@@ -87,150 +89,141 @@
 
   <div class="wrap bar">
     <!-- BRAND -->
-    <a class="brand" href="/{{ page.lang or site.defaultLang or 'pl' }}/" aria-label="">
-      <img class="brand__logo" width="140" height="36"
-           src="{{ nav_current.logo.src if nav_current and nav_current.logo else '' }}"
-           alt="{{ nav_current.logo.alt if nav_current and nav_current.logo else '' }}"
-           data-bind="attr:{src: nav.logo.src, alt: nav.logo.alt}">
+    <a class="brand" href="/" aria-label="Kras-Trans">
+      <img class="brand__logo" width="140" height="36" alt="Kras-Trans" />
     </a>
 
     <!-- PRIMARY NAV -->
-    <nav id="primaryNav" class="nav sq-nav" role="navigation" aria-label="">
-      <ul class="nav__list">
-        {{ nav_current.primary_html|safe if nav_current else '' }}
-      </ul>
+    <nav id="primaryNav" class="nav sq-nav" role="navigation" aria-label="Główne menu">
+      <ul class="nav__list"><!-- wstrzykniemy z GAS --></ul>
     </nav>
 
     <!-- LANGS + CTA + HAMBURGER -->
     <div class="actions">
-      <div class="langs">
-        {{ nav_current.langs_html|safe if nav_current else '' }}
-      </div>
-      <a class="btn btn-primary"
-         href="/{{ page.lang or site.defaultLang or 'pl' }}/{{ '' if (page.slugKey or 'home')=='home' else 'wycena/' }}"
-         data-bind="href: nav.cta.slugKey|slug, text: nav.cta.label">
-         {{ nav_current.cta.label if nav_current and nav_current.cta else '' }}
-      </a>
-      <button id="menuToggle" class="menu-toggle" aria-expanded="false" aria-controls="mobileMenu" aria-label=""></button>
+      <div class="langs"><!-- wstrzykniemy z GAS --></div>
+      <a class="btn btn-primary" href="#"><!-- CTA --></a>
+      <button id="menuToggle" class="menu-toggle" aria-expanded="false" aria-controls="mobileMenu" aria-label="Menu"></button>
     </div>
   </div>
 
   <!-- MEGA PANEL -->
   <div id="mega" class="mega" data-state="closed" aria-hidden="true">
     <div class="mega__wrap wrap">
-      <div class="mega__panels">
-        {{ nav_current.mega_html|safe if nav_current else '' }}
-      </div>
+      <div class="mega__panels"><!-- wstrzykniemy z GAS --></div>
     </div>
   </div>
 
   <!-- MOBILE DRAWER -->
   <div id="mobileMenu" class="mobile-menu" hidden>
     <div class="mobile-menu__inner">
-      <nav class="mobile-nav" aria-label="">
-        <ul class="mobile-nav__list">
-          {{ nav_current.primary_html|safe if nav_current else '' }}
-        </ul>
+      <nav class="mobile-nav" aria-label="Menu mobilne">
+        <ul class="mobile-nav__list"><!-- fallback: primary_html --></ul>
       </nav>
-      <div class="mobile-langs">
-        {{ nav_current.langs_html|safe if nav_current else '' }}
-      </div>
-      <a class="btn btn-primary mobile-cta"
-         href="/{{ page.lang or site.defaultLang or 'pl' }}/{{ '' if (page.slugKey or 'home')=='home' else 'wycena/' }}"
-         data-bind="href: nav.cta.slugKey|slug, text: nav.cta.label">
-         {{ nav_current.cta.label if nav_current and nav_current.cta else '' }}
-      </a>
+      <div class="mobile-langs"></div>
+      <a class="btn btn-primary mobile-cta" href="#"></a>
     </div>
   </div>
 
-  <!-- INLINE, SCOPED JS (tylko dla headera) -->
+  <!-- JS: zachowanie megamenu -->
   <script>
   (function(){
-    const $  = (s, r=document)=>r.querySelector(s);
-    const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
-
     const header = document.getElementById('site-header');
-    if(!header) return;
-    const primary = document.querySelector('#primaryNav .nav__list');
-    const mega    = document.getElementById('mega');
-    const panels  = mega ? mega.querySelector('.mega__panels') : null;
-    const toggle  = document.getElementById('menuToggle');
-    const drawer  = document.getElementById('mobileMenu');
+    const primary = header.querySelector('#primaryNav .nav__list');
+    const mega    = header.querySelector('#mega');
+    const panels  = header.querySelector('#mega .mega__panels');
+    const toggle  = header.querySelector('#menuToggle');
+    const drawer  = header.querySelector('#mobileMenu');
 
-    /* cień podczas scrolla */
     function shadow(){ header.classList.toggle('sq--shadow', (document.documentElement.scrollTop||0) > 8); }
     shadow(); window.addEventListener('scroll', shadow, {passive:true});
 
-    /* hover-intent na desktopie */
-    const OPEN_MS=140, CLOSE_MS=380;
-    let openTimer=0, closeTimer=0, currentId=null;
-
-    function closeMega(){
-      if(!mega) return;
-      mega.dataset.state='closed';
-      mega.setAttribute('aria-hidden','true');
-      header.style.setProperty('--mega-h','0px');
-      currentId=null;
-      primary?.querySelectorAll('[aria-expanded="true"]').forEach(el=>el.setAttribute('aria-expanded','false'));
-    }
+    const OPEN_MS=140, CLOSE_MS=380; let openTimer=0, closeTimer=0;
+    function closeMega(){ if(!mega) return; mega.dataset.state='closed'; mega.setAttribute('aria-hidden','true'); header.style.setProperty('--mega-h','0px'); primary?.querySelectorAll('[aria-expanded="true"]').forEach(el=>el.setAttribute('aria-expanded','false')); }
     function openMega(id){
-      if(!mega||!panels) return;
+      if(!panels) return;
       const sel = `.mega__section[data-panel="${id}"], .mega__section#panel-${id}`;
       panels.querySelectorAll('.mega__section').forEach(sec=>sec.hidden=true);
-      const panel = panels.querySelector(sel);
-      if(!panel){ closeMega(); return; }
-      panel.hidden=false;
-      header.style.setProperty('--mega-h', panel.scrollHeight+'px');
-      mega.dataset.state='open';
-      mega.setAttribute('aria-hidden','false');
-      currentId=id;
+      const panel = panels.querySelector(sel); if(!panel){ closeMega(); return; }
+      panel.hidden=false; header.style.setProperty('--mega-h', panel.scrollHeight+'px');
+      mega.dataset.state='open'; mega.setAttribute('aria-hidden','false');
     }
-    function armOpen(id, triggerEl){
-      clearTimeout(closeTimer); clearTimeout(openTimer);
-      openTimer = setTimeout(()=>{
-        primary?.querySelectorAll('[aria-expanded="true"]').forEach(el=>el.setAttribute('aria-expanded','false'));
-        triggerEl?.setAttribute('aria-expanded','true');
-        openMega(id);
-      }, OPEN_MS);
-    }
+    function armOpen(id, el){ clearTimeout(closeTimer); clearTimeout(openTimer); openTimer=setTimeout(()=>{ primary?.querySelectorAll('[aria-expanded="true"]').forEach(e=>e.setAttribute('aria-expanded','false')); el?.setAttribute('aria-expanded','true'); openMega(id); }, OPEN_MS); }
     function armClose(){ clearTimeout(openTimer); clearTimeout(closeTimer); closeTimer=setTimeout(closeMega, CLOSE_MS); }
 
-    if (primary && mega){
-      primary.addEventListener('pointerenter', e=>{
-        const li = e.target.closest('li[data-panel]'); if(!li) return;
-        armOpen(li.getAttribute('data-panel'), li.querySelector('a,button'));
-      });
+    if (primary && panels){
+      primary.addEventListener('pointerenter', e=>{ const li=e.target.closest('li[data-panel]'); if(li) armOpen(li.getAttribute('data-panel'), li.querySelector('a,button')); });
       primary.addEventListener('pointerleave', armClose);
-      primary.addEventListener('focusin', e=>{
-        const li = e.target.closest('li[data-panel]'); if(!li) return;
-        armOpen(li.getAttribute('data-panel'), li.querySelector('a,button'));
-      });
+      primary.addEventListener('focusin',  e=>{ const li=e.target.closest('li[data-panel]'); if(li) armOpen(li.getAttribute('data-panel'), li.querySelector('a,button')); });
       primary.addEventListener('focusout', armClose);
       mega.addEventListener('pointerenter', ()=>{ clearTimeout(closeTimer); });
       mega.addEventListener('pointerleave', armClose);
       document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeMega(); });
     }
 
-    /* automap: gdy li nie ma data-panel, przypnij wg kolejności sekcji w mega */
-    if (primary && panels){
-      const liNo = primary.querySelectorAll('li:not([data-panel])');
-      const sections = $$('.mega__section', panels);
-      liNo.forEach((li,i)=>{
-        const id = sections[i]?.getAttribute('data-panel') || ('auto-'+i);
-        if (!li.hasAttribute('data-panel') && sections[i]){
-          li.setAttribute('data-panel', id);
-          sections[i].setAttribute('data-panel', id);
-          if (!li.id) li.id = 'nav-item-'+id;
-          if (!sections[i].id) sections[i].id = 'panel-'+id;
-        }
-      });
-    }
-
-    /* mobile drawer */
+    // mobile drawer
     function openDrawer(){ drawer.hidden=false; requestAnimationFrame(()=>drawer.setAttribute('data-open','true')); toggle.setAttribute('aria-expanded','true'); }
     function closeDrawer(){ drawer.removeAttribute('data-open'); toggle.setAttribute('aria-expanded','false'); setTimeout(()=>{ drawer.hidden=true; }, 280); }
-    toggle?.addEventListener('click', ()=>{ (toggle.getAttribute('aria-expanded')==='true') ? closeDrawer() : openDrawer(); });
+    toggle?.addEventListener('click', ()=>{ const exp = toggle.getAttribute('aria-expanded')==='true'; exp?closeDrawer():openDrawer(); });
     drawer?.addEventListener('click', e=>{ if(e.target===drawer) closeDrawer(); });
+  })();
+  </script>
+
+  <!-- JS: loader GAS + cache (żeby menu było od razu) -->
+  <script>
+  (async function(){
+    /* >>> UZUPEŁNIJ TE 2 KONFIGI <<< */
+    const GAS_URL = "https://script.google.com/macros/s/PASTE_YOUR_DEPLOYMENT_ID/exec";  /* 1/2 */
+    const API_KEY = "PASTE_YOUR_API_KEY";                                                /* 2/2 */
+
+    const header = document.getElementById('site-header');
+    const lang = (document.documentElement.lang || location.pathname.split('/')[1] || 'pl').toLowerCase();
+    const sel = s => header.querySelector(s);
+    const setHTML = (s, html) => { const el = sel(s); if (el) el.innerHTML = html || ""; };
+
+    // 0) natychmiast z cache (żeby nie było opóźnienia)
+    const kP = `kt_nav_primary_${lang}`, kM = `kt_nav_mega_${lang}`, kL = `kt_nav_langs_${lang}`;
+    try {
+      const cP = localStorage.getItem(kP); if (cP) setHTML('#primaryNav .nav__list', cP);
+      const cM = localStorage.getItem(kM); if (cM) setHTML('#mega .mega__panels', cM);
+      const cL = localStorage.getItem(kL); if (cL) { const nodes = header.querySelectorAll('.langs, .mobile-langs'); nodes.forEach(n=>n.innerHTML=cL); }
+      if (cP || cM || cL) header.removeAttribute('aria-busy');
+    } catch(e){/* no-op */ }
+
+    // 1) fetch z GAS
+    const url = `${GAS_URL}?key=${encodeURIComponent(API_KEY)}&lang=${encodeURIComponent(lang)}`;
+    try {
+      const res = await fetch(url, {mode:'cors', cache:'no-store'});
+      const data = await res.json();
+      const nav = (data && (data.nav_current||{})) || {};
+
+      setHTML('#primaryNav .nav__list', nav.primary_html || "");
+      setHTML('#mega .mega__panels', nav.mega_html || "");
+      header.querySelectorAll('.langs, .mobile-langs').forEach(n=> n.innerHTML = nav.langs_html || "");
+
+      // CTA – prosty fallback per język
+      const CTA_LABELS = { pl:'Zamów wycenę', en:'Get a quote', de:'Angebot anfordern', ru:'Запросить цену', ua:'Запит вартості' };
+      const ctaHref = `/${lang}/kontakt/`;
+      const ctaText = CTA_LABELS[lang] || CTA_LABELS.en;
+      header.querySelectorAll('.btn.btn-primary').forEach(a=>{ a.href=ctaHref; a.textContent=ctaText; });
+      header.querySelectorAll('.mobile-cta').forEach(a=>{ a.href=ctaHref; a.textContent=ctaText; });
+
+      // Logo (fallback)
+      const logo = header.querySelector('.brand__logo');
+      if (logo && !logo.src) { logo.src='/assets/brand/logo-light.svg'; logo.alt='Kras-Trans'; logo.loading='eager'; logo.decoding='async'; }
+
+      // cache
+      try { localStorage.setItem(kP, nav.primary_html||""); localStorage.setItem(kM, nav.mega_html||""); localStorage.setItem(kL, nav.langs_html||""); } catch(e){}
+      header.removeAttribute('aria-busy');
+    } catch(err){
+      // awaryjnie minimalne menu, żeby coś było
+      setHTML('#primaryNav .nav__list', `<li><a href="/${lang}/">Home</a></li><li><a href="/${lang}/uslugi/">Usługi</a></li><li><a href="/${lang}/kontakt/">Kontakt</a></li>`);
+      header.querySelectorAll('.langs, .mobile-langs').forEach(n=>{
+        n.innerHTML = ['pl','en','de','ru','ua'].map(L=>`<a href="/${L}/" ${L===lang?'aria-current="true"':''}>${L.toUpperCase()}</a>`).join(' ');
+      });
+      header.querySelectorAll('.btn.btn-primary, .mobile-cta').forEach(a=>{ a.href=`/${lang}/kontakt/`; a.textContent='Kontakt'; });
+      header.removeAttribute('aria-busy');
+      console.warn('NAV: fallback (fetch error)', err);
+    }
   })();
   </script>
 </header>
