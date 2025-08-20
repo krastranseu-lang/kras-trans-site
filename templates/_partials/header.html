@@ -1,4 +1,4 @@
-<header id="site-header" class="site-header sq" data-api="/nav/global" aria-busy="true">
+<header id="site-header" class="site-header sq" aria-busy="false">
   <!-- INLINE, SCOPED CSS (tylko dla headera) -->
   <style>
     /* ===== SCOPE: tylko #site-header ===== */
@@ -22,9 +22,7 @@
 
     /* burger */
     #site-header .menu-toggle { width:40px; height:40px; border-radius:12px; border:1px solid var(--line); background:transparent; position:relative; display:none; }
-    #site-header .menu-toggle::before, #site-header .menu-toggle::after {
-      content:""; position:absolute; left:10px; right:10px; height:2px; background:currentColor; transition:.25s var(--ease);
-    }
+    #site-header .menu-toggle::before, #site-header .menu-toggle::after { content:""; position:absolute; left:10px; right:10px; height:2px; background:currentColor; transition:.25s var(--ease); }
     #site-header .menu-toggle::before { top:14px }  #site-header .menu-toggle::after { bottom:14px }
     #site-header .menu-toggle[aria-expanded="true"]::before { transform: translateY(6px) rotate(45deg) }
     #site-header .menu-toggle[aria-expanded="true"]::after  { transform: translateY(-6px) rotate(-45deg) }
@@ -89,28 +87,40 @@
 
   <div class="wrap bar">
     <!-- BRAND -->
-    <a class="brand" data-bind="href: routes.home|slug" aria-label="">
+    <a class="brand" href="/{{ page.lang or site.defaultLang or 'pl' }}/" aria-label="">
       <img class="brand__logo" width="140" height="36"
-           data-bind="attr:{src: nav.logo.src, alt: nav.logo.alt}" alt="">
+           src="{{ nav_current.logo.src if nav_current and nav_current.logo else '' }}"
+           alt="{{ nav_current.logo.alt if nav_current and nav_current.logo else '' }}"
+           data-bind="attr:{src: nav.logo.src, alt: nav.logo.alt}">
     </a>
 
-    <!-- PRIMARY NAV (CMS wstrzykuje <li>…; elementy z podmenu: li[data-panel="…"]) -->
+    <!-- PRIMARY NAV -->
     <nav id="primaryNav" class="nav sq-nav" role="navigation" aria-label="">
-      <ul class="nav__list" data-bind="html: nav.primary_html"></ul>
+      <ul class="nav__list">
+        {{ nav_current.primary_html|safe if nav_current else '' }}
+      </ul>
     </nav>
 
     <!-- LANGS + CTA + HAMBURGER -->
     <div class="actions">
-      <div class="langs" data-api="/nav/langs" data-bind="html: nav.langs_html"></div>
-      <a class="btn btn-primary" data-bind="href: nav.cta.slugKey|slug, text: nav.cta.label"></a>
+      <div class="langs">
+        {{ nav_current.langs_html|safe if nav_current else '' }}
+      </div>
+      <a class="btn btn-primary"
+         href="/{{ page.lang or site.defaultLang or 'pl' }}/{{ '' if (page.slugKey or 'home')=='home' else 'wycena/' }}"
+         data-bind="href: nav.cta.slugKey|slug, text: nav.cta.label">
+         {{ nav_current.cta.label if nav_current and nav_current.cta else '' }}
+      </a>
       <button id="menuToggle" class="menu-toggle" aria-expanded="false" aria-controls="mobileMenu" aria-label=""></button>
     </div>
   </div>
 
-  <!-- MEGA PANEL (Squarespace-like). CMS wstrzykuje sekcje: .mega__section[data-panel="services"] -->
+  <!-- MEGA PANEL -->
   <div id="mega" class="mega" data-state="closed" aria-hidden="true">
     <div class="mega__wrap wrap">
-      <div class="mega__panels" data-bind="html: nav.mega_html"></div>
+      <div class="mega__panels">
+        {{ nav_current.mega_html|safe if nav_current else '' }}
+      </div>
     </div>
   </div>
 
@@ -118,10 +128,18 @@
   <div id="mobileMenu" class="mobile-menu" hidden>
     <div class="mobile-menu__inner">
       <nav class="mobile-nav" aria-label="">
-        <ul class="mobile-nav__list" data-bind="html: (nav.mobile_html || nav.primary_html)"></ul>
+        <ul class="mobile-nav__list">
+          {{ nav_current.primary_html|safe if nav_current else '' }}
+        </ul>
       </nav>
-      <div class="mobile-langs" data-api="/nav/langs" data-bind="html: nav.langs_html"></div>
-      <a class="btn btn-primary mobile-cta" data-bind="href: nav.cta.slugKey|slug, text: nav.cta.label"></a>
+      <div class="mobile-langs">
+        {{ nav_current.langs_html|safe if nav_current else '' }}
+      </div>
+      <a class="btn btn-primary mobile-cta"
+         href="/{{ page.lang or site.defaultLang or 'pl' }}/{{ '' if (page.slugKey or 'home')=='home' else 'wycena/' }}"
+         data-bind="href: nav.cta.slugKey|slug, text: nav.cta.label">
+         {{ nav_current.cta.label if nav_current and nav_current.cta else '' }}
+      </a>
     </div>
   </div>
 
@@ -138,7 +156,6 @@
     const panels  = mega ? mega.querySelector('.mega__panels') : null;
     const toggle  = document.getElementById('menuToggle');
     const drawer  = document.getElementById('mobileMenu');
-    const inner   = drawer ? drawer.querySelector('.mobile-menu__inner') : null;
 
     /* cień podczas scrolla */
     function shadow(){ header.classList.toggle('sq--shadow', (document.documentElement.scrollTop||0) > 8); }
@@ -178,7 +195,6 @@
     }
     function armClose(){ clearTimeout(openTimer); clearTimeout(closeTimer); closeTimer=setTimeout(closeMega, CLOSE_MS); }
 
-    /* delegacja na top-nav */
     if (primary && mega){
       primary.addEventListener('pointerenter', e=>{
         const li = e.target.closest('li[data-panel]'); if(!li) return;
@@ -195,7 +211,7 @@
       document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeMega(); });
     }
 
-    /* auto-mapowanie: jeśli li nie ma data-panel, a mega ma sekcje -> przypnij wg kolejności */
+    /* automap: gdy li nie ma data-panel, przypnij wg kolejności sekcji w mega */
     if (primary && panels){
       const liNo = primary.querySelectorAll('li:not([data-panel])');
       const sections = $$('.mega__section', panels);
@@ -204,7 +220,8 @@
         if (!li.hasAttribute('data-panel') && sections[i]){
           li.setAttribute('data-panel', id);
           sections[i].setAttribute('data-panel', id);
-          if(!sections[i].id) sections[i].id = 'panel-'+id;
+          if (!li.id) li.id = 'nav-item-'+id;
+          if (!sections[i].id) sections[i].id = 'panel-'+id;
         }
       });
     }
@@ -212,11 +229,8 @@
     /* mobile drawer */
     function openDrawer(){ drawer.hidden=false; requestAnimationFrame(()=>drawer.setAttribute('data-open','true')); toggle.setAttribute('aria-expanded','true'); }
     function closeDrawer(){ drawer.removeAttribute('data-open'); toggle.setAttribute('aria-expanded','false'); setTimeout(()=>{ drawer.hidden=true; }, 280); }
-    toggle?.addEventListener('click', ()=>{
-      const exp = toggle.getAttribute('aria-expanded')==='true'; exp?closeDrawer():openDrawer();
-    });
+    toggle?.addEventListener('click', ()=>{ (toggle.getAttribute('aria-expanded')==='true') ? closeDrawer() : openDrawer(); });
     drawer?.addEventListener('click', e=>{ if(e.target===drawer) closeDrawer(); });
-
   })();
   </script>
 </header>
