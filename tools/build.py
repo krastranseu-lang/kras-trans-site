@@ -769,17 +769,21 @@ def build_all():
         # SEO gates
         p, warns = apply_quality(p)
 
-        # JSON-LD (przekazany do Jinja, a dodatkowo do-inject po renderze jeśli brak)
-        ld_html = '<script type="application/ld+json">'+json.dumps(jsonld_blocks(p), ensure_ascii=False)+'</script>'
+# JSON-LD (przekazany do Jinja, a dodatkowo do-inject po renderze jeśli brak)
+ld_html = '<script type="application/ld+json">'+json.dumps(jsonld_blocks(p), ensure_ascii=False)+'</script>'
 
-        # Render Jinja
-        ctx={
-            "page": dict(p),
-            "hreflang": hreflang_map.get(p.get("slugKey","home"), {}),
-            "ctas": {"primary": p.get("cta_label") or "Wycena transportu", "secondary": p.get("cta_secondary","")},
-            "jsonld": ld_html,
-            "ga_id": GA_ID, "gsc_verification": GSC
-        }
+# SSR HOME: jeśli to strona "home", przekaż gotowe sekcje do szablonu
+ssr_ctx = _ssr_home(lang) if (p.get("type") or "").lower() == "home" else None
+
+# Render Jinja
+ctx = {
+    "page": dict(p),
+    "hreflang": hreflang_map.get(p.get("slugKey","home"), {}),
+    "ctas": {"primary": p.get("cta_label") or "Wycena transportu", "secondary": p.get("cta_secondary","")},
+    "jsonld": ld_html,
+    "ga_id": GA_ID, "gsc_verification": GSC,
+    "ssr": ssr_ctx,
+}
         tpl = p.get("template") or choose_template(p)
         try:
             html = env.get_template(pathlib.Path(tpl).name).render(**ctx)
