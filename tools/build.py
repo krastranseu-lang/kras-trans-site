@@ -80,23 +80,27 @@ def _ssr_home(lang:str) -> Dict[str, Any]:
     """Zwraca gotowe sekcje HOME (hero/services/faq) do wstrzyknięcia w HTML."""
     L = (lang or DEFAULT_LANG).lower()
     pages = [dict(p) for p in CMS.get("pages", []) if (p.get("lang") or DEFAULT_LANG).lower()==L and p.get("publish", True)]
+    if not pages:
+        # fallback do defaultLang, jeśli dla danego języka jeszcze nie ma danych
+        pages = [dict(p) for p in CMS.get("pages", []) if (p.get("lang") or DEFAULT_LANG).lower()==DEFAULT_LANG and p.get("publish", True)]
     strings = { (s.get("key") or s.get("Key") or "").strip(): s for s in CMS.get("strings", []) }
     STR = lambda key: (strings.get(key, {}).get(L) or strings.get(key, {}).get("pl") or "").strip()
-    # HERO: bierzemy rekord home
+    # HERO: rekord home
     home = next((p for p in pages if (p.get("slugKey") or p.get("slug") or "") in ("home","")), {})
     hero = {
         "title": home.get("h1") or home.get("title") or "",
         "lead":  home.get("lead") or "",
-        "kpi":   [],  # możesz zasilić z Blocks/testimonials, jeśli w arkuszu
+        "kpi":   [],  # opcjonalnie z Blocks/Strings
         "cta_primary":   {"label": home.get("cta_label") or STR("cta_quote_primary"),   "slugKey": "quote"},
         "cta_secondary": {"label": home.get("cta_secondary") or STR("cta_quote_secondary"), "slugKey": "contact"},
         "image": {"src": home.get("hero_image") or home.get("og_image") or "",
                   "srcset":"", "alt": home.get("hero_alt") or home.get("h1") or ""}
     }
-    # SERVICES: wszystkie type=service dla języka
+    # SERVICES: wszystkie type=service
     svcs=[]
     for s in pages:
-        if (s.get("type") or "").lower()!="service": continue
+        if (s.get("type") or "").lower()!="service":
+            continue
         svcs.append({
             "icon":"", "title": s.get("h1") or s.get("title") or "",
             "desc": s.get("lead") or "",
@@ -104,22 +108,34 @@ def _ssr_home(lang:str) -> Dict[str, Any]:
             "cta": {"label": STR("cta_quote_secondary") or ""}
         })
     svcs.sort(key=lambda x: (next((p.get("order",0) for p in pages if (p.get("slugKey")==x["slugKey"])), 0)))
-    # FAQ: tylko enabled + dopięte do home (page_slug='home' lub puste − global)
+    # FAQ: enabled + przypięte do home (page_slug='home' albo puste)
     faqs=[]
     for f in CMS.get("faq", []):
         fL = (f.get("lang") or L).lower()
-        if fL!=L: continue
+        if fL!=L:
+            continue
         enabled = str(f.get("enabled","true")).lower() not in ("false","0","no")
-        if not enabled: continue
+        if not enabled:
+            continue
         pg = (f.get("page_slug") or f.get("slugKey") or "") or "home"
         if pg in ("", "home"):
             faqs.append({"q": f.get("q",""), "a": f.get("a","")})
     # Sekcyjne nagłówki z Strings (opcjonalnie)
     sect_titles = {
-        "services": STR("services_h2"), "faq": STR("faq_h2")
+        "services": STR("services_h2"), "faq": STR("faq_h2"),
+        "industries": STR("ind_h2"), "coverage": STR("cov_h2"),
+        "process": STR("proc_h2"), "trust": STR("trust_h2"),
+        "testimonials": STR("testi_h2"), "partners": STR("partners_h2"),
+        "fleet": STR("fleet_h2"), "pricing": STR("pricing_h2"),
+        "insights": STR("ins_h2")
     }
     sect_subs   = {
-        "services": STR("services_sub"), "faq": STR("faq_sub")
+        "services": STR("services_sub"), "faq": STR("faq_sub"),
+        "industries": STR("ind_sub"), "coverage": STR("cov_sub"),
+        "process": STR("proc_sub"), "trust": STR("trust_sub"),
+        "testimonials": STR("testi_sub"), "partners": STR("partners_sub"),
+        "fleet": STR("fleet_sub"), "pricing": STR("pricing_sub"),
+        "insights": STR("ins_sub")
     }
     return {
         "hero": hero,
@@ -128,9 +144,6 @@ def _ssr_home(lang:str) -> Dict[str, Any]:
         "home": {"section_titles": sect_titles, "section_subtitles": sect_subs},
         "routes": _routes_map()
     }
-
-
-
 
 # --------------------------- POMOCNICZE ------------------------------------
 ROOT = pathlib.Path(".")
@@ -403,7 +416,8 @@ def base_pages()->List[Dict[str,Any]]:
         if not ctx.get("title"):
             ctx["title"] = (p.get("h1") or ctx["seo_title"])
         ctx["template"]=choose_template(ctx)
-        ctx["__from"]="pages"
+        ctx["__from"]=
+            "pages"
         pages.append(ctx)
     return pages
 
@@ -649,14 +663,14 @@ def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:
 
     def add_meta(**attrs):
         if not head.find("meta", attrs=attrs):
-head.append(soup.new_tag("meta", **attrs))
+            head.append(soup.new_tag("meta", **attrs))
 
     def add_link(**attrs):
         # unikaj duplikatów
         for link in head.find_all("link"):
             if all(link.get(k) == v for k, v in attrs.items()):
                 return
-head.append(soup.new_tag("link", **attrs))
+        head.append(soup.new_tag("link", **attrs))
 
     # canonical
     if page.get("canonical") and not has_selector('link[rel="canonical"]'):
@@ -681,7 +695,7 @@ head.append(soup.new_tag("link", **attrs))
     }
     for prop,val in og_map.items():
         if val and not head.find("meta", attrs={"property":prop}):
-            head.append(soup.new_tag("meta", attrs={"property":prop, "content":val}))
+            head.append(soup.new_tag("meta", **{"property":prop, "content":val}))
     if og_map["og:image"] and not head.find("meta", attrs={"name":"twitter:card"}):
         add_meta(name="twitter:card", content="summary_large_image")
     if og_map["og:title"] and not head.find("meta", attrs={"name":"twitter:title"}):
@@ -705,7 +719,7 @@ head.append(soup.new_tag("link", **attrs))
         has_gtm_any = bool(soup.find("script", src=re.compile(r"googletagmanager\.com/gtag/js")))
         has_conf_any = bool(soup.find("script", string=re.compile(r"gtag\('config',\s*['\"]"+re.escape(GA_ID))))
         if not has_gtm_any:
-            s = soup.new_tag("script", attrs={"src": f"https://www.googletagmanager.com/gtag/js?id={GA_ID}"})
+            s = soup.new_tag("script", src=f"https://www.googletagmanager.com/gtag/js?id={GA_ID}")
             s["async"] = "async"
             head.append(s)
         if not has_conf_any:
@@ -716,6 +730,58 @@ head.append(soup.new_tag("link", **attrs))
                 f"gtag('config','{GA_ID}',{{anonymize_ip:true}});"
             )
             head.append(conf)
+
+    # JSON-LD – dołóż tylko jeśli w całym dokumencie nie ma ld+json
+    if not soup.find("script", attrs={"type":"application/ld+json"}):
+        try:
+            ld = json.dumps(jsonld_blocks(page), ensure_ascii=False)
+            ld_tag = soup.new_tag("script", type="application/ld+json")
+            ld_tag.string = ld
+            head.append(ld_tag)
+        except Exception:
+            pass
+
+# --------- LINK GRAPH (pozostawione jak w starym; może być użyte w szabl.) --
+def neighbors_for(city_pages:List[Dict[str,Any]], page:Dict[str,Any], k_region:int, k_alt:int)->List[Dict[str,Any]]:
+    lang=page.get("lang")
+    region=(page.get("voivodeship") or "").strip().lower()
+    city=(page.get("city") or "").strip().lower()
+    svc=page.get("service_h1")
+    same_region=[p for p in city_pages if p.get("lang")==lang and (p.get("voivodeship","\").strip().lower()==region) and (p.get("city","\").strip().lower()!=city) and p.get("service_h1")==svc]
+    alt_service=[p for p in city_pages if p.get("lang")==lang and (p.get("city","\").strip().lower()==city) and p.get("service_h1")!=svc]
+    out=same_region[:k_region] + alt_service[:k_alt]
+    return out
+
+# ------------------------------ RENDER / BUILD ------------------------------
+def build_all():
+    pages = base_pages()
+    city  = generate_city_service()
+    all_pages = pages + city
+
+    hreflang_map = CMS.get("hreflang", {})
+    indexables: List[Tuple[str,str,str]] = []
+    today=UTC()
+    logs=[]
+    autolink_inline=0; autolink_fb=0
+
+    # simhash (P4) – wykrywanie duplikatów
+    sim_index={}
+    dup_warns=0
+
+    # TF-IDF (P3) – z tekstu strony
+    tfidf_map={}
+
+    for p in all_pages:
+        lang=p.get("lang") or DEFAULT_LANG
+        slug=p.get("slug","")
+        p["canonical"]=canonical(SITE_URL, lang, slug, p.get("canonical_path"))
+
+        # OG image generator (opcjonalnie; tylko gdy brak)
+        gen_og = og_image_for(p)
+        if gen_og: p["og_image"]=gen_og
+
+        # SEO gates
+        p, warns = apply_quality(p)
 
         # JSON-LD (przekazany do Jinja, a dodatkowo do-inject po renderze jeśli brak)
         ld_html = '<script type="application/ld+json">' + json.dumps(jsonld_blocks(p), ensure_ascii=False) + '</script>'
@@ -803,8 +869,6 @@ head.append(soup.new_tag("link", **attrs))
         # "google4377ff145fac0f52.html" -> token: "4377ff145fac0f52"
         token = html_file.replace("google", "", 1).removesuffix(".html")
         write_text(OUT / html_file, f"google-site-verification: {token}")
-
-
 
     # 404.html (prosty)
     write_text(OUT/"404.html", "<h1>404</h1><p>Nie znaleziono strony. <a href='/pl/'>Wróć do strony głównej</a>.</p>")
