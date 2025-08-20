@@ -1,269 +1,280 @@
 {% extends "base.html" %}
-{# =====================================================================
-   KRAS-TRANS • PAGE (HOME+GENERIC) – CMS-FIRST MAX
-   • Bez header/footer w tym pliku (są w base.html) – tu tylko <main> content
-   • Wszystkie treści docelowo z Arkuszy (Apps Script) przez REST → JSON
-   • Haczyki: elementy z atrybutem data-api, które wypełnia cms.js
-   • Ten plik NIE usuwa Twoich makr – dodaje tylko kolejne sekcje i haki
-   • Kontrakt danych (co ma zwracać API) opisany przy każdej sekcji
-   ===================================================================== #}
-
-{# --------------------------- USTAWIENIA LOCALE --------------------------- #}
-{% set lang = (page.lang or site.defaultLang or 'pl') %}
-
-{# --------------------------- MAKRAs: i18n + URL -------------------------- #}
-{% macro t(key, fb='') -%}
-  {# Fallback – dopóki nie przepniesz wszystkiego na CMS strings #}
-  {%- if i18n and (key in i18n) -%}
-    {{ i18n[key] }}
-  {%- else -%}
-    {{ fb }}
-  {%- endif -%}
-{%- endmacro %}
-
-{% macro url_by_slugkey(slugKey) -%}
-  {%- if slugKey=='home' -%}
-    /{{ lang }}/
-  {%- else -%}
-    /{{ lang }}/{{ slugKey }}/
-  {%- endif -%}
-{%- endmacro %}
-
-{% macro page_url(p) -%}
-  {{- p.canonical_path if p.canonical_path else ('/' ~ lang ~ '/' ~ (p.slug ~ '/' if p.slug else '')) -}}
-{%- endmacro %}
-
 {% block content %}
 
-{# =====================================================================
-   0) HERO (LCP)
-   API: /home/hero  →  {
-     "title": {pl,en,...}, "lead": {pl,en,...},
-     "kpi": [{"value":"24/7","label":{pl,en,...}}, ... up to 4],
-     "cta_primary": {"label":{pl,en}, "slugKey":"quote"},
-     "cta_secondary": {"label":{pl,en}, "slugKey":"contact"},
-     "image": {"src":"/assets/media/hero.webp","srcset":"...","alt":{pl,en}}
-   }
-   ===================================================================== #}
-<section id="hero" class="section hero" aria-labelledby="hero-title" data-api="/home/hero">
+<!-- HERO (LCP) -->
+<section id="hero" class="section hero" data-api="/home/hero" aria-labelledby="hero-title" aria-busy="true">
   <div class="wrap hero__wrap">
     <div class="hero__copy">
-      <p class="hero__kicker" data-bind="lead:claim">{{ t('claim','Transport i spedycja') }}</p>
-      <h1 id="hero-title" class="hero__title" data-bind="text:title">{{ page.h1 or page.title }}</h1>
-      <p class="hero__lead" data-bind="text:lead">{{ page.lead }}</p>
+      <h1 id="hero-title" class="hero__title" data-bind="text: hero.title"></h1>
+      <p class="hero__lead" data-bind="text: hero.lead"></p>
       <div class="cta-row">
-        <a class="btn btn-primary" data-bind="href:cta_primary.slugKey|slug, text:cta_primary.label">{{ t('cta_quote','Wycena transportu') }}</a>
-        <a class="btn" data-bind="href:cta_secondary.slugKey|slug, text:cta_secondary.label">{{ t('cta_contact','Kontakt') }}</a>
+        <a class="btn btn-primary"
+           data-bind="href: hero.cta_primary.slugKey|slug, text: hero.cta_primary.label"
+           data-analytics="hero_cta_primary"></a>
+        <a class="btn"
+           data-bind="href: hero.cta_secondary.slugKey|slug, text: hero.cta_secondary.label"
+           data-analytics="hero_cta_secondary"></a>
+        <a class="btn btn-ghost"
+           data-bind="href: company.phone.href, text: company.phone.short"
+           data-analytics="hero_call"></a>
       </div>
-      <ul class="hero__kpi" role="list">
-        {# 4 miejsca na KPI – JS nadpisze textContent #}
-        <li><strong data-bind="kpi[0].value">24/7</strong><span data-bind="kpi[0].label">{{ t('kpi_1','Monitorowanie') }}</span></li>
-        <li><strong data-bind="kpi[1].value">EURO6</strong><span data-bind="kpi[1].label">{{ t('kpi_2','Flota') }}</span></li>
-        <li><strong data-bind="kpi[2].value">99,2%</strong><span data-bind="kpi[2].label">{{ t('kpi_3','Terminowość') }}</span></li>
-        <li><strong data-bind="kpi[3].value">+500</strong><span data-bind="kpi[3].label">{{ t('kpi_4','Klienci') }}</span></li>
-      </ul>
+      <ul class="hero__kpi" role="list"></ul>
+      <template id="tpl-hero-kpi">
+        <li role="listitem">
+          <strong data-bind="text: value"></strong>
+          <span data-bind="text: label"></span>
+        </li>
+      </template>
     </div>
     <div class="hero__media">
-      <picture>
-        <source data-bind="attr: { imagesrcset: image.srcset }" type="image/avif" />
-        <img id="heroLCP"
-             src="{{ page.hero_image or '/assets/media/hero.webp' }}"
-             width="1280" height="720"
-             alt="{{ page.hero_alt or page.h1 }}"
-             data-bind="attr: { src: image.src, alt: image.alt }"
-             decoding="async" />
-      </picture>
+      <img id="heroLCP" width="1280" height="720" loading="eager" fetchpriority="high" decoding="async"
+           data-bind="attr: { src: hero.image.src, srcset: hero.image.srcset, alt: hero.image.alt }">
     </div>
   </div>
-  <div class="hero__divider" aria-hidden="true"></div>
+  <div class="divider"></div>
 </section>
 
-{# =====================================================================
-   1) USŁUGI (kafle)
-   API: /home/services  →  { "services": [
-       { "icon":"🚚"|"/img.svg", "title":{pl,en}, "desc":{pl,en}, "slugKey":"service‑slug" }, ... ] }
-   ===================================================================== #}
-<section id="services" class="section services" aria-labelledby="services-title">
+<!-- SERVICES -->
+<section id="services" class="section services" aria-labelledby="services-title" aria-busy="true">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="services-title">{{ t('services_h2','Usługi') }}</h2>
-      <p class="section__sub">{{ t('services_sub','Transport krajowy i międzynarodowy, ekspres, palety i więcej.') }}</p>
+      <h2 id="services-title" data-bind="text: home.section_titles.services"></h2>
+      <p class="section__sub" data-bind="text: home.section_subtitles.services"></p>
     </header>
 
-    <div class="grid services__grid" data-api="/home/services" aria-live="polite">
-      {# JS wstawi <article class="card"> na podstawie tablicy services #}
-    </div>
+    <div class="grid services__grid" data-api="/home/services" role="list"></div>
 
-    <div class="section__cta">
-      <a class="btn" href="{{ url_by_slugkey('services') }}">{{ t('services_more','Wszystkie usługi') }}</a>
-    </div>
+    <template id="tpl-service-card">
+      <article class="card" role="listitem" itemscope itemtype="https://schema.org/Service">
+        <div class="card__icon" aria-hidden="true" data-bind="html: icon"></div>
+        <h3 class="card__title" itemprop="name" data-bind="text: title"></h3>
+        <p class="card__desc" itemprop="description" data-bind="text: desc"></p>
+        <a class="card__link" data-bind="href: slugKey|slug, text: cta.label"></a>
+      </article>
+    </template>
   </div>
 </section>
 
-{# =====================================================================
-   2) BRANŻE (kafle tematyczne)
-   API: /home/industries  →  { "items": [ {"title":{pl,en}, "desc":{pl,en}} ... ] }
-   ===================================================================== #}
-<section id="industries" class="section industries" aria-labelledby="ind-title">
+<!-- INDUSTRIES -->
+<section id="industries" class="section industries" aria-labelledby="industries-title" aria-busy="true">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="ind-title">{{ t('ind_h2','Branże i zastosowania') }}</h2>
-      <p class="section__sub">{{ t('ind_sub','Obsługujemy e‑commerce, FTL, przeprowadzki i inne.') }}</p>
+      <h2 id="industries-title" data-bind="text: home.section_titles.industries"></h2>
+      <p class="section__sub" data-bind="text: home.section_subtitles.industries"></p>
     </header>
-    <div class="grid industries__grid" data-api="/home/industries">
-      {# JS wypełni .card z title/desc #}
-    </div>
+
+    <div class="grid industries__grid" data-api="/home/industries" role="list"></div>
+
+    <template id="tpl-industry-card">
+      <article class="card" role="listitem">
+        <h3 class="card__title" data-bind="text: title"></h3>
+        <p class="card__desc" data-bind="text: desc"></p>
+      </article>
+    </template>
   </div>
 </section>
 
-{# =====================================================================
-   3) ZASIĘG / KORYTARZE
-   API: /home/coverage → { "corridors": [ {"title":{pl,en}, "desc":{pl,en}} ... ] }
-   ===================================================================== #}
-<section id="coverage" class="section coverage" aria-labelledby="cov-title">
+<!-- COVERAGE -->
+<section id="coverage" class="section coverage" aria-labelledby="coverage-title" aria-busy="true">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="cov-title">{{ t('cov_h2','Zasięg w UE') }}</h2>
-      <p class="section__sub">{{ t('cov_sub','Główne korytarze i regiony obsługi.') }}</p>
+      <h2 id="coverage-title" data-bind="text: home.section_titles.coverage"></h2>
+      <p class="section__sub" data-bind="text: home.section_subtitles.coverage"></p>
     </header>
-    <div class="grid coverage__grid" data-api="/home/coverage"></div>
+
+    <div class="grid coverage__grid" data-api="/home/coverage" role="list"></div>
+
+    <template id="tpl-coverage-card">
+      <article class="card" role="listitem">
+        <h3 class="card__title" data-bind="text: title"></h3>
+        <p class="card__desc" data-bind="text: desc"></p>
+      </article>
+    </template>
   </div>
 </section>
 
-{# =====================================================================
-   4) PROCES (kroki)
-   API: /home/process → { "steps": [ {"title":{pl,en}, "desc":{pl,en}} … ] }
-   ===================================================================== #}
-<section id="process" class="section process" aria-labelledby="proc-title">
+<!-- PROCESS -->
+<section id="process" class="section process" aria-labelledby="process-title" aria-busy="true">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="proc-title">{{ t('proc_h2','Jak działamy') }}</h2>
-      <p class="section__sub">{{ t('proc_sub','Prosty proces od zapytania do dostawy.') }}</p>
+      <h2 id="process-title" data-bind="text: home.section_titles.process"></h2>
+      <p class="section__sub" data-bind="text: home.section_subtitles.process"></p>
     </header>
-    <ol class="steps" data-api="/home/process"></ol>
+
+    <ol class="steps" data-api="/home/process" role="list"></ol>
+
+    <template id="tpl-process-step">
+      <li class="step" role="listitem">
+        <h3 class="step__title" data-bind="text: title"></h3>
+        <p class="step__desc" data-bind="text: desc"></p>
+      </li>
+    </template>
   </div>
 </section>
 
-{# =====================================================================
-   5) KPI / TRUST (liczby / dowody)
-   API: /home/trust → { "items": [ {"value":"99%","label":{pl,en}, "desc":{pl,en}} … ] }
-   ===================================================================== #}
-<section id="trust" class="section trust" aria-labelledby="trust-title">
+<!-- TRUST -->
+<section id="trust" class="section trust" aria-labelledby="trust-title" aria-busy="true">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="trust-title">{{ t('trust_h2','Dowody jakości') }}</h2>
-      <p class="section__sub">{{ t('trust_sub','Liczby, certyfikaty, zadowoleni klienci.') }}</p>
+      <h2 id="trust-title" data-bind="text: home.section_titles.trust"></h2>
+      <p class="section__sub" data-bind="text: home.section_subtitles.trust"></p>
     </header>
-    <div class="grid trust__grid" data-api="/home/trust"></div>
+
+    <div class="grid trust__grid" data-api="/home/trust" role="list"></div>
+
+    <template id="tpl-trust-card">
+      <article class="card kpi" role="listitem">
+        <div class="kpi__value" data-bind="text: value"></div>
+        <div class="kpi__label" data-bind="text: label"></div>
+        <p class="kpi__desc" data-bind="text: desc"></p>
+      </article>
+    </template>
   </div>
 </section>
 
-{# =====================================================================
-   6) OPINIE / TESTIMONIALS
-   API: /home/testimonials → { "items": [ {"quote":{pl,en}, "author":"…", "role":"…"} ] }
-   ===================================================================== #}
-<section id="testimonials" class="section testimonials" aria-labelledby="testi-title">
+<!-- TESTIMONIALS -->
+<section id="testimonials" class="section testimonials" aria-labelledby="testimonials-title" aria-busy="true">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="testi-title">{{ t('testi_h2','Mówią o nas') }}</h2>
-      <p class="section__sub">{{ t('testi_sub','Rekomendacje klientów i partnerów.') }}</p>
+      <h2 id="testimonials-title" data-bind="text: home.section_titles.testimonials"></h2>
+      <p class="section__sub" data-bind="text: home.section_subtitles.testimonials"></p>
     </header>
-    <div class="reel testimonials__reel" data-api="/home/testimonials"></div>
+
+    <div class="reel testimonials__reel" data-api="/home/testimonials" role="list"></div>
+
+    <template id="tpl-testimonial-card">
+      <article class="card quote" role="listitem">
+        <blockquote class="quote__text" data-bind="text: quote"></blockquote>
+        <div class="quote__meta">
+          <span class="quote__author" data-bind="text: author"></span>
+          <span class="quote__role" data-bind="text: role"></span>
+        </div>
+      </article>
+    </template>
   </div>
 </section>
 
-{# =====================================================================
-   7) PARTNERZY / LOGA
-   API: /home/partners → { "logos": [ {"src":"/logo.svg","alt":"…"} ] }
-   ===================================================================== #}
-<section id="partners" class="section partners" aria-label="Partnerzy">
+<!-- PARTNERS -->
+<section id="partners" class="section partners" aria-labelledby="partners-title" aria-busy="true">
   <div class="wrap">
+    <header class="section__head">
+      <h2 id="partners-title" data-bind="text: home.section_titles.partners"></h2>
+      <p class="section__sub" data-bind="text: home.section_subtitles.partners"></p>
+    </header>
+
     <ul class="logos" role="list" data-api="/home/partners"></ul>
+
+    <template id="tpl-partner-logo">
+      <li role="listitem">
+        <img loading="lazy" decoding="async" width="140" height="40"
+             data-bind="attr:{src: src, alt: alt}">
+      </li>
+    </template>
   </div>
 </section>
 
-{# =====================================================================
-   8) FLOTA / SPRZĘT
-   API: /home/fleet → { "items": [ {"title":{pl,en}, "desc":{pl,en}} ] }
-   ===================================================================== #}
-<section id="fleet" class="section fleet" aria-labelledby="fleet-title">
+<!-- FLEET -->
+<section id="fleet" class="section fleet" aria-labelledby="fleet-title" aria-busy="true">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="fleet-title">{{ t('fleet_h2','Flota i możliwości') }}</h2>
-      <p class="section__sub">{{ t('fleet_sub','EURO6, naczepy standard/mega, monitoring 24/7') }}</p>
+      <h2 id="fleet-title" data-bind="text: home.section_titles.fleet"></h2>
+      <p class="section__sub" data-bind="text: home.section_subtitles.fleet"></p>
     </header>
-    <div class="grid fleet__grid" data-api="/home/fleet"></div>
+
+    <div class="grid fleet__grid" data-api="/home/fleet" role="list"></div>
+
+    <template id="tpl-fleet-card">
+      <article class="card" role="listitem">
+        <h3 class="card__title" data-bind="text: title"></h3>
+        <p class="card__desc" data-bind="text: desc"></p>
+      </article>
+    </template>
   </div>
 </section>
 
-{# =====================================================================
-   9) CENNIK / WYCENA (CTA z CMS)
-   API: /home/pricing → { "tiles": [ {"title":{pl,en}, "desc":{pl,en}, "slugKey":"pricing"|"quote"} ] }
-   ===================================================================== #}
-<section id="pricing" class="section pricing" aria-labelledby="pricing-title">
+<!-- PRICING / QUOTE -->
+<section id="pricing" class="section pricing" aria-labelledby="pricing-title" aria-busy="true">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="pricing-title">{{ t('pricing_h2','Cennik i wycena') }}</h2>
-      <p class="section__sub">{{ t('pricing_sub','Prosta wycena i dopasowane stawki') }}</p>
+      <h2 id="pricing-title" data-bind="text: home.section_titles.pricing"></h2>
+      <p class="section__sub" data-bind="text: home.section_subtitles.pricing"></p>
     </header>
-    <div class="grid pricing__grid" data-api="/home/pricing"></div>
+
+    <div class="grid pricing__grid" data-api="/home/pricing" role="list"></div>
+
+    <template id="tpl-pricing-card">
+      <article class="card" role="listitem">
+        <h3 class="card__title" data-bind="text: title"></h3>
+        <p class="card__desc" data-bind="text: desc"></p>
+        <a class="card__link" data-bind="href: slugKey|slug, text: cta.label"></a>
+      </article>
+    </template>
   </div>
 </section>
 
-{# =====================================================================
-   10) BLOG / AKTUALNOŚCI (z CMS – opcjonalnie)
-   API: /blog/latest → { "items": [ {"title":{pl,en}, "lead":{pl,en}, "path":"/pl/blog/.../"} ] }
-   ===================================================================== #}
-<section id="insights" class="section insights" aria-labelledby="ins-title">
+<!-- INSIGHTS / BLOG LATEST -->
+<section id="insights" class="section insights" aria-labelledby="insights-title" aria-busy="true">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="ins-title">{{ t('ins_h2','Poradniki i aktualności') }}</h2>
-      <p class="section__sub">{{ t('ins_sub','Nowości i case studies') }}</p>
+      <h2 id="insights-title" data-bind="text: home.section_titles.insights"></h2>
+      <p class="section__sub" data-bind="text: home.section_subtitles.insights"></p>
     </header>
-    <div class="reel insights__reel" data-api="/blog/latest"></div>
+
+    <div class="reel insights__reel" data-api="/blog/latest" role="list"></div>
+
+    <template id="tpl-insight-card">
+      <article class="card" role="listitem" itemscope itemtype="https://schema.org/BlogPosting">
+        <h3 class="card__title" itemprop="headline" data-bind="text: title"></h3>
+        <p class="card__desc" itemprop="description" data-bind="text: lead"></p>
+        <a class="card__link" data-bind="href: path, text: cta.label"></a>
+      </article>
+    </template>
   </div>
 </section>
 
-{# =====================================================================
-   11) FAQ (akordeon z CMS)
-   API: /faq/list → [ {"q":{pl,en}, "a":{pl,en}} ]
-   ===================================================================== #}
-<section id="faq" class="section faq" aria-labelledby="faq-title">
+<!-- FAQ -->
+<section id="faq" class="section faq" aria-labelledby="faq-title" aria-busy="true">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="faq-title">{{ t('faq_h2','FAQ – pytania i odpowiedzi') }}</h2>
-      <p class="section__sub">{{ t('faq_sub','Najczęstsze pytania klientów') }}</p>
+      <h2 id="faq-title" data-bind="text: home.section_titles.faq"></h2>
+      <p class="section__sub" data-bind="text: home.section_subtitles.faq"></p>
     </header>
-    <div class="faq-list" data-api="/faq/list"></div>
+
+    <div class="faq-list" data-api="/faq/list" role="list"></div>
+
+    <template id="tpl-faq-item">
+      <details class="qa" role="listitem">
+        <summary data-bind="text: q"></summary>
+        <div class="a"><p data-bind="text: a"></p></div>
+      </details>
+    </template>
   </div>
 </section>
 
-{# =====================================================================
-   12) KOŃCOWE CTA (z CMS, ale ma też bezpieczne fallbacki)
-   API: /home/final → { "title":{pl,en}, "desc":{pl,en}, "cta_primary":{label,slugKey}, "cta_secondary":{label,slugKey} }
-   ===================================================================== #}
-<section id="final-cta" class="section final-cta" aria-labelledby="final-title" data-api="/home/final">
-  <div class="wrap final-cta__wrap">
-    <div class="final-cta__copy">
-      <h2 id="final-title" data-bind="text:title">{{ t('final_h2','Zacznijmy współpracę') }}</h2>
-      <p data-bind="text:desc">{{ t('final_sub','Wycena w 15 minut, kontakt 24/7') }}</p>
-      <div class="cta-row">
-        <a class="btn btn-primary" data-bind="href:cta_primary.slugKey|slug, text:cta_primary.label">{{ t('final_cta_primary','Wycena transportu') }}</a>
-        <a class="btn" data-bind="href:cta_secondary.slugKey|slug, text:cta_secondary.label">{{ t('final_cta_secondary','Kontakt') }}</a>
-      </div>
+<!-- FINAL CTA -->
+<section id="final-cta" class="section final-cta" data-api="/home/final" aria-labelledby="final-cta-title" aria-busy="true">
+  <div class="wrap">
+    <h2 id="final-cta-title" data-bind="text: final.title"></h2>
+    <p class="final-cta__desc" data-bind="text: final.desc"></p>
+    <div class="cta-row">
+      <a class="btn btn-primary"
+         data-bind="href: final.cta_primary.slugKey|slug, text: final.cta_primary.label"
+         data-analytics="final_cta_primary"></a>
+      <a class="btn"
+         data-bind="href: final.cta_secondary.slugKey|slug, text: final.cta_secondary.label"
+         data-analytics="final_cta_secondary"></a>
     </div>
   </div>
 </section>
 
-{# =====================================================================
-   13) GENERIC BODY (dla innych podstron – jeśli to nie HOME)
-   ===================================================================== #}
-{% if not (page.slug=='' or page.slugKey=='home' or page.type=='home') %}
-<section class="section content" id="content">
-  <div class="wrap">
-    {{ page.body_html | safe }}
-  </div>
-</section>
-{% endif %}
+<!-- MOBILE STICKY CTA (persuasion pattern; wypełniane z HERO lub FINAL) -->
+<aside id="sticky-cta" class="sticky-cta" data-api="/home/hero" aria-hidden="true">
+  <a class="sticky-cta__btn"
+     data-bind="href: hero.cta_primary.slugKey|slug, text: hero.cta_primary.label"
+     data-analytics="sticky_cta"></a>
+  <a class="sticky-cta__phone"
+     data-bind="href: company.phone.href, text: company.phone.short"
+     data-analytics="sticky_call"></a>
+</aside>
 
 {% endblock %}
