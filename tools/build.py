@@ -614,12 +614,12 @@ def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:
 
     # GA (gtag)
     if (GA_ID or "").strip():
-        has_gtag = bool(head.find("script", src=re.compile(r"googletagmanager\.com/gtag/js")))
-        has_conf = bool(head.find("script", string=re.compile(r"gtag\('config',\s*['\"]"+re.escape(GA_ID))))
-        if not has_gtag:
+        has_gtm_anywhere = bool(soup.find("script", src=re.compile(r"googletagmanager\.com/gtag/js")))
+        has_config_anywhere = bool(soup.find("script", string=re.compile(r"gtag\('config',\s*['\"]"+re.escape(GA_ID))))
+        if not has_gtm_anywhere:
             s = soup.new_tag("script", async=True, src=f"https://www.googletagmanager.com/gtag/js?id={GA_ID}")
             head.append(s)
-        if not has_conf:
+        if not has_config_anywhere:
             conf = soup.new_tag("script")
             conf.string = f"window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments);}}gtag('js',new Date());gtag('config','{GA_ID}');"
             head.append(conf)
