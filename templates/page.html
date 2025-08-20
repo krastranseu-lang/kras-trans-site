@@ -1,75 +1,72 @@
 {% extends "base.html" %}
 {% block content %}
+{% set H = ssr.hero if ssr else {} %}
+{% set R = ssr.routes if ssr else {} %}
 
-<!-- HERO (LCP) -->
-<section id="hero" class="section hero" data-api="/home/hero" aria-labelledby="hero-title" aria-busy="true">
+<!-- HERO (SSR) -->
+<section id="hero" class="section hero" aria-labelledby="hero-title">
   <div class="wrap hero__wrap">
     <div class="hero__copy">
-      <h1 id="hero-title" class="hero__title" data-bind="text: hero.title"></h1>
-      <p class="hero__lead" data-bind="text: hero.lead"></p>
+      <h1 id="hero-title" class="hero__title">{{ H.title }}</h1>
+      <p class="hero__lead">{{ H.lead }}</p>
       <div class="cta-row">
-        <a class="btn btn-primary"
-           data-bind="href: hero.cta_primary.slugKey|slug, text: hero.cta_primary.label"
-           data-analytics="hero_cta_primary"></a>
-        <a class="btn"
-           data-bind="href: hero.cta_secondary.slugKey|slug, text: hero.cta_secondary.label"
-           data-analytics="hero_cta_secondary"></a>
-        <a class="btn btn-ghost"
-           data-bind="href: company.phone.href, text: company.phone.short"
-           data-analytics="hero_call"></a>
+        <a class="btn btn-primary" href="{{ '/' ~ (page.lang or 'pl') ~ '/' ~ (R['quote'][page.lang] | default('quote/') | replace('/' ~ (page.lang or 'pl') ~ '/', '')) }}">{{ H.cta_primary.label }}</a>
+        <a class="btn" href="{{ '/' ~ (page.lang or 'pl') ~ '/' ~ (R['contact'][page.lang] | default('contact/') | replace('/' ~ (page.lang or 'pl') ~ '/', '')) }}">{{ H.cta_secondary.label }}</a>
+        {% if company and company[0] and company[0].telephone %}
+          <a class="btn btn-ghost" href="tel:{{ company[0].telephone }}">{{ company[0].telephone }}</a>
+        {% endif %}
       </div>
-      <ul class="hero__kpi" role="list"></ul>
-      <template id="tpl-hero-kpi">
-        <li role="listitem">
-          <strong data-bind="text: value"></strong>
-          <span data-bind="text: label"></span>
-        </li>
-      </template>
+      {% if H.kpi and H.kpi|length %}
+        <ul class="hero__kpi" role="list">
+          {% for k in H.kpi %}
+            <li role="listitem"><strong>{{ k.value }}</strong><span>{{ k.label }}</span></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
     </div>
     <div class="hero__media">
       <img id="heroLCP" width="1280" height="720" loading="eager" fetchpriority="high" decoding="async"
-           data-bind="attr: { src: hero.image.src, srcset: hero.image.srcset, alt: hero.image.alt }">
+           src="{{ H.image.src }}" srcset="{{ H.image.srcset }}" alt="{{ H.image.alt }}">
     </div>
   </div>
 </section>
 
-<!-- SERVICES -->
-<section id="services" class="section services" aria-labelledby="services-title" aria-busy="true">
+<!-- SERVICES (SSR) -->
+<section id="services" class="section services" aria-labelledby="services-title">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="services-title" data-bind="text: home.section_titles.services"></h2>
-      <p class="section__sub" data-bind="text: home.section_subtitles.services"></p>
+      <h2 id="services-title">{{ ssr.home.section_titles.services if ssr else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.services if ssr else '' }}</p>
     </header>
-
-    <div class="grid services__grid" data-api="/home/services" role="list"></div>
-
-    <template id="tpl-service-card">
-      <article class="card" role="listitem" itemscope itemtype="https://schema.org/Service">
-        <div class="card__icon" aria-hidden="true" data-bind="html: icon"></div>
-        <h3 class="card__title" itemprop="name" data-bind="text: title"></h3>
-        <p class="card__desc" itemprop="description" data-bind="text: desc"></p>
-        <a class="card__link" data-bind="href: slugKey|slug, text: cta.label"></a>
-      </article>
-    </template>
+    <div class="grid services__grid" role="list">
+      {% for s in (ssr.services or []) %}
+        <article class="card" role="listitem" itemscope itemtype="https://schema.org/Service">
+          <div class="card__icon" aria-hidden="true">{{ s.icon | safe }}</div>
+          <h3 class="card__title" itemprop="name">{{ s.title }}</h3>
+          <p class="card__desc" itemprop="description">{{ s.desc }}</p>
+          {% set href = (ssr.routes[s.slugKey][page.lang] if ssr and ssr.routes and ssr.routes.get(s.slugKey) else '/' ~ (page.lang or 'pl') ~ '/' ~ (s.slugKey ~ '/') ) %}
+          <a class="card__link" href="{{ href }}">{{ s.cta.label }}</a>
+        </article>
+      {% endfor %}
+    </div>
   </div>
 </section>
 
-<!-- FAQ -->
-<section id="faq" class="section faq" aria-labelledby="faq-title" aria-busy="true">
+<!-- FAQ (SSR) -->
+<section id="faq" class="section faq" aria-labelledby="faq-title">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="faq-title" data-bind="text: home.section_titles.faq"></h2>
-      <p class="section__sub" data-bind="text: home.section_subtitles.faq"></p>
+      <h2 id="faq-title">{{ ssr.home.section_titles.faq if ssr else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.faq if ssr else '' }}</p>
     </header>
-
-    <div class="faq-list" data-api="/faq/list" role="list"></div>
-
-    <template id="tpl-faq-item">
-      <details class="qa" role="listitem">
-        <summary data-bind="text: q"></summary>
-        <div class="a"><p data-bind="text: a"></p></div>
-      </details>
-    </template>
+    <div class="faq-list" role="list">
+      {% for f in (ssr.faq or []) %}
+        <details class="qa" role="listitem">
+          <summary>{{ f.q }}</summary>
+          <div class="a"><p>{{ f.a }}</p></div>
+        </details>
+      {% endfor %}
+    </div>
   </div>
 </section>
 
