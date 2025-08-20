@@ -555,9 +555,9 @@ def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:
     def has_selector(sel:str)->bool:
         return bool(head.select_one(sel))
 
-    def add_meta(**attrs):
-        if not head.find("meta", attrs=attrs):
-            head.append(soup.new_tag("meta", **attrs))
+def add_meta(**attrs):
+    if not head.find("meta", attrs=attrs):
+        head.append(soup.new_tag("meta", attrs=attrs))
 
     def add_link(**attrs):
         # uniqueness by (rel, hreflang) or (rel, href)
