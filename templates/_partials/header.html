@@ -1,58 +1,87 @@
+<!-- ======================= KRAS-TRANS • HEADER (GLASS + MEGA + LANGS + THEME) =======================
+     - SSR-first (cache w localStorage) + CSR (odświeżenie z GAS)
+     - Mega-menu pełnej szerokości (grid + blog rail), jak Squarespace/Maersk
+     - Języki: rozwijany dropdown (flagi + kody), linki na „tę samą stronę” w innym języku
+     - Przełącznik motywu: Auto/Light/Dark (ikony: sun/moon)
+     - Mobile: bottom dock + fullscreen drawer
+     - Wystarczy wkleić całość do szablonu; nie wymaga zewnętrznych plików
+====================================================================================================== -->
 <header id="site-header"
-        class="site-header sq"
+        class="site-header"
         data-api="https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec"
         data-key="kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
+        data-theme-sun="/assets/flags/theme-sun.svg"
+        data-theme-moon="/assets/flags/theme-moon.svg"
         aria-busy="true">
 
-  <!-- ===== CRITICAL, SCOPED CSS (only for #site-header) ===== -->
+  <!-- ============== CRITICAL CSS (scoped do #site-header) ============== -->
   <style>
-    /* TOKENS */
-    #site-header{--bg:rgba(255,255,255,.82);--ink:#0b1020;--line:rgba(0,0,0,.08);
-      --brand:#0ea5e9;--ink-weak:#64748b;--ease:cubic-bezier(.2,.7,.2,1);--r:14px;--mega-h:0px}
+    /* Tokens */
+    #site-header{--bg:rgba(255,255,255,.82);--ink:#0b1020;--ink-weak:#64748b;--line:rgba(0,0,0,.08);
+      --brand:#0ea5e9;--ease:cubic-bezier(.2,.7,.2,1);--mega-h:0px}
     @media (prefers-color-scheme:dark){
-      #site-header{--bg:rgba(15,23,42,.62);--ink:#e5e7eb;--line:rgba(255,255,255,.08)}
+      #site-header{--bg:rgba(15,23,42,.62);--ink:#e5e7eb;--ink-weak:#94a3b8;--line:rgba(255,255,255,.10)}
     }
 
-    /* WRAPPER (glass na całej szerokości, bar węższy) */
+    /* Wrapper (kompaktowo) */
     #site-header{position:sticky;top:0;z-index:60;background:var(--bg);
       -webkit-backdrop-filter:saturate(180%) blur(12px);backdrop-filter:saturate(180%) blur(12px);
-      border-bottom:1px solid var(--line);transition:box-shadow .25s ease,background .25s ease}
-    #site-header.sq--shadow{box-shadow:0 8px 22px rgba(0,0,0,.08)}
+      border-bottom:1px solid var(--line);transition:box-shadow .25s ease, background .25s ease}
+    #site-header.s--shadow{box-shadow:0 8px 22px rgba(0,0,0,.08)}
     #site-header .wrap{max-width:980px;margin:0 auto;padding:0 12px 0 8px}
-    @media (min-width:768px){ #site-header .wrap{padding:0 18px 0 12px}}
+    @media (min-width:768px){ #site-header .wrap{padding:0 18px 0 12px} }
 
-    /* TOP BAR (Opcja B – niższy bar, mniejsze logo) */
+    /* Bar */
     #site-header .bar{display:grid;grid-template-columns:minmax(120px,170px) 1fr auto;gap:10px;align-items:center;padding:6px 0}
     #site-header a{color:inherit;text-decoration:none}
     #site-header .brand{display:inline-flex;align-items:center;gap:10px;margin-left:-4px}
-    #site-header .brand__logo{height:auto;max-width:160px;width:clamp(110px,10vw,160px);transition:transform .18s ease,filter .18s ease;will-change:transform}
+    #site-header .brand__logo{height:auto;max-width:160px;width:clamp(110px,10vw,160px);
+      transition:transform .18s ease,filter .18s ease}
     #site-header .brand:hover .brand__logo{transform:scale(1.045);filter:drop-shadow(0 6px 18px rgba(14,165,233,.28))}
 
-    /* NAV primary */
-    #site-header .sq-nav .nav__list{list-style:none;margin:0;padding:0;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-    #site-header .sq-nav .nav__list>li{position:relative}
-    #site-header .sq-nav .nav__list>li>a,#site-header .sq-nav .nav__list>li>button{
+    /* Primary nav */
+    #site-header .nav__list{list-style:none;margin:0;padding:0;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+    #site-header .nav__list>li{position:relative}
+    #site-header .nav__list>li>a, #site-header .nav__list>li>button{
       appearance:none;background:transparent;border:0;color:inherit;font:inherit;line-height:1;cursor:pointer;
-      padding:10px 12px;border-radius:12px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-    #site-header .sq-nav .nav__list>li:hover>a{background:rgba(0,0,0,.04)}
-    @media (prefers-color-scheme:dark){ #site-header .sq-nav .nav__list>li:hover>a{background:rgba(255,255,255,.06)}}
+      padding:8px 10px;border-radius:12px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+    #site-header .nav__list>li:hover>a{background:rgba(0,0,0,.04)}
+    @media (prefers-color-scheme:dark){ #site-header .nav__list>li:hover>a{background:rgba(255,255,255,.06)}}
 
-    /* ACTIONS */
-    #site-header .actions{display:flex;gap:10px;align-items:center}
+    /* Actions: langs + theme + social + CTA + burger */
+    #site-header .actions{display:flex;align-items:center;gap:10px}
+    #site-header .btn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:14px;border:1px solid var(--line);
+      background:#fff;font-weight:700;color:var(--ink);transition:transform .15s ease, background .2s ease}
+    #site-header .btn:hover{transform:translateY(-1px)}
+    @media (prefers-color-scheme:dark){ #site-header .btn{background:rgba(255,255,255,.06)}}
+    #site-header .btn-primary{background:var(--brand);border-color:transparent;color:#fff}
 
-    /* Langs (dropdown) */
-    #site-header .langs{position:relative;display:flex;align-items:center;gap:8px}
-    #site-header .langs .flag{width:18px;height:12px;border-radius:3px;border:1px solid var(--line);object-fit:cover}
-    #site-header .langs .langs-trigger{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:#fff;color:inherit;cursor:pointer}
-    @media (prefers-color-scheme:dark){ #site-header .langs .langs-trigger{background:rgba(255,255,255,.06)}}
-    #site-header .langs .chev{width:12px;height:12px;opacity:.65}
-    #site-header .langs .langs-menu{position:absolute;top:calc(100% + 6px);right:0;min-width:180px;background:var(--bg);
-      border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.1);padding:6px;display:none}
-    #site-header .langs[data-open="true"] .langs-menu{display:block}
-    #site-header .langs .langs-menu a{display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px}
-    #site-header .langs .langs-menu a[aria-current="true"]{outline:2px solid var(--line)}
-    #site-header .langs .langs-menu a:hover{background:rgba(0,0,0,.04)}
-    @media (prefers-color-scheme:dark){ #site-header .langs .langs-menu a:hover{background:rgba(255,255,255,.06)}}
+    /* Langs dropdown */
+    #site-header .langs{position:relative}
+    #site-header .lang-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:12px;border:1px solid var(--line);background:#fff}
+    @media (prefers-color-scheme:dark){ #site-header .lang-btn{background:rgba(255,255,255,.06)}}
+    #site-header .flag{width:18px;height:12px;border-radius:3px;border:1px solid var(--line);object-fit:cover}
+    #site-header .chev{width:14px;height:14px;opacity:.7}
+    #site-header .lang-dd{position:absolute;right:0;top:100%;margin-top:8px;min-width:180px;background:var(--bg);
+      border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 28px rgba(10,10,20,.12);padding:6px;display:none}
+    #site-header .lang-dd[aria-hidden="false"]{display:block}
+    #site-header .lang-dd a{display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px}
+    #site-header .lang-dd a[aria-current="true"]{outline:2px solid var(--line)}
+    #site-header .lang-dd a:hover{background:rgba(0,0,0,.04)}
+    @media (prefers-color-scheme:dark){ #site-header .lang-dd a:hover{background:rgba(255,255,255,.06)}}
+
+    /* Theme toggle (Auto / Light / Dark) */
+    #site-header .theme{position:relative}
+    #site-header .theme-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:12px;
+      border:1px solid rgba(255,255,255,.18);background:#fff}
+    @media (prefers-color-scheme:dark){ #site-header .theme-btn{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.28)}}
+    #site-header .theme-btn img{width:16px;height:16px}
+    #site-header .theme-dd{position:absolute;right:0;top:100%;margin-top:8px;min-width:160px;background:var(--bg);
+      border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 28px rgba(10,10,20,.12);padding:6px;display:none}
+    #site-header .theme-dd[aria-hidden="false"]{display:block}
+    #site-header .theme-dd button{width:100%;text-align:left;padding:8px;border:0;background:transparent;border-radius:10px;display:flex;gap:8px;align-items:center}
+    #site-header .theme-dd button:hover{background:rgba(0,0,0,.04)}
+    @media (prefers-color-scheme:dark){ #site-header .theme-dd button:hover{background:rgba(255,255,255,.06)}}
 
     /* Social + status */
     #site-header .social{display:flex;gap:8px;margin-left:6px}
@@ -60,28 +89,16 @@
     #site-header .status-pill{margin-left:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);
       font-weight:600;color:var(--ink-weak);background:rgba(14,165,233,.08)}
 
-    /* CTA */
-    #site-header .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;border:1px solid var(--line);
-      background:#fff;font-weight:700;color:var(--ink);transition:transform .15s ease,background .2s ease}
-    #site-header .btn:hover{transform:translateY(-1px)}
-    @media (prefers-color-scheme:dark){ #site-header .btn{background:rgba(255,255,255,.06)}}
-    #site-header .btn-primary{background:var(--brand);border-color:transparent;color:#fff}
-
-    /* Theme toggle */
-    #site-header .theme-toggle{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:transparent}
-    #site-header .theme-toggle img{width:20px;height:20px;display:block}
-    html.theme-dark{color-scheme:dark}
-    html.theme-dark body{background:#0b1020;color:#e5e7eb}
-
-    /* BURGER (mobile) */
+    /* Burger */
     #site-header .menu-toggle{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:transparent;position:relative;display:none}
     #site-header .menu-toggle::before,#site-header .menu-toggle::after{content:"";position:absolute;left:10px;right:10px;height:2px;background:currentColor;transition:.25s var(--ease)}
     #site-header .menu-toggle::before{top:14px}#site-header .menu-toggle::after{bottom:14px}
     #site-header .menu-toggle[aria-expanded="true"]::before{transform:translateY(6px) rotate(45deg)}
     #site-header .menu-toggle[aria-expanded="true"]::after{transform:translateY(-6px) rotate(-45deg)}
 
-    /* MEGA */
-    #site-header .mega{position:absolute;left:0;right:0;top:100%;pointer-events:none;transform:translateY(-8px);opacity:0;transition:transform .24s var(--ease),opacity .24s var(--ease)}
+    /* Mega (pełna szerokość, blog rail) */
+    #site-header .mega{position:absolute;left:0;right:0;top:100%;pointer-events:none;transform:translateY(-8px);opacity:0;
+      transition:transform .24s var(--ease),opacity .24s var(--ease)}
     #site-header .mega[data-state="open"]{pointer-events:auto;transform:translateY(0);opacity:1}
     #site-header .mega .mega__wrap{padding:12px 0 18px}
     #site-header .mega .mega__grid-wrap{display:grid;grid-template-columns:1fr minmax(260px,320px);gap:16px;align-items:start}
@@ -99,7 +116,7 @@
     #site-header .mega__aside h4{font-size:.92rem;margin:8px 8px 6px}
     #site-header .mega__aside p{font-size:.8rem;color:var(--ink-weak);margin:0 8px 8px}
 
-    /* MOBILE drawer */
+    /* Mobile drawer */
     #site-header .mobile-menu{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(2px);z-index:80}
     #site-header .mobile-menu[hidden]{display:none}
     #site-header .mobile-menu__inner{position:absolute;top:0;right:0;bottom:0;width:min(420px,92vw);background:var(--bg);
@@ -114,13 +131,13 @@
     @media (prefers-color-scheme:dark){ #site-header .mobile-nav__list li a,#site-header .mobile-nav__list li button{background:rgba(255,255,255,.06)}}
     #site-header .mobile-cta{margin-top:6px}
 
-    /* MOBILE bottom dock */
+    /* Mobile bottom dock */
     #site-header .dock{position:fixed;z-index:70;left:0;right:0;bottom:0;display:none;background:var(--bg);border-top:1px solid var(--line)}
     #site-header .dock ul{list-style:none;margin:0;padding:6px 10px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
     #site-header .dock a{display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;padding:8px;border-radius:12px}
     #site-header .dock svg{width:22px;height:22px}
     #site-header .dock span{font-size:.72rem}
-    @media (max-width:980px){ #site-header .sq-nav{display:none}#site-header .menu-toggle{display:inline-block}#site-header .dock{display:block}}
+    @media (max-width:980px){ #site-header .nav{display:none}#site-header .menu-toggle{display:inline-block}#site-header .dock{display:block}}
   </style>
 
   <div class="wrap bar">
@@ -130,37 +147,41 @@
            src="/assets/media/logo-firma-transportowa-kras-trans.png" loading="eager" decoding="async">
     </a>
 
-    <!-- PRIMARY NAV -->
-    <nav id="primaryNav" class="nav sq-nav" role="navigation" aria-label="Główne menu">
+    <!-- PRIMARY NAV (CMS wstrzykuje <li>…>) -->
+    <nav id="primaryNav" class="nav" role="navigation" aria-label="Główne menu">
       <ul class="nav__list" id="navList">
+        <!-- fallback (zastąpione po cache/API) -->
         <li><a href="/pl/">Start</a></li>
       </ul>
     </nav>
 
     <!-- ACTIONS -->
     <div class="actions">
+      <!-- Status (opcjonalny, z CMS) -->
       <span id="statusPill" class="status-pill" hidden>🚚 auto wolne</span>
 
-      <!-- LANGS DROPDOWN -->
-      <div class="langs" id="langs">
-        <button class="langs-trigger" id="langsTrigger" type="button" aria-haspopup="menu" aria-expanded="false">
-          <img class="flag" id="langsFlag" src="/assets/flags/pl.svg" alt="" width="18" height="12">
-          <span id="langsCurrent">PL</span>
-          <svg class="chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.5 8.5 12 14l5.5-5.5"/></svg>
+      <!-- Langs (dropdown) -->
+      <div class="langs" id="langsWrap">
+        <button id="langBtn" class="lang-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="langsDd">
+          <img class="flag" id="langFlag" src="/assets/flags/pl.svg" alt="" width="18" height="12"><span id="langCode">PL</span>
+          <svg class="chev" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5.2 7.6 10 12.4l4.8-4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <div class="langs-menu" id="langsMenu" role="menu" aria-hidden="true">
-          <!-- wstrzykniemy pełną listę -->
-          <a href="/pl/" aria-current="true"><img class="flag" src="/assets/flags/pl.svg" alt="">PL</a>
-          <a href="/en/"><img class="flag" src="/assets/flags/gb.svg" alt="">EN</a>
+        <div id="langsDd" class="lang-dd" role="menu" aria-hidden="true" aria-label="Wybór języka"></div>
+      </div>
+
+      <!-- Theme -->
+      <div class="theme" id="themeWrap">
+        <button id="themeBtn" class="theme-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="themeDd">
+          <img id="themeIcon" src="/assets/flags/theme-moon.svg" alt="" width="16" height="16"><span id="themeLabel">Auto</span>
+        </button>
+        <div id="themeDd" class="theme-dd" role="menu" aria-hidden="true" aria-label="Motyw">
+          <button type="button" data-theme="auto"><img src="/assets/flags/theme-sun.svg" width="16" height="16" alt="">Auto</button>
+          <button type="button" data-theme="light"><img src="/assets/flags/theme-sun.svg" width="16" height="16" alt="">Light</button>
+          <button type="button" data-theme="dark"><img src="/assets/flags/theme-moon.svg" width="16" height="16" alt="">Dark</button>
         </div>
       </div>
 
-      <!-- THEME TOGGLE -->
-      <button class="theme-toggle" id="themeToggle" aria-label="Przełącz motyw">
-        <img src="/assets/flags/theme-sun.svg" alt="" width="20" height="20">
-      </button>
-
-      <!-- SOCIAL -->
+      <!-- Social -->
       <div class="social" id="social">
         <a id="ig" href="https://www.instagram.com/kras_trans.express.eu?igsh=bHZkODhlazFicGt2&utm_source=qr" aria-label="Instagram" rel="noopener" target="_blank">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7Zm5 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6Zm5.35-.95a1.15 1.15 0 1 1 0 2.3 1.15 1.15 0 0 1 0-2.3Z"/></svg>
@@ -173,18 +194,18 @@
         </a>
       </div>
 
-      <!-- CTA + BURGER -->
+      <!-- CTA + burger -->
       <a id="cta" class="btn btn-primary" href="/pl/kontakt/">Zamów wycenę</a>
       <button id="menuToggle" class="menu-toggle" aria-expanded="false" aria-controls="mobileMenu" aria-label="Menu"></button>
     </div>
   </div>
 
-  <!-- MEGA (lewa: karty; prawa: blog) -->
+  <!-- MEGA -->
   <div id="mega" class="mega" data-state="closed" aria-hidden="true">
     <div class="mega__wrap wrap">
       <div class="mega__grid-wrap">
-        <div class="mega__panels" id="megaPanels"></div>
-        <aside class="mega__aside" id="megaBlog"></aside>
+        <div class="mega__panels" id="megaPanels"><!-- sekcje z CMS --></div>
+        <aside class="mega__aside" id="megaBlog"><!-- blog rail --></aside>
       </div>
     </div>
   </div>
@@ -207,13 +228,13 @@
   <!-- MOBILE BOTTOM DOCK -->
   <nav class="dock" aria-label="Szybkie akcje">
     <ul class="wrap">
-      <li><a id="dockCall"   href="tel:+48"   aria-label="Zadzwoń">
+      <li><a id="dockCall" href="tel:+48" aria-label="Zadzwoń">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1.5 1.5 0 0 1 1.6-.36c1.76.59 3.66.9 5.05.93.82.02 1.49.69 1.49 1.51V21a3 3 0 0 1-3.18 3A23 23 0 0 1 3 6.18 3 3 0 0 1 6 .99h2.81c.82 0 1.49.67 1.51 1.49.04 1.39.34 3.29.93 5.05.19.58.05 1.22-.36 1.63L8.8 10.8Z"/></svg>
         <span>Telefon</span></a></li>
       <li><a id="dockWA" href="#" aria-label="WhatsApp">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M.5 23.5 3 17.9a10 10 0 1 1 3.8 3.6L.5 23.5Zm6.7-3.8.3.2a8.3 8.3 0 1 0-2.7-2.6l.2.3-1.2 3.2 3.4-1.1Zm9.8-3.8c-.1 0-.1 0 0 0-1.3-.7-2.9-1.2-3.3-1.3-.5-.1-.9 0-1.2.5s-1.1 1.3-1.4 1.5c-.2.2-.4.2-.7.1a6.7 6.7 0 0 1-2-1.2 7.5 7.5 0 0 1-1.6-2c-.2-.4 0-.6.2-.8l.5-.6c.2-.3.2-.5 0-.8l-.8-2c-.2-.5-.5-.6-1-.5h-.8c-.3 0-.7.2-.9.4-1 1-1.1 2.6-.3 4.3.8 1.6 2.4 3.6 4.8 4.7 1.7.7 3 .9 4 .6.7-.2 1.3-.7 1.5-1.3.2-.5.2-1 .2-1.2-.1-.2-.3-.3-.6-.4Z"/></svg>
         <span>WhatsApp</span></a></li>
-      <li><a id="dockQuote"  href="/pl/kontakt/" class="btn-primary" aria-label="Wycena">
+      <li><a id="dockQuote" href="/pl/kontakt/" class="btn-primary" aria-label="Wycena">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 6H8a2 2 0 0 0-2 2v8h2V8h13V6ZM5 10H3v10c0 1.1.9 2 2 2h12v-2H5V10Zm16 3h-8v2h8v-2Zm0 4h-8v2h8v-2Zm0-8h-8v2h8V9Z"/></svg>
         <span>Wycena</span></a></li>
       <li><a id="dockMenu" href="#mobileMenu" aria-label="Menu">
@@ -222,145 +243,263 @@
     </ul>
   </nav>
 
-  <!-- ===== Inline JS (scoped to header) ===== -->
+  <!-- ============== Inline JS (scoped do headera) ============== -->
   <script>
   (function(){
     const $  = (s, r=document)=>r.querySelector(s);
     const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
 
-    const header = document.getElementById('site-header'); if(!header) return;
+    const root = document.getElementById('site-header');
+    if(!root) return;
 
-    /* === Elements we already had === */
-    const navList   = $('#navList'), mega = $('#mega'), megaPanels= $('#megaPanels'), megaBlog= $('#megaBlog');
-    const langsBox  = $('#langs'),  langsTrigger = $('#langsTrigger'), langsMenu = $('#langsMenu');
-    const langsFlag = $('#langsFlag'), langsCurrent = $('#langsCurrent');
-    const cta       = $('#cta'), brandLink = $('#brandLink'), statusPill = $('#statusPill');
-    const mobile    = $('#mobileMenu'), mobileList= $('#mobileList'), mobileLangs=$('#mobileLangs'), mobileCTA = $('#mobileCTA');
-    const toggle    = $('#menuToggle'), closeMob  = $('#closeMobile');
-    const dockCall  = $('#dockCall'), dockWA = $('#dockWA'), dockQuote = $('#dockQuote'), dockMenu = $('#dockMenu');
-    const themeToggle = $('#themeToggle');
+    /* Elements */
+    const navList = $('#navList'), mega = $('#mega'), megaPanels = $('#megaPanels'), megaBlog = $('#megaBlog');
+    const brandLink = $('#brandLink'), statusPill = $('#statusPill'), cta = $('#cta');
+    const mobile = $('#mobileMenu'), mobileList = $('#mobileList'), mobileCTA = $('#mobileCTA'), closeMob = $('#closeMobile'), toggle = $('#menuToggle');
+    const dockCall = $('#dockCall'), dockWA = $('#dockWA'), dockQuote = $('#dockQuote'), dockMenu = $('#dockMenu');
 
-    /* === Config === */
-    const API = header.dataset.api, KEY = header.dataset.key;
+    /* Langs */
+    const langBtn = $('#langBtn'), langDd = $('#langsDd'), langFlag = $('#langFlag'), langCodeEl = $('#langCode'), mobileLangs = $('#mobileLangs');
+
+    /* Theme */
+    const themeBtn = $('#themeBtn'), themeDd = $('#themeDd'), themeIcon = $('#themeIcon'), themeLabel = $('#themeLabel');
+    const SUN = root.dataset.themeSun || '/assets/flags/theme-sun.svg';
+    const MOON = root.dataset.themeMoon || '/assets/flags/theme-moon.svg';
+
+    /* Config */
     const LOCALES = ['pl','en','de','fr','it','ru','ua'];
-    const ttl = 12*60*60*1000;
+    const FLAG = L => `/assets/flags/${L}.svg`;
+    const API = root.dataset.api, KEY = root.dataset.key;
+    const TTL = 12*60*60*1000;
 
-    const pathLang = (()=>{
-      let L = (document.documentElement.lang||'').slice(0,2).toLowerCase();
-      if(!LOCALES.includes(L)){ const m = location.pathname.match(/^\/(pl|en|de|fr|it|ru|ua)\b/i); L = m?m[1].toLowerCase():'pl'; }
-      return L;
+    /* Lang detection + path utils */
+    const currentLang = (()=> {
+      const m = location.pathname.match(/^\/(pl|en|de|fr|it|ru|ua)\b/i);
+      return (m?m[1].toLowerCase():'pl');
     })();
-    const flagFor = l => (l==='en'?'gb':l); // map EN→GB flag
-    const cacheKey = k => `kt_${k}_${pathLang}`;
-    const setCache = (k,v)=>{ try{ localStorage.setItem(k, JSON.stringify({ts:Date.now(), v})) }catch(e){} };
-    const getCache = k => { try{ const raw=localStorage.getItem(k); if(!raw) return null; const {ts,v}=JSON.parse(raw); return (Date.now()-ts>ttl)?null:v }catch(e){ return null }};
+    const currentSlug = (()=> {
+      const m = location.pathname.replace(/^\/(pl|en|de|fr|it|ru|ua)\//,'').replace(/\/+$/,'');
+      return m;
+    })();
     const slugUrl = (lang, slug)=>`/${lang}/${slug?slug+'/':''}`;
 
-    /* === Shadow on scroll === */
-    const shadow=()=>header.classList.toggle('sq--shadow', (document.documentElement.scrollTop||0) > 8);
+    /* Cache helpers */
+    const CK = k => `kt_${k}_${currentLang}`;
+    const setCache = (k,v)=>{ try{ localStorage.setItem(k, JSON.stringify({ts:Date.now(), v})) }catch(e){} };
+    const getCache = k => { try{ const raw=localStorage.getItem(k); if(!raw) return null; const {ts,v}=JSON.parse(raw); return (Date.now()-ts>TTL)?null:v; }catch(e){ return null } };
+
+    /* Shadow on scroll */
+    const shadow=()=>root.classList.toggle('s--shadow', (document.documentElement.scrollTop||0) > 8);
     shadow(); window.addEventListener('scroll', shadow, {passive:true});
 
-    /* === Mega hover intent === */
-    let openTimer=0, closeTimer=0, currentId=null;
-    function closeMega(){ mega.dataset.state='closed'; mega.setAttribute('aria-hidden','true'); header.style.setProperty('--mega-h','0px'); currentId=null; $('#navList')?.querySelectorAll('[aria-expanded="true"]').forEach(el=>el.setAttribute('aria-expanded','false')); }
+    /* Mega hover-intent */
+    let openT=0, closeT=0;
+    function closeMega(){ mega.dataset.state='closed'; mega.setAttribute('aria-hidden','true'); root.style.setProperty('--mega-h','0px');
+      navList?.querySelectorAll('[aria-expanded="true"]').forEach(el=>el.setAttribute('aria-expanded','false')); }
     function openMega(id){
-      const panel = megaPanels?.querySelector(`.mega__section[data-panel="${id}"], .mega__section#panel-${id}`); if(!panel){ closeMega(); return; }
-      megaPanels.querySelectorAll('.mega__section').forEach(sec=>sec.hidden=true); panel.hidden=false;
-      header.style.setProperty('--mega-h', panel.scrollHeight+'px'); mega.dataset.state='open'; mega.setAttribute('aria-hidden','false'); currentId=id;
+      const panel = megaPanels?.querySelector(`.mega__section[data-panel="${id}"], .mega__section#panel-${id}`);
+      if(!panel){ closeMega(); return; }
+      megaPanels.querySelectorAll('.mega__section').forEach(sec=>sec.hidden=true);
+      panel.hidden=false; root.style.setProperty('--mega-h', panel.scrollHeight+'px');
+      mega.dataset.state='open'; mega.setAttribute('aria-hidden','false');
     }
-    function armOpen(id, trg){ clearTimeout(closeTimer); clearTimeout(openTimer);
-      openTimer=setTimeout(()=>{ $('#navList')?.querySelectorAll('[aria-expanded="true"]').forEach(el=>el.setAttribute('aria-expanded','false')); trg?.setAttribute('aria-expanded','true'); openMega(id); }, 140); }
-    function armClose(){ clearTimeout(openTimer); clearTimeout(closeTimer); closeTimer=setTimeout(closeMega, 380); }
+    function armOpen(id,trg){ clearTimeout(closeT); clearTimeout(openT);
+      openT=setTimeout(()=>{ navList?.querySelectorAll('[aria-expanded="true"]').forEach(el=>el.setAttribute('aria-expanded','false'));
+        trg?.setAttribute('aria-expanded','true'); openMega(id); },140); }
+    function armClose(){ clearTimeout(openT); clearTimeout(closeT); closeT=setTimeout(closeMega,380); }
 
-    navList.addEventListener('pointerenter', e=>{ const li=e.target.closest('li[data-panel]'); if(li) armOpen(li.getAttribute('data-panel'), li.querySelector('a,button')); });
+    navList.addEventListener('pointerenter', e=>{ const li=e.target.closest('li[data-panel]'); if(!li) return; armOpen(li.getAttribute('data-panel'), li.querySelector('a,button')); });
     navList.addEventListener('pointerleave', armClose);
-    navList.addEventListener('focusin', e=>{ const li=e.target.closest('li[data-panel]'); if(li) armOpen(li.getAttribute('data-panel'), li.querySelector('a,button')); });
+    navList.addEventListener('focusin', e=>{ const li=e.target.closest('li[data-panel]'); if(!li) return; armOpen(li.getAttribute('data-panel'), li.querySelector('a,button')); });
     navList.addEventListener('focusout', armClose);
-    mega.addEventListener('pointerenter', ()=>clearTimeout(closeTimer));
+    mega.addEventListener('pointerenter', ()=>clearTimeout(closeT));
     mega.addEventListener('pointerleave', armClose);
     document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeMega(); });
 
-    /* === Mobile drawer === */
+    /* Mobile drawer */
     function openDrawer(){ mobile.hidden=false; requestAnimationFrame(()=>mobile.setAttribute('data-open','true')); toggle.setAttribute('aria-expanded','true'); document.documentElement.style.overflow='hidden'; }
-    function closeDrawer(){ mobile.removeAttribute('data-open'); toggle.setAttribute('aria-expanded','false'); setTimeout(()=>{ mobile.hidden=true; document.documentElement.style.overflow=''; }, 280); }
+    function closeDrawer(){ mobile.removeAttribute('data-open'); toggle.setAttribute('aria-expanded','false'); setTimeout(()=>{ mobile.hidden=true; document.documentElement.style.overflow=''; },280); }
     toggle.addEventListener('click', ()=> (toggle.getAttribute('aria-expanded')==='true') ? closeDrawer() : openDrawer());
     closeMob.addEventListener('click', closeDrawer);
     mobile.addEventListener('click', e=>{ if(e.target===mobile) closeDrawer(); });
     dockMenu.addEventListener('click', e=>{ e.preventDefault(); openDrawer(); });
 
-    /* === Langs dropdown interactions === */
-    function openLangs(){ langsBox.setAttribute('data-open','true'); langsTrigger.setAttribute('aria-expanded','true'); langsMenu.setAttribute('aria-hidden','false'); }
-    function closeLangs(){ langsBox.removeAttribute('data-open'); langsTrigger.setAttribute('aria-expanded','false'); langsMenu.setAttribute('aria-hidden','true'); }
-    let Lopen=0, Lclose=0;
-    langsBox.addEventListener('pointerenter', ()=>{ clearTimeout(Lclose); Lopen=setTimeout(openLangs,120); });
-    langsBox.addEventListener('pointerleave', ()=>{ clearTimeout(Lopen); Lclose=setTimeout(closeLangs,220); });
-    langsTrigger.addEventListener('click', ()=> (langsBox.getAttribute('data-open')==='true') ? closeLangs() : openLangs());
-    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeLangs(); });
+    /* THEME: Auto / Light / Dark */
+    const THEME_KEY='kt_theme';
+    function applyTheme(){
+      const saved = localStorage.getItem(THEME_KEY) || 'auto';
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const effectiveDark = saved==='dark' || (saved==='auto' && prefersDark);
+      document.documentElement.classList.toggle('theme-dark', effectiveDark);
+      themeIcon.src = effectiveDark ? SUN : MOON;         // ikony: w dark pokazujemy Słońce (#FACC15), w light – Księżyc (#0B1020)
+      themeLabel.textContent = saved[0].toUpperCase()+saved.slice(1);
+      themeBtn.setAttribute('aria-expanded','false'); themeDd.setAttribute('aria-hidden','true');
+    }
+    applyTheme();
+    window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+    themeBtn.addEventListener('click', ()=>{
+      const exp = themeBtn.getAttribute('aria-expanded')==='true';
+      themeBtn.setAttribute('aria-expanded', String(!exp));
+      themeDd.setAttribute('aria-hidden', String(exp));
+    });
+    themeDd.addEventListener('click', e=>{
+      const b = e.target.closest('button[data-theme]'); if(!b) return;
+      localStorage.setItem(THEME_KEY, b.dataset.theme); applyTheme();
+    });
+    document.addEventListener('click', e=>{ if(!themeDd.contains(e.target) && e.target!==themeBtn) { themeDd.setAttribute('aria-hidden','true'); themeBtn.setAttribute('aria-expanded','false'); }});
 
-    /* === Theme toggle === */
-    function setTheme(mode){ document.documentElement.classList.toggle('theme-dark', mode==='dark'); try{ localStorage.setItem('theme',mode);}catch(e){} }
-    (function initTheme(){ try{ const m = localStorage.getItem('theme'); if(m==='dark') setTheme('dark'); }catch(e){} })();
-    themeToggle.addEventListener('click', ()=>{ const dark = !document.documentElement.classList.contains('theme-dark'); setTheme(dark?'dark':'auto'); });
+    /* LANGS dropdown */
+    function openLangs(open){ langBtn.setAttribute('aria-expanded', String(open)); langDd.setAttribute('aria-hidden', String(!open)); }
+    langBtn.addEventListener('click', ()=>{ const exp=langBtn.getAttribute('aria-expanded')==='true'; openLangs(!exp); });
+    root.addEventListener('click', e=>{ if(!$('#langsWrap').contains(e.target)) openLangs(false); });
 
-    /* === Instant from CACHE === */
+    /* SSR-first: z cache */
     (function fromCache(){
-      const snap = (function(){ try{ const raw = localStorage.getItem(cacheKey('nav_bundle')); if(!raw) return null; const {ts,v}=JSON.parse(raw); return (Date.now()-ts>ttl)?null:v }catch(e){ return null }})();
+      const snap = getCache(CK('nav_bundle'));
       if(!snap) return;
       try{
-        const {primary_html, mega_html, langs_html, cta, logo, status, social, blog, routes} = snap;
-        if(primary_html){ navList.innerHTML = primary_html; mobileList.innerHTML = primary_html; }
-        if(mega_html){ megaPanels.innerHTML = mega_html; }
-        if(langs_html){ langsMenu.innerHTML = langs_html; mobileLangs.innerHTML = langs_html; }
-        if(cta){ const href = routes && routes[cta.slugKey] ? slugUrl(pathLang, routes[cta.slugKey][pathLang]||'') : cta.href||slugUrl(pathLang,'kontakt'); cta.href=href; cta.textContent=cta.label||'Get a quote'; mobileCTA.href=href; mobileCTA.textContent=cta.label||'Get a quote'; dockQuote.href=href; }
-        if(logo){ $('#brandLink img').src = logo.src||$('#brandLink img').src; $('#brandLink img').alt = logo.alt||$('#brandLink img').alt; brandLink.href = slugUrl(pathLang, (routes && routes.home && routes.home[pathLang])||''); }
-        if(status && status.label){ statusPill.hidden=false; statusPill.textContent=status.label; if(status.href) statusPill.onclick=()=>location.href=status.href; }
-        if(social){ $('#ig').href=social.ig||$('#ig').href; $('#li').href=social.li||$('#li').href; $('#fb').href=social.fb||$('#fb').href; }
-        // ustal bieżący język na triggerze
-        langsFlag.src = `/assets/flags/${flagFor(pathLang)}.svg`; langsCurrent.textContent = pathLang.toUpperCase();
-        renderBlog(blog||[]);
-        header.removeAttribute('aria-busy');
+        renderFromSnapshot(snap);
+        root.removeAttribute('aria-busy');
       }catch(_){}
     })();
 
-    /* === Fetch fresh (SWR) === */
-    (async function refresh(){
+    /* CSR: fetch z GAS */
+    (async function fromAPI(){
       try{
-        const res = await fetch(`${API}?key=${encodeURIComponent(KEY)}&lang=${encodeURIComponent(pathLang)}`, {cache:'no-store'});
+        const url = `${API}?key=${encodeURIComponent(KEY)}&lang=${encodeURIComponent(currentLang)}`;
+        const res = await fetch(url, {cache:'no-store'});
         const json = await res.json();
-        const nav = json.nav_current || (json.nav && json.nav[pathLang]) || {};
+        const nav = json.nav_current || (json.nav && json.nav[currentLang]) || {};
         const routesMap = toRoutesMap(json.routes||[]);
-
-        if(nav.primary_html){ navList.innerHTML = nav.primary_html; mobileList.innerHTML = nav.primary_html; }
-        if(nav.mega_html){ megaPanels.innerHTML = nav.mega_html; }
-        if(nav.langs_html){ langsMenu.innerHTML = nav.langs_html; mobileLangs.innerHTML = nav.langs_html; }
-        // bieżący język na triggerze
-        langsFlag.src = `/assets/flags/${flagFor(pathLang)}.svg`; langsCurrent.textContent = pathLang.toUpperCase();
-
-        if(nav.cta){ const href = routesMap[nav.cta.slugKey] ? slugUrl(pathLang, routesMap[nav.cta.slugKey][pathLang]||'') : slugUrl(pathLang,'kontakt'); cta.href=href; cta.textContent = nav.cta.label || 'Get a quote'; mobileCTA.href=href; mobileCTA.textContent = nav.cta.label || 'Get a quote'; dockQuote.href=href; }
-        if(nav.logo && nav.logo.src){ $('#brandLink img').src = nav.logo.src; $('#brandLink img').alt = nav.logo.alt||$('#brandLink img').alt; }
-        brandLink.href = slugUrl(pathLang, (routesMap.home && routesMap.home[pathLang])||'');
-
-        if(nav.status && nav.status.label){ statusPill.hidden=false; statusPill.textContent=nav.status.label; if(nav.status.href) statusPill.onclick=()=>location.href=nav.status.href; } else statusPill.hidden=true;
-        if(nav.social){ $('#ig').href=nav.social.ig||$('#ig').href; $('#li').href=nav.social.li||$('#li').href; $('#fb').href=nav.social.fb||$('#fb').href; }
-
-        // blog rail
-        const blogList = (json.blog_latest && Array.isArray(json.blog_latest)) ? json.blog_latest
-                         : (Array.isArray(json.blog)? json.blog.filter(b=>String(b.lang||'').toLowerCase()===pathLang && (b.publish!==false)).slice(0,4) : []);
-        renderBlog(blogList, routesMap);
-
-        autoMapPanels();
-
-        const tel = (json.company && json.company[0] && (json.company[0].telephone||json.company[0].phone)) || '';
-        if(tel){ dockCall.href = `tel:${tel}`; dockWA.href = `https://wa.me/${tel.replace(/\D+/g,'')}`; }
-
-        setCache(cacheKey('nav_bundle'), { primary_html: nav.primary_html||'', mega_html: nav.mega_html||'', langs_html: nav.langs_html||'', cta: nav.cta||null, logo: nav.logo||null, status: nav.status||null, social: nav.social||null, blog: blogList||[], routes: routesMap });
-        header.removeAttribute('aria-busy');
-      }catch(e){ header.removeAttribute('aria-busy'); }
+        renderNav(nav, routesMap, json);
+        setCache(CK('nav_bundle'), snapshot(nav, routesMap, json));
+        root.removeAttribute('aria-busy');
+      }catch(_){
+        root.removeAttribute('aria-busy');
+      }
     })();
 
-    function toRoutesMap(rows){ const map={}; rows.forEach(r=>{ const key=String(r.slugKey||r.SlugKey||'').trim(); if(!key) return; const obj={}; LOCALES.forEach(L=> obj[L]=String(r[L]||r[L.toUpperCase()]||'').trim()); map[key]=obj; }); if(!map.home){ map.home={}; LOCALES.forEach(L=> map.home[L]=''); } return map; }
-    function renderBlog(list){ if(!megaBlog) return; megaBlog.innerHTML = ''; (list||[]).slice(0,4).forEach(item=>{ const href=item.path || (item.slug?slugUrl(pathLang,item.slug):'#'); const img=item.image || item.hero_image || item.og_image || '/assets/media/og-default.webp'; const t=item.title || item.h1 || '—'; const lead=item.lead || ''; const card=document.createElement('a'); card.className='blog-card'; card.href=href; card.innerHTML=`<img src="${img}" alt="" width="110" height="70" loading="lazy" decoding="async"><div><h4>${escapeHtml(t)}</h4><p>${escapeHtml(lead)}</p></div>`; megaBlog.appendChild(card); }); }
-    function autoMapPanels(){ const liNo=navList.querySelectorAll('li:not([data-panel])'); const sections=$$('.mega__section', megaPanels); liNo.forEach((li,i)=>{ const sec=sections[i]; if(!sec) return; const id=sec.getAttribute('data-panel')||('auto-'+i); if(!li.hasAttribute('data-panel')) li.setAttribute('data-panel',id); sec.setAttribute('data-panel',id); if(!sec.id) sec.id='panel-'+id; }); }
+    /* Helpers: routes map + reverse lookup */
+    function toRoutesMap(rows){
+      const map={};
+      rows.forEach(r=>{
+        const key = String(r.slugKey||r.SlugKey||'').trim(); if(!key) return;
+        const obj={}; LOCALES.forEach(L=> obj[L]=String(r[L]||r[L?.toUpperCase()]||'').trim());
+        map[key]=obj;
+      });
+      if(!map.home){ map.home={}; LOCALES.forEach(L=> map.home[L]=''); }
+      return map;
+    }
+    function findSlugKey(routes, lang, slug){
+      const s = String(slug||'').replace(/^\/|\/$/g,'');
+      for(const key in routes){ if((routes[key][lang]||'')===s) return key; }
+      return 'home';
+    }
+
+    /* Render języków (dropdown + mobile) */
+    function renderLangs(routes){
+      const key = findSlugKey(routes, currentLang, currentSlug);
+      langFlag.src = FLAG(currentLang);
+      langCodeEl.textContent = currentLang.toUpperCase();
+      const dd = LOCALES.map(L=>{
+        const target = routes[key] && routes[key][L]!==undefined ? slugUrl(L, routes[key][L]) : `/${L}/`;
+        const cur = L===currentLang ? 'true':'false';
+        return `<a href="${target}" aria-current="${cur}"><img class="flag" src="${FLAG(L)}" alt="" width="18" height="12"><span>${L.toUpperCase()}</span></a>`;
+      }).join('');
+      langDd.innerHTML = dd;
+      mobileLangs.innerHTML = `<div class="lang-dd" style="display:grid;grid-auto-rows:min-content" aria-hidden="false">${dd}</div>`;
+    }
+
+    /* Render BLOG rail */
+    function renderBlog(list){
+      if(!megaBlog) return; megaBlog.innerHTML='';
+      (list||[]).slice(0,4).forEach(item=>{
+        const href = item.path || (item.slug ? slugUrl(currentLang, item.slug) : '#');
+        const img  = item.image || item.hero_image || item.og_image || '/assets/media/og-default.webp';
+        const t    = item.title || item.h1 || '—';
+        const lead = item.lead || '';
+        const card = document.createElement('a');
+        card.className='blog-card'; card.href=href;
+        card.innerHTML = `<img src="${img}" alt="" width="110" height="70" loading="lazy" decoding="async"><div><h4>${escapeHtml(t)}</h4><p>${escapeHtml(lead)}</p></div>`;
+        megaBlog.appendChild(card);
+      });
+    }
+
+    /* Auto mapowanie li <-> sekcje mega */
+    function autoMapPanels(){
+      const liNo = navList.querySelectorAll('li:not([data-panel])');
+      const sections = $$('.mega__section', megaPanels);
+      liNo.forEach((li,i)=>{ const sec = sections[i]; if(!sec) return; const id = sec.getAttribute('data-panel') || ('auto-'+i);
+        if(!li.hasAttribute('data-panel')) li.setAttribute('data-panel', id);
+        sec.setAttribute('data-panel', id); if(!sec.id) sec.id = 'panel-'+id; });
+    }
+
+    /* Render z API */
+    function renderNav(nav, routes, json){
+      // primary / mega
+      if(nav.primary_html){ navList.innerHTML = nav.primary_html; mobileList.innerHTML = nav.primary_html; }
+      if(nav.mega_html){ megaPanels.innerHTML = nav.mega_html; }
+      autoMapPanels();
+
+      // CTA + home
+      if(nav.cta){
+        const href = routes[nav.cta.slugKey] ? slugUrl(currentLang, routes[nav.cta.slugKey][currentLang]||'') : slugUrl(currentLang,'kontakt');
+        cta.href = href; cta.textContent = nav.cta.label || 'Get a quote';
+        mobileCTA.href = href; mobileCTA.textContent = cta.textContent; dockQuote.href = href;
+      }
+      brandLink.href = slugUrl(currentLang, (routes.home && routes.home[currentLang])||'');
+
+      // status, social
+      if(nav.status && nav.status.label){ statusPill.hidden=false; statusPill.textContent=nav.status.label; if(nav.status.href) statusPill.onclick=()=>location.href=nav.status.href; }
+      else statusPill.hidden=true;
+      if(nav.social){ $('#ig').href=nav.social.ig||$('#ig').href; $('#li').href=nav.social.li||$('#li').href; $('#fb').href=nav.social.fb||$('#fb').href; }
+
+      // telefon / WA
+      const tel = (json.company && json.company[0] && (json.company[0].telephone||json.company[0].phone)) || '';
+      if(tel){ dockCall.href = `tel:${tel}`; dockWA.href = `https://wa.me/${tel.replace(/\D+/g,'')}`; }
+
+      // blog
+      const blogList = (json.blog_latest && Array.isArray(json.blog_latest)) ? json.blog_latest
+                      : (Array.isArray(json.blog)? json.blog.filter(b=>String(b.lang||'').toLowerCase()===currentLang && (b.publish!==false)).slice(0,4) : []);
+      renderBlog(blogList);
+
+      // języki
+      renderLangs(routes);
+    }
+
+    /* Snapshot do cache (SWR) */
+    function snapshot(nav, routes, json){
+      const blogList = (json.blog_latest && Array.isArray(json.blog_latest)) ? json.blog_latest
+                      : (Array.isArray(json.blog)? json.blog.filter(b=>String(b.lang||'').toLowerCase()===currentLang && (b.publish!==false)).slice(0,4) : []);
+      return {
+        primary_html: nav.primary_html||'',
+        mega_html: nav.mega_html||'',
+        cta: nav.cta||null,
+        status: nav.status||null,
+        social: nav.social||null,
+        routes: routes,
+        blog: blogList
+      };
+    }
+
+    /* Render z cache */
+    function renderFromSnapshot(snap){
+      if(snap.primary_html){ navList.innerHTML = snap.primary_html; mobileList.innerHTML = snap.primary_html; }
+      if(snap.mega_html){ megaPanels.innerHTML = snap.mega_html; }
+      autoMapPanels();
+      if(snap.cta){
+        const href = snap.routes[snap.cta.slugKey] ? slugUrl(currentLang, snap.routes[snap.cta.slugKey][currentLang]||'') : slugUrl(currentLang,'kontakt');
+        cta.href = href; cta.textContent = snap.cta.label || 'Get a quote';
+        mobileCTA.href = href; mobileCTA.textContent = cta.textContent; dockQuote.href = href;
+      }
+      brandLink.href = slugUrl(currentLang, (snap.routes.home && snap.routes.home[currentLang])||'');
+      if(snap.status && snap.status.label){ statusPill.hidden=false; statusPill.textContent=snap.status.label; if(snap.status.href) statusPill.onclick=()=>location.href=snap.status.href; }
+      else statusPill.hidden=true;
+      if(snap.social){ $('#ig').href=snap.social.ig||$('#ig').href; $('#li').href=snap.social.li||$('#li').href; $('#fb').href=snap.social.fb||$('#fb').href; }
+      renderBlog(snap.blog||[]);
+      renderLangs(snap.routes||{});
+    }
+
     function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
   })();
   </script>
