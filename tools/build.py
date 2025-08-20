@@ -745,14 +745,35 @@ def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:
             pass
 
 # --------- LINK GRAPH (pozostawione jak w starym; może być użyte w szabl.) --
-def neighbors_for(city_pages:List[Dict[str,Any]], page:Dict[str,Any], k_region:int, k_alt:int)->List[Dict[str,Any]]:
-    lang=page.get("lang")
-    region=(page.get("voivodeship") or "").strip().lower()
-    city=(page.get("city") or "").strip().lower()
-    svc=page.get("service_h1")
-    same_region=[p for p in city_pages if p.get("lang")==lang and (p.get("voivodeship","\").strip().lower()==region) and (p.get("city","\").strip().lower()!=city) and p.get("service_h1")==svc]
-    alt_service=[p for p in city_pages if p.get("lang")==lang and (p.get("city","\").strip().lower()==city) and p.get("service_h1")!=svc]
-    out=same_region[:k_region] + alt_service[:k_alt]
+def neighbors_for(
+    city_pages: List[Dict[str, Any]],
+    page: Dict[str, Any],
+    k_region: int,
+    k_alt: int
+) -> List[Dict[str, Any]]:
+    lang   = page.get("lang")
+    region = (page.get("voivodeship") or "").strip().lower()
+    city   = (page.get("city") or "").strip().lower()
+    svc    = page.get("service_h1")
+
+    # Strony z tym samym regionem, innym miastem, tą samą usługą
+    same_region = [
+        p for p in city_pages
+        if (p.get("lang") == lang)
+        and ((p.get("voivodeship") or "").strip().lower() == region)
+        and ((p.get("city") or "").strip().lower() != city)
+        and (p.get("service_h1") == svc)
+    ]
+
+    # Strony z tym samym miastem, inną usługą
+    alt_service = [
+        p for p in city_pages
+        if (p.get("lang") == lang)
+        and ((p.get("city") or "").strip().lower() == city)
+        and (p.get("service_h1") != svc)
+    ]
+
+    out = same_region[:k_region] + alt_service[:k_alt]
     return out
 
 # ------------------------------ RENDER / BUILD ------------------------------
