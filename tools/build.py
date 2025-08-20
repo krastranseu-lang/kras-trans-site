@@ -649,14 +649,14 @@ def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:
 
     def add_meta(**attrs):
         if not head.find("meta", attrs=attrs):
-            head.append(soup.new_tag("meta", attrs=attrs))
+head.append(soup.new_tag("meta", **attrs))
 
     def add_link(**attrs):
         # unikaj duplikatów
         for link in head.find_all("link"):
             if all(link.get(k) == v for k, v in attrs.items()):
                 return
-        head.append(soup.new_tag("link", attrs=attrs))
+head.append(soup.new_tag("link", **attrs))
 
     # canonical
     if page.get("canonical") and not has_selector('link[rel="canonical"]'):
@@ -717,78 +717,34 @@ def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:
             )
             head.append(conf)
 
-    # JSON-LD – dołóż tylko jeśli w całym dokumencie nie ma ld+json
-    if not soup.find("script", attrs={"type":"application/ld+json"}):
-        try:
-            ld = json.dumps(jsonld_blocks(page), ensure_ascii=False)
-            ld_tag = soup.new_tag("script", attrs={"type":"application/ld+json"})
-            ld_tag.string = ld
-            head.append(ld_tag)
-        except Exception:
-            pass
+        # JSON-LD (przekazany do Jinja, a dodatkowo do-inject po renderze jeśli brak)
+        ld_html = '<script type="application/ld+json">' + json.dumps(jsonld_blocks(p), ensure_ascii=False) + '</script>'
 
-# --------- LINK GRAPH (pozostawione jak w starym; może być użyte w szabl.) --
-def neighbors_for(city_pages:List[Dict[str,Any]], page:Dict[str,Any], k_region:int, k_alt:int)->List[Dict[str,Any]]:
-    lang=page.get("lang")
-    region=(page.get("voivodeship") or "").strip().lower()
-    city=(page.get("city") or "").strip().lower()
-    svc=page.get("service_h1")
-    same_region=[p for p in city_pages if p.get("lang")==lang and (p.get("voivodeship","").strip().lower()==region) and (p.get("city","").strip().lower()!=city) and p.get("service_h1")==svc]
-    alt_service=[p for p in city_pages if p.get("lang")==lang and (p.get("city","").strip().lower()==city) and p.get("service_h1")!=svc]
-    out=same_region[:k_region] + alt_service[:k_alt]
-    return out
+        # SSR HOME: jeśli to strona "home", przekaż gotowe sekcje do szablonu
+        ssr_ctx = _ssr_home(lang) if (p.get("type") or "").lower() == "home" else None
 
-# ------------------------------ RENDER / BUILD ------------------------------
-def build_all():
-    pages = base_pages()
-    city  = generate_city_service()
-    all_pages = pages + city
-
-    hreflang_map = CMS.get("hreflang", {})
-    indexables: List[Tuple[str,str,str]] = []
-    today=UTC()
-    logs=[]
-    autolink_inline=0; autolink_fb=0
-
-    # simhash (P4) – wykrywanie duplikatów
-    sim_index={}
-    dup_warns=0
-
-    # TF-IDF (P3) – z tekstu strony
-    tfidf_map={}
-
-    for p in all_pages:
-        lang=p.get("lang") or DEFAULT_LANG
-        slug=p.get("slug","")
-        p["canonical"]=canonical(SITE_URL, lang, slug, p.get("canonical_path"))
-
-        # OG image generator (opcjonalnie; tylko gdy brak)
-        gen_og = og_image_for(p)
-        if gen_og: p["og_image"]=gen_og
-
-        # SEO gates
-        p, warns = apply_quality(p)
-
-# JSON-LD (przekazany do Jinja, a dodatkowo do-inject po renderze jeśli brak)
-ld_html = '<script type="application/ld+json">'+json.dumps(jsonld_blocks(p), ensure_ascii=False)+'</script>'
-
-# SSR HOME: jeśli to strona "home", przekaż gotowe sekcje do szablonu
-ssr_ctx = _ssr_home(lang) if (p.get("type") or "").lower() == "home" else None
-
-# Render Jinja
-ctx = {
-    "page": dict(p),
-    "hreflang": hreflang_map.get(p.get("slugKey","home"), {}),
-    "ctas": {"primary": p.get("cta_label") or "Wycena transportu", "secondary": p.get("cta_secondary","")},
-    "jsonld": ld_html,
-    "ga_id": GA_ID, "gsc_verification": GSC,
-    "ssr": ssr_ctx,
-}
+        # Render Jinja
+        ctx = {
+            "page": dict(p),
+            "hreflang": hreflang_map.get(p.get("slugKey", "home"), {}),
+            "ctas": {
+                "primary": p.get("cta_label") or "Wycena transportu",
+                "secondary": p.get("cta_secondary", "")
+            },
+            "jsonld": ld_html,
+            "ga_id": GA_ID,
+            "gsc_verification": GSC,
+            "ssr": ssr_ctx,
+        }
         tpl = p.get("template") or choose_template(p)
         try:
             html = env.get_template(pathlib.Path(tpl).name).render(**ctx)
         except TemplateNotFound:
-            html = f"<!doctype html><html lang=\"{lang}\"><head><meta charset='utf-8'><title>{p.get('seo_title','')}</title></head><body><h1>{p.get('h1','')}</h1></body></html>"
+            html = (
+                f"<!doctype html><html lang=\"{lang}\"><head>"
+                f"<meta charset='utf-8'><title>{p.get('seo_title','')}</title>"
+                f"</head><body><h1>{p.get('h1','')}</h1></body></html>"
+            )
 
         # AUTOLINKI + fallback
         html, ai, fb = inject_autolinks(html, lang)
