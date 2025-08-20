@@ -402,24 +402,27 @@ def choose_template(page:Dict[str,Any])->str:
     return CFG["templates"]["page"]
 
 # ---------------------------- PAGES: bazowe --------------------------------
-def base_pages()->List[Dict[str,Any]]:
-    pages=[]
+def base_pages() -> List[Dict[str, Any]]:
+    pages = []
     for p in CMS.get("pages", []):
-        lang=p.get("lang") or DEFAULT_LANG
-        slug=p.get("slug","")
-        ctx=dict(p)
-        ctx["canonical"]=canonical(SITE_URL, lang, slug, p.get("canonical_path"))
-        ctx["og_image"]=p.get("og_image") or CFG.get("seo",{}).get("open_graph",{}).get("default_image")
-        ctx["body_html"]=p.get("body_html") or md_to_html(p.get("body_md",""))
+        lang = p.get("lang") or DEFAULT_LANG
+        slug = p.get("slug", "")
+        ctx = dict(p)
+        ctx["canonical"] = canonical(SITE_URL, lang, slug, p.get("canonical_path"))
+        ctx["og_image"] = p.get("og_image") or CFG.get("seo", {}).get("open_graph", {}).get("default_image")
+        ctx["body_html"] = p.get("body_html") or md_to_html(p.get("body_md", ""))
+
         if not ctx.get("seo_title"):
             ctx["seo_title"] = (p.get("seo_title") or p.get("title") or p.get("h1") or "")
+
         if not ctx.get("title"):
             ctx["title"] = (p.get("h1") or ctx["seo_title"])
-        ctx["template"]=choose_template(ctx)
-        ctx["__from"]=
-            "pages"
+
+        ctx["template"] = choose_template(ctx)
+        ctx["__from"] = p.get("__from", "pages")   # ← TEN wiersz zostaje
         pages.append(ctx)
-    return pages
+
+    return pages   # ← poza pętlą!
 
 # ------------------------ PAGES: city × service ----------------------------
 def merge_places()->List[Dict[str,str]]:
