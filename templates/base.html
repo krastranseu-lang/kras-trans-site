@@ -5,14 +5,13 @@
   <meta http-equiv="x-ua-compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="referrer" content="{{ site.privacy.referrerPolicy or 'strict-origin-when-cross-origin' }}" />
-  <meta name="theme-color" content="#0ea5e9" />
   <meta name="color-scheme" content="light dark" />
+  <!-- Theme color per scheme (bez migotania paska adresu) -->
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0ea5e9" />
+  <meta name="theme-color" media="(prefers-color-scheme: dark)"  content="#0b1020" />
 
-  {# --- CMS endpoint dostępny od razu dla skryptów --- #}
+  <!-- CMS endpoint (dla headera, który ciągnie NAV z GAS) -->
   <meta name="cms-endpoint" content="{{ cms_endpoint }}" />
-
-  {# --- Preload hook na LCP (JS może uzupełnić/zmienić atrybuty) --- #}
-  <link id="heroPreload" rel="preload" as="image">
 
   <title>{{ page.seo_title or page.title }}</title>
   <meta name="description" content="{{ page.meta_desc }}" />
@@ -31,46 +30,51 @@
     {% endfor %}
   {% endif %}
 
-  {# --- Weryfikacja GSC --- #}
+  {# --- GSC --- #}
   {% if gsc_verification %}<meta name="google-site-verification" content="{{ gsc_verification }}" />{% endif %}
 
-  {# --- Open Graph / Twitter (builder też potrafi do-inject; zostawiamy SSR dla pewności) --- #}
+  {# --- OG / Twitter --- #}
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="{{ site.brand }}" />
+  <meta property="og:site_name" content="{{ site.brand or 'Kras-Trans' }}" />
   <meta property="og:url" content="{{ page.canonical or canonical }}" />
   <meta property="og:title" content="{{ page.seo_title or page.title }}" />
   <meta property="og:description" content="{{ page.meta_desc }}" />
-  <meta property="og:image" content="{{ site.url or site.base_url }}{{ page.og_image }}" />
+  <meta property="og:image" content="{{ (site.url or site.base_url) ~ (page.og_image or '/assets/media/og-default.webp') }}" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="{{ page.seo_title or page.title }}" />
   <meta name="twitter:description" content="{{ page.meta_desc }}" />
-  <meta name="twitter:image" content="{{ site.url or site.base_url }}{{ page.og_image }}" />
+  <meta name="twitter:image" content="{{ (site.url or site.base_url) ~ (page.og_image or '/assets/media/og-default.webp') }}" />
 
-  {# --- Ikony / Manifest --- #}
-  <link rel="icon" href="/assets/img/favicon.ico" sizes="any" />
-  <link rel="icon" href="/assets/img/icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png" />
-  <link rel="manifest" href="/assets/manifest.webmanifest" />
+  {# --- Ikony (bez 404 – tylko to, co faktycznie masz) --- #}
+  {% set has_favicon = assets.icons and assets.icons.favicon %}
+  {% set has_svgicon = assets.icons and assets.icons.svg %}
+  {% set has_apple   = assets.icons and assets.icons.apple %}
+  {% if has_favicon %}<link rel="icon" href="{{ assets.icons.favicon }}" sizes="any" />{% endif %}
+  {% if has_svgicon %}<link rel="icon" href="{{ assets.icons.svg }}" type="image/svg+xml" />{% endif %}
+  {% if has_apple   %}<link rel="apple-touch-icon" href="{{ assets.icons.apple }}" />{% endif %}
 
-  {# --- Preconnecty tylko gdy potrzebne --- #}
-  {% if 'script.google.com' in (cms_endpoint or '') %}
+  {# --- Manifest (warunkowo; usunie 404, jeśli brak pliku) --- #}
+  {% if assets.manifest %}<link rel="manifest" href="{{ assets.manifest }}" />{% endif %}
+
+  {# --- Preconnecty TYLKO jeśli potrzebne --- #}
+  {% if (cms_endpoint or '') contains 'script.google.com' %}
     <link rel="preconnect" href="https://script.google.com" crossorigin />
   {% endif %}
   {% if ga_id %}
     <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
   {% endif %}
 
-  {# --- LCP image preload (SSR, gdy znamy obraz) + hook heroPreload (CSR) --- #}
+  {# --- LCP image SSR (jeśli znany) --- #}
   {% if page.lcp_image %}
     <link rel="preload" as="image" fetchpriority="high"
-          {% if page.lcp_image.srcset %}imagesrcset="{{ page.lcp_image.srcset }}"{% endif %}
-          href="{{ page.lcp_image.src or page.lcp_image }}" />
+          href="{{ page.lcp_image.src or page.lcp_image }}"
+          {% if page.lcp_image.srcset %}imagesrcset="{{ page.lcp_image.srcset }}"{% endif %} />
   {% endif %}
 
-  {# --- Preloady/CSS z pages.yml → assets --- #}
+  {# --- Preloady / CSS (z pages.yml / buildera) --- #}
   {% if assets.preload %}
     {% for p in assets.preload %}
-      <link rel="preload" as="{{ p.as }}" href="{{ p.href }}"{% if p.fetchpriority %} fetchpriority="{{ p.fetchpriority }}"{% endif %} />
+      <link rel="preload" as="{{ p.as }}" href="{{ p.href }}"{% if p.crossorigin %} crossorigin{% endif %}{% if p.fetchpriority %} fetchpriority="{{ p.fetchpriority }}"{% endif %} />
     {% endfor %}
   {% endif %}
   {% if assets.css %}
@@ -79,7 +83,7 @@
     {% endfor %}
   {% endif %}
 
-  {# --- Self-host fonts + minimal critical CSS a11y --- #}
+  {# --- Self-host fonts + minimum krytycznego CSS (a11y + layout) --- #}
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable-Italic.woff2" crossorigin>
   <style>
@@ -99,9 +103,9 @@
   <script>document.documentElement.classList.remove('no-js');</script>
 </head>
 <body>
-  <a class="skip-link" href="#main">{{ (i18n.skip_to_content if i18n else '') or 'Skip to content' }}</a>
+  <a class="skip-link" href="#main">{{ (i18n and i18n.skip_to_content) or 'Skip to content' }}</a>
 
-  {# --- Header partial (preferuj własną ścieżkę; fallback do naszego) --- #}
+  {# --- HEADER partial (Twoja ścieżka > fallback) --- #}
   {% if header_path %}
     {% include header_path %}
   {% else %}
@@ -112,24 +116,24 @@
     {% block content %}{% endblock %}
   </main>
 
-  {# --- Footer partial (preferuj własną ścieżkę; fallback do naszego) --- #}
+  {# --- FOOTER partial (Twoja ścieżka > fallback) --- #}
   {% if footer_path %}
     {% include footer_path %}
   {% else %}
     {% include "_partials/footer.html" %}
   {% endif %}
 
-  {# --- JSON-LD z buildera --- #}
+  {# --- JSON-LD (builder wstrzykuje gotowy <script type="application/ld+json">) --- #}
   {% if jsonld %}{{ jsonld|safe }}{% endif %}
 
-  {# --- JS z pages.yml → assets.js (defer) --- #}
+  {# --- JS (defer) z pages.yml / buildera --- #}
   {% if assets.js %}
     {% for src in assets.js %}
       <script defer src="{{ src }}"></script>
     {% endfor %}
   {% endif %}
 
-  {# --- Late loader (opcjonalne assets.js_late) --- #}
+  {# --- Late loader (opcjonalny pakiet po idle) --- #}
   <script>
   (function(){
     function loadLate(){
@@ -143,17 +147,17 @@
       {% endif %}
     }
     if('requestIdleCallback' in window){ requestIdleCallback(loadLate,{timeout:1500}); }
-    else { window.addEventListener('load', loadLate); }
+    else { window.addEventListener('load', loadLate, {once:true}); }
   })();
   </script>
 
-  {# --- CMS_ENDPOINT stała (fallback do meta) --- #}
+  {# --- CMS_ENDPOINT stała (fallback do <meta>) --- #}
   <script>
     window.CMS_ENDPOINT = window.CMS_ENDPOINT
       || (document.querySelector('meta[name="cms-endpoint"]')?.content || '');
   </script>
 
-  {# --- Fallback: jeśli cms.js nie podpięty w assets.js, doładuj --- #}
+  {# --- Fallback: doładuj /assets/js/cms.js jeśli nie ma w assets.js --- #}
   <script>
     (function(){
       if(!document.querySelector('script[src*="/assets/js/cms.js"],script[data-src*="/assets/js/cms.js"]')){
@@ -162,7 +166,7 @@
     })();
   </script>
 
-  {# --- Google Analytics (lekki, po idle/zgodzie) --- #}
+  {# --- Google Analytics (lekko, po idle/zgodzie) --- #}
   {% if ga_id %}
   <script>
     (function(id){
@@ -172,7 +176,7 @@
       }
       if(window.ktConsentGranted===true){ loadGA(); }
       else if('requestIdleCallback' in window){ requestIdleCallback(loadGA,{timeout:2000}); }
-      else { window.addEventListener('load', loadGA); }
+      else { window.addEventListener('load', loadGA, {once:true}); }
     })('{{ ga_id }}');
   </script>
   {% endif %}
