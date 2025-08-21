@@ -57,8 +57,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail; set -x
-          sudo apt-get update -y
-          sudo apt-get install -y jq zip tree
+          timeout 60s sudo apt-get update -y
+          timeout 60s sudo apt-get install -y jq zip tree
 
       # ---------- Python ----------
       - name: Setup Python
