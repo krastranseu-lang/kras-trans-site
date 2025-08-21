@@ -16,7 +16,8 @@ concurrency:
 
 jobs:
   build:
-    runs-on: [ self-hosted, macOS, x64 ]
+    # self-hosted Mac; zostaw tylko te etykiety, które widzisz przy runnerze (Settings → Actions → Runners)
+    runs-on: [ self-hosted, macOS ]
     timeout-minutes: 30
 
     env:
@@ -30,30 +31,59 @@ jobs:
       BUILD_NUM:            ${{ github.run_number }}
 
     steps:
-      # === Przygotowanie runnera: brew + git-lfs, jq, tree, gnu-sed, zip, python3 ===
+      # --- Przygotuj system: PATH + brew + narzędzia (ARM/Intel) -----------------------------
       - name: Prepare macOS runner (Homebrew & CLI tools)
         shell: bash
         run: |
           set -euo pipefail
-          if command -v /opt/homebrew/bin/brew >/dev/null 2>&1; then
-            eval "$(/opt/homebrew/bin/brew shellenv)"
-          elif command -v /usr/local/bin/brew >/dev/null 2>&1; then
-            eval "$(/usr/local/bin/brew shellenv)"
+          # Rozpoznaj architekturę
+          ARCH="$(uname -m)"   # arm64 lub x86_64
+
+          # Zdefiniuj możliwe ścieżki brew
+          if [ -x /opt/homebrew/bin/brew ]; then
+            BREW=/opt/homebrew/bin/brew
+            eval "$($BREW shellenv)"
+            export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+          elif [ -x /usr/local/bin/brew ]; then
+            BREW=/usr/local/bin/brew
+            eval "$($BREW shellenv)"
+            export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
+          else
+            echo "::warning::Homebrew not found. If builds need extra tools, install brew manually."
+            BREW=""
           fi
-          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          brew update || true
-          brew install git-lfs jq tree gnu-sed zip coreutils python@3 || true
-          git lfs install || true
+
+          # Zainstaluj narzędzia; ARM wymaga arch -arm64
+          if [ -n "${BREW}" ]; then
+            brew --version || true
+            if [ "${ARCH}" = "arm64" ]; then
+              arch -arm64 ${BREW} update || true
+              arch -arm64 ${BREW} install git-lfs jq tree gnu-sed zip coreutils python@3 || true
+            else
+              ${BREW} update || true
+              ${BREW} install git-lfs jq tree gnu-sed zip coreutils python@3 || true
+            fi
+          fi
+
+          # Fallback jeśli git-lfs wciąż brak – nie blokuj builda
+          if ! command -v git-lfs >/dev/null 2>&1; then
+            echo "::notice::git-lfs not found; checkout będzie bez LFS."
+          else
+            git lfs install || true
+            git lfs version || true
+          fi
+
           echo "PATH=$PATH"
           git --version
-          git lfs version || true
           which jq || true
+          which gsed || true
 
+      # --- Checkout (bez LFS, żeby nie wymagać git-lfs) --------------------------------------
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: true
+          lfs: false   # <- kluczowe, żeby nie wołać git-lfs przy klonowaniu
 
       - name: Show commit info
         shell: bash
@@ -63,6 +93,7 @@ jobs:
           echo "sha:   $GITHUB_SHA"
           echo "actor: $GITHUB_ACTOR"
 
+      # --- Python deps ------------------------------------------------------------------------
       - name: Install Python deps
         shell: bash
         run: |
@@ -72,12 +103,14 @@ jobs:
           python3 -m pip install -r requirements.txt
           python3 -m pip install openpyxl unidecode
 
+      # --- Wymagane dane ----------------------------------------------------------------------
       - name: Check XLSX presence
         shell: bash
         run: |
           set -euo pipefail
           test -f data/cms.xlsx && echo "cms.xlsx OK" || { echo "Missing data/cms.xlsx"; exit 1; }
 
+      # --- Generowanie NAV z XLSX -------------------------------------------------------------
       - name: Generate static NAV from XLSX
         shell: bash
         run: |
@@ -86,6 +119,16 @@ jobs:
           echo "Generated bundles:"
           ls -lah assets/nav || true
 
+      # (opcjonalny artefakt diagnostyczny – zobaczysz bundel w zakładce Artifacts)
+      - name: Upload NAV bundles (artifact, debug)
+        uses: actions/upload-artifact@v4
+        with:
+          name: nav-bundles
+          path: assets/nav/*.json
+          if-no-files-found: warn
+          retention-days: 3
+
+      # --- Kompilacja szablonów ---------------------------------------------------------------
       - name: Sanity check (templates compile)
         shell: bash
         run: |
@@ -98,6 +141,7 @@ jobs:
           print("Templates OK")
           PY
 
+      # --- Build strony -----------------------------------------------------------------------
       - name: Build site (HTML + sitemaps/robots)
         shell: bash
         env:
@@ -113,6 +157,13 @@ jobs:
           test -d dist || { echo "dist/ missing"; exit 1; }
           tree -L 2 dist | sed -n '1,150p' || true
 
+      - name: Smoke test dist
+        shell: bash
+        run: |
+          set -euo pipefail
+          file dist/index.html || true
+
+      # --- Cache-bust zasobów statycznych -----------------------------------------------------
       - name: Cache-bust static assets (CSS/JS) in built HTML
         shell: bash
         env:
@@ -121,20 +172,14 @@ jobs:
           set -euo pipefail
           ASSETS=("/assets/js/site.js" "/assets/js/cms.js" "/assets/css/site.css")
           for P in "${ASSETS[@]}"; do
-            # najpierw próbuj gnu-sed (brew), jeśli brak - macOS sed
             grep -RIl --include="*.html" -- "$P" dist | while read -r f; do
+              # gsed (brew) jest bezpieczniejszy; jeśli brak – użyj sed z macOS
               gsed -i -E "s#(${P})(\\?[^\"']*)?([\"'])#\\1?v=${BUST}\\3#g" "$f" 2>/dev/null \
               || sed -i '' -E "s#(${P})(\\?[^\"']*)?([\"'])#\\1?v=${BUST}\\3#g" "$f"
             done
           done
           echo "Preview busted URLs:"
           grep -R --include="*.html" -nE "/assets/(css|js)/(site|cms)\\.(css|js)\\?v=" dist | head -n 20 || true
-
-      - name: Smoke test dist
-        shell: bash
-        run: |
-          set -euo pipefail
-          file dist/index.html || true
 
       - name: Make site snapshot (ZIP)
         shell: bash
@@ -150,7 +195,7 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: [ self-hosted, macOS, x64 ]
+    runs-on: [ self-hosted, macOS ]
     timeout-minutes: 15
     environment:
       name: github-pages
