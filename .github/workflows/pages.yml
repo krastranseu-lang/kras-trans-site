@@ -55,65 +55,38 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y jq zip tree
 
-      - name: Resolve CMS secrets/vars (fallback logic)
-        shell: bash
-        run: |
-          echo "APPS_URL=${{ vars.APPS_URL != '' && vars.APPS_URL || secrets.APPS_URL }}" >> $GITHUB_ENV
-          echo "APPS_KEY=${{ vars.APPS_KEY != '' && vars.APPS_KEY || secrets.APPS_KEY }}" >> $GITHUB_ENV
-
-      - name: Preflight secrets check
-        shell: bash
-        run: |
-          if [ -z "${APPS_URL}" ] || [ -z "${APPS_KEY}" ]; then
-            echo "::warning ::APPS_URL/APPS_KEY nie ustawione – builder użyje data/cms.json (fallback)."
-          else
-            echo "APPS endpoint ok."
-          fi
-
-      - name: Fetch CMS JSON from Apps Script (robust; optional)
-        if: env.APPS_URL != '' && env.APPS_KEY != ''
-        shell: bash
-        run: |
-          set -e
-          mkdir -p data
-          URL="${APPS_URL}?key=${APPS_KEY}"
-          echo "GET $URL"
-          curl -fsSL --retry 4 --retry-delay 3 --connect-timeout 12 --max-time 45 "${URL}" -o data/cms.json
-          if ! jq -e '.ok == true' data/cms.json >/dev/null 2>&1; then
-            echo "::warning ::CMS JSON nie zawiera ok:true – zostawiamy plik do debug, build ma własny fallback."
-          fi
-          echo "📦 data/cms.json: $(wc -c < data/cms.json) bytes"
-
-      - name: Keep a copy of cms.json (artifact)
-        if: hashFiles('data/cms.json') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: cms-json-${{ github.run_id }}
-          path: data/cms.json
-          retention-days: 3
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
 
-      - name: Install build deps (requirements.txt)
+      - name: Install build deps (requirements + XLSX libs)
         run: |
           python -V
           pip install --upgrade pip
           pip install -r requirements.txt
+          pip install openpyxl unidecode
 
-      # >>> NEW: build-time NAV snapshot (JSON + HTML)
-      - name: Generate static NAV (HTML + JSON)
-        env:
-          CMS_ENDPOINT: ${{ env.APPS_URL }}
-          CMS_API_KEY:  ${{ env.APPS_KEY }}
+      # === NAV from single XLSX (no GAS) ===
+      - name: Check XLSX presence
         run: |
-          python tools/generate_nav.py
-          echo "Generated:"
+          test -f data/cms.xlsx || { echo "::error ::Missing data/cms.xlsx"; exit 1; }
+          echo "Found data/cms.xlsx"
+
+      - name: Generate static NAV from XLSX
+        run: |
+          python tools/generate_nav_from_xlsx.py
+          echo "Generated bundles:"
           ls -lah assets/nav || true
-      # <<< NEW
+
+      - name: Upload NAV bundles (artifact, debug)
+        if: hashFiles('assets/nav/*.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: nav-bundles-${{ github.run_id }}
+          path: assets/nav/*.json
+          retention-days: 3
 
       - name: Sanity check (templates compile)
         shell: bash
@@ -128,8 +101,6 @@ jobs:
 
       - name: Build site (HTML + sitemapy/robots)
         env:
-          APPS_URL: ${{ env.APPS_URL }}
-          APPS_KEY: ${{ env.APPS_KEY }}
           SITE_URL: ${{ env.SITE_URL }}
           GA_ID: ${{ env.GA_ID }}
           GSC_VERIFICATION: ${{ env.GSC_VERIFICATION }}
