@@ -20,7 +20,6 @@ permissions:
   pages: write
   id-token: write
 
-# anuluje starsze uruchomienia – koniec z kolejką
 concurrency:
   group: pages-${{ github.ref }}
   cancel-in-progress: true
@@ -30,14 +29,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      SITE_URL: ${{ vars.SITE_URL }}
-      GA_ID: ${{ vars.GA_ID }}
-      GSC_VERIFICATION: ${{ vars.GSC_VERIFICATION }}
-      INDEXNOW_KEY: ${{ vars.INDEXNOW_KEY }}
-      BING_SITE_AUTH_USER: ${{ vars.BING_SITE_AUTH_USER }}
-      NEWS_ENABLED: ${{ vars.NEWS_ENABLED }}
-      BUILD_ID: ${{ github.run_id }}
-      BUILD_NUM: ${{ github.run_number }}
+      SITE_URL:             ${{ vars.SITE_URL }}
+      GA_ID:                ${{ vars.GA_ID }}
+      GSC_VERIFICATION:     ${{ vars.GSC_VERIFICATION }}
+      INDEXNOW_KEY:         ${{ vars.INDEXNOW_KEY }}
+      BING_SITE_AUTH_USER:  ${{ vars.BING_SITE_AUTH_USER }}
+      NEWS_ENABLED:         ${{ vars.NEWS_ENABLED }}
+      BUILD_ID:             ${{ github.run_id }}
+      BUILD_NUM:            ${{ github.run_number }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -97,13 +96,24 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: 'pip'
+          cache: pip
 
       - name: Install build deps (requirements.txt)
         run: |
           python -V
           pip install --upgrade pip
           pip install -r requirements.txt
+
+      # >>> NEW: build-time NAV snapshot (JSON + HTML)
+      - name: Generate static NAV (HTML + JSON)
+        env:
+          CMS_ENDPOINT: ${{ env.APPS_URL }}
+          CMS_API_KEY:  ${{ env.APPS_KEY }}
+        run: |
+          python tools/generate_nav.py
+          echo "Generated:"
+          ls -lah assets/nav || true
+      # <<< NEW
 
       - name: Sanity check (templates compile)
         shell: bash
@@ -154,7 +164,6 @@ jobs:
 
           for P in "${ASSETS[@]}"; do
             echo ">> Busting $P"
-            # podmień w atrybutach ujętych w " lub ' — niezależnie czy już było query
             grep -RIl --include="*.html" -- "$P" dist | while read -r f; do
               sed -i -E "s#(${P})(\\?[^\"']*)?([\"'])#\\1?v=${BUST}\\3#g" "$f"
             done
