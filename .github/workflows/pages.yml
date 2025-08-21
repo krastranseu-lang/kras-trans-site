@@ -20,7 +20,6 @@ permissions:
   pages: write
   id-token: write
 
-# nie anulujemy wcześniejszych runów na szybkie commity
 concurrency:
   group: pages-${{ github.ref }}
   cancel-in-progress: false
@@ -47,13 +46,17 @@ jobs:
           lfs: true
 
       - name: Show commit info
+        shell: bash
         run: |
+          set -euo pipefail; set -x
           echo "👉 Ref: $GITHUB_REF  SHA: $GITHUB_SHA  Actor: $GITHUB_ACTOR"
           git --no-pager log -1 --pretty='format:%h %ad %an  %s' --date=iso
           echo ""; echo "Changed files vs previous:"; git diff --name-only HEAD~1..HEAD || true
 
       - name: Install jq + zip + tree
+        shell: bash
         run: |
+          set -euo pipefail; set -x
           sudo apt-get update -y
           sudo apt-get install -y jq zip tree
 
@@ -65,21 +68,27 @@ jobs:
           cache: 'pip'
 
       - name: Install build deps (requirements + XLSX libs)
+        shell: bash
         run: |
+          set -euo pipefail; set -x
           python -V
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install openpyxl unidecode
+          timeout 60s pip install --upgrade pip
+          timeout 60s pip install -r requirements.txt
+          timeout 60s pip install openpyxl unidecode
 
       # ---------- NAV from single XLSX (no GAS) ----------
       - name: Check XLSX presence
+        shell: bash
         run: |
+          set -euo pipefail; set -x
           test -f data/cms.xlsx || { echo "::error ::Missing data/cms.xlsx"; exit 1; }
           echo "Found data/cms.xlsx"
 
       - name: Generate static NAV from XLSX
+        shell: bash
         run: |
-          python tools/generate_nav_from_xlsx.py
+          set -euo pipefail; set -x
+          timeout 60s python tools/generate_nav_from_xlsx.py
           echo "Generated bundles:"
           ls -lah assets/nav || true
 
@@ -95,6 +104,7 @@ jobs:
       - name: Sanity check (templates compile)
         shell: bash
         run: |
+          set -euo pipefail; set -x
           python - <<'PY'
           from jinja2 import Environment, FileSystemLoader
           env = Environment(loader=FileSystemLoader('templates'))
@@ -112,13 +122,17 @@ jobs:
           INDEXNOW_KEY: ${{ env.INDEXNOW_KEY }}
           BING_SITE_AUTH_USER: ${{ env.BING_SITE_AUTH_USER }}
           NEWS_ENABLED: ${{ env.NEWS_ENABLED }}
+        shell: bash
         run: |
-          python -u tools/build.py
+          set -euo pipefail; set -x
+          timeout 60s python -u tools/build.py
           test -d dist || (echo "dist/ missing" && exit 1)
           tree -L 2 dist | sed -n '1,120p'
 
       - name: Smoke test dist
+        shell: bash
         run: |
+          set -euo pipefail; set -x
           test -f dist/index.html || (echo "Brak dist/index.html" && exit 1)
           test -f dist/robots.txt  || (echo "Brak dist/robots.txt" && exit 1)
           test -f dist/sitemap.xml || (echo "Brak dist/sitemap.xml" && exit 1)
@@ -129,7 +143,7 @@ jobs:
         env:
           BUST: ${{ github.run_number }}-${{ github.run_id }}
         run: |
-          set -e
+          set -euo pipefail; set -x
           test -d dist || { echo "dist/ missing"; exit 1; }
           ASSETS=(
             "/assets/js/site.js"
@@ -146,8 +160,10 @@ jobs:
           grep -R --include="*.html" -nE "/assets/(css|js)/(site|cms)\\.(css|js)\\?v=" dist | head -n 20 || true
 
       - name: Make site snapshot (ZIP)
+        shell: bash
         run: |
-          (cd dist && zip -q -r ../dist.zip .)
+          set -euo pipefail; set -x
+          timeout 60s bash -c 'cd dist && zip -q -r ../dist.zip .'
           ls -lah dist.zip
 
       - name: Upload site snapshot (ZIP)
