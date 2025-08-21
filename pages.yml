@@ -112,16 +112,14 @@ template_rules:
 # =============================== ASSETS ===============================
 assets:
   css:
-    - "/assets/css/site.css"     # 1 globalny CSS
+    - "/assets/css/site.css"
   js:
-    - "/assets/js/cms.js"        # NAV z GAS (header)
-    - "/assets/js/site.js"       # drobiazgi globalne
-  js_late: []                    # NIC tu nie ładujemy, dopóki nie ma gotowych plików
+    - "/assets/js/site.js"
+    - "/assets/js/cms.js"
+  js_late: []
   preload:
     - { as: "image", href: "/assets/media/logo-firma-transportowa-kras-trans.png", fetchpriority: "high" }
-  flagsPath: "/assets/flags"     # katalog flag (PL/GB/DE/…)
-  # icons / manifest dodamy, gdy pliki faktycznie będą na serwerze.
-
+  flagsPath: "/assets/flags"
 # ================================ 7) HEADER ================================
 header:
   ctaSlugKey: "quote"
