@@ -1,29 +1,23 @@
 <!-- ======================= KRAS-TRANS • HEADER (GLASS + MEGA + LANGS + THEME) =======================
-     - SSR-first (cache w localStorage) + CSR (odświeżenie z GAS)
-     - Mega-menu pełnej szerokości (grid + blog rail), jak Squarespace/Maersk
-     - Języki: rozwijany dropdown (flagi + kody), linki na „tę samą stronę” w innym języku
-     - Przełącznik motywu: Auto/Light/Dark (ikony: sun/moon)
-     - Mobile: bottom dock + fullscreen drawer
-     - Wystarczy wkleić całość do szablonu; nie wymaga zewnętrznych plików
+     Static-first (bundle_{lang}.json) + SWR z GAS
+     Mega-menu pełnej szerokości (grid + blog rail)
 ====================================================================================================== -->
 <header id="site-header"
         class="site-header"
         data-api="https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec"
         data-key="kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
+        data-static="/assets/nav"
         data-theme-sun="/assets/flags/theme-sun.svg"
         data-theme-moon="/assets/flags/theme-moon.svg"
         aria-busy="true">
 
   <!-- ============== CRITICAL CSS (scoped do #site-header) ============== -->
   <style>
-    /* Tokens */
     #site-header{--bg:rgba(255,255,255,.82);--ink:#0b1020;--ink-weak:#64748b;--line:rgba(0,0,0,.08);
       --brand:#0ea5e9;--ease:cubic-bezier(.2,.7,.2,1);--mega-h:0px}
     @media (prefers-color-scheme:dark){
       #site-header{--bg:rgba(15,23,42,.62);--ink:#e5e7eb;--ink-weak:#94a3b8;--line:rgba(255,255,255,.10)}
     }
-
-    /* Wrapper (kompaktowo) */
     #site-header{position:sticky;top:0;z-index:60;background:var(--bg);
       -webkit-backdrop-filter:saturate(180%) blur(12px);backdrop-filter:saturate(180%) blur(12px);
       border-bottom:1px solid var(--line);transition:box-shadow .25s ease, background .25s ease}
@@ -31,136 +25,114 @@
     #site-header .wrap{max-width:980px;margin:0 auto;padding:0 12px 0 8px}
     @media (min-width:768px){ #site-header .wrap{padding:0 18px 0 12px} }
 
-    /* Bar */
-    #site-header .bar{display:grid;grid-template-columns:minmax(120px,170px) 1fr auto;gap:10px;align-items:center;padding:6px 0}
+    .bar{display:grid;grid-template-columns:minmax(120px,170px) 1fr auto;gap:10px;align-items:center;padding:6px 0}
     #site-header a{color:inherit;text-decoration:none}
-    #site-header .brand{display:inline-flex;align-items:center;gap:10px;margin-left:-4px}
-    #site-header .brand__logo{height:auto;max-width:160px;width:clamp(110px,10vw,160px);
-      transition:transform .18s ease,filter .18s ease}
-    #site-header .brand:hover .brand__logo{transform:scale(1.045);filter:drop-shadow(0 6px 18px rgba(14,165,233,.28))}
+    .brand{display:inline-flex;align-items:center;gap:10px;margin-left:-4px}
+    .brand__logo{height:auto;max-width:160px;width:clamp(110px,10vw,160px);transition:transform .18s ease,filter .18s ease}
+    .brand:hover .brand__logo{transform:scale(1.045);filter:drop-shadow(0 6px 18px rgba(14,165,233,.28))}
 
-    /* Primary nav */
-    #site-header .nav__list{list-style:none;margin:0;padding:0;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-    #site-header .nav__list>li{position:relative}
-    #site-header .nav__list>li>a, #site-header .nav__list>li>button{
-      appearance:none;background:transparent;border:0;color:inherit;font:inherit;line-height:1;cursor:pointer;
+    .nav__list{list-style:none;margin:0;padding:0;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+    .nav__list>li{position:relative}
+    .nav__list>li>a,.nav__list>li>button{appearance:none;background:transparent;border:0;color:inherit;font:inherit;line-height:1;cursor:pointer;
       padding:8px 10px;border-radius:12px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-    #site-header .nav__list>li:hover>a{background:rgba(0,0,0,.04)}
-    @media (prefers-color-scheme:dark){ #site-header .nav__list>li:hover>a{background:rgba(255,255,255,.06)}}
+    .nav__list>li:hover>a{background:rgba(0,0,0,.04)}
+    @media (prefers-color-scheme:dark){ .nav__list>li:hover>a{background:rgba(255,255,255,.06)}}
 
-    /* Actions: langs + theme + social + CTA + burger */
-    #site-header .actions{display:flex;align-items:center;gap:10px}
-    #site-header .btn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:14px;border:1px solid var(--line);
+    .actions{display:flex;align-items:center;gap:10px}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:14px;border:1px solid var(--line);
       background:#fff;font-weight:700;color:var(--ink);transition:transform .15s ease, background .2s ease}
-    #site-header .btn:hover{transform:translateY(-1px)}
-    @media (prefers-color-scheme:dark){ #site-header .btn{background:rgba(255,255,255,.06)}}
-    #site-header .btn-primary{background:var(--brand);border-color:transparent;color:#fff}
+    .btn:hover{transform:translateY(-1px)}
+    @media (prefers-color-scheme:dark){ .btn{background:rgba(255,255,255,.06)}}
+    .btn-primary{background:var(--brand);border-color:transparent;color:#fff}
 
-    /* Langs dropdown */
-    #site-header .langs{position:relative}
-    #site-header .lang-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:12px;border:1px solid var(--line);background:#fff}
-    @media (prefers-color-scheme:dark){ #site-header .lang-btn{background:rgba(255,255,255,.06)}}
-    #site-header .flag{width:18px;height:12px;border-radius:3px;border:1px solid var(--line);object-fit:cover}
-    #site-header .chev{width:14px;height:14px;opacity:.7}
-    #site-header .lang-dd{position:absolute;right:0;top:100%;margin-top:8px;min-width:180px;background:var(--bg);
+    .langs{position:relative}
+    .lang-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:12px;border:1px solid var(--line);background:#fff}
+    @media (prefers-color-scheme:dark){ .lang-btn{background:rgba(255,255,255,.06)}}
+    .flag{width:18px;height:12px;border-radius:3px;border:1px solid var(--line);object-fit:cover}
+    .chev{width:14px;height:14px;opacity:.7}
+    .lang-dd{position:absolute;right:0;top:100%;margin-top:8px;min-width:180px;background:var(--bg);
       border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 28px rgba(10,10,20,.12);padding:6px;display:none}
-    #site-header .lang-dd[aria-hidden="false"]{display:block}
-    #site-header .lang-dd a{display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px}
-    #site-header .lang-dd a[aria-current="true"]{outline:2px solid var(--line)}
-    #site-header .lang-dd a:hover{background:rgba(0,0,0,.04)}
-    @media (prefers-color-scheme:dark){ #site-header .lang-dd a:hover{background:rgba(255,255,255,.06)}}
+    .lang-dd[aria-hidden="false"]{display:block}
+    .lang-dd a{display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px}
+    .lang-dd a[aria-current="true"]{outline:2px solid var(--line)}
+    .lang-dd a:hover{background:rgba(0,0,0,.04)}
+    @media (prefers-color-scheme:dark){ .lang-dd a:hover{background:rgba(255,255,255,.06)}}
 
-    /* Theme toggle (Auto / Light / Dark) */
-    #site-header .theme{position:relative}
-    #site-header .theme-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:12px;
-      border:1px solid rgba(255,255,255,.18);background:#fff}
-    @media (prefers-color-scheme:dark){ #site-header .theme-btn{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.28)}}
-    #site-header .theme-btn img{width:16px;height:16px}
-    #site-header .theme-dd{position:absolute;right:0;top:100%;margin-top:8px;min-width:160px;background:var(--bg);
+    .theme{position:relative}
+    .theme-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#fff}
+    @media (prefers-color-scheme:dark){ .theme-btn{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.28)}}
+    .theme-btn img{width:16px;height:16px}
+    .theme-dd{position:absolute;right:0;top:100%;margin-top:8px;min-width:160px;background:var(--bg);
       border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 28px rgba(10,10,20,.12);padding:6px;display:none}
-    #site-header .theme-dd[aria-hidden="false"]{display:block}
-    #site-header .theme-dd button{width:100%;text-align:left;padding:8px;border:0;background:transparent;border-radius:10px;display:flex;gap:8px;align-items:center}
-    #site-header .theme-dd button:hover{background:rgba(0,0,0,.04)}
-    @media (prefers-color-scheme:dark){ #site-header .theme-dd button:hover{background:rgba(255,255,255,.06)}}
+    .theme-dd[aria-hidden="false"]{display:block}
+    .theme-dd button{width:100%;text-align:left;padding:8px;border:0;background:transparent;border-radius:10px;display:flex;gap:8px;align-items:center}
+    .theme-dd button:hover{background:rgba(0,0,0,.04)}
+    @media (prefers-color-scheme:dark){ .theme-dd button:hover{background:rgba(255,255,255,.06)}}
 
-    /* Social + status */
-    #site-header .social{display:flex;gap:8px;margin-left:6px}
-    #site-header .social a{display:inline-flex;padding:8px;border-radius:50%}
-    #site-header .status-pill{margin-left:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);
+    .social{display:flex;gap:8px;margin-left:6px}
+    .social a{display:inline-flex;padding:8px;border-radius:50%}
+    .status-pill{margin-left:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);
       font-weight:600;color:var(--ink-weak);background:rgba(14,165,233,.08)}
 
-    /* Burger */
-    #site-header .menu-toggle{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:transparent;position:relative;display:none}
-    #site-header .menu-toggle::before,#site-header .menu-toggle::after{content:"";position:absolute;left:10px;right:10px;height:2px;background:currentColor;transition:.25s var(--ease)}
-    #site-header .menu-toggle::before{top:14px}#site-header .menu-toggle::after{bottom:14px}
-    #site-header .menu-toggle[aria-expanded="true"]::before{transform:translateY(6px) rotate(45deg)}
-    #site-header .menu-toggle[aria-expanded="true"]::after{transform:translateY(-6px) rotate(-45deg)}
+    .menu-toggle{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:transparent;position:relative;display:none}
+    .menu-toggle::before,.menu-toggle::after{content:"";position:absolute;left:10px;right:10px;height:2px;background:currentColor;transition:.25s var(--ease)}
+    .menu-toggle::before{top:14px}.menu-toggle::after{bottom:14px}
+    .menu-toggle[aria-expanded="true"]::before{transform:translateY(6px) rotate(45deg)}
+    .menu-toggle[aria-expanded="true"]::after{transform:translateY(-6px) rotate(-45deg)}
 
-    /* Mega (pełna szerokość, blog rail) */
-    #site-header .mega{position:absolute;left:0;right:0;top:100%;pointer-events:none;transform:translateY(-8px);opacity:0;
+    .mega{position:absolute;left:0;right:0;top:100%;pointer-events:none;transform:translateY(-8px);opacity:0;
       transition:transform .24s var(--ease),opacity .24s var(--ease)}
-    #site-header .mega[data-state="open"]{pointer-events:auto;transform:translateY(0);opacity:1}
-    #site-header .mega .mega__wrap{padding:12px 0 18px}
-    #site-header .mega .mega__grid-wrap{display:grid;grid-template-columns:1fr minmax(260px,320px);gap:16px;align-items:start}
-    #site-header .mega .mega__panels{max-height:var(--mega-h);overflow:hidden;transition:max-height .28s var(--ease)}
-    #site-header .mega__section{padding:4px 0 8px}
-    #site-header .mega__grid{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}
-    @media (min-width:860px){ #site-header .mega__grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-    @media (min-width:1100px){ #site-header .mega__grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-    #site-header .mega .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 6px 24px rgba(10,10,20,.08)}
-    @media (prefers-color-scheme:dark){ #site-header .mega .card{background:rgba(255,255,255,.06)}}
-    #site-header .mega__aside{display:grid;gap:10px}
-    #site-header .mega__aside .blog-card{display:grid;grid-template-columns:110px 1fr;gap:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
-    @media (prefers-color-scheme:dark){ #site-header .mega__aside .blog-card{background:rgba(255,255,255,.06)}}
-    #site-header .mega__aside img{width:110px;height:70px;object-fit:cover}
-    #site-header .mega__aside h4{font-size:.92rem;margin:8px 8px 6px}
-    #site-header .mega__aside p{font-size:.8rem;color:var(--ink-weak);margin:0 8px 8px}
+    .mega[data-state="open"]{pointer-events:auto;transform:translateY(0);opacity:1}
+    .mega .mega__wrap{padding:12px 0 18px}
+    .mega .mega__grid-wrap{display:grid;grid-template-columns:1fr minmax(260px,320px);gap:16px;align-items:start}
+    .mega .mega__panels{max-height:var(--mega-h);overflow:hidden;transition:max-height .28s var(--ease)}
+    .mega__section{padding:4px 0 8px}
+    .mega__grid{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}
+    @media (min-width:860px){ .mega__grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media (min-width:1100px){ .mega__grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+    .mega .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 6px 24px rgba(10,10,20,.08)}
+    @media (prefers-color-scheme:dark){ .mega .card{background:rgba(255,255,255,.06)}}
+    .mega__aside{display:grid;gap:10px}
+    .mega__aside .blog-card{display:grid;grid-template-columns:110px 1fr;gap:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+    @media (prefers-color-scheme:dark){ .mega__aside .blog-card{background:rgba(255,255,255,.06)}}
+    .mega__aside img{width:110px;height:70px;object-fit:cover}
+    .mega__aside h4{font-size:.92rem;margin:8px 8px 6px}
+    .mega__aside p{font-size:.8rem;color:var(--ink-weak);margin:0 8px 8px}
 
-    /* Mobile drawer */
-    #site-header .mobile-menu{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(2px);z-index:80}
-    #site-header .mobile-menu[hidden]{display:none}
-    #site-header .mobile-menu__inner{position:absolute;top:0;right:0;bottom:0;width:min(420px,92vw);background:var(--bg);
+    .mobile-menu{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(2px);z-index:80}
+    .mobile-menu[hidden]{display:none}
+    .mobile-menu__inner{position:absolute;top:0;right:0;bottom:0;width:min(420px,92vw);background:var(--bg);
       border-left:1px solid var(--line);transform:translateX(100%);transition:transform .28s var(--ease);
       display:grid;grid-template-rows:auto 1fr auto auto;gap:12px;padding:16px}
-    #site-header .mobile-menu[data-open="true"] .mobile-menu__inner{transform:translateX(0)}
-    #site-header .mobile-head{display:flex;align-items:center;justify-content:space-between}
-    #site-header .mobile-nav__list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-    #site-header .mobile-nav__list li a,#site-header .mobile-nav__list li button{
+    .mobile-menu[data-open="true"] .mobile-menu__inner{transform:translateX(0)}
+    .mobile-head{display:flex;align-items:center;justify-content:space-between}
+    .mobile-nav__list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+    .mobile-nav__list li a,.mobile-nav__list li button{
       display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);
       background:#fff;color:inherit;text-decoration:none}
-    @media (prefers-color-scheme:dark){ #site-header .mobile-nav__list li a,#site-header .mobile-nav__list li button{background:rgba(255,255,255,.06)}}
-    #site-header .mobile-cta{margin-top:6px}
+    @media (prefers-color-scheme:dark){ .mobile-nav__list li a,.mobile-nav__list li button{background:rgba(255,255,255,.06)}}
+    .mobile-cta{margin-top:6px}
 
-    /* Mobile bottom dock */
-    #site-header .dock{position:fixed;z-index:70;left:0;right:0;bottom:0;display:none;background:var(--bg);border-top:1px solid var(--line)}
-    #site-header .dock ul{list-style:none;margin:0;padding:6px 10px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-    #site-header .dock a{display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;padding:8px;border-radius:12px}
-    #site-header .dock svg{width:22px;height:22px}
-    #site-header .dock span{font-size:.72rem}
-    @media (max-width:980px){ #site-header .nav{display:none}#site-header .menu-toggle{display:inline-block}#site-header .dock{display:block}}
+    .dock{position:fixed;z-index:70;left:0;right:0;bottom:0;display:none;background:var(--bg);border-top:1px solid var(--line)}
+    .dock ul{list-style:none;margin:0;padding:6px 10px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .dock a{display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;padding:8px;border-radius:12px}
+    .dock svg{width:22px;height:22px}.dock span{font-size:.72rem}
+    @media (max-width:980px){ .nav{display:none}.menu-toggle{display:inline-block}.dock{display:block}}
   </style>
 
   <div class="wrap bar">
-    <!-- BRAND -->
     <a class="brand" id="brandLink" href="/">
       <img class="brand__logo" width="176" height="40" alt="Kras-Trans — transport i spedycja"
            src="/assets/media/logo-firma-transportowa-kras-trans.png" loading="eager" decoding="async">
     </a>
 
-    <!-- PRIMARY NAV (CMS wstrzykuje <li>…>) -->
     <nav id="primaryNav" class="nav" role="navigation" aria-label="Główne menu">
-      <ul class="nav__list" id="navList">
-        <!-- fallback (zastąpione po cache/API) -->
-        <li><a href="/pl/">Start</a></li>
-      </ul>
+      <ul class="nav__list" id="navList"><li><a href="/pl/">Start</a></li></ul>
     </nav>
 
-    <!-- ACTIONS -->
     <div class="actions">
-      <!-- Status (opcjonalny, z CMS) -->
       <span id="statusPill" class="status-pill" hidden>🚚 auto wolne</span>
 
-      <!-- Langs (dropdown) -->
       <div class="langs" id="langsWrap">
         <button id="langBtn" class="lang-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="langsDd">
           <img class="flag" id="langFlag" src="/assets/flags/pl.svg" alt="" width="18" height="12"><span id="langCode">PL</span>
@@ -169,7 +141,6 @@
         <div id="langsDd" class="lang-dd" role="menu" aria-hidden="true" aria-label="Wybór języka"></div>
       </div>
 
-      <!-- Theme -->
       <div class="theme" id="themeWrap">
         <button id="themeBtn" class="theme-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="themeDd">
           <img id="themeIcon" src="/assets/flags/theme-moon.svg" alt="" width="16" height="16"><span id="themeLabel">Auto</span>
@@ -181,7 +152,6 @@
         </div>
       </div>
 
-      <!-- Social -->
       <div class="social" id="social">
         <a id="ig" href="https://www.instagram.com/kras_trans.express.eu?igsh=bHZkODhlazFicGt2&utm_source=qr" aria-label="Instagram" rel="noopener" target="_blank">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7Zm5 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6Zm5.35-.95a1.15 1.15 0 1 1 0 2.3 1.15 1.15 0 0 1 0-2.3Z"/></svg>
@@ -194,23 +164,20 @@
         </a>
       </div>
 
-      <!-- CTA + burger -->
       <a id="cta" class="btn btn-primary" href="/pl/kontakt/">Zamów wycenę</a>
       <button id="menuToggle" class="menu-toggle" aria-expanded="false" aria-controls="mobileMenu" aria-label="Menu"></button>
     </div>
   </div>
 
-  <!-- MEGA -->
   <div id="mega" class="mega" data-state="closed" aria-hidden="true">
     <div class="mega__wrap wrap">
       <div class="mega__grid-wrap">
-        <div class="mega__panels" id="megaPanels"><!-- sekcje z CMS --></div>
-        <aside class="mega__aside" id="megaBlog"><!-- blog rail --></aside>
+        <div class="mega__panels" id="megaPanels"></div>
+        <aside class="mega__aside" id="megaBlog"></aside>
       </div>
     </div>
   </div>
 
-  <!-- MOBILE DRAWER -->
   <div id="mobileMenu" class="mobile-menu" hidden>
     <div class="mobile-menu__inner" role="dialog" aria-modal="true" aria-label="Menu mobilne">
       <div class="mobile-head">
@@ -225,7 +192,6 @@
     </div>
   </div>
 
-  <!-- MOBILE BOTTOM DOCK -->
   <nav class="dock" aria-label="Szybkie akcje">
     <ul class="wrap">
       <li><a id="dockCall" href="tel:+48" aria-label="Zadzwoń">
@@ -267,9 +233,11 @@
     const MOON = root.dataset.themeMoon || '/assets/flags/theme-moon.svg';
 
     /* Config */
-    const LOCALES = ['pl','gb','de','fr','it','ru','ua'];
-    const FLAG = L => `/assets/flags/${L}.svg`;
-    const API = root.dataset.api, KEY = root.dataset.key;
+    const LOCALES = ['pl','en','de','fr','it','ru','ua'];   // EN -> GB flaga niżej
+    const FLAG = L => `/assets/flags/${L==='en'?'gb':L}.svg`;
+    const API = root.dataset.api || (window.CMS_ENDPOINT||'');
+    const KEY = root.dataset.key || '';
+    const STATIC = (root.dataset.static||'/assets/nav').replace(/\/+$/,'');
     const TTL = 12*60*60*1000;
 
     /* Lang detection + path utils */
@@ -324,14 +292,14 @@
     mobile.addEventListener('click', e=>{ if(e.target===mobile) closeDrawer(); });
     dockMenu.addEventListener('click', e=>{ e.preventDefault(); openDrawer(); });
 
-    /* THEME: Auto / Light / Dark */
+    /* THEME */
     const THEME_KEY='kt_theme';
     function applyTheme(){
       const saved = localStorage.getItem(THEME_KEY) || 'auto';
       const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
       const effectiveDark = saved==='dark' || (saved==='auto' && prefersDark);
       document.documentElement.classList.toggle('theme-dark', effectiveDark);
-      themeIcon.src = effectiveDark ? SUN : MOON;         // ikony: w dark pokazujemy Słońce (#FACC15), w light – Księżyc (#0B1020)
+      themeIcon.src = effectiveDark ? SUN : MOON;
       themeLabel.textContent = saved[0].toUpperCase()+saved.slice(1);
       themeBtn.setAttribute('aria-expanded','false'); themeDd.setAttribute('aria-hidden','true');
     }
@@ -353,19 +321,40 @@
     langBtn.addEventListener('click', ()=>{ const exp=langBtn.getAttribute('aria-expanded')==='true'; openLangs(!exp); });
     root.addEventListener('click', e=>{ if(!$('#langsWrap').contains(e.target)) openLangs(false); });
 
-    /* SSR-first: z cache */
+    /* ---------- RENDERING (z cache / static / API) ---------- */
+
+    // 1) Z LOCALSTORAGE (instant)
     (function fromCache(){
       const snap = getCache(CK('nav_bundle'));
       if(!snap) return;
+      try{ renderFromSnapshot(snap); root.removeAttribute('aria-busy'); }catch(_){}
+    })();
+
+    // 2) Z BUNDLA STATYCZNEGO (instant przy 1. wizycie)
+    (async function fromStatic(){
       try{
+        const res = await fetch(`${STATIC}/bundle_${currentLang}.json`, {cache:'force-cache'});
+        if(!res.ok) return;
+        const bundle = await res.json();
+        const snap = {
+          primary_html: bundle.primary_html||'',
+          mega_html: bundle.mega_html||'',
+          langs_html: bundle.langs_html||'',
+          cta: bundle.cta||null,
+          status: bundle.status||null,
+          social: bundle.social||null,
+          routes: {}, blog:[]
+        };
         renderFromSnapshot(snap);
+        setCache(CK('nav_bundle'), snap);
         root.removeAttribute('aria-busy');
       }catch(_){}
     })();
 
-    /* CSR: fetch z GAS */
+    // 3) Z GAS (SWR – ciche odświeżenie, dokładne routingi językowe + blog)
     (async function fromAPI(){
       try{
+        if(!API || !KEY) { root.removeAttribute('aria-busy'); return; }
         const url = `${API}?key=${encodeURIComponent(KEY)}&lang=${encodeURIComponent(currentLang)}`;
         const res = await fetch(url, {cache:'no-store'});
         const json = await res.json();
@@ -374,9 +363,7 @@
         renderNav(nav, routesMap, json);
         setCache(CK('nav_bundle'), snapshot(nav, routesMap, json));
         root.removeAttribute('aria-busy');
-      }catch(_){
-        root.removeAttribute('aria-busy');
-      }
+      }catch(_){ root.removeAttribute('aria-busy'); }
     })();
 
     /* Helpers: routes map + reverse lookup */
@@ -396,7 +383,7 @@
       return 'home';
     }
 
-    /* Render języków (dropdown + mobile) */
+    /* Render języków (API) */
     function renderLangs(routes){
       const key = findSlugKey(routes, currentLang, currentSlug);
       langFlag.src = FLAG(currentLang);
@@ -410,7 +397,7 @@
       mobileLangs.innerHTML = `<div class="lang-dd" style="display:grid;grid-auto-rows:min-content" aria-hidden="false">${dd}</div>`;
     }
 
-    /* Render BLOG rail */
+    /* BLOG rail */
     function renderBlog(list){
       if(!megaBlog) return; megaBlog.innerHTML='';
       (list||[]).slice(0,4).forEach(item=>{
@@ -436,12 +423,10 @@
 
     /* Render z API */
     function renderNav(nav, routes, json){
-      // primary / mega
       if(nav.primary_html){ navList.innerHTML = nav.primary_html; mobileList.innerHTML = nav.primary_html; }
       if(nav.mega_html){ megaPanels.innerHTML = nav.mega_html; }
       autoMapPanels();
 
-      // CTA + home
       if(nav.cta){
         const href = routes[nav.cta.slugKey] ? slugUrl(currentLang, routes[nav.cta.slugKey][currentLang]||'') : slugUrl(currentLang,'kontakt');
         cta.href = href; cta.textContent = nav.cta.label || 'Get a quote';
@@ -449,21 +434,17 @@
       }
       brandLink.href = slugUrl(currentLang, (routes.home && routes.home[currentLang])||'');
 
-      // status, social
       if(nav.status && nav.status.label){ statusPill.hidden=false; statusPill.textContent=nav.status.label; if(nav.status.href) statusPill.onclick=()=>location.href=nav.status.href; }
       else statusPill.hidden=true;
       if(nav.social){ $('#ig').href=nav.social.ig||$('#ig').href; $('#li').href=nav.social.li||$('#li').href; $('#fb').href=nav.social.fb||$('#fb').href; }
 
-      // telefon / WA
       const tel = (json.company && json.company[0] && (json.company[0].telephone||json.company[0].phone)) || '';
       if(tel){ dockCall.href = `tel:${tel}`; dockWA.href = `https://wa.me/${tel.replace(/\D+/g,'')}`; }
 
-      // blog
       const blogList = (json.blog_latest && Array.isArray(json.blog_latest)) ? json.blog_latest
                       : (Array.isArray(json.blog)? json.blog.filter(b=>String(b.lang||'').toLowerCase()===currentLang && (b.publish!==false)).slice(0,4) : []);
       renderBlog(blogList);
 
-      // języki
       renderLangs(routes);
     }
 
@@ -474,6 +455,7 @@
       return {
         primary_html: nav.primary_html||'',
         mega_html: nav.mega_html||'',
+        langs_html: '',        // z API generujemy w locie
         cta: nav.cta||null,
         status: nav.status||null,
         social: nav.social||null,
@@ -482,22 +464,31 @@
       };
     }
 
-    /* Render z cache */
+    /* Render z cache / statyka (mamy już gotowe HTML-e języków) */
     function renderFromSnapshot(snap){
       if(snap.primary_html){ navList.innerHTML = snap.primary_html; mobileList.innerHTML = snap.primary_html; }
       if(snap.mega_html){ megaPanels.innerHTML = snap.mega_html; }
       autoMapPanels();
+
       if(snap.cta){
-        const href = snap.routes[snap.cta.slugKey] ? slugUrl(currentLang, snap.routes[snap.cta.slugKey][currentLang]||'') : slugUrl(currentLang,'kontakt');
+        const href = snap.routes && snap.routes[snap.cta.slugKey]
+          ? slugUrl(currentLang, snap.routes[snap.cta.slugKey][currentLang]||'')
+          : slugUrl(currentLang,'kontakt');
         cta.href = href; cta.textContent = snap.cta.label || 'Get a quote';
         mobileCTA.href = href; mobileCTA.textContent = cta.textContent; dockQuote.href = href;
       }
-      brandLink.href = slugUrl(currentLang, (snap.routes.home && snap.routes.home[currentLang])||'');
+      brandLink.href = snap.routes && snap.routes.home ? slugUrl(currentLang, snap.routes.home[currentLang]||'') : `/${currentLang}/`;
+
       if(snap.status && snap.status.label){ statusPill.hidden=false; statusPill.textContent=snap.status.label; if(snap.status.href) statusPill.onclick=()=>location.href=snap.status.href; }
       else statusPill.hidden=true;
       if(snap.social){ $('#ig').href=snap.social.ig||$('#ig').href; $('#li').href=snap.social.li||$('#li').href; $('#fb').href=snap.social.fb||$('#fb').href; }
-      renderBlog(snap.blog||[]);
-      renderLangs(snap.routes||{});
+
+      if(snap.blog) renderBlog(snap.blog);
+      if(snap.langs_html){
+        langDd.innerHTML = snap.langs_html;
+        mobileLangs.innerHTML = `<div class="lang-dd" style="display:grid;grid-auto-rows:min-content" aria-hidden="false">${snap.langs_html}</div>`;
+        langFlag.src = FLAG(currentLang); langCodeEl.textContent = currentLang.toUpperCase();
+      }
     }
 
     function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
