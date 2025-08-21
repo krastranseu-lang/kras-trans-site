@@ -1,163 +1,230 @@
-/* KRAS-TRANS • cms.js (NAV static-first + SWR)
-   - Ładuje snapshot: /assets/nav/bundle_<lang>.json (fallback: /assets/nav/<lang>.json)
-   - Jeśli snapshot ma items[] => buduje pasek + mega z danych
-   - Jeśli snapshot ma tylko primary_html/mega_html => wstrzykuje i
-     skraca pasek (usuwa duplikaty linków-dzieci – zostają rodzice + single)
-   - Prefetch on hover, brak bibliotek
-*/
+/*!
+ * Kras‑Trans • cms.js
+ * NAV loader: static snapshot (instant) → cache → optional refresh z GAS
+ * - Zero „slugify fallback” dla rodziców bez landing page (href="#", blokada kliknięcia)
+ * - Dedykowane key‑value w localStorage: kt_nav_bundle_{lang}
+ * - Renderuje: primary_html, mega_html, langs_html, CTA, logo, status, social
+ * - Odporny na brak API/KEY (działa ze snapshotem)
+ */
+
 (function () {
-  const $  = (s, r=document)=>r.querySelector(s);
-  const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
+  'use strict';
 
-  const LANG = (()=>{
-    const htmlLang = (document.documentElement.getAttribute('lang')||'').slice(0,2);
-    const m = location.pathname.match(/^\/([a-z]{2})\b/i);
-    return (m && m[1]) || htmlLang || 'pl';
-  })();
+  /* ========= DOM ========= */
+  const root     = document.getElementById('site-header');
+  if (!root) return;
 
-  const STATIC_URLS = [
-    `/assets/nav/bundle_${LANG}.json`,
-    `/assets/nav/${LANG}.json`
-  ];
+  // Główne elementy nagłówka (łap elastycznie — różne wersje header.html)
+  const navList  = document.getElementById('navList');
+  const mega     = document.getElementById('mega');
+  const langList = document.getElementById('langList') || document.getElementById('langMenu');
 
-  async function loadSnapshot() {
-    for (const base of STATIC_URLS) {
-      try {
-        const res = await fetch(base + `?ts=${Date.now()}`, {cache:'no-store'});
-        if (!res.ok) continue;
-        const j = await res.json();
-        if (j && (Array.isArray(j.items) || j.primary_html || (j.nav_current && j.nav_current.primary_html))) {
-          return j;
-        }
-      } catch(_){}
+  const brandLink = document.getElementById('brandlink') || document.getElementById('brand') || root.querySelector('.brand a, #brand a');
+  const brandImg  = (brandLink && brandLink.querySelector('img')) || document.getElementById('brandImg') || root.querySelector('.brand img');
+
+  const ctaBtn   = document.getElementById('cta') || root.querySelector('[data-cta]');
+  const statusEl = document.getElementById('statusPill') || root.querySelector('[data-status-pill]');
+
+  /* ========= Konfiguracja ========= */
+  const HTML = document.documentElement;
+  const LANG = (location.pathname.match(/^\/([a-z]{2})\//) || [,''])[1] || (HTML.lang || 'pl').slice(0,2).toLowerCase();
+
+  // Endpoint + key z data-* lub globali/mety (działa, nawet gdy ich nie ma)
+  const API     = (root.dataset.api || window.CMS_ENDPOINT || '').trim();
+  const API_KEY = (root.dataset.key || window.CMS_API_KEY || '').trim();
+
+  // Ścieżki do flag, gdyby były potrzebne (snapshot zwykle ma absoluty)
+  const FLAGS_PATH = root.dataset.flags || '/assets/flags';
+
+  // Cache (6h)
+  const TTL_MS = 6 * 60 * 60 * 1000;
+  const CK = (k) => `kt_${k}_${LANG}`;
+
+  /* ========= Pomocnicze ========= */
+  const now  = () => Date.now();
+  const safeJSON = (s, def=null) => { try { return JSON.parse(s); } catch(_){ return def; } };
+  function getCache(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const obj = safeJSON(raw);
+      if (!obj || !obj.ts || !obj.v) return null;
+      if (now() - obj.ts > TTL_MS) return null;
+      return obj.v;
+    } catch (_) { return null; }
+  }
+  function setCache(key, val) {
+    try { localStorage.setItem(key, JSON.stringify({ ts: now(), v: val })); } catch (_) {}
+  }
+  const deepEq = (a,b) => {
+    try { return JSON.stringify(a) === JSON.stringify(b); } catch(_){ return false; }
+  };
+
+  // Nie czyścimy/nie poprawiamy HTML z bundla — generowany po naszej stronie
+  const passHTML = (s) => s || '';
+
+  // Zbuduj href do sluga na bazie mapy routes z bundla (jeśli jest)
+  function hrefForSlug(bundle, slugKey) {
+    if (!bundle || !bundle.routes || !slugKey) return `/${LANG}/`;
+    const map = bundle.routes[String(slugKey)] || {};
+    const slug = (map[LANG] || '').replace(/^\/+|\/+$/g,'');
+    return `/${LANG}/${slug ? (slug + '/') : ''}`;
+  }
+
+  /* ========= Render ========= */
+  function renderFromBundle(bundle) {
+    if (!bundle) return;
+
+    // PRIMARY NAV
+    if (navList && bundle.primary_html) {
+      navList.innerHTML = passHTML(bundle.primary_html);
+      enhancePrimary(navList); // aria + obsługa mega + blokada kliknięć rodziców bez landing page
     }
-    return null;
+
+    // MEGA‑PANELE
+    if (mega && bundle.mega_html) {
+      mega.innerHTML = passHTML(bundle.mega_html);
+    }
+
+    // JĘZYKI
+    if (langList && bundle.langs_html) {
+      langList.innerHTML = passHTML(bundle.langs_html);
+    }
+
+    // LOGO
+    if (brandImg && bundle.logo && bundle.logo.src) {
+      brandImg.src = bundle.logo.src;
+      brandImg.alt = bundle.logo.alt || brandImg.alt || '';
+    }
+
+    // CTA
+    if (ctaBtn && bundle.cta) {
+      if (bundle.cta.label) ctaBtn.textContent = bundle.cta.label;
+      // Priorytet: trasa z routes; fallback do istniejącego href
+      const want = hrefForSlug(bundle, bundle.cta.slugKey || 'quote');
+      if (want) ctaBtn.setAttribute('href', want);
+    }
+
+    // STATUS
+    if (statusEl && bundle.status && bundle.status.label) {
+      statusEl.textContent = bundle.status.label;
+      if (bundle.status.href) statusEl.setAttribute('href', bundle.status.href);
+    }
+
+    // (opcjonalnie) social — jeśli w headerze są atrybuty data-*
+    if (root && bundle.social) {
+      ['ig','li','fb'].forEach(k=>{
+        const el = root.querySelector(`[data-social="${k}"]`);
+        if (el && bundle.social[k]) el.setAttribute('href', bundle.social[k]);
+      });
+    }
+
+    root.dispatchEvent(new CustomEvent('kt:nav:rendered', { detail: { lang: LANG }}));
   }
 
-  function slugify(s){ return String(s||'').trim().toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
+  // Ulepszenie listy głównej:
+  // - brak błędnego fallbacku do /{lang}/{slugify(parent)}/ (rodzic bez linku ma href="#" + blokada)
+  // - otwieranie/zamykanie mega‑paneli (hover + click/touch)
+  function enhancePrimary(list) {
+    const items = list.querySelectorAll(':scope > li');
 
-  /* ---------- render na podstawie items[] ---------- */
-  function renderFromItems(data){
-    const items = Array.isArray(data.items) ? data.items : [];
-    const navList = $('#navList'), megaPanels = $('#megaPanels'), mobileList = $('#mobileList');
-    if(!navList || !megaPanels || !mobileList) return;
+    items.forEach(li => {
+      const panel = (li.getAttribute('data-panel') || '').trim();
+      const a = li.querySelector('a');
+      const hasPanel = !!panel;
 
-    // grupowanie i deduplikacja
-    const seen = new Set();
-    const parents = new Map(); // parent -> [ {label,href} ]
-    let singles = [];
-    items.forEach(r=>{
-      const label = String(r.label||'').trim();
-      const href  = String(r.href||'').trim();
-      const parent= String(r.parent||'').trim();
-      if(!label || !href || href==='#') return;
-      const key = `${label}|${href}|${parent}`;
-      if(seen.has(key)) return; seen.add(key);
-      if(parent){
-        if(!parents.has(parent)) parents.set(parent, []);
-        parents.get(parent).push({label,href});
-      }else singles.push({label,href});
-    });
+      let href = a ? (a.getAttribute('href') || '') : '';
+      href = (href && href.trim()) || '#';
 
-    const parentLC = new Set([...parents.keys()].map(p=>p.toLowerCase()));
-    singles = singles.filter(s => !parentLC.has((s.label||'').toLowerCase()));
-
-    // pasek: single + rodzice (data-panel)
-    const frag = document.createDocumentFragment();
-    singles.forEach(it=>{
-      const li=document.createElement('li'), a=document.createElement('a');
-      a.href=it.href; a.textContent=it.label; li.appendChild(a); frag.appendChild(li);
-    });
-    [...parents.keys()].forEach(parent=>{
-      const li=document.createElement('li'); li.setAttribute('data-panel', slugify(parent));
-      const a=document.createElement('a');
-      const root = items.find(x=> String(x.label||'').trim().toLowerCase()===parent.toLowerCase() && !x.parent);
-      a.href = root ? String(root.href||'#') : `/${LANG}/${slugify(parent)}/`;
-      a.textContent = parent; li.appendChild(a); frag.appendChild(li);
-    });
-    navList.textContent=''; navList.appendChild(frag);
-
-    // mega
-    const megaFrag = document.createDocumentFragment();
-    [...parents.keys()].forEach(parent=>{
-      const sec=document.createElement('section'); sec.className='mega__section'; sec.setAttribute('data-panel', slugify(parent));
-      const grid=document.createElement('div'); grid.className='mega__grid';
-      (parents.get(parent)||[]).forEach(it=>{
-        const card=document.createElement('div'); card.className='card';
-        const a=document.createElement('a'); a.href=it.href; a.textContent=it.label;
-        card.appendChild(a); grid.appendChild(card);
-      });
-      sec.appendChild(grid); megaFrag.appendChild(sec);
-    });
-    megaPanels.textContent=''; megaPanels.appendChild(megaFrag);
-
-    // mobile
-    const mFrag = document.createDocumentFragment();
-    singles.forEach(it=>{
-      const li=document.createElement('li'), a=document.createElement('a'); a.href=it.href; a.textContent=it.label;
-      li.appendChild(a); mFrag.appendChild(li);
-    });
-    [...parents.keys()].forEach(parent=>{
-      const li=document.createElement('li'), btn=document.createElement('button');
-      btn.type='button'; btn.textContent=parent; btn.setAttribute('aria-expanded','false');
-      const sub=document.createElement('ul'); sub.hidden=true; sub.className='mobile-sub';
-      (parents.get(parent)||[]).forEach(it=>{
-        const sli=document.createElement('li'), a=document.createElement('a'); a.href=it.href; a.textContent=it.label;
-        sli.appendChild(a); sub.appendChild(sli);
-      });
-      btn.addEventListener('click',()=>{ const exp=btn.getAttribute('aria-expanded')==='true'; btn.setAttribute('aria-expanded',String(!exp)); sub.hidden=exp; });
-      li.appendChild(btn); li.appendChild(sub); mFrag.appendChild(li);
-    });
-    mobileList.textContent=''; mobileList.appendChild(mFrag);
-
-    enablePrefetch(navList); enablePrefetch(megaPanels);
-  }
-
-  /* ---------- render na podstawie HTML w snapshot ---------- */
-  function renderFromHTML(snap){
-    const cur = snap.nav_current || snap;
-    const navList = $('#navList'), megaPanels=$('#megaPanels'), mobileList=$('#mobileList');
-
-    if(navList && cur.primary_html){ navList.innerHTML = cur.primary_html; }
-    if(megaPanels && cur.mega_html){ megaPanels.innerHTML = cur.mega_html; }
-
-    // NEW: skróć pasek – usuń duplikaty dzieci (zostają rodzice + single)
-    try{
-      if(navList && megaPanels){
-        const childHrefs = new Set(
-          Array.from(megaPanels.querySelectorAll('.mega__section a[href]'))
-               .map(a=>a.getAttribute('href')).filter(Boolean)
-        );
-        Array.from(navList.children).forEach(li=>{
-          const isParent = li.hasAttribute('data-panel');
-          const a = li.querySelector('a[href]'); const href=a && a.getAttribute('href');
-          const isChildDupe = (!isParent && href && childHrefs.has(href));
-          if(isChildDupe) li.remove();
-        });
-        // mobile = kopia skróconego paska
-        if(mobileList){ mobileList.innerHTML = navList.innerHTML; }
+      // Jeżeli anchor nie ma prawidłowego docelowego URL — traktuj jako toggle (a nie link)
+      if (!href || href === '#' || href === '/#') {
+        if (a) {
+          a.setAttribute('href', '#');
+          a.setAttribute('role', 'button');
+          a.setAttribute('aria-haspopup', hasPanel ? 'true' : 'false');
+          a.setAttribute('aria-expanded', 'false');
+          a.addEventListener('click', e => {
+            if (hasPanel) { e.preventDefault(); togglePanel(panel, li); }
+          }, { passive:false });
+        }
       }
-    }catch(_){}
 
-    enablePrefetch(navList); enablePrefetch(megaPanels);
+      if (hasPanel) {
+        li.classList.add('has-panel');
+        // Hover (desktop)
+        li.addEventListener('mouseenter', () => openPanel(panel, li));
+        li.addEventListener('mouseleave', () => closePanel(panel, li));
+        // Tap/click (mobile + fallback)
+        li.addEventListener('click', (e) => {
+          const targetA = e.target.closest('a');
+          // Jeśli klik w anchor z realnym linkiem — przepuszczamy
+          if (targetA && targetA.getAttribute('href') && targetA.getAttribute('href') !== '#') return;
+          e.preventDefault();
+          togglePanel(panel, li);
+        });
+      }
+    });
+
+    // Podświetl aktualną stronę
+    try {
+      const cur = location.pathname.replace(/\/+$/,'') + '/';
+      const active = list.querySelector(`a[href="${cur}"]`);
+      if (active) active.setAttribute('aria-current', 'page');
+    } catch(_) {}
   }
 
-  function enablePrefetch(container){
-    if(!container) return;
-    container.addEventListener('pointerenter', e=>{
-      const a = e.target.closest && e.target.closest('a[href]');
-      if(!a || a.origin !== location.origin) return;
-      const l=document.createElement('link'); l.rel='prefetch'; l.href=a.href; document.head.appendChild(l);
-      setTimeout(()=>{ try{ l.remove(); }catch(_){ } }, 6000);
-    }, true);
+  function openPanel(key, li) {
+    if (!mega || !key) return;
+    mega.dataset.active = key;
+    root.classList.add('mega-open');
+    li?.querySelector('a[aria-expanded]')?.setAttribute('aria-expanded','true');
+  }
+  function closePanel(key, li) {
+    if (!mega || !key) return;
+    if (mega.dataset.active === key) { delete mega.dataset.active; }
+    root.classList.remove('mega-open');
+    li?.querySelector('a[aria-expanded]')?.setAttribute('aria-expanded','false');
+  }
+  function togglePanel(key, li) {
+    if (!mega || !key) return;
+    if (mega.dataset.active === key) closePanel(key, li);
+    else openPanel(key, li);
   }
 
-  document.addEventListener('DOMContentLoaded', async ()=>{
-    const snap = await loadSnapshot();
-    if(!snap) return;
-    if(Array.isArray(snap.items)) renderFromItems(snap);
-    else                          renderFromHTML(snap);
-  });
+  /* ========= Źródła danych ========= */
+
+  // 1) localStorage — natychmiastowy paint (jeżeli jest i świeże)
+  const cached = getCache(CK('nav_bundle'));
+  if (cached) renderFromBundle(cached);
+
+  // 2) statyczny snapshot z serwera (autoratywny; bardzo szybki; odświeża cache+DOM)
+  fetch(`/assets/nav/bundle_${LANG}.json`, { cache:'no-store', credentials:'same-origin' })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('static 404')))
+    .then(b => {
+      if (!deepEq(b, cached)) {
+        renderFromBundle(b);
+        setCache(CK('nav_bundle'), b);
+      }
+    })
+    .catch(() => { /* brak pliku – trudno; jedziemy dalej */ });
+
+  // 3) ciche odświeżenie z GAS (jeśli skonfigurowany endpoint)
+  if (API) {
+    const url = API + (API.includes('?') ? '&' : '?')
+              + (API_KEY ? `key=${encodeURIComponent(API_KEY)}&` : '')
+              + `lang=${encodeURIComponent(LANG)}&nocache=1`;
+    fetch(url, { cache:'no-store', mode:'cors' })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('gas error')))
+      .then(j => j && j.nav_current ? j.nav_current : null)
+      .then(b => {
+        if (!b) return;
+        const cur = getCache(CK('nav_bundle')); // może już zaktualizowaliśmy przez snapshot
+        if (!deepEq(b, cur)) {
+          renderFromBundle(b);
+          setCache(CK('nav_bundle'), b);
+        }
+      })
+      .catch(() => { /* brak dostępu do GAS — nie blokujemy UI */ });
+  }
+
 })();
