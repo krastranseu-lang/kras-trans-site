@@ -71,7 +71,6 @@
 
   <link rel="preload" href="/assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/assets/fonts/InterVariable-Italic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/assets/css/app.css">
 
   {% set faqs = (blocks|selectattr('block','equalto','faq')|selectattr('page','equalto',_slug)|selectattr('lang','equalto',_lang)|list) if blocks is defined else [] %}
   <script type="application/ld+json">
@@ -223,7 +222,6 @@
   </main>
 
   {% include "_partials/footer.html" %}
-  <script src="/assets/js/app.js" defer></script>
 
   {# prosty formatter Markdown -> <br>/<p>/<strong> dla [data-md] i .lead #}
   <script>
