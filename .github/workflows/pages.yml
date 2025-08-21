@@ -20,9 +20,10 @@ permissions:
   pages: write
   id-token: write
 
+# nie anulujemy wcześniejszych runów na szybkie commity
 concurrency:
   group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -37,6 +38,7 @@ jobs:
       NEWS_ENABLED:         ${{ vars.NEWS_ENABLED }}
       BUILD_ID:             ${{ github.run_id }}
       BUILD_NUM:            ${{ github.run_number }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,11 +57,12 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y jq zip tree
 
+      # ---------- Python ----------
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
+          cache: 'pip'
 
       - name: Install build deps (requirements + XLSX libs)
         run: |
@@ -68,7 +71,7 @@ jobs:
           pip install -r requirements.txt
           pip install openpyxl unidecode
 
-      # === NAV from single XLSX (no GAS) ===
+      # ---------- NAV from single XLSX (no GAS) ----------
       - name: Check XLSX presence
         run: |
           test -f data/cms.xlsx || { echo "::error ::Missing data/cms.xlsx"; exit 1; }
@@ -88,6 +91,7 @@ jobs:
           path: assets/nav/*.json
           retention-days: 3
 
+      # ---------- sanity ----------
       - name: Sanity check (templates compile)
         shell: bash
         run: |
@@ -99,6 +103,7 @@ jobs:
           print("Templates OK")
           PY
 
+      # ---------- build ----------
       - name: Build site (HTML + sitemapy/robots)
         env:
           SITE_URL: ${{ env.SITE_URL }}
@@ -118,7 +123,7 @@ jobs:
           test -f dist/robots.txt  || (echo "Brak dist/robots.txt" && exit 1)
           test -f dist/sitemap.xml || (echo "Brak dist/sitemap.xml" && exit 1)
 
-      # >>> AUTO CACHE-BUST: /assets/css/site.css, /assets/js/site.js, /assets/js/cms.js
+      # ---------- cache-bust ----------
       - name: Cache-bust static assets (CSS/JS) in built HTML
         shell: bash
         env:
@@ -126,23 +131,19 @@ jobs:
         run: |
           set -e
           test -d dist || { echo "dist/ missing"; exit 1; }
-
           ASSETS=(
             "/assets/js/site.js"
             "/assets/js/cms.js"
             "/assets/css/site.css"
           )
-
           for P in "${ASSETS[@]}"; do
             echo ">> Busting $P"
             grep -RIl --include="*.html" -- "$P" dist | while read -r f; do
               sed -i -E "s#(${P})(\\?[^\"']*)?([\"'])#\\1?v=${BUST}\\3#g" "$f"
             done
           done
-
           echo "Preview of busted URLs:"
           grep -R --include="*.html" -nE "/assets/(css|js)/(site|cms)\\.(css|js)\\?v=" dist | head -n 20 || true
-      # <<< AUTO CACHE-BUST
 
       - name: Make site snapshot (ZIP)
         run: |
