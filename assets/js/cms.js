@@ -1,173 +1,257 @@
-/* Kras-Trans • cms.js (HOME MVP)
-   - czyta endpoint z <meta name="cms-endpoint"> / window.CMS_ENDPOINT
-   - obsługuje: action=home, home/hero, home/services, faq/list, routes
-   - fallback: gdy brak mikro-API, próbuje pełnego payloadu i sam wycina sekcje
-   - zero twardych tekstów – tylko bindy do templates/page.html
+/* KRAS-TRANS • cms.js
+   NAV renderer (snapshot → DOM): primary, mega panels, mobile drawer, langs, CTA, logo.
+   - źródło: /assets/nav/<lang>.json (fallback: /nav/bundle_<lang>.json)
+   - brak duplikatów, grupowanie po `parent`
+   - zgodne z headerem i CSS (selektory: #navList, #megaPanels, #mobileList, #langsList, #cta, #navLogo)
+   - lekko: bez bibliotek, bez ciężkich reflowów, prefetch na hover
 */
 (function () {
-  const LANG = (document.documentElement.getAttribute('lang') || 'pl').toLowerCase();
-  const ENDPOINT =
-    window.CMS_ENDPOINT ||
-    (document.querySelector('meta[name="cms-endpoint"]')?.content || '').trim();
+  const $  = (s, r=document) => r.querySelector(s);
+  const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 
-  if (!ENDPOINT) {
-    console.warn('[CMS] Brak CMS_ENDPOINT');
+  /* -------------------- helpers -------------------- */
+  const slugify = (raw) => String(raw||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+
+  function getLang() {
+    const htmlLang = (document.documentElement.getAttribute('lang')||'').slice(0,2);
+    const m = location.pathname.match(/^\/([a-z]{2})\b/i);
+    return (m && m[1]) || htmlLang || 'pl';
   }
+  const LANG = getLang();
 
-  const $ = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const setText = (el, v) => { if (el) el.textContent = v || ''; };
-  const setAttr = (el, map) => { if (!el) return; Object.entries(map||{}).forEach(([k,v]) => {
-    if (v!==undefined && v!==null && v!=='') el.setAttribute(k, v);
-  }); };
+  const STATIC_URLS = [
+    `/assets/nav/${LANG}.json`,
+    `/nav/bundle_${LANG}.json`,     // legacy fallback (jeśli tak generujesz)
+  ];
 
-  function routesHref(routes, slugKey, lang = LANG) {
-    if (!routes || !routes[slugKey]) return `/${lang}/`;
-    const s = routes[slugKey][lang] || '';
-    return `/${lang}/${s ? s + '/' : ''}`;
-  }
-
-  async function fetchJSON(pathOrNull) {
-    // Google Apps Script często robi 302 -> user_content; to OK.
-    const tries = [];
-    const base = new URL(ENDPOINT, location.origin);
-
-    // prefer mikro-endpointy
-    if (pathOrNull) {
-      for (const param of ['action','path','a','u']) {
-        const u = new URL(base);
-        u.searchParams.set(param, pathOrNull);
-        u.searchParams.set('lang', LANG);
-        // klucz może być w samej bazie endpointu – nie nadpisujemy
-        if (!u.searchParams.get('key') && base.searchParams.get('key')) {
-          u.searchParams.set('key', base.searchParams.get('key'));
-        }
-        tries.push(u.toString());
-      }
-    }
-    // fallback: pełna paczka (bez parametrów)
-    {
-      const u = new URL(base);
-      if (!u.searchParams.get('key') && base.searchParams.get('key')) {
-        u.searchParams.set('key', base.searchParams.get('key'));
-      }
-      u.searchParams.set('lang', LANG);
-      tries.push(u.toString());
-    }
-
-    for (const url of tries) {
+  async function loadSnapshot() {
+    for (const base of STATIC_URLS) {
       try {
-        const res = await fetch(url, { redirect: 'follow', mode: 'cors', credentials: 'omit' });
+        const url = base + `?ts=${Date.now()}`;                // twardy bypass cache
+        const res = await fetch(url, { cache:'no-store' });
         if (!res.ok) continue;
-        const j = await res.json();
-        if (j && j.ok !== false) return j;
-      } catch (e) {
-        // kontynuuj kolejne próby
-      }
+        const json = await res.json();
+        // akceptujemy shape z `items[]` albo z `nav_current.primary_html`
+        if (json && (Array.isArray(json.items) || (json.nav_current && (json.nav_current.primary_html || json.primary_html)))) {
+          return json;
+        }
+      } catch (_){}
     }
     return null;
   }
 
-  // ------- HERO -------
-  async function hydrateHero() {
-    const sec = $('#hero[data-api]'); if (!sec) return;
-    const data = (await fetchJSON('home/hero')) || (await fetchJSON('home')) || (await fetchJSON(null));
-    if (!data) return;
+  /* -------------------- renderer (items → DOM) -------------------- */
+  function renderFromItems(data) {
+    const items = Array.isArray(data.items) ? data.items : [];
+    const header = $('#site-header'); if (!header) return;
 
-    // znormalizuj z pełnej paczki, jeśli brak mikro
-    if (!data.hero && data.pages) {
-      const home = data.pages.find(p => (p.lang||LANG)===LANG && ((p.slugKey||p.slug||'')==='home'));
-      data.hero = {
-        title: home?.h1 || home?.title || '',
-        lead: home?.lead || '',
-        kpi: [],
-        cta_primary:   { label: home?.cta_label || '',     slugKey: 'quote'   },
-        cta_secondary: { label: home?.cta_secondary || '', slugKey: 'contact' },
-        image: { src: (home?.hero_image || home?.og_image || ''), srcset: '', alt: (home?.hero_alt || home?.h1 || '') }
-      };
-      data.routes = data.hreflang ? null : data.routes; // może być brak
-    }
+    const navList    = $('#navList');
+    const megaPanels = $('#megaPanels');
+    const mobileList = $('#mobileList');
+    const langsList  = $('#langsList');
+    const ctaBtn     = $('#cta');
+    const logoImg    = $('#navLogo');
 
-    const { hero, routes } = data;
-    setText($('#hero-title'), hero?.title);
-    setText($('#hero .hero__lead'), hero?.lead);
+    // 1) deduplikacja i grupowanie
+    const seen = new Set();
+    const parents = new Map();   // parentLabel -> [{label,href}]
+    let singles = [];            // bez parenta
 
-    const a1 = $('#hero .cta-row .btn.btn-primary');
-    const a2 = $('#hero .cta-row .btn:not(.btn-primary):not(.btn-ghost)');
-    if (a1) { a1.href = routesHref(data.routes, hero?.cta_primary?.slugKey); a1.textContent = hero?.cta_primary?.label || ''; }
-    if (a2) { a2.href = routesHref(data.routes, hero?.cta_secondary?.slugKey); a2.textContent = hero?.cta_secondary?.label || ''; }
+    items.forEach(row => {
+      const label  = String(row.label||'').trim();
+      const href   = String(row.href||'').trim();
+      const parent = String(row.parent||'').trim();
+      if (!label || !href || href === '#') return;
 
-    setAttr($('#heroLCP'), {
-      src: (hero?.image?.src || '').trim(),
-      srcset: (hero?.image?.srcset || '').trim(),
-      alt: (hero?.image?.alt || '').trim()
+      const key = `${label}|${href}|${parent}`;
+      if (seen.has(key)) return; seen.add(key);
+
+      if (parent) {
+        if (!parents.has(parent)) parents.set(parent, []);
+        parents.get(parent).push({ label, href });
+      } else {
+        singles.push({ label, href });
+      }
     });
 
-    const list = $('#hero .hero__kpi');
-    const tpl = $('#tpl-hero-kpi');
-    if (list && tpl) {
-      list.innerHTML = '';
-      (hero?.kpi || []).forEach(item => {
-        const node = tpl.content.cloneNode(true);
-        setText(node.querySelector('strong'), item.value);
-        setText(node.querySelector('span'), item.label);
-        list.appendChild(node);
+    // singles nie mogą dublować parentów
+    const parentSetLC = new Set([...parents.keys()].map(p => p.toLowerCase()));
+    singles = singles.filter(s => !parentSetLC.has(s.label.toLowerCase()));
+
+    // 2) PRIMARY: singles → zwykłe <li>, parenty → <li data-panel="...">
+    if (navList) {
+      const frag = document.createDocumentFragment();
+
+      // a) single
+      singles.forEach(it => {
+        const li = document.createElement('li');
+        const a  = document.createElement('a');
+        a.href = it.href; a.textContent = it.label;
+        li.appendChild(a); frag.appendChild(li);
       });
+
+      // b) parenty (kolejność wg mapy)
+      [...parents.keys()].forEach(parent => {
+        const li = document.createElement('li');
+        li.setAttribute('data-panel', slugify(parent));
+        const a = document.createElement('a');
+        // spróbuj znaleźć „root” o takiej samej etykiecie (bez parenta) jako docelowy href
+        const root = items.find(x => (String(x.label||'').trim().toLowerCase() === parent.toLowerCase()) && !x.parent);
+        a.href = root ? String(root.href||'#') : `/${LANG}/${slugify(parent)}/`;
+        a.textContent = parent;
+        li.appendChild(a); frag.appendChild(li);
+      });
+
+      navList.textContent = '';
+      navList.appendChild(frag);
     }
-    sec.setAttribute('aria-busy','false');
-  }
 
-  // ------- SERVICES -------
-  async function hydrateServices() {
-    const grid = $('#services .services__grid[data-api]'); if (!grid) return;
-    const data = (await fetchJSON('home/services')) || (await fetchJSON('home')) || (await fetchJSON(null));
-    if (!data) return;
+    // 3) MEGA PANELS: po jednym <section> na parent
+    if (megaPanels) {
+      const wrap = document.createDocumentFragment();
+      [...parents.keys()].forEach(parent => {
+        const sec  = document.createElement('section');
+        sec.className = 'mega__section';
+        sec.setAttribute('data-panel', slugify(parent));
 
-    // fallback z pełnej paczki
-    if (!data.services && data.pages) {
-      data.services = data.pages
-        .filter(p => (p.lang||LANG)===LANG && p.type==='service' && p.publish!==false)
-        .sort((a,b) => (a.order||0)-(b.order||0))
-        .map(s => ({ icon:'', title:s.h1||s.title||'', desc:s.lead||'', slugKey:(s.slugKey||s.slug||''), cta:{label:''} }));
+        const grid = document.createElement('div');
+        grid.className = 'mega__grid';
+
+        (parents.get(parent) || []).forEach(it => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          const a = document.createElement('a');
+          a.href = it.href; a.textContent = it.label;
+          card.appendChild(a); grid.appendChild(card);
+        });
+
+        sec.appendChild(grid);
+        wrap.appendChild(sec);
+      });
+      megaPanels.textContent = '';
+      megaPanels.appendChild(wrap);
     }
 
-    const tpl = $('#tpl-service-card'); if (!tpl) return;
-    grid.innerHTML = '';
-    (data.services || []).forEach(svc => {
-      const node = tpl.content.cloneNode(true);
-      setText(node.querySelector('.card__title'), svc.title);
-      setText(node.querySelector('.card__desc'), svc.desc);
-      const a = node.querySelector('.card__link');
-      if (a) { a.href = routesHref(data.routes, svc.slugKey); a.textContent = (svc.cta?.label || ''); }
-      const ic = node.querySelector('.card__icon'); if (ic && svc.icon) ic.innerHTML = svc.icon;
-      grid.appendChild(node);
-    });
+    // 4) MOBILE DRAWER: single + parenty (rozwijane)
+    if (mobileList) {
+      const frag = document.createDocumentFragment();
 
-    // nagłówki sekcji (jeśli API je zwróci)
-    setText($('#services-title'), data?.home?.section_titles?.services || '');
-    setText($('#services .section__sub'), data?.home?.section_subtitles?.services || '');
-    $('#services').setAttribute('aria-busy','false');
+      // a) single
+      singles.forEach(it => {
+        const li = document.createElement('li');
+        const a  = document.createElement('a');
+        a.href = it.href; a.textContent = it.label;
+        li.appendChild(a); frag.appendChild(li);
+      });
+
+      // b) zagnieżdżenia
+      [...parents.keys()].forEach(parent => {
+        const li  = document.createElement('li');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = parent;
+        btn.setAttribute('aria-expanded','false');
+
+        const sub = document.createElement('ul');
+        sub.hidden = true; sub.className = 'mobile-sub';
+
+        (parents.get(parent)||[]).forEach(it => {
+          const sli = document.createElement('li');
+          const a   = document.createElement('a');
+          a.href = it.href; a.textContent = it.label;
+          sli.appendChild(a); sub.appendChild(sli);
+        });
+
+        btn.addEventListener('click', () => {
+          const exp = btn.getAttribute('aria-expanded') === 'true';
+          btn.setAttribute('aria-expanded', String(!exp));
+          sub.hidden = exp;
+        });
+
+        li.appendChild(btn); li.appendChild(sub); frag.appendChild(li);
+      });
+
+      mobileList.textContent = '';
+      mobileList.appendChild(frag);
+    }
+
+    // 5) LANGS / CTA / LOGO (jeśli JSON je zawiera)
+    if (langsList && Array.isArray(data.langs) && data.langs.length) {
+      const frag = document.createDocumentFragment();
+      data.langs.forEach(l => {
+        const a = document.createElement('a');
+        a.href = l.href || `/${l.code||l.lang||''}/`;
+        a.textContent = String(l.code||l.lang||'').toUpperCase();
+        frag.appendChild(a);
+      });
+      langsList.textContent = '';
+      langsList.appendChild(frag);
+    } else if (langsList && data.nav_current && data.nav_current.langs_html) {
+      langsList.innerHTML = data.nav_current.langs_html;
+    }
+
+    if (ctaBtn && data.cta && data.cta.href) {
+      ctaBtn.href = data.cta.href;
+      if (data.cta.label) ctaBtn.textContent = data.cta.label;
+    }
+    if (logoImg && data.logo && data.logo.src) {
+      logoImg.src = data.logo.src;
+      logoImg.alt = data.logo.alt || logoImg.alt || '';
+    }
+
+    // 6) prefetch na hover (łagodne, krótkie)
+    function enablePrefetch(container){
+      if(!container) return;
+      container.addEventListener('pointerenter', e => {
+        const a = e.target.closest && e.target.closest('a[href]');
+        if (!a || a.origin !== location.origin) return;
+        const l = document.createElement('link');
+        l.rel = 'prefetch'; l.href = a.href;
+        document.head.appendChild(l);
+        setTimeout(() => { try{ l.remove(); }catch(_){}} , 6000);
+      }, true);
+    }
+    enablePrefetch(navList);
+    enablePrefetch(megaPanels);
   }
 
-  // ------- FAQ -------
-  async function hydrateFAQ() {
-    const list = $('#faq .faq-list[data-api]'); if (!list) return;
-    const data = (await fetchJSON('faq/list')) || (await fetchJSON(null));
-    const items = data?.faq || (data?.faq?.rows) || [];
-    const tpl = $('#tpl-faq-item'); if (!tpl) return;
-    list.innerHTML = '';
-    items.forEach(it => {
-      const node = tpl.content.cloneNode(true);
-      setText(node.querySelector('summary'), it.q || '');
-      setText(node.querySelector('.a p'), it.a || '');
-      list.appendChild(node);
-    });
-    $('#faq').setAttribute('aria-busy','false');
+  /* -------------------- renderer (HTML → DOM) --------------------
+     Jeśli snapshot ma już primary_html/mega_html (np. z GAS),
+     to wstrzykujemy bez budowania struktur.                  */
+  function renderFromHTML(snap) {
+    const cur = snap.nav_current || snap;
+    const navList    = $('#navList');
+    const megaPanels = $('#megaPanels');
+    const langsList  = $('#langsList');
+    const ctaBtn     = $('#cta');
+    const logoImg    = $('#navLogo');
+
+    if (navList && cur.primary_html)    navList.innerHTML    = cur.primary_html;
+    if (megaPanels && cur.mega_html)    megaPanels.innerHTML = cur.mega_html;
+    if (langsList && cur.langs_html)    langsList.innerHTML  = cur.langs_html;
+
+    if (ctaBtn && cur.cta && cur.cta.href) {
+      ctaBtn.href = cur.cta.href;
+      if (cur.cta.label) ctaBtn.textContent = cur.cta.label;
+    }
+    if (logoImg && cur.logo && cur.logo.src) {
+      logoImg.src = cur.logo.src; logoImg.alt = cur.logo.alt || logoImg.alt || '';
+    }
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
-    hydrateHero();
-    hydrateServices();
-    hydrateFAQ();
+  document.addEventListener('DOMContentLoaded', async () => {
+    const snap = await loadSnapshot();
+    if (!snap) return;
+
+    if (Array.isArray(snap.items)) {
+      renderFromItems(snap);             // preferowana ścieżka (czyste dane → DOM)
+    } else {
+      renderFromHTML(snap);              // fallback (wgrany HTML z API)
+    }
+
+    // Wyrównanie z JS nagłówka (wysokość panela itp.) obsługuje Twój site.js. :contentReference[oaicite:2]{index=2}
+    // Stylom mega/drawer odpowiada Twój site.css.                               :contentReference[oaicite:3]{index=3}
   });
 })();
