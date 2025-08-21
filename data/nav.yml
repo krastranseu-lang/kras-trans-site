@@ -1,71 +1,135 @@
-# Definicja mega‑menu – etykiety po językach
+# data/nav.yml — fallback dla builda (header live i tak bierze z GAS)
 pl:
-main:
-- label: "Usługi"
-children:
-- label: "Transport międzynarodowy"
-url: "/pl/#services"
-- label: "Spedycja"
-url: "/pl/#freight"
-- label: "Magazynowanie"
-url: "/pl/#warehouse"
-- label: "Flota"
-children:
-- label: "EURO6"
-url: "/pl/#fleet"
-- label: "Naczepy"
-url: "/pl/#trailers"
-- label: "Kontakt"
-url: "/pl/#contact"
+  primary:
+    - { label: "Start",   href: "/pl/" }
+    - { label: "Usługi",  panel: "services" }
+    - { label: "Firma",   panel: "company" }
+    - { label: "Blog",    href: "/pl/blog/" }
+    - { label: "Kontakt", href: "/pl/kontakt/" }
+  mega:
+    services:
+      columns:
+        - title: "Transport drogowy"
+          items:
+            - { label: "Transport krajowy",           href: "/pl/domestic-transport/" }
+            - { label: "Transport międzynarodowy",    href: "/pl/international-transport/" }
+            - { label: "Transport TIR (FTL)",         href: "/pl/tir-trucking/" }
+            - { label: "Busy 3,5 t",                  href: "/pl/vans-35t/" }
+        - title: "Specjalistyczne"
+          items:
+            - { label: "Transport palet",             href: "/pl/pallet-transport/" }
+            - { label: "ADR",                          href: "/pl/adr/" }
+            - { label: "High‑value / elektronika",    href: "/pl/high-value/" }
+            - { label: "Przeprowadzki firm",          href: "/pl/office-relocation/" }
+        - title: "Dla e‑commerce / B2B"
+          items:
+            - { label: "SLA i stałe linie",           href: "/pl/sla/" }
+            - { label: "Dedykowany dyspozytor",       href: "/pl/dedicated-dispatcher/" }
+            - { label: "Logistyka kontraktowa",       href: "/pl/contract-logistics/" }
+        - title: "Wycena i cennik"
+          items:
+            - { label: "Cennik",                       href: "/pl/pricing/" }
+            - { label: "Wyceń online",                 href: "/pl/quote/" }
+    company:
+      columns:
+        - title: "Firma"
+          items:
+            - { label: "O nas",          href: "/pl/about/" }
+            - { label: "Zespół",         href: "/pl/team/" }
+            - { label: "Flota",          href: "/pl/fleet/" }
+            - { label: "Certyfikaty",    href: "/pl/certificates/" }
+        - title: "Materiały i kariera"
+          items:
+            - { label: "Case studies",   href: "/pl/case-studies/" }
+            - { label: "Opinie",         href: "/pl/reviews/" }
+            - { label: "Zrównoważony rozwój", href: "/pl/sustainability/" }
+            - { label: "Dla mediów",     href: "/pl/press/" }
+            - { label: "Lokalizacje",    href: "/pl/locations/" }
+            - { label: "Praca",          href: "/pl/careers/" }
 
+  langs:
+    - { code: "pl", flag: "/assets/flags/pl.svg" }
+    - { code: "en", flag: "/assets/flags/gb.svg" }
+    - { code: "de", flag: "/assets/flags/de.svg" }
+    - { code: "fr", flag: "/assets/flags/fr.svg" }
+    - { code: "it", flag: "/assets/flags/it.svg" }
+    - { code: "ru", flag: "/assets/flags/ru.svg" }
+    - { code: "ua", flag: "/assets/flags/ua.svg" }
+
+  cta:
+    label: "Zamów wycenę"
+    href: "/pl/kontakt/"
+
+  logo:
+    src: "/assets/media/logo-firma-transportowa-kras-trans.png"
+    alt: "Kras‑Trans — transport i spedycja"
+
+  social:
+    ig: "https://www.instagram.com/kras_trans.express.eu?igsh=bHZkODhlazFicGt2&utm_source=qr"
+    li: "https://www.linkedin.com/company/kras-trans"
+    fb: "https://www.facebook.com/share/sS2jgJPwdgvrF4az/?mibextid=LQQJ4d"
 
 en:
-main:
-- label: "Services"
-children:
-- label: "International transport"
-url: "/en/#services"
-- label: "Freight forwarding"
-url: "/en/#freight"
-- label: "Warehousing"
-url: "/en/#warehouse"
-- label: "Fleet"
-children:
-- label: "EURO6"
-url: "/en/#fleet"
-- label: "Trailers"
-url: "/en/#trailers"
-- label: "Contact"
-url: "/en/#contact"
+  primary:
+    - { label: "Home",    href: "/en/" }
+    - { label: "Services", panel: "services" }
+    - { label: "Company",  panel: "company" }
+    - { label: "Blog",     href: "/en/blog/" }
+    - { label: "Contact",  href: "/en/contact/" }
+  mega:
+    services:
+      columns:
+        - title: "Road transport"
+          items:
+            - { label: "Domestic transport",          href: "/en/domestic-transport/" }
+            - { label: "International transport",     href: "/en/international-transport/" }
+            - { label: "TIR trucking (FTL)",          href: "/en/tir-trucking/" }
+            - { label: "Vans 3.5t",                   href: "/en/vans-35t/" }
+        - title: "Specialties"
+          items:
+            - { label: "Pallet transport",            href: "/en/pallet-transport/" }
+            - { label: "ADR",                          href: "/en/adr/" }
+            - { label: "High‑value / electronics",     href: "/en/high-value/" }
+            - { label: "Office relocation",            href: "/en/office-relocation/" }
+        - title: "For e‑commerce / B2B"
+          items:
+            - { label: "SLA & regular lines",         href: "/en/sla/" }
+            - { label: "Dedicated dispatcher",        href: "/en/dedicated-dispatcher/" }
+            - { label: "Contract logistics",          href: "/en/contract-logistics/" }
+        - title: "Quote & pricing"
+          items:
+            - { label: "Pricing",                      href: "/en/pricing/" }
+            - { label: "Get a quote",                  href: "/en/quote/" }
+    company:
+      columns:
+        - title: "Company"
+          items:
+            - { label: "About",        href: "/en/about/" }
+            - { label: "Team",         href: "/en/team/" }
+            - { label: "Fleet",        href: "/en/fleet/" }
+            - { label: "Certificates", href: "/en/certificates/" }
+        - title: "Resources & careers"
+          items:
+            - { label: "Case studies", href: "/en/case-studies/" }
+            - { label: "Reviews",      href: "/en/reviews/" }
+            - { label: "Sustainability", href: "/en/sustainability/" }
+            - { label: "Press",        href: "/en/press/" }
+            - { label: "Locations",    href: "/en/locations/" }
+            - { label: "Careers",      href: "/en/careers/" }
 
+  langs:
+    - { code: "pl", flag: "/assets/flags/pl.svg" }
+    - { code: "en", flag: "/assets/flags/gb.svg" }
+    - { code: "de", flag: "/assets/flags/de.svg" }
+    - { code: "fr", flag: "/assets/flags/fr.svg" }
+    - { code: "it", flag: "/assets/flags/it.svg" }
+    - { code: "ru", flag: "/assets/flags/ru.svg" }
+    - { code: "ua", flag: "/assets/flags/ua.svg" }
 
-de:
-main:
-- label: "Leistungen"
-children:
-- label: "Internationaler Transport"
-url: "/de/#services"
-- label: "Spedition"
-url: "/de/#freight"
-- label: "Lagerhaltung"
-url: "/de/#warehouse"
-- label: "Fuhrpark"
-children:
-- label: "EURO6"
-url: "/de/#fleet"
-- label: "Auflieger"
-url: "/de/#trailers"
-- label: "Kontakt"
-url: "/de/#contact"
+  cta:
+    label: "Get a quote"
+    href: "/en/contact/"
 
-
-fr:
-main:
-- label: "Services"
-children:
-- label: "Transport international"
-url: "/fr/#services"
-- label: "Expédition"
-url: "/fr/#freight"
-- label: "Stockage"
-url: "/ua/#contact"
+  logo:
+    src: "/assets/media/logo-firma-transportowa-kras-trans.png"
+    alt: "Kras‑Trans — transport & forwarding"
