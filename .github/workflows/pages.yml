@@ -1,19 +1,9 @@
 name: pages
 
 on:
-  workflow_dispatch:
-    inputs:
-      purge_cache:
-        description: 'Force cache-bust for assets (unused with auto-bust)'
-        required: false
-        default: 'false'
   push:
-    branches: [ "main" ]
-    paths-ignore:
-      - "**/*.md"
-      - "LICENSE"
-      - ".gitignore"
-      - ".github/ISSUE_TEMPLATE/**"
+    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -26,8 +16,9 @@ concurrency:
 
 jobs:
   build:
-    runs-on: [self-hosted, macOS, x64]
-    timeout-minutes: 15
+    runs-on: [ self-hosted, macOS, x64 ]
+    timeout-minutes: 30
+
     env:
       SITE_URL:             ${{ vars.SITE_URL }}
       GA_ID:                ${{ vars.GA_ID }}
@@ -37,7 +28,27 @@ jobs:
       NEWS_ENABLED:         ${{ vars.NEWS_ENABLED }}
       BUILD_ID:             ${{ github.run_id }}
       BUILD_NUM:            ${{ github.run_number }}
+
     steps:
+      # === Przygotowanie runnera: brew + git-lfs, jq, tree, gnu-sed, zip, python3 ===
+      - name: Prepare macOS runner (Homebrew & CLI tools)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v /opt/homebrew/bin/brew >/dev/null 2>&1; then
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+          elif command -v /usr/local/bin/brew >/dev/null 2>&1; then
+            eval "$(/usr/local/bin/brew shellenv)"
+          fi
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          brew update || true
+          brew install git-lfs jq tree gnu-sed zip coreutils python@3 || true
+          git lfs install || true
+          echo "PATH=$PATH"
+          git --version
+          git lfs version || true
+          which jq || true
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -47,133 +58,90 @@ jobs:
       - name: Show commit info
         shell: bash
         run: |
-          set -euo pipefail; set -x
-          echo "👉 Ref: $GITHUB_REF  SHA: $GITHUB_SHA  Actor: $GITHUB_ACTOR"
-          git --no-pager log -1 --pretty='format:%h %ad %an  %s' --date=iso
-          echo ""; echo "Changed files vs previous:"; git diff --name-only HEAD~1..HEAD || true
+          set -euo pipefail
+          echo "repo:  $GITHUB_REPOSITORY"
+          echo "sha:   $GITHUB_SHA"
+          echo "actor: $GITHUB_ACTOR"
 
-      - name: Install jq + zip + tree
+      - name: Install Python deps
         shell: bash
         run: |
-          set -euo pipefail; set -x
-          timeout 60s sudo apt-get update -y
-          timeout 60s sudo apt-get install -y jq zip tree
+          set -euo pipefail
+          python3 -V
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt
+          python3 -m pip install openpyxl unidecode
 
-      # ---------- Python ----------
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: 'pip'
-
-      - name: Install build deps (requirements + XLSX libs)
-        shell: bash
-        run: |
-          set -euo pipefail; set -x
-          python -V
-          timeout 60s pip install --upgrade pip
-          timeout 60s pip install -r requirements.txt
-          timeout 60s pip install openpyxl unidecode
-
-      # ---------- NAV from single XLSX (no GAS) ----------
       - name: Check XLSX presence
         shell: bash
         run: |
-          set -euo pipefail; set -x
-          test -f data/cms.xlsx || { echo "::error ::Missing data/cms.xlsx"; exit 1; }
-          echo "Found data/cms.xlsx"
+          set -euo pipefail
+          test -f data/cms.xlsx && echo "cms.xlsx OK" || { echo "Missing data/cms.xlsx"; exit 1; }
 
       - name: Generate static NAV from XLSX
         shell: bash
         run: |
-          set -euo pipefail; set -x
-          timeout 60s python tools/generate_nav_from_xlsx.py
+          set -euo pipefail
+          python3 tools/generate_nav_from_xlsx.py
           echo "Generated bundles:"
           ls -lah assets/nav || true
 
-      - name: Upload NAV bundles (artifact, debug)
-        if: hashFiles('assets/nav/*.json') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: nav-bundles-${{ github.run_id }}
-          path: assets/nav/*.json
-          retention-days: 3
-
-      # ---------- sanity ----------
       - name: Sanity check (templates compile)
         shell: bash
         run: |
-          set -euo pipefail; set -x
-          python - <<'PY'
+          set -euo pipefail
+          python3 - <<'PY'
           from jinja2 import Environment, FileSystemLoader
           env = Environment(loader=FileSystemLoader('templates'))
-          for t in ['base.html','page.html']:
-              env.get_template(t)
+          env.get_template('base.html')
+          env.get_template('page.html')
           print("Templates OK")
           PY
 
-      # ---------- build ----------
-      - name: Build site (HTML + sitemapy/robots)
+      - name: Build site (HTML + sitemaps/robots)
+        shell: bash
         env:
-          SITE_URL: ${{ env.SITE_URL }}
-          GA_ID: ${{ env.GA_ID }}
-          GSC_VERIFICATION: ${{ env.GSC_VERIFICATION }}
-          INDEXNOW_KEY: ${{ env.INDEXNOW_KEY }}
-          BING_SITE_AUTH_USER: ${{ env.BING_SITE_AUTH_USER }}
-          NEWS_ENABLED: ${{ env.NEWS_ENABLED }}
-        shell: bash
+          SITE_URL:             ${{ env.SITE_URL }}
+          GA_ID:                ${{ env.GA_ID }}
+          GSC_VERIFICATION:     ${{ env.GSC_VERIFICATION }}
+          INDEXNOW_KEY:         ${{ env.INDEXNOW_KEY }}
+          BING_SITE_AUTH_USER:  ${{ env.BING_SITE_AUTH_USER }}
+          NEWS_ENABLED:         ${{ env.NEWS_ENABLED }}
         run: |
-          set -euo pipefail; set -x
-          timeout 60s python -u tools/build.py
-          test -d dist || (echo "dist/ missing" && exit 1)
-          tree -L 2 dist | sed -n '1,120p'
+          set -euo pipefail
+          python3 -u tools/build.py
+          test -d dist || { echo "dist/ missing"; exit 1; }
+          tree -L 2 dist | sed -n '1,150p' || true
 
-      - name: Smoke test dist
-        shell: bash
-        run: |
-          set -euo pipefail; set -x
-          test -f dist/index.html || (echo "Brak dist/index.html" && exit 1)
-          test -f dist/robots.txt  || (echo "Brak dist/robots.txt" && exit 1)
-          test -f dist/sitemap.xml || (echo "Brak dist/sitemap.xml" && exit 1)
-
-      # ---------- cache-bust ----------
       - name: Cache-bust static assets (CSS/JS) in built HTML
         shell: bash
         env:
           BUST: ${{ github.run_number }}-${{ github.run_id }}
         run: |
-          set -euo pipefail; set -x
-          test -d dist || { echo "dist/ missing"; exit 1; }
-          ASSETS=(
-            "/assets/js/site.js"
-            "/assets/js/cms.js"
-            "/assets/css/site.css"
-          )
+          set -euo pipefail
+          ASSETS=("/assets/js/site.js" "/assets/js/cms.js" "/assets/css/site.css")
           for P in "${ASSETS[@]}"; do
-            echo ">> Busting $P"
+            # najpierw próbuj gnu-sed (brew), jeśli brak - macOS sed
             grep -RIl --include="*.html" -- "$P" dist | while read -r f; do
-              sed -i -E "s#(${P})(\\?[^\"']*)?([\"'])#\\1?v=${BUST}\\3#g" "$f"
+              gsed -i -E "s#(${P})(\\?[^\"']*)?([\"'])#\\1?v=${BUST}\\3#g" "$f" 2>/dev/null \
+              || sed -i '' -E "s#(${P})(\\?[^\"']*)?([\"'])#\\1?v=${BUST}\\3#g" "$f"
             done
           done
-          echo "Preview of busted URLs:"
+          echo "Preview busted URLs:"
           grep -R --include="*.html" -nE "/assets/(css|js)/(site|cms)\\.(css|js)\\?v=" dist | head -n 20 || true
+
+      - name: Smoke test dist
+        shell: bash
+        run: |
+          set -euo pipefail
+          file dist/index.html || true
 
       - name: Make site snapshot (ZIP)
         shell: bash
         run: |
-          set -euo pipefail; set -x
-          timeout 60s bash -c 'cd dist && zip -q -r ../dist.zip .'
+          set -euo pipefail
+          (cd dist && zip -q -r ../dist.zip .)
           ls -lah dist.zip
-
-      - name: Upload site snapshot (ZIP)
-        uses: actions/upload-artifact@v4
-        with:
-          name: site-snapshot-${{ github.run_id }}
-          path: dist.zip
-          retention-days: 5
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
 
       - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v3
@@ -182,11 +150,11 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, macOS, x64 ]
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    timeout-minutes: 15
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
