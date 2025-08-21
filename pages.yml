@@ -109,18 +109,18 @@ template_rules:
     - { match: "^uslugi/.+$", template: "templates/page.html" }
     - { match: "^blog/.+$",   template: "templates/blog_post.html" }
 
-# =============================== 6) ASSETS =================================
+# =============================== ASSETS ===============================
 assets:
   css:
-    - "/assets/css/site.css"
+    - "/assets/css/site.css"     # 1 globalny CSS
   js:
-    - "/assets/js/site.js"
-    - "/assets/js/cms.js"
-  js_late: ["/assets/js/mapbox.js","/assets/js/reviews.js"]   # ← cięższe skrypty, ładują się „po idle”
+    - "/assets/js/cms.js"        # NAV z GAS (header)
+    - "/assets/js/site.js"       # drobiazgi globalne
+  js_late: []                    # NIC tu nie ładujemy, dopóki nie ma gotowych plików
   preload:
-    - { as: "style", href: "/assets/css/header.css" }
-    - { as: "image", href: "/assets/media/logo.png", fetchpriority: "high" }
-  flagsPath: "/assets/flags"
+    - { as: "image", href: "/assets/media/logo-firma-transportowa-kras-trans.png", fetchpriority: "high" }
+  flagsPath: "/assets/flags"     # katalog flag (PL/GB/DE/…)
+  # icons / manifest dodamy, gdy pliki faktycznie będą na serwerze.
 
 # ================================ 7) HEADER ================================
 header:
