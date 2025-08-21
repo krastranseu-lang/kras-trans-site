@@ -17,7 +17,7 @@
   const HEADER = document.getElementById('site-header');
   const DEFAULT_LANG = (HEADER?.dataset.defaultLang) || (SCRIPT?.dataset.defaultLang) || 'pl';
   const CMS_ENDPOINT = (SCRIPT?.dataset.api) || (HEADER?.dataset.api) || '';
-  const LOGO_SRC = HEADER?.dataset.logoSrc || '/assets/media/logo.png';
+  const LOGO_SRC = HEADER?.dataset.logoSrc || '/assets/media/logo-firma-transportowa-kras-trans.png';
 
   // --------- UTIL
   const qs  = (s, root=document) => root.querySelector(s);

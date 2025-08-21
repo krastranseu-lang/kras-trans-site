@@ -133,3 +133,8 @@ en:
   logo:
     src: "/assets/media/logo-firma-transportowa-kras-trans.png"
     alt: "Kras‑Trans — transport & forwarding"
+
+  social:
+    ig: "https://www.instagram.com/kras_trans.express.eu?igsh=bHZkODhlazFicGt2&utm_source=qr"
+    li: "https://www.linkedin.com/company/kras-trans"
+    fb: "https://www.facebook.com/share/sS2jgJPwdgvrF4az/?mibextid=LQQJ4d"
