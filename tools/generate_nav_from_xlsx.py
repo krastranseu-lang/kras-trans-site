@@ -175,7 +175,7 @@ def build_bundle(lang, items, routes, props):
             if v: social[k] = v
         if social: bundle['social'] = social
     return bundle
-
+  
 def main():
     src = pathlib.Path('data/cms.xlsx')
     if not src.exists(): raise SystemExit("Missing data/cms.xlsx")
