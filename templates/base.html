@@ -57,7 +57,7 @@
   {% if assets.manifest %}<link rel="manifest" href="{{ assets.manifest }}" />{% endif %}
 
   {# --- Preconnecty TYLKO jeśli potrzebne --- #}
-  {% if (cms_endpoint or '') contains 'script.google.com' %}
+{% if 'script.google.com' in (cms_endpoint or '') %}
     <link rel="preconnect" href="https://script.google.com" crossorigin />
   {% endif %}
   {% if ga_id %}
