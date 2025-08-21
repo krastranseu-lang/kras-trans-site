@@ -2,7 +2,7 @@ name: pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
@@ -16,8 +16,7 @@ concurrency:
 
 jobs:
   build:
-    # Upewnij się, że etykiety pasują do runnera (Settings → Actions → Runners)
-    runs-on: [ self-hosted, macOS ]
+    runs-on: [ self-hosted, macOS ]     # Twój Mac (labels z ekranu Runners)
     timeout-minutes: 30
 
     env:
@@ -29,16 +28,17 @@ jobs:
       NEWS_ENABLED:         ${{ vars.NEWS_ENABLED }}
       BUILD_ID:             ${{ github.run_id }}
       BUILD_NUM:            ${{ github.run_number }}
-      LOCAL_XLSX:           ${{ vars.LOCAL_XLSX }}   # absolutna ścieżka na Twoim Macu (opcjonalnie)
+      LOCAL_XLSX:           ${{ vars.LOCAL_XLSX }}   # absolutna ścieżka na Macu
 
     steps:
-      # ---------- Przygotowanie macOS (brew, PATH, narzędzia) ----------
+      # ---------- Przygotowanie macOS (Brew, PATH, narzędzia) ----------
       - name: Prepare macOS runner
         shell: bash
         run: |
           set -euo pipefail
           ARCH="$(uname -m)"   # arm64 lub x86_64
 
+          # ustaw PATH i shellenv brew
           if [ -x /opt/homebrew/bin/brew ]; then
             BREW=/opt/homebrew/bin/brew
             eval "$($BREW shellenv)"
@@ -48,28 +48,30 @@ jobs:
             eval "$($BREW shellenv)"
             export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
           else
-            echo "::warning::Homebrew not found. If you need extra tools, install brew manually."
+            echo "::warning::Homebrew not found. Install if you need extra tools."
             BREW=""
           fi
 
+          # podstawowe narzędzia – jeśli brew jest
           if [ -n "${BREW}" ]; then
             if [ "${ARCH}" = "arm64" ]; then
               arch -arm64 ${BREW} update || true
-              arch -arm64 ${BREW} install jq tree gnu-sed zip coreutils python@3 git-lfs || true
+              arch -arm64 ${BREW} install gnu-tar gnu-sed coreutils zip tree git-lfs jq python@3 || true
             else
               ${BREW} update || true
-              ${BREW} install jq tree gnu-sed zip coreutils python@3 git-lfs || true
+              ${BREW} install gnu-tar gnu-sed coreutils zip tree git-lfs jq python@3 || true
             fi
             git lfs install || true
           fi
 
           echo "PATH=$PATH"
-          git --version || true
-          which jq || true
+          which gtar || true
           which gsed || true
+          which jq   || true
           python3 -V || true
+          git --version || true
 
-      # ---------- Checkout (bez LFS, aby nie żądał git-lfs) ----------
+      # ---------- Checkout (bez LFS) ----------
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -84,7 +86,7 @@ jobs:
           echo "sha:   $GITHUB_SHA"
           echo "actor: $GITHUB_ACTOR"
 
-      # ---------- Opcjonalnie: kopiuj lokalny XLSX z Maca ----------
+      # ---------- (opcjonalnie) kopiuj XLSX z dysku ----------
       - name: Copy local XLSX if provided
         shell: bash
         run: |
@@ -94,7 +96,7 @@ jobs:
             echo "Using LOCAL_XLSX: ${LOCAL_XLSX}"
             cp -f "${LOCAL_XLSX}" data/cms.xlsx
           else
-            echo "::notice::LOCAL_XLSX not set or file missing - expecting data/cms.xlsx in repo/workspace."
+            echo "::notice::LOCAL_XLSX not set or file missing - expecting data/cms.xlsx in workspace."
           fi
 
       - name: Check XLSX presence
@@ -103,7 +105,7 @@ jobs:
           set -euo pipefail
           test -f data/cms.xlsx && echo "cms.xlsx OK" || { echo "Missing data/cms.xlsx"; exit 1; }
 
-      # ---------- Python deps ----------
+      # ---------- Python ----------
       - name: Install Python deps
         shell: bash
         run: |
@@ -112,15 +114,15 @@ jobs:
           python3 -m pip install -r requirements.txt
           python3 -m pip install openpyxl unidecode
 
-      # ---------- Generuj NAV z XLSX ----------
+      # ---------- Generuj NAV ----------
       - name: Generate static NAV from XLSX
         shell: bash
         run: |
           set -euo pipefail
           python3 tools/generate_nav_from_xlsx.py
-          echo "NAV bundles:"
           ls -lah assets/nav || true
 
+      # (pomocniczy artefakt do debug)
       - name: Upload NAV bundles (artifact, debug)
         uses: actions/upload-artifact@v4
         with:
@@ -157,7 +159,7 @@ jobs:
           python3 -u tools/build.py
           test -d dist || { echo "dist/ missing"; exit 1; }
           stat dist/index.html || { echo "index.html missing"; exit 1; }
-          tree -L 2 dist | sed -n '1,150p' || true
+          (command -v tree >/dev/null 2>&1 && tree -L 2 dist | sed -n '1,150p') || ls -la dist | head -n 200
 
       # ---------- Cache-bust ----------
       - name: Cache-bust static assets (CSS/JS) in built HTML
@@ -169,26 +171,51 @@ jobs:
           ASSETS=("/assets/js/site.js" "/assets/js/cms.js" "/assets/css/site.css")
           for P in "${ASSETS[@]}"; do
             grep -RIl --include="*.html" -- "$P" dist | while read -r f; do
-              gsed -i -E "s#(${P})(\\?[^\"']*)?([\"'])#\\1?v=${BUST}\\3#g" "$f" 2>/dev/null \
-              || sed -i '' -E "s#(${P})(\\?[^\"']*)?([\"'])#\\1?v=${BUST}\\3#g" "$f"
+              if command -v gsed >/dev/null 2>&1; then
+                gsed -i -E "s#(${P})(\\?[^\"']*)?([\"'])#\\1?v=${BUST}\\3#g" "$f"
+              else
+                sed -i '' -E "s#(${P})(\\?[^\"']*)?([\"'])#\\1?v=${BUST}\\3#g" "$f" || true
+              fi
             done
           done
           echo "Preview (busted):"
           grep -R --include="*.html" -nE "/assets/(css|js)/(site|cms)\\.(css|js)\\?v=" dist | head -n 20 || true
 
-      # ---------- ZIP, artifact Pages ----------
+      # ---------- ZIP (opcjonalnie) ----------
       - name: Make site snapshot (ZIP)
         shell: bash
         run: |
           set -euo pipefail
-          (cd dist && zip -q -r ../dist.zip .)
-          ls -lah dist.zip
+          (cd dist && zip -qr ../dist.zip .) || true
+          ls -lh dist.zip || true
+
+      # ---------- Upewnij się, że jest gtar ----------
+      - name: Ensure GNU tar (gtar)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v gtar >/dev/null 2>&1; then
+            echo "gtar not found – installing gnu-tar…"
+            if command -v brew >/dev/null 2>&1; then
+              ARCH="$(uname -m)"
+              if [ "${ARCH}" = "arm64" ]; then
+                arch -arm64 brew install gnu-tar
+              else
+                brew install gnu-tar
+              fi
+            else
+              echo "::warning::brew not found – upload-pages-artifact może wymagać gtar"
+            fi
+          fi
+          command -v gtar >/dev/null 2>&1 && gtar --version | head -1 || true
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
 
       - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
-          if-no-files-found: error
+          path: dist        # tylko 'path' – ta akcja nie przyjmuje `if-no-files-found`
 
   deploy:
     needs: build
