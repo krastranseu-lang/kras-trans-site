@@ -3,14 +3,12 @@ on: { workflow_dispatch: {} }
 
 jobs:
   ping:
-    runs-on: self-hosted        # <— najważniejsze
-    # (opcjonalnie możesz doprecyzować etykiety)
-    # runs-on: [self-hosted, macOS, x64]
+    runs-on: [self-hosted, macOS, x64]
     steps:
-      - name: Show env
+      - name: Whoami
         shell: bash
         run: |
           set -euo pipefail; set -x
-          uname -a
-          python --version || true
-          echo "SELF-HOSTED OK"
+          echo "RUNNER_NAME=${{ runner.name }}"
+          echo "RUNNER_OS=${{ runner.os }}"
+          echo "RUNNER_ARCH=${{ runner.arch }}"
