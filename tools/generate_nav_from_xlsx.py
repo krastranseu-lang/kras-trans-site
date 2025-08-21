@@ -74,6 +74,9 @@ def read_nav(ws):
         try: idx[h] = head.index(h)
         except ValueError:
             raise SystemExit(f"[Nav] Missing header '{h}'")
+    # optional column assignment
+    if 'col' in head:
+        idx['col'] = head.index('col')
     per_lang = defaultdict(list)
     for row in ws.iter_rows(min_row=2, values_only=True):
         lang   = (row[idx['lang']] or '').strip().lower()
@@ -83,12 +86,20 @@ def read_nav(ws):
         parent = (row[idx['parent']] or '').strip()
         order  = row[idx['order']]
         enabled= row[idx['enabled']]
+        col    = None
+        if 'col' in idx:
+            try:
+                c = int(row[idx['col']])
+                if 1 <= c <= 4:
+                    col = c
+            except Exception:
+                pass
         if not label: continue
         if enabled is not None and not truthy(enabled): continue
         try: order = int(order)
         except Exception: order = 9999
         per_lang[lang].append({
-            'label':label, 'href':href, 'parent':parent, 'order':order
+            'label':label, 'href':href, 'parent':parent, 'order':order, 'col':col
         })
     # sort by order then label
     for lang, items in per_lang.items():
@@ -124,6 +135,18 @@ def primary_html_from_items(items):
         li.append(f'<li data-panel="{slugify(parent)}"><a href="#">{parent}</a></li>')
     return ''.join(li)
 
+def _cols_from_rows(rows):
+    cols = {1: [], 2: [], 3: [], 4: []}
+    next_col = 1
+    for r in rows:
+        c = r.get('col')
+        if c in cols:
+            cols[c].append(r)
+        else:
+            cols[next_col].append(r)
+            next_col = next_col % 4 + 1
+    return [cols[i] for i in range(1,5) if cols[i]]
+
 def mega_html_from_items(items):
     groups = OrderedDict()
     for it in items:
@@ -131,8 +154,15 @@ def mega_html_from_items(items):
             groups.setdefault(it['parent'], []).append(it)
     sections = []
     for parent, rows in groups.items():
-        cards = ''.join([f'<div class="card"><a href="{r["href"]}">{r["label"]}</a></div>' for r in rows if r['href']])
-        sections.append(f'<section class="mega__section" data-panel="{slugify(parent)}"><div class="mega__grid">{cards}</div></section>')
+        cols = _cols_from_rows(rows)
+        col_divs = []
+        for col in cols:
+            cards = ''.join([f'<div class="card"><a href="{r["href"]}">{r["label"]}</a></div>' for r in col if r['href']])
+            col_divs.append(f'<div class="col">{cards}</div>')
+        N = len(cols)
+        sections.append(
+            f'<section class="mega__section" data-panel="{slugify(parent)}"><div class="mega__grid cols-{N}">' + ''.join(col_divs) + '</div></section>'
+        )
     return ''.join(sections)
 
 def langs_html_for_lang(lang):
