@@ -496,6 +496,8 @@ def base_pages() -> List[Dict[str, Any]]:
         if not ctx.get("title"):
             ctx["title"] = (p.get("h1") or ctx["seo_title"])
 
+        ctx["h1"] = ctx.get("h1") or ctx["title"]
+
         ctx["template"] = choose_template(ctx)
         ctx["__from"] = p.get("__from", "pages")   # ← TEN wiersz zostaje
         pages.append(ctx)

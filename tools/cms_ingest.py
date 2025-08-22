@@ -180,6 +180,9 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
                     "order": int(float(order or "999")),
                     "publish": True
                 })
+                page.setdefault("h1", page["slugKey"])
+                page.setdefault("title", page["h1"])
+                page.setdefault("body_md", f"## {page['h1']}\n\n")
                 pages_rows.append(page)
                 routes.setdefault(key, {})[L] = rel
                 pm = page_meta.setdefault(L, {}).setdefault(key, {})
