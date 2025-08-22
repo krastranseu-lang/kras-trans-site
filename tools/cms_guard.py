@@ -17,7 +17,7 @@ def validate(schema_path: Path, xlsx_path: Path) -> None:
     recognized = 0
 
     for ws in wb.worksheets:
-        start_cell, end_cell = ws.calculate_dimension(force=True).split(":")
+        start_cell, end_cell = ws.calculate_dimension().split(":")
         max_row = int("".join(filter(str.isdigit, end_cell)))
         hdr = [str(c or "").strip() for c in next(ws.iter_rows(values_only=True, max_row=max_row))]
         hdr_lc = [norm(h) for h in hdr]
@@ -44,7 +44,7 @@ def validate(schema_path: Path, xlsx_path: Path) -> None:
     try:
         import json, os
         def _hdr(ws):
-            start_cell, end_cell = ws.calculate_dimension(force=True).split(":")
+            start_cell, end_cell = ws.calculate_dimension().split(":")
             max_row = int("".join(filter(str.isdigit, end_cell)))
             return [str(c or "") for c in next(ws.iter_rows(values_only=True, max_row=max_row))]
         rep = {"sheets":[{"name":ws.title,"headers":_hdr(ws)} for ws in wb.worksheets]}
