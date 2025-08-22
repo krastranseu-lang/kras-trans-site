@@ -83,6 +83,7 @@
     .mega{position:absolute;left:0;right:0;top:100%;pointer-events:none;transform:translateY(-8px);opacity:0;
       transition:transform .24s var(--ease),opacity .24s var(--ease)}
     .mega[data-state="open"]{pointer-events:auto;transform:translateY(0);opacity:1}
+    .has-mega>.mega-toggle[aria-expanded="true"]+.mega{pointer-events:auto;transform:translateY(0);opacity:1}
     .mega .mega__wrap{padding:12px 0 18px}
     .mega .mega__grid-wrap{display:grid;grid-template-columns:1fr minmax(260px,320px);gap:16px;align-items:start}
     .mega .mega__panels{max-height:var(--mega-h);overflow:hidden;transition:max-height .28s var(--ease)}
