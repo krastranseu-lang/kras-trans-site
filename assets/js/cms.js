@@ -3,7 +3,7 @@
    - TYLKO sprawdza wersję bundla i w razie zmiany podmienia menu
    - pobiera z /assets/nav/bundle_{lang}.json (fix 404) */
 (function(){
-  const UL_ID = 'primary-nav-list';
+  const UL_ID = 'navList';
   const META_NAME = 'menu-bundle-version';
   const PREFIX = '/assets/nav';
 
