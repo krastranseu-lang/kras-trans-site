@@ -96,6 +96,15 @@
     // PRIMARY NAV
     if (navList && bundle.primary_html) {
       navList.innerHTML = passHTML(bundle.primary_html);
+      // HEADER OVERRIDES: defensywne style, aby lista nie rozszerzała layoutu
+      navList.style.display = 'flex';
+      navList.style.flexWrap = 'wrap';
+      navList.style.maxWidth = '100%';
+      navList.style.overflowX = 'visible';
+      navList.querySelectorAll('li, a, button').forEach(el => {
+        el.style.whiteSpace = 'normal';
+        el.style.maxWidth = '100%';
+      });
       enhancePrimary(navList); // aria + obsługa mega + blokada kliknięć rodziców bez landing page
     }
 
@@ -139,6 +148,17 @@
         const el = root.querySelector(`[data-social="${k}"]`);
         if (el && bundle.social[k]) el.setAttribute('href', bundle.social[k]);
       });
+    }
+
+    if (!window.__ktHeaderOverflowLogged) {
+      const suspicious = [...document.querySelectorAll('*')].find(el => {
+        const cs = getComputedStyle(el);
+        return (cs.whiteSpace === 'nowrap' || cs.minWidth === 'min-content') && el.closest('.site-header');
+      });
+      if (suspicious) {
+        console.warn('[header-overflow] element z nowrap/min-content:', suspicious);
+        window.__ktHeaderOverflowLogged = true;
+      }
     }
 
     root.dispatchEvent(new CustomEvent('kt:nav:rendered', { detail: { lang: LANG }}));
