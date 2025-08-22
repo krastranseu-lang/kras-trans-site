@@ -1,0 +1,48 @@
+# .codex/cms_schema.yml
+required_langs: [pl, en, de, fr, it, ru, ua]   # możesz dopasować
+sheets:
+
+  pages:
+    # Minimalne warunki, by strona powstała z wiersza
+    required: [lang, template, publish]
+    required_any_of:
+      slug_or_key: [slug, slugkey]
+    notes: >
+      Wszystkie kolumny z arkusza będą wypisane w logu. Jeśli chcesz wymusić
+      dodatkowe kolumny jako obowiązkowe, dodaj je do 'required'.
+    # Lista kolumn, które spodziewamy się zobaczyć (pozostałe trafią do 'extras')
+    columns:
+      - lang
+      - type
+      - slug
+      - slugkey
+      - parentslug
+      - template
+      - publish
+      - order
+      - h1
+      - title
+      - seo_title
+      - meta_desc
+      - hero_alt
+      - hero_image
+      - og_image
+      - canonical
+      - cta_label
+      - cta_href
+      - cta_phone
+      - whatsapp
+
+  menu:
+    required: [lang, label, href, enabled]
+    optional: [parent, order, col]
+
+  meta:
+    required: [lang, key]
+    optional: [title, description, seo_title, og_image, canonical]
+
+  blocks:
+    required: [lang]
+    required_any_of:
+      content: [html, body]
+    optional: [key, section, path, title, cta_label, cta_href]
