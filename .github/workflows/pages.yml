@@ -10,8 +10,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  group: pages
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -20,8 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -30,29 +29,30 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyyaml openpyxl
 
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
       - name: Build
         env:
-          # Jeśli masz XLSX na tym Macu, podaj ścieżkę w Actions → Variables → LOCAL_XLSX
           LOCAL_XLSX: ${{ vars.LOCAL_XLSX }}
-          CMS_SOURCE:  ${{ vars.CMS_SOURCE }}
-          BASE_URL:    ${{ vars.BASE_URL }}   # opcjonalnie nadpisz base_url z data/site.yml
+          CMS_SOURCE: ${{ vars.CMS_SOURCE }}
+          BASE_URL:   ${{ vars.BASE_URL }}
           CLEAN: '1'
           MINIFY: '1'
-        run: |
-          python tools/build.py
+        run: python tools/build.py
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
-deploy:
-  name: Deploy to GitHub Pages
-  needs: build
-  runs-on: ubuntu-latest
-  environment:
-    name: github-pages
-    url: ${{ steps.deployment.outputs.page_url }}
-  steps:
-    - id: deployment
-      uses: actions/deploy-pages@v4
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
