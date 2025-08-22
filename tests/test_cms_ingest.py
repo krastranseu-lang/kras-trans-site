@@ -22,7 +22,6 @@ def test_slug_without_leading_slash(tmp_path):
     assert result["pages_rows"][0]["slug"] == "tsiny"
 
 
-codex/add-warnings-for-missing-essential-text
 def test_missing_required_fields_warn(tmp_path):
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -39,3 +38,4 @@ def test_missing_required_fields_warn(tmp_path):
     assert f"[cms_ingest] page '{slug}' missing h1" in warnings
     assert f"[cms_ingest] page '{slug}' missing title" in warnings
     assert f"[cms_ingest] page '{slug}' missing body_md" in warnings
+

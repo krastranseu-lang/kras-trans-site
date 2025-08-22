@@ -153,10 +153,17 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
 
         if is_pages:
             report.append(f"[detect] pages-like: {ws.title}")
+            blank_rows = 0
             for row in it:
+                if all(cell in (None, "", " ") for cell in row):
+                    blank_rows += 1
+                    if blank_rows > 20:
+                        break
+                    continue
+                blank_rows = 0
                 raw = {hdr[i]: ("" if i>=len(row) or row[i] is None else str(row[i]).strip()) for i in range(len(hdr))}
                 L   = norm(raw.get("lang") or "pl")
-                pub = truthy(raw.get("publish") or "true")
+                pub = truthy(raw.get("publish", ""))
                 if not pub:
                     continue
                 raw_slug = raw.get("slug", "")
