@@ -17,10 +17,21 @@ jobs:
   build:
     name: Build site (self-hosted)
     runs-on: [self-hosted, macOS, X64]
+    # <<< KLUCZ: ustaw prywatny toolcache i temp w obrębie repo >>>
+    env:
+      RUNNER_TOOL_CACHE: ${{ github.workspace }}/.cache/_tool
+      RUNNER_TEMP: ${{ github.workspace }}/.cache/_temp
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Prepare tool cache dirs
+        run: |
+          mkdir -p "$RUNNER_TOOL_CACHE" "$RUNNER_TEMP"
+          echo "Toolcache: $RUNNER_TOOL_CACHE"
+          echo "Temp:      $RUNNER_TEMP"
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
