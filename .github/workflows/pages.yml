@@ -28,6 +28,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt || pip install pyyaml openpyxl
 
+      - name: Copy CMS spreadsheet
+        run: |
+          SRC="${{ vars.CMS_SOURCE }}"
+          if [ -z "$SRC" ]; then SRC="${{ vars.LOCAL_XLSX }}"; fi
+          if [ -z "$SRC" ]; then SRC="/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"; fi
+          mkdir -p data/cms && cp "$SRC" data/cms/menu.xlsx
+          shasum -a 256 data/cms/menu.xlsx | awk '{print "CMS_SHA256:",$1}'
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
