@@ -2,6 +2,9 @@
 (function () {
   const $  = (s, r=document) => r.querySelector(s);
   const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+  const throttle = (fn, d=100) => {
+    let t=0; return (...a)=>{ const n=Date.now(); if(n-t>d){ t=n; fn(...a); } };
+  };
 
   /* --------- Progress bar + dots --------- */
   function initProgress() {
@@ -116,17 +119,42 @@
     const toggle = $('#menuToggle');
     const drawer = $('#mobileMenu');
     const drawerInner = drawer && $('.mobile-menu__inner', drawer);
+    const promo = $('#promoBar');
 
-    // shadow on scroll
-    function shadow() {
-      const y = (document.documentElement.scrollTop || 0);
-      header.classList.toggle('sq--shadow', y > 8);
+    // active link
+    if (primary) {
+      const path = location.pathname.replace(/\/?index\.html$/, '').replace(/\/$/, '');
+      primary.querySelectorAll('a[href]').forEach(a => {
+        const href = a.getAttribute('href');
+        if (!href) return;
+        const lp = href.replace(/\/?index\.html$/, '').replace(/\/$/, '');
+        if (lp === path) a.setAttribute('aria-current','page');
+      });
     }
-    shadow(); window.addEventListener('scroll', shadow, { passive:true });
+
+    // promo bar close
+    if (promo) {
+      try {
+        if (localStorage.getItem('promoBarClosed')==='1') promo.hidden = true;
+      } catch(_){}
+      $('[data-action="promo-close"]', promo)?.addEventListener('click', () => {
+        promo.hidden = true;
+        try { localStorage.setItem('promoBarClosed','1'); } catch(_){ }
+      });
+    }
+
+    // sticky & shrink
+    const onScroll = throttle(() => {
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      header.classList.toggle('is-sticky', y > 0);
+      header.classList.toggle('is-shrunk', y > 80);
+    }, 100);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive:true });
 
     // Hover intent timings
     const OPEN_MS = 140, CLOSE_MS = 380;
-    let openTimer = 0, closeTimer = 0, currentId = null;
+    let openTimer = 0, closeTimer = 0, currentId = null, lastFocus = null;
 
     function closeMega() {
       if (!mega) return;
@@ -136,6 +164,7 @@
       currentId = null;
       // aria-expanded reset
       primary?.querySelectorAll('[aria-expanded="true"]').forEach(el => el.setAttribute('aria-expanded','false'));
+      if (lastFocus) { try { lastFocus.focus(); } catch(_){} }
     }
 
     function openMega(id) {
@@ -153,6 +182,9 @@
       mega.dataset.state = 'open';
       mega.setAttribute('aria-hidden', 'false');
       currentId = id;
+      const focusable = panel.querySelector('a,button,input,select,textarea');
+      lastFocus = document.activeElement;
+      focusable?.focus();
     }
 
     function armOpen(id, triggerEl) {
@@ -193,6 +225,16 @@
 
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape') closeMega();
+        if (e.key === 'Tab' && mega?.dataset.state === 'open') {
+          const focusable = mega.querySelectorAll('a,button,input,select,textarea');
+          if (!focusable.length) return;
+          const first = focusable[0], last = focusable[focusable.length-1];
+          if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+      });
+      document.addEventListener('click', e => {
+        if (mega?.dataset.state === 'open' && !header.contains(e.target)) closeMega();
       });
     }
 
@@ -201,10 +243,12 @@
       drawer.hidden = false;
       requestAnimationFrame(() => drawer.setAttribute('data-open','true'));
       toggle.setAttribute('aria-expanded','true');
+      document.body.classList.add('nav-open');
     }
     function closeDrawer() {
       drawer.removeAttribute('data-open');
       toggle.setAttribute('aria-expanded','false');
+      document.body.classList.remove('nav-open');
       setTimeout(() => { drawer.hidden = true; }, 280);
     }
     toggle?.addEventListener('click', () => {
