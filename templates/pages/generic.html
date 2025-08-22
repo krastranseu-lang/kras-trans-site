@@ -1,0 +1,10 @@
+<!doctype html>
+<section class="page-generic">
+  <div class="container">
+    <header class="page-header">
+      <h1>{{ meta.title }}</h1>
+      {% if meta.description %}<p class="lead">{{ meta.description }}</p>{% endif %}
+    </header>
+    <section data-api="/pages/{{ page.key }}/body?lang={{ lang }}"></section>
+  </div>
+</section>
