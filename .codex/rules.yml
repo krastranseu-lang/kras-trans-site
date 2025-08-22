@@ -1,0 +1,28 @@
+# Co wolno Codexowi i jakie testy mają przejść, aby PR został zmergowany
+labels:
+  codex:
+    allow:
+      - ".github/workflows/pages.yml"
+      - "tools/build.py"
+      - "tools/cms_ingest.py"
+      - "tools/menu_builder.py"
+      - "templates/**"
+      - "assets/**"
+      - "data/**"
+      - "!dist/**"     # nigdy nie dotykamy dist/
+    # w jednym PR zmieniamy max 1 z poniższych plików „krytycznych”, żeby uniknąć konfliktów
+    single_file_mutex:
+      - ".github/workflows/pages.yml"
+      - "tools/build.py"
+  manual:
+    allow:
+      - "**"
+      - "!dist/**"
+
+protected:
+  - "dist/**"
+
+checks:
+  yaml_lint: true
+  deny_conflict_markers: true
+  max_files_changed: 60

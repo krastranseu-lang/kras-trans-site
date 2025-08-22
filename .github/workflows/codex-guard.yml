@@ -1,0 +1,109 @@
+name: codex-guard
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install pyyaml
+
+      - name: Enforce .codex/rules.yml
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          LABELS: ${{ toJson(github.event.pull_request.labels) }}
+        run: |
+          python - <<'PY'
+          import os, sys, subprocess, yaml, fnmatch, pathlib, json
+
+          # --- inputs
+          base_ref = os.environ.get("BASE_REF","main")
+          labels = [l.get("name","") for l in json.loads(os.environ.get("LABELS","[]"))]
+
+          # --- load rules
+          rules_path = pathlib.Path(".codex/rules.yml")
+          if not rules_path.exists():
+              print("No .codex/rules.yml → guard skipped"); sys.exit(0)
+          rules = yaml.safe_load(rules_path.read_text())
+
+          # --- which profile
+          profile = "codex" if "codex" in labels else "manual"
+          conf = (rules.get("labels",{}).get(profile) or {})
+          allow = conf.get("allow", ["**"])
+          mutex = conf.get("single_file_mutex", [])
+          protected = rules.get("protected", [])
+          checks = rules.get("checks", {})
+          deny_conflict = checks.get("deny_conflict_markers", True)
+          yaml_lint = checks.get("yaml_lint", True)
+          max_files = int(checks.get("max_files_changed", 9999))
+
+          # --- changed files vs base
+          subprocess.run(["git","fetch","origin", base_ref], check=False, capture_output=True)
+          diff = subprocess.check_output(["git","diff","--name-only", f"origin/{base_ref}...HEAD"], text=True)
+          changed = [p for p in diff.splitlines() if p.strip()]
+          print("Changed files:", changed)
+
+          if len(changed) == 0:
+              print("No changes → OK"); sys.exit(0)
+
+          # --- helper: pattern allow with negations
+          def allowed(path):
+              # apply last-match-wins over allow patterns with optional '!' negation
+              verdict = False
+              for pat in allow:
+                  neg = pat.startswith("!")
+                  pat = pat[1:] if neg else pat
+                  if fnmatch.fnmatch(path, pat):
+                      verdict = (not neg)
+              return verdict
+
+          # --- forbid protected anytime
+          for p in changed:
+              for prot in protected:
+                  if fnmatch.fnmatch(p, prot):
+                      print(f"❌ Touching protected path: {p}")
+                      sys.exit(1)
+
+          # --- allow-list
+          not_allowed = [p for p in changed if not allowed(p)]
+          if not_allowed:
+              print("❌ Not allowed for profile", profile, ":", not_allowed)
+              sys.exit(1)
+
+          # --- mutex: nie zmieniaj więcej niż 1 pliku krytycznego w jednym PR
+          touched_mutex = [m for m in mutex if any(fnmatch.fnmatch(p, m) for p in changed)]
+          if len(touched_mutex) > 1:
+              print("❌ Single-file mutex violated. Changed:", touched_mutex)
+              sys.exit(1)
+
+          # --- max files
+          if len(changed) > max_files:
+              print(f"❌ Too many files changed ({len(changed)} > {max_files})")
+              sys.exit(1)
+
+          # --- deny conflict markers & yaml lint
+          for p in changed:
+              txt = pathlib.Path(p).read_text(errors="ignore")
+              if deny_conflict and any(m in txt for m in ("<<<<<<<", "=======", ">>>>>>>")):
+                  print(f"❌ Conflict markers found in {p}")
+                  sys.exit(1)
+              if yaml_lint and p.endswith((".yml",".yaml")):
+                  try:
+                      yaml.safe_load(txt)
+                  except Exception as e:
+                      print(f"❌ YAML invalid in {p}: {e}")
+                      sys.exit(1)
+
+          print("✅ codex-guard passed.")
+          PY

@@ -21,17 +21,21 @@ jobs:
   build:
     name: Build site (self-hosted)
     runs-on: [self-hosted, macOS, X64]
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Create local venv (system python3) + required libs
+
         run: |
+          set -e
           python3 -V
           python3 -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip
           pip install -r requirements.txt || true
           pip install --upgrade openpyxl beautifulsoup4 pyyaml
+
           python - <<'PY'
 import importlib, sys
 for m in ("openpyxl","bs4","yaml"):
@@ -42,7 +46,7 @@ PY
 
       - name: Provide CMS from runner
         run: |
-          set -euo pipefail
+          set -e
           mkdir -p data/cms
           SRC="${{ vars.CMS_SOURCE }}"
           [ -z "$SRC" ] && SRC="${{ vars.LOCAL_XLSX }}"
@@ -59,6 +63,7 @@ PY
           CLEAN: '1'
           MINIFY: '1'
         run: |
+          set -e
           source .venv/bin/activate
           python tools/build.py
 
@@ -71,6 +76,15 @@ PY
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
+      # Gdyby coś padło – zbierz maksimum informacji
+      - name: Debug on failure
+        if: ${{ failure() }}
+        run: |
+          echo "=== PYTHON ==="; python3 -V || true
+          echo "=== VENV PIP LIST ==="; source .venv/bin/activate && pip list || true
+          echo "=== DATA/CMS ==="; ls -lah data/cms || true
+          echo "=== DIST TREE (TOP) ==="; find dist -maxdepth 3 -type f | sed 's|^|  |' || true
 
   deploy:
     name: Deploy to GitHub Pages
