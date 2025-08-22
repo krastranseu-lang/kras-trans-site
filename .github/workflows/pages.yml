@@ -1,6 +1,7 @@
 name: pages
 on:
-  push: { branches: [ main ] }
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -12,6 +13,10 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     name: Build site (self-hosted)
@@ -19,30 +24,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Użyj systemowego Pythona, bez setup-python (eliminuje błąd /Users/runner)
-      - name: Create local venv
+      - name: Create local venv (system python3) + required libs
         run: |
           python3 -V
           python3 -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || pip install pyyaml openpyxl
+          pip install -r requirements.txt
+          pip install --upgrade openpyxl beautifulsoup4 pyyaml
+          python - <<'PY'
+import importlib, sys
+for m in ("openpyxl","bs4","yaml"):
+    try: importlib.import_module(m)
+    except Exception as e: sys.exit(f"❌ Missing {m}: {e}")
+print("✅ libs OK")
+PY
 
       - name: Provide CMS from runner
         run: |
           set -euo pipefail
           mkdir -p data/cms
           SRC="${{ vars.CMS_SOURCE }}"
-          if [ -z "$SRC" ]; then SRC="/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"; fi
+          [ -z "$SRC" ] && SRC="${{ vars.LOCAL_XLSX }}"
+          [ -z "$SRC" ] && SRC="/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
+          SRC="$(echo "$SRC" | sed 's/[[:space:]\.]*$//')"   # obetnij spacje/kropki z końca
           echo "CMS_SOURCE_PATH: $SRC"
-          ls -lah "$(dirname "$SRC")" || true
-          if [ ! -f "$SRC" ]; then echo "❌ CMS not found at: $SRC"; exit 1; fi
+          [ -f "$SRC" ] || (echo "❌ CMS not found at: $SRC"; exit 1)
           cp "$SRC" data/cms/menu.xlsx
           echo "CMS_SHA256: $(shasum -a 256 data/cms/menu.xlsx | awk '{print $1}')"
           ls -lah data/cms
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
 
       - name: Build
         env:
@@ -51,6 +61,11 @@ jobs:
         run: |
           source .venv/bin/activate
           python tools/build.py
+
+      - name: List bundles
+        run: |
+          echo "--- dist/assets/data/menu ---"; ls -lah dist/assets/data/menu || true
+          echo "--- dist/assets/nav (legacy) ---"; ls -lah dist/assets/nav || true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
