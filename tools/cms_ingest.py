@@ -164,8 +164,10 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
                 tpl = raw.get("template") or "page.html"
                 par = raw.get("parentSlug") or raw.get("parent") or ""
                 order = raw.get("order") or "999"
-                rel = raw_slug.strip().lstrip("/")
-                if rel.startswith(f"{L}/"):
+                rel = raw_slug.strip()
+                if rel.startswith(f"/{L}/"):
+                    rel = rel[len(f"/{L}/"):]
+                elif rel.startswith(f"{L}/"):
                     rel = rel[len(f"{L}/"):]
                 rel = rel.strip("/")
                 if not key: key = (rel or "home") if rel else "home"
