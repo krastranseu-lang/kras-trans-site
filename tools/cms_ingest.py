@@ -30,6 +30,19 @@ SYN = {
     "body":["body","tekst","content","markdown","md","body_md","body_html"],
     "cta_label":["cta_label","cta","button","przycisk","label"],
     "cta_href":["cta_href","cta_link","button_link","href","link"]
+  },
+  "faq": {
+    "lang":["lang","język","jezyk"],
+    "q":["q","question","pytanie"],
+    "a":["a","answer","odp","odpowiedz","odpowiedź"],
+    "page_slug":["page_slug","slugkey","slug","page","strona"],
+    "order":["order","kolej","sort"],
+    "enabled":["enabled","visible","widoczne","on","active","aktywny"]
+  },
+  "props": {
+    "key":["key","prop","nazwa"],
+    "lang":["lang","język","jezyk"],
+    "value":["value","wartosc","wartość","val","content"]
   }
 }
 
@@ -99,6 +112,9 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
     blocks: Dict[str,Dict[str,Any]] = {}
     pages_rows: List[Dict[str,Any]] = []
     routes: Dict[str, Dict[str, str]] = {}
+    strings: List[Dict[str,Any]] = []
+    faq_rows: List[Dict[str,Any]] = []
+    props_rows: List[Dict[str,Any]] = []
 
     def truthy(v:str) -> bool:
         return norm(v) in {"1","true","tak","yes","on","prawda"}
@@ -119,56 +135,53 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
             return (str(row[i]).strip() if i >= 0 and i < len(row) and row[i] is not None else "")
 
         # klasyfikacja
+        body_aliases = [norm(a) for a in SYN["blocks"]["body"]]
+        html_aliases = [norm(a) for a in SYN["blocks"]["html"]]
         is_pages = has("lang","publish","template") and (("slug" in hdr_lc) or ("slugkey" in hdr_lc))
         is_menu  = has("lang","label","href","enabled")
         is_meta  = has("lang","key")
-        is_blocks= has("lang") and ("html" in hdr_lc or "body" in hdr_lc)
+        is_blocks= ("lang" in hdr_lc) and (any(a in hdr_lc for a in body_aliases) or any(a in hdr_lc for a in html_aliases))
+        is_faq   = has("lang","q","a")
+        is_props = has("lang","key","value")
+        lang_cols = [h for h in hdr if len(norm(h))==2]
+        lang_set = {norm(h) for h in lang_cols}
+        is_strings = norm(hdr[0])=="key" and len(lang_cols)>=1
+        is_routes  = norm(hdr[0]) in ("slugkey","key") and len(lang_cols)>=1 and ("lang" not in hdr_lc)
 
         it = ws.iter_rows(values_only=True); next(it, None)
 
         if is_pages:
             report.append(f"[detect] pages-like: {ws.title}")
             for row in it:
-                L   = norm(cell(row,"lang") or "pl")
-                pub = truthy(cell(row,"publish") or "true")
-                if not pub: 
+                raw = {hdr[i]: ("" if i>=len(row) or row[i] is None else str(row[i]).strip()) for i in range(len(hdr))}
+                L   = norm(raw.get("lang") or "pl")
+                pub = truthy(raw.get("publish") or "true")
+                if not pub:
                     continue
-                raw_slug = cell(row,"slug")
-                key = norm(cell(row,"slugkey") or "")
-                tpl = cell(row,"template") or "page.html"
-                par = cell(row,"parentslug") or cell(row,"parent") or ""
-                order = cell(row,"order") or "999"
-                # slug relatywny bez /{lang}/
+                raw_slug = raw.get("slug", "")
+                key = norm(raw.get("slugKey") or raw.get("slugkey") or "")
+                tpl = raw.get("template") or "page.html"
+                par = raw.get("parentSlug") or raw.get("parent") or ""
+                order = raw.get("order") or "999"
                 rel = raw_slug.strip()
                 if rel.startswith(f"/{L}/"): rel = rel[len(f"/{L}/"):]
                 rel = rel.strip("/")
                 if not key: key = (rel or "home") if rel else "home"
-
-                # meta z kolumn pages (nie gub żadnej)
-                meta = {
-                    "h1": cell(row,"h1"),
-                    "title": cell(row,"title"),
-                    "seo_title": cell(row,"seo_title"),
-                    "meta_desc": cell(row,"meta_desc"),
-                    "hero_alt": cell(row,"hero_alt"),
-                    "hero_image": cell(row,"hero_image"),
-                    "og_image": cell(row,"og_image"),
-                    "canonical": cell(row,"canonical"),
-                    "cta_label": cell(row,"cta_label"),
-                    "cta_href": cell(row,"cta_href"),
-                    "cta_phone": cell(row,"cta_phone"),
-                    "whatsapp": cell(row,"whatsapp"),
-                }
-                # zapisz
-                pages_rows.append({
-                    "lang": L, "key": key, "slug": rel, "parent_key": par, "template": tpl,
-                    "order": int(float(order or "999")), "meta": meta
+                page = dict(raw)
+                page.update({
+                    "lang": L,
+                    "slug": rel,
+                    "slugKey": key,
+                    "parentSlug": par,
+                    "template": tpl,
+                    "order": int(float(order or "999")),
+                    "publish": True
                 })
+                pages_rows.append(page)
                 routes.setdefault(key, {})[L] = rel
                 pm = page_meta.setdefault(L, {}).setdefault(key, {})
-                # uzupełnij mapę meta (nie nadpisuj jeśli już istnieje z innego arkusza)
                 for k,v in (("seo_title","seo_title"),("title","title"),("meta_desc","description"),("og_image","og_image"),("canonical","canonical")):
-                    val = meta.get(k)
+                    val = page.get(k)
                     if val and (pm.get(v) in (None,"")):
                         pm[v] = val
 
@@ -213,7 +226,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
                     key = norm(cell(row,"key") or "")
                     sec = norm(cell(row,"section") or "")
                     if key and sec: path = f"pages/{key}/{sec}"
-                if not path: 
+                if not path:
                     continue
                 b = blocks.setdefault(L, {}).setdefault(path.lstrip("/"), {})
                 htm = cell(row,"html"); body= cell(row,"body")
@@ -223,6 +236,58 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
                     v = cell(row,extra)
                     if v: b[extra]=v
 
+        if is_faq:
+            report.append(f"[detect] faq-like: {ws.title}")
+            for row in it:
+                L = norm(cell(row,"lang") or "pl")
+                q = cell(row,"q"); a = cell(row,"a")
+                if not q or not a:
+                    continue
+                pg = cell(row,"page_slug") or cell(row,"slugkey") or cell(row,"page") or "home"
+                order = cell(row,"order") or "999"
+                en = truthy(cell(row,"enabled") or "true")
+                if not en:
+                    continue
+                faq_rows.append({"lang": L, "q": q, "a": a, "page_slug": pg, "order": int(float(order))})
+
+        if is_props:
+            report.append(f"[detect] props-like: {ws.title}")
+            for row in it:
+                key = cell(row,"key")
+                val = cell(row,"value")
+                L = norm(cell(row,"lang") or "pl")
+                if key and val:
+                    props_rows.append({"key": key, "lang": L, "value": val})
+
+        if is_strings:
+            report.append(f"[detect] strings-like: {ws.title}")
+            # languages columns
+            for row in it:
+                if not row:
+                    continue
+                key = (row[0] or "").strip()
+                if not key:
+                    continue
+                d = {"key": key}
+                for i,h in enumerate(hdr):
+                    if norm(h) in lang_set:
+                        d[norm(h)] = ("" if i>=len(row) or row[i] is None else str(row[i]).strip())
+                strings.append(d)
+
+        if is_routes:
+            report.append(f"[detect] routes-like: {ws.title}")
+            for row in it:
+                if not row:
+                    continue
+                key = norm((row[0] or ""))
+                if not key:
+                    continue
+                for i,h in enumerate(hdr):
+                    L = norm(h)
+                    if L in lang_set:
+                        val = ("" if i>=len(row) or row[i] is None else str(row[i]).strip())
+                        if val:
+                            routes.setdefault(key, {})[L] = val
     report.append(f"[result] pages_rows={len(pages_rows)}, menu_rows={len(menu_rows)}, meta_langs={len(page_meta)}, blocks_langs={len(blocks)}")
     return {
         "menu_rows": menu_rows,
@@ -230,6 +295,9 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
         "blocks": blocks,
         "page_routes": routes,
         "pages_rows": pages_rows,
+        "strings": strings,
+        "faq_rows": faq_rows,
+        "props_rows": props_rows,
         "report": "\n".join(report)
     }
 

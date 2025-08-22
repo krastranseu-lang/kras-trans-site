@@ -375,6 +375,32 @@ def _cms_local_read() -> Dict[str, Any]:
     }
 
 def load_cms() -> Dict[str, Any]:
+    base = pathlib.Path("data") / "cms"
+    if cms_ingest:
+        try:
+            data = cms_ingest.load_all(base)
+            if data:
+                print(data.get("report", ""))
+                blocks_list = []
+                for lang, m in (data.get("blocks") or {}).items():
+                    for path, obj in m.items():
+                        b = {"lang": lang, "path": path}
+                        b.update(obj)
+                        blocks_list.append(b)
+                cms = {
+                    "ok": True,
+                    "pages": data.get("pages_rows", []),
+                    "blocks": blocks_list,
+                    "faq": data.get("faq_rows", []),
+                    "strings": data.get("strings", []),
+                    "props": data.get("props_rows", []),
+                    "hreflang": data.get("page_routes", {}),
+                    "menu_rows": data.get("menu_rows", []),
+                    "page_meta": data.get("page_meta", {})
+                }
+                return cms
+        except Exception as e:
+            print(f"[CMS] cms_ingest error: {e}", file=sys.stderr)
     return _cms_local_read()
 
 CMS = load_cms()
