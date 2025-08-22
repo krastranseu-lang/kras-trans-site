@@ -60,7 +60,9 @@ def _read_xlsx(path: Path):
     return {ws.title: ws for ws in wb.worksheets}
 
 def _rows(ws):
-    it = ws.iter_rows(values_only=True)
+    start_cell, end_cell = ws.calculate_dimension().split(":")
+    max_row = int("".join(filter(str.isdigit, end_cell)))
+    it = ws.iter_rows(values_only=True, max_row=max_row)
     headers = [str(x or "").strip() for x in next(it)]
     for row in it:
         yield headers, [("" if v is None else str(v).strip()) for v in row]
@@ -69,7 +71,9 @@ def _find_sheet(sheets, group):
     best = None; best_score=-1
     for name, ws in sheets.items():
         try:
-            it = ws.iter_rows(values_only=True)
+            start_cell, end_cell = ws.calculate_dimension().split(":")
+            max_row = int("".join(filter(str.isdigit, end_cell)))
+            it = ws.iter_rows(values_only=True, max_row=max_row)
             headers = [str(x or "").strip() for x in next(it)]
             m = _map_headers(headers, SYN[group])
             score = len(m)
@@ -102,8 +106,8 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
     wb = openpyxl.load_workbook(src, read_only=True, data_only=True)
 
     def norm(s): return (s or "").strip().lower()
-    def headers(ws):
-        it = ws.iter_rows(values_only=True)
+    def headers(ws, max_row):
+        it = ws.iter_rows(values_only=True, max_row=max_row)
         row = next(it)
         return [str(x or "").strip() for x in row]
 
@@ -122,7 +126,9 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
 
     # przejrzyj wszystkie arkusze
     for ws in wb.worksheets:
-        hdr = headers(ws); hdr_lc = [norm(h) for h in hdr]
+        start_cell, end_cell = ws.calculate_dimension().split(":")
+        max_row = int("".join(filter(str.isdigit, end_cell)))
+        hdr = headers(ws, max_row); hdr_lc = [norm(h) for h in hdr]
         r = f"[sheet] {ws.title}: {hdr}"
         report.append(r)
 
@@ -149,7 +155,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
         is_strings = norm(hdr[0])=="key" and len(lang_cols)>=1
         is_routes  = norm(hdr[0]) in ("slugkey","key") and len(lang_cols)>=1 and ("lang" not in hdr_lc)
 
-        it = ws.iter_rows(values_only=True); next(it, None)
+        it = ws.iter_rows(values_only=True, max_row=max_row); next(it, None)
 
         if is_pages:
             report.append(f"[detect] pages-like: {ws.title}")
