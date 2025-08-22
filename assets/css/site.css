@@ -127,7 +127,7 @@ body.nav-open{overflow:hidden}
 .sq-nav .nav__list{
   list-style:none; margin:0; padding:0;
   display:flex; gap:6px; align-items:center;
-  flex-wrap:wrap;             /* wrap to multiple rows */
+  flex-wrap:nowrap; overflow-x:auto; /* single-row horizontal scroll */
   -webkit-overflow-scrolling:touch;
   scroll-behavior:smooth;
 }
