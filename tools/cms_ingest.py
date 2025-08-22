@@ -89,6 +89,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
     Dane z wielu arkuszy sumują się (union).
     """
     report = []
+    warnings: List[str] = []
     # 1) wybór źródła
     src = explicit_src if explicit_src and explicit_src.exists() else \
           (cms_root / "menu.xlsx" if (cms_root / "menu.xlsx").exists() else None)
@@ -183,6 +184,17 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
                 page.setdefault("h1", page["slugKey"])
                 page.setdefault("title", page["h1"])
                 page.setdefault("body_md", f"## {page['h1']}\n\n")
+
+                # sanity checks for required text fields
+                if not (page.get("h1") or "").strip():
+                    msg = f"[cms_ingest] page '{key}' missing h1"
+                    warnings.append(msg); report.append(msg)
+                if not (page.get("title") or "").strip():
+                    msg = f"[cms_ingest] page '{key}' missing title"
+                    warnings.append(msg); report.append(msg)
+                if not (page.get("body_md") or "").strip():
+                    msg = f"[cms_ingest] page '{key}' missing body_md"
+                    warnings.append(msg); report.append(msg)
                 pages_rows.append(page)
                 routes.setdefault(key, {})[L] = rel
                 pm = page_meta.setdefault(L, {}).setdefault(key, {})
@@ -304,6 +316,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
         "strings": strings,
         "faq_rows": faq_rows,
         "props_rows": props_rows,
-        "report": "\n".join(report)
+        "report": "\n".join(report),
+        "warnings": warnings,
     }
 
