@@ -71,20 +71,52 @@ def _load_xlsx(p: Path) -> List[Dict[str, Any]]:
     return rows
 
 def load_cms(cms_dir: Path) -> List[Dict[str, Any]]:
+    """
+    Ładuje menu z arkusza/JSON/CSV. Szuka w:
+    - data/cms/  (standard)
+    - data/      (root, gdy ktoś trzyma pliki bez podfolderu)
+    Obsługuje nazwy: cms.json, CMS.json, cms.csv, CMS.csv, cms.xlsx, CMS.xlsx.
+    Priorytet: XLSX > JSON > CSV (jeśli znajdzie kilka — bierze pierwszy wg kolejności poniżej).
+    """
     cms_dir = Path(cms_dir)
-    candidates = [
-        cms_dir / "cms.json",
-        cms_dir / "cms.csv",
-        cms_dir / "cms.xlsx",
-    ]
-    src = next((p for p in candidates if p.exists()), None)
-    if not src:
-        # No CMS file — return empty to let builder fallback gracefully
-        return []
-    if src.suffix == ".json": raw = _load_json(src)
-    elif src.suffix == ".csv": raw = _load_csv(src)
-    else: raw = _load_xlsx(src)
+    roots = [cms_dir]
+    if cms_dir.parent:
+        roots.append(cms_dir.parent)  # np. data/
 
+    # Kolejność preferencji: XLSX → JSON → CSV
+    names = [
+        "CMS.xlsx", "cms.xlsx",
+        "cms.json", "CMS.json",
+        "cms.csv",  "CMS.csv",
+    ]
+
+    src: Optional[Path] = None
+    for root in roots:
+        for name in names:
+            p = root / name
+            if p.exists():
+                src = p
+                break
+        if src:
+            break
+
+    if not src:
+        # brak plików – zwróć pustą listę, builder użyje fallbacku
+        return []
+
+    # Wczytaj wg rozszerzenia
+    ext = src.suffix.lower()
+    print(f"[menu_builder] Using CMS source: {src}")
+    if ext == ".json":
+        raw = _load_json(src)
+    elif ext == ".csv":
+        raw = _load_csv(src)
+    elif ext == ".xlsx":
+        raw = _load_xlsx(src)
+    else:
+        return []
+
+    # Normalizacja jak dotąd
     norm = []
     for r in raw:
         lang = str(r.get("lang","pl")).strip().lower()
@@ -94,13 +126,12 @@ def load_cms(cms_dir: Path) -> List[Dict[str, Any]]:
         order = _to_int(r.get("order"), 999)
         col = _to_int(r.get("col"), 1)
         enabled = _to_bool(r.get("enabled"))
-        if not label:  # skip nameless
+        if not label:
             continue
         norm.append({
             "lang": lang, "label": label, "href": href,
             "parent": parent, "order": order, "col": col, "enabled": enabled
         })
-    # Only enabled
     norm = [r for r in norm if r["enabled"]]
     return norm
 
