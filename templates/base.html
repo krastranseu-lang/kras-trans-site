@@ -10,8 +10,6 @@
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0ea5e9" />
   <meta name="theme-color" media="(prefers-color-scheme: dark)"  content="#0b1020" />
 
-  <!-- CMS endpoint (dla headera, który ciągnie NAV z GAS) -->
-  <meta name="cms-endpoint" content="{{ cms_endpoint }}" />
 
   <title>{{ page.seo_title or page.title }}</title>
   <meta name="description" content="{{ page.meta_desc }}" />
@@ -151,10 +149,9 @@
   })();
   </script>
 
-  {# --- CMS_ENDPOINT stała (fallback do <meta>) --- #}
+  {# --- CMS_ENDPOINT stała --- #}
   <script>
-    window.CMS_ENDPOINT = window.CMS_ENDPOINT
-      || (document.querySelector('meta[name="cms-endpoint"]')?.content || '');
+    window.CMS_ENDPOINT = window.CMS_ENDPOINT || '';
   </script>
 
   {# --- Fallback: doładuj /assets/js/cms.js jeśli nie ma w assets.js --- #}

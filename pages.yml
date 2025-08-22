@@ -3,8 +3,6 @@ version: 6
 # ============================ 1) CONSTANTS / KEYS ===========================
 constants:
   SITE_URL: "https://kras-trans.com"
-  APPS_URL: "https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec"
-  APPS_KEY: "kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
   GA_ID: "G-5FYE42J3BE"
   GSC_HTML_FILE: "google4377ff145fac0f52.html"
   GSC_VERIFICATION: "Q3XgXOegwnvV6sBj31MbGlldhfD2uzmHBnR6kvLFj7Y"
@@ -49,8 +47,8 @@ site:
 
 # =============================== 3) CMS SOURCE ==============================
 cms:
-  endpoint: "${APPS_URL}"
-  key: "${APPS_KEY}"
+  endpoint: ""
+  key: ""
   expects:
     - ok
     - pages

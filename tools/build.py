@@ -9,11 +9,11 @@ CELE:
 - Zgodność z pages.yml v6, i18n (pl,en,de,fr,it,ru,ua), SEO, performance, a11y.
 
 NAJWAŻNIEJSZE FUNKCJE:
-- ENV override: SITE_URL, APPS_URL, APPS_KEY, GA_ID, GSC_VERIFICATION, INDEXNOW_KEY, BING_SITE_AUTH_USER, NEWS_ENABLED
-- CMS: pobieranie z Google Apps Script (?key=...), fallback do data/cms.json, robust timeout/log
+- ENV override: SITE_URL, GA_ID, GSC_VERIFICATION, INDEXNOW_KEY, BING_SITE_AUTH_USER, NEWS_ENABLED
+- CMS: wczytywanie z lokalnych plików data/cms, robust timeout/log
 - Kopiowanie assets/ → dist/assets
 - Render Jinja + autolinki + sanity DOM (a11y/perf)
-- Head injections (jeśli brakuje w szablonie): <meta name="cms-endpoint">, GA (gtag), GSC meta, canonical, hreflang, OG/Twitter, JSON-LD
+- Head injections (jeśli brakuje w szablonie): GA (gtag), GSC meta, canonical, hreflang, OG/Twitter, JSON-LD
 - Root "/" = redirect do /{defaultLang}/ + GSC meta + canonical
 - City×Service generator + thin/noindex + OG-image (opcjonalnie)
 - Sitemapy z alternates (xhtml:link), news-sitemap (okno godz.), robots.txt
@@ -267,8 +267,6 @@ def _env(name: str, default: Any) -> Any:
     return default if v is None or str(v).strip()=="" else v
 
 SITE_URL = (_env("SITE_URL", C.get("SITE_URL","")) or "").rstrip("/")
-APPS_URL = ""   # wyłączone: nie używamy Google Apps Script
-APPS_KEY = ""   # wyłączone: nie używamy Google Apps Script
 GA_ID    = _env("GA_ID", C.get("GA_ID",""))
 GSC      = _env("GSC_VERIFICATION", C.get("GSC_VERIFICATION",""))
 INDEXNOW_KEY = _env("INDEXNOW_KEY", C.get("INDEXNOW_KEY",""))
@@ -681,7 +679,7 @@ def og_image_for(page:Dict[str,Any])->Optional[str]:
 # ------------------------------ HEAD INJECTIONS -----------------------------
 def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:Dict[str,Dict[str,str]]):
     """
-    Wstrzykuje: canonical, hreflang, OG/Twitter, GSC, cms-endpoint, GA, JSON-LD (jeśli brak).
+    Wstrzykuje: canonical, hreflang, OG/Twitter, GSC, GA, JSON-LD (jeśli brak).
     Bez duplikacji. Szanuje istniejące tagi z szablonów.
     """
     head = soup.find("head")
@@ -745,11 +743,6 @@ def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:
     # GSC verification
     if (GSC or "").strip() and not head.find("meta", attrs={"name":"google-site-verification"}):
         add_meta(name="google-site-verification", content=GSC)
-
-    # cms-endpoint
-    cms_endpoint = (f"{APPS_URL}?key={APPS_KEY}" if APPS_URL and APPS_KEY else "")
-    if cms_endpoint and not head.find("meta", attrs={"name":"cms-endpoint"}):
-        add_meta(name="cms-endpoint", content=cms_endpoint)
 
     # GA (gtag) – wstrzykuj tylko, jeśli w całym dokumencie nie ma już configu
     if (GA_ID or "").strip():
