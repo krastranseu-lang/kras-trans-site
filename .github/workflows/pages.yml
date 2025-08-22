@@ -26,7 +26,18 @@ jobs:
           python3 -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || pip install pyyaml openpyxl
+          # spróbuj z requirements.txt, ale dodatkowo doinstaluj biblioteki potrzebne dla XLSX/BS4/YAML
+          pip install -r requirements.txt || true
+          pip install --upgrade openpyxl beautifulsoup4 pyyaml
+          # twardy test – przerwij jeśli brakuje którejkolwiek z bibliotek
+          python - <<'PY'
+import sys
+try:
+    import openpyxl, bs4, yaml
+    print("OK: openpyxl/bs4/PyYAML gotowe")
+except Exception as e:
+    sys.exit(f"❌ Missing lib: {e}")
+PY
 
       - name: Provide CMS from runner
         run: |
