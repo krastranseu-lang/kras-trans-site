@@ -59,6 +59,12 @@ jobs:
           source .venv/bin/activate
           python tools/cms_guard.py .codex/cms_schema.yml data/cms/menu.xlsx
 
+      - name: Snapshot CMS
+        run: |
+          set -e
+          source .venv/bin/activate
+          python tools/cms_snapshot.py data/cms/menu.xlsx
+
       - name: Upload CMS sheet report
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
