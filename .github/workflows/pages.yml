@@ -52,6 +52,13 @@ jobs:
           source .venv/bin/activate
           python tools/build.py
 
+      - name: List bundles
+        run: |
+          echo "--- dist/assets/data/menu ---"
+          ls -lah dist/assets/data/menu || true
+          echo "--- dist/assets/nav (legacy) ---"
+          ls -lah dist/assets/nav || true
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
