@@ -53,6 +53,12 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: CMS Schema Guard
+        run: |
+          set -e
+          source .venv/bin/activate
+          python tools/cms_guard.py .codex/cms_schema.yml data/cms/menu.xlsx
+
       - name: Build
         env:
           CLEAN: '1'
