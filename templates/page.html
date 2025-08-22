@@ -49,7 +49,7 @@
          data-api="/home/hero" aria-busy="{{ 'false' if ssr else 'true' }}">
   <div class="wrap hero__wrap">
     <div class="hero__copy">
-      <p class="hero__claim" data-bind="text: home.claim"></p>
+      <p class="hero__claim" data-bind="text: hero.claim">{{ H.claim if ssr and H.claim else '' }}</p>
       <h1 id="hero-title" class="hero__title">
         {{ H.title if ssr else '' }}
       </h1>
