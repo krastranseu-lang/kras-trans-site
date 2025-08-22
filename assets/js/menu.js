@@ -43,14 +43,12 @@
     const btns = $$('.mega-toggle');
     function closeAll(except){ btns.forEach(b=>{ if(b!==except) b.setAttribute('aria-expanded','false'); }); }
     btns.forEach(btn=>{
-      const panel = document.getElementById(btn.getAttribute('aria-controls'));
       const set = v=>btn.setAttribute('aria-expanded', v?'true':'false');
-      btn.addEventListener('click', e=>{
+      btn.addEventListener('mouseenter', e=>{
         e.stopPropagation();
-        const open = btn.getAttribute('aria-expanded') !== 'true';
-        closeAll(btn); set(open);
+        closeAll(btn); set(true);
       });
-      if (panel) panel.addEventListener('mouseleave', ()=>set(false));
+      btn.addEventListener('mouseleave', ()=>set(false));
     });
     document.addEventListener('click', ()=>closeAll(null));
     document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAll(null); });
