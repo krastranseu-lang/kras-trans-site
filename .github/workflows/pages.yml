@@ -25,7 +25,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create local venv (python3) & install libs
+      - name: Create local venv (system python3) + required libs
+
         run: |
           set -e
           python3 -V
@@ -33,7 +34,8 @@ jobs:
           source .venv/bin/activate
           python -m pip install --upgrade pip
           pip install -r requirements.txt || true
-          pip install --upgrade openpyxl beautifulsoup4 PyYAML
+          pip install --upgrade openpyxl beautifulsoup4 pyyaml
+
           python - <<'PY'
 import importlib, sys
 for m in ("openpyxl","bs4","yaml"):
@@ -55,9 +57,6 @@ PY
           cp "$SRC" data/cms/menu.xlsx
           echo "CMS_SHA256: $(shasum -a 256 data/cms/menu.xlsx | awk '{print $1}')"
           ls -lah data/cms
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
 
       - name: Build
         env:
