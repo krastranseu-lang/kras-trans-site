@@ -145,10 +145,9 @@
   })();
   </script>
 
-  {# --- CMS_ENDPOINT stała (fallback do <meta>) --- #}
+  {# --- CMS_ENDPOINT stała --- #}
   <script>
-    window.CMS_ENDPOINT = window.CMS_ENDPOINT
-      || (document.querySelector('meta[name="cms-endpoint"]')?.content || '');
+    window.CMS_ENDPOINT = window.CMS_ENDPOINT || '';
   </script>
 
   {# --- Fallback: doładuj /assets/js/cms.js jeśli nie ma w assets.js --- #}
