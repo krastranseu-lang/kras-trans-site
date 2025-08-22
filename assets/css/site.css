@@ -324,3 +324,34 @@ img,svg,video{max-width:100%; height:auto; display:block}
 .footer .col{background:rgba(255,255,255,.92); border:1px solid var(--line); border-radius:14px; padding:12px}
 @media (prefers-color-scheme:dark){ .footer .col{background:rgba(255,255,255,.06)} }
 @media (min-width:900px){ .footer-grid{grid-template-columns:1.2fr 1fr 1fr 1fr} }
+
+/* TOP NAV – pozwól zawijać elementy do nowej linii */
+.sq-nav .nav__list{
+  display:flex;
+  flex-wrap: wrap;   /* KLUCZ: zawijanie do kolejnych wierszy */
+  gap: 6px;
+}
+
+/* Brak „nieskończonego” poziomego przewijania */
+.sq-nav{
+  overflow: visible;
+}
+
+/* Linki w li nie łamią layoutu szerokimi spacjami */
+.sq-nav .nav__list > li{
+  white-space: normal;
+}
+
+/* Siatka kart w mega‑menu */
+.mega__grid{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap:16px;
+}
+
+/* Mobile: 1 kolumna */
+@media (max-width: 768px){
+  .mega__grid{
+    grid-template-columns: 1fr;
+  }
+}
