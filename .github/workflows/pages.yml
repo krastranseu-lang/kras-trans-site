@@ -21,12 +21,10 @@ jobs:
   build:
     name: Build site (self-hosted)
     runs-on: [self-hosted, macOS, X64]
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Create local venv (system python3) + required libs
-
         run: |
           set -e
           python3 -V
@@ -35,23 +33,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt || true
           pip install --upgrade openpyxl beautifulsoup4 pyyaml
-
           python - <<'PY'
 import importlib, sys
 for m in ("openpyxl","bs4","yaml"):
-    try: importlib.import_module(m)
-    except Exception as e: sys.exit(f"❌ Missing {m}: {e}")
+    try:
+        importlib.import_module(m)
+    except Exception as e:
+        sys.exit(f"❌ Missing {m}: {e}")
 print("✅ libs OK")
 PY
 
       - name: Provide CMS from runner
         run: |
-          set -e
+          set -euo pipefail
           mkdir -p data/cms
           SRC="${{ vars.CMS_SOURCE }}"
           [ -z "$SRC" ] && SRC="${{ vars.LOCAL_XLSX }}"
           [ -z "$SRC" ] && SRC="/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
-          SRC="$(echo "$SRC" | sed 's/[[:space:]\.]*$//')"   # obetnij spacje/kropki z końca
+          SRC="$(echo "$SRC" | sed 's/[[:space:]\\.]*$//')"   # obetnij spacje/kropki z końca
           echo "CMS_SOURCE_PATH: $SRC"
           [ -f "$SRC" ] || (echo "❌ CMS not found at: $SRC"; exit 1)
           cp "$SRC" data/cms/menu.xlsx
@@ -63,7 +62,6 @@ PY
           CLEAN: '1'
           MINIFY: '1'
         run: |
-          set -e
           source .venv/bin/activate
           python tools/build.py
 
