@@ -30,7 +30,15 @@ UŻYCIE (CI):
 """
 import os
 from pathlib import Path
-import cms_ingest
+
+try:
+    import cms_ingest
+except ModuleNotFoundError as exc:
+    raise ModuleNotFoundError(
+        "Missing dependency: cms_ingest. Ensure the local module exists in the "
+        "tools/ directory or install the package if it is external."
+    ) from exc
+
 from bs4 import BeautifulSoup
 
 import re, io, csv, json, math, sys, time, glob, shutil, hashlib, unicodedata, pathlib
