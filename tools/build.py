@@ -28,11 +28,11 @@ OPCJONALNE:
 UŻYCIE (CI):
   python -u tools/build.py
 """
-import os
+import os, json
 from pathlib import Path
 import cms_ingest
 from bs4 import BeautifulSoup
-import re, io, csv, json, math, sys, time, glob, shutil, hashlib, unicodedata, pathlib
+import re, io, csv, math, sys, time, glob, shutil, hashlib, unicodedata, pathlib
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Tuple, Iterable, Optional, Set
 
@@ -812,11 +812,35 @@ def neighbors_for(
 # ------------------------------ RENDER / BUILD ------------------------------
 def build_all():
     languages = LOCALES
+    site = {
+        "default_lang": CFG.get("site", {}).get("defaultLang", "pl"),
+        "languages": languages,
+    }
+    page_defs = CFG.get("pages", [])
     src = os.getenv("LOCAL_XLSX") or os.getenv("CMS_SOURCE") or "/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
     cms = cms_ingest.load_all(DATA / "cms", explicit_src=Path(src))
     print(cms.get("report","[cms] no report"))
     global CMS
     CMS = cms
+
+    def _slug(s):
+        import re, unicodedata
+        s = unicodedata.normalize('NFKD', s).encode('ascii','ignore').decode('ascii')
+        return re.sub(r'[^a-zA-Z0-9]+','-', s).strip('-').lower() or 'page'
+    existing = {p["key"] for p in page_defs}
+    meta_default = cms.get("page_meta", {}).get(site.get("default_lang","pl"), {})
+    for key in meta_default.keys():
+        if key in existing: continue
+        page_defs.append({
+          "key": key,
+          "template": "generic.html",
+          "parent": "home",
+          "slugs": { L: _slug(key) for L in site.get("languages",["pl"]) },
+          "title": { L: meta_default[key].get("title") or key for L in site.get("languages",["pl"]) },
+          "description": { L: meta_default[key].get("description") or "" for L in site.get("languages",["pl"]) },
+          "og_image": meta_default[key].get("og_image") or "/assets/img/placeholder.svg"
+        })
+    CMS["pages"] = page_defs + CMS.get("pages", [])
 
     def _inject_blocks(html, lang):
         bl = cms.get("blocks", {}).get(lang, {})
@@ -842,17 +866,19 @@ def build_all():
                         if btn.name=="a" and blk.get("cta_href"): btn["href"]=blk["cta_href"]
         return str(s)
 
-    if cms.get("menu_rows"):
-        rows = cms["menu_rows"]
+    rows = cms.get("menu_rows", [])
+    if rows:
         bundles, html_by_lang = {}, {}
-        for lang in languages:
-            b = menu_builder.build_bundle_for_lang(rows, lang)
-            bundles[lang] = b
-            html_by_lang[lang] = menu_builder.render_nav_html(b)
+        for L in languages:
+            b = menu_builder.build_bundle_for_lang(rows, L)
+            bundles[L] = b
+            html_by_lang[L] = menu_builder.render_nav_html(b)
         out = DIST / "assets" / "data" / "menu"
         out.mkdir(parents=True, exist_ok=True)
-        for lang, b in bundles.items():
-            write(out / f"bundle_{lang}.json", json.dumps(b, ensure_ascii=False, separators=(",",":")))
+        for L, b in bundles.items():
+            write(out / f"bundle_{L}.json", json.dumps(b, ensure_ascii=False, separators=(",",":")))
+        # twarda kontrola 404 bundla:
+        assert (out / f"bundle_{site.get('default_lang','pl')}.json").exists(), "No menu bundle generated"
     else:
         bundles, html_by_lang = {}, {}
     pages = base_pages()
@@ -929,6 +955,12 @@ def build_all():
                 f"</head><body><h1>{p.get('h1','')}</h1></body></html>"
             )
         page_html = _inject_blocks(page_html, lang)
+        # debug
+        write(DIST/"_debug_cms.json", json.dumps({
+          "menu_rows": len(cms.get("menu_rows",[])),
+          "meta_langs": list(cms.get("page_meta",{}).keys()),
+          "blocks_langs": list(cms.get("blocks",{}).keys())
+        }, ensure_ascii=False, indent=2))
 
         # AUTOLINKI + fallback
         page_html, ai, fb = inject_autolinks(page_html, lang)
