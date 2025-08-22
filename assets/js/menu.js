@@ -1,11 +1,11 @@
 /* Mega-menu SWR-only:
    - NIE renderuje na starcie (korzystamy z SSR)
    - TYLKO sprawdza wersję bundla i w razie zmiany podmienia menu
-   - pobiera z /assets/data/menu/bundle_{lang}.json */
+   - pobiera z /assets/nav/bundle_{lang}.json */
 (function(){
   const UL_ID = 'primary-nav-list';
   const META_NAME = 'menu-bundle-version';
-  const PREFIX = '/assets/data/menu';
+  const PREFIX = '/assets/nav';
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
 
