@@ -1,291 +1,103 @@
-/*!
- * Kras‑Trans • cms.js
- * NAV loader: static snapshot (instant) → cache → optional refresh z GAS
- * - Zero „slugify fallback” dla rodziców bez landing page (href="#", blokada kliknięcia)
- * - Dedykowane key‑value w localStorage: kt_nav_bundle_{lang}
- * - Renderuje: primary_html, mega_html, langs_html, CTA, logo, status, social
- * - Odporny na brak API/KEY (działa ze snapshotem)
- */
+/* Mega-menu SWR-only:
+   - NIE renderuje na starcie (używamy SSR z HTML-a)
+   - TYLKO sprawdza wersję bundla i w razie zmiany podmienia menu
+   - pobiera z /assets/data/menu/bundle_{lang}.json (fix 404) */
+(function(){
+  const UL_ID = 'primary-nav-list';
+  const META_NAME = 'menu-bundle-version';
+  const PREFIX = '/assets/data/menu';
 
-(function () {
-  'use strict';
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
 
-  /* ========= DOM ========= */
-  const root     = document.getElementById('site-header');
-  if (!root) return;
+  function esc(s){return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+  function slug(s){return (s||'').normalize('NFKD').replace(/[^\w\s-]/g,'')
+    .replace(/\s+/g,'-').replace(/-+/g,'-').toLowerCase();}
 
-  // Główne elementy nagłówka (łap elastycznie — różne wersje header.html)
-  const navList  = document.getElementById('navList');
-  const mega     = document.getElementById('mega');
-  const langList = document.getElementById('langList') || document.getElementById('langMenu');
-
-  const brandLink = document.getElementById('brandlink') || document.getElementById('brand') || root.querySelector('.brand a, #brand a');
-  const brandImg  = (brandLink && brandLink.querySelector('img')) || document.getElementById('brandImg') || root.querySelector('.brand img');
-
-  const ctaBtn   = document.getElementById('cta') || root.querySelector('[data-cta]');
-  const statusEl = document.getElementById('statusPill') || root.querySelector('[data-status-pill]');
-
-  /* ========= Konfiguracja ========= */
-  const HTML = document.documentElement;
-  const LANG = (location.pathname.match(/^\/([a-z]{2})\//) || [,''])[1] || (HTML.lang || 'pl').slice(0,2).toLowerCase();
-
-  // Endpoint + key z data-* lub globali/mety (działa, nawet gdy ich nie ma)
-  const API     = (root.dataset.api || window.CMS_ENDPOINT || '').trim();
-  const API_KEY = (root.dataset.key || window.CMS_API_KEY || '').trim();
-
-  // Ścieżki do flag, gdyby były potrzebne (snapshot zwykle ma absoluty)
-  const FLAGS_PATH = root.dataset.flags || '/assets/flags';
-
-  // Cache (6h)
-  const TTL_MS = 6 * 60 * 60 * 1000;
-  const CK = (k) => `kt_${k}_${LANG}`;
-
-  /* ========= Pomocnicze ========= */
-  const now  = () => Date.now();
-  const safeJSON = (s, def=null) => { try { return JSON.parse(s); } catch(_){ return def; } };
-  function getCache(key) {
-    try {
-      const raw = localStorage.getItem(key);
-      if (!raw) return null;
-      const obj = safeJSON(raw);
-      if (!obj || !obj.ts || !obj.v) return null;
-      if (now() - obj.ts > TTL_MS) return null;
-      return obj.v;
-    } catch (_) { return null; }
-  }
-  function setCache(key, val) {
-    try { localStorage.setItem(key, JSON.stringify({ ts: now(), v: val })); } catch (_) {}
-  }
-  const deepEq = (a,b) => {
-    try { return JSON.stringify(a) === JSON.stringify(b); } catch(_){ return false; }
-  };
-
-  // Nie czyścimy/nie poprawiamy HTML z bundla — generowany po naszej stronie
-  const passHTML = (s) => s || '';
-
-  // Zbuduj href do sluga na bazie mapy routes z bundla (jeśli jest)
-  function hrefForSlug(bundle, slugKey) {
-    if (!bundle || !bundle.routes || !slugKey) return `/${LANG}/`;
-    const map = bundle.routes[String(slugKey)] || {};
-    const slug = (map[LANG] || '').replace(/^\/+|\/+$/g,'');
-    return `/${LANG}/${slug ? (slug + '/') : ''}`;
-  }
-
-  function ensureStyle(css) {
-    if (document.getElementById('nav-dyn')) return;
-    const s = document.createElement('style');
-    s.id = 'nav-dyn';
-    s.textContent = css;
-    document.head.appendChild(s);
-  }
-
-  let openTO, closeTO, activeLi, panels;
-  function scheduleOpen(key, li) {
-    clearTimeout(openTO); clearTimeout(closeTO);
-    openTO = setTimeout(() => openPanel(key, li), 200);
-  }
-  function scheduleClose(key, li) {
-    clearTimeout(openTO); clearTimeout(closeTO);
-    closeTO = setTimeout(() => closePanel(key, li), 400);
-  }
-
-  if (mega) {
-    mega.addEventListener('mouseenter', () => clearTimeout(closeTO));
-    mega.addEventListener('mouseleave', () => {
-      const key = mega.dataset.active;
-      if (key) scheduleClose(key, activeLi);
-    });
-  }
-
-  /* ========= Render ========= */
-  function renderFromBundle(bundle) {
-    if (!bundle) return;
-
-    // PRIMARY NAV
-    if (navList && bundle.primary_html) {
-      navList.innerHTML = bundle.primary_html;
-      enhancePrimary(navList);
-    }
-
-    if (mega && bundle.mega_html) {
-      mega.innerHTML = bundle.mega_html;
-      panels = mega.querySelectorAll('.mega__section');
-    }
-
-    // JĘZYKI
-    if (langList && bundle.langs_html) {
-      langList.innerHTML = passHTML(bundle.langs_html);
-    }
-
-    // LOGO
-    if (brandImg && bundle.logo && bundle.logo.src) {
-      brandImg.src = bundle.logo.src;
-      brandImg.alt = bundle.logo.alt || brandImg.alt || '';
-    }
-
-    // CTA
-    if (ctaBtn && bundle.cta) {
-      if (bundle.cta.label) ctaBtn.textContent = bundle.cta.label;
-      // Priorytet: trasa z routes; fallback do istniejącego href
-      const want = hrefForSlug(bundle, bundle.cta.slugKey || 'quote');
-      if (want) ctaBtn.setAttribute('href', want);
-    }
-
-    // STATUS
-    if (statusEl && bundle.status && bundle.status.label) {
-      statusEl.textContent = bundle.status.label;
-      if (bundle.status.href) statusEl.setAttribute('href', bundle.status.href);
-    }
-
-    // (opcjonalnie) social — jeśli w headerze są atrybuty data-*
-    if (root && bundle.social) {
-      ['ig','li','fb'].forEach(k=>{
-        const el = root.querySelector(`[data-social="${k}"]`);
-        if (el && bundle.social[k]) el.setAttribute('href', bundle.social[k]);
-      });
-    }
-
-    if (!window.__ktHeaderOverflowLogged) {
-      const suspicious = [...document.querySelectorAll('*')].find(el => {
-        const cs = getComputedStyle(el);
-        return (cs.whiteSpace === 'nowrap' || cs.minWidth === 'min-content') && el.closest('.site-header');
-      });
-      if (suspicious) {
-        console.warn('[header-overflow] element z nowrap/min-content:', suspicious);
-        window.__ktHeaderOverflowLogged = true;
-      }
-    }
-
-    ensureStyle(`
-      .sq-nav .nav__list{display:flex;flex-wrap:wrap;gap:.5rem 1rem}
-      .mega__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-      @media(max-width:960px){.mega__grid{grid-template-columns:1fr}}
-    `);
-
-    root.dispatchEvent(new CustomEvent('kt:nav:rendered', { detail: { lang: LANG }}));
-  }
-
-  // Ulepszenie listy głównej:
-  // - brak błędnego fallbacku do /{lang}/{slugify(parent)}/ (rodzic bez linku ma href="#" + blokada)
-  // - otwieranie/zamykanie mega‑paneli (hover + click/touch)
-  function enhancePrimary(list) {
-    const items = list.querySelectorAll(':scope > li');
-
-    items.forEach(li => {
-      const panel = (li.getAttribute('data-panel') || '').trim();
-      const a = li.querySelector('a');
-      const hasPanel = !!panel;
-
-      let href = a ? (a.getAttribute('href') || '') : '';
-      href = (href && href.trim()) || '#';
-
-      // Jeżeli anchor nie ma prawidłowego docelowego URL — traktuj jako toggle (a nie link)
-      if (!href || href === '#' || href === '/#') {
-        if (a) {
-          a.setAttribute('href', '#');
-          a.setAttribute('role', 'button');
-          a.setAttribute('aria-haspopup', hasPanel ? 'true' : 'false');
-          a.setAttribute('aria-expanded', 'false');
-          a.addEventListener('click', e => {
-            if (hasPanel) { e.preventDefault(); togglePanel(panel, li); }
-          }, { passive:false });
+  function buildHTML(bundle){
+    if(!bundle || !Array.isArray(bundle.items)) return '';
+    return bundle.items
+      .sort((a,b)=> (a.order||999)-(b.order||999) || String(a.label).localeCompare(String(b.label)))
+      .map(it=>{
+        const label = esc(it.label||'');
+        const href  = esc(it.href||'/');
+        if(Array.isArray(it.cols) && it.cols.length){
+          const id = "mega-"+slug(label);
+          const colsHTML = it.cols.map(col=>{
+            const lis = (col||[]).map(ch=>`<li><a href="${esc(ch.href||'/')}">${esc(ch.label||'')}</a></li>`).join('');
+            return `<div class="mega-col"><ul>${lis}</ul></div>`;
+          }).join('');
+          return `<li class="has-mega">
+            <button class="mega-toggle" aria-expanded="false" aria-controls="${id}">${label}</button>
+            <div id="${id}" class="mega" role="dialog" aria-label="${label}" aria-modal="false">
+              <div class="mega-grid">${colsHTML}</div>
+            </div>
+          </li>`;
+        } else {
+          return `<li><a href="${href}">${label}</a></li>`;
         }
-      }
+      }).join('');
+  }
 
-      if (hasPanel) {
-        li.classList.add('has-panel');
-        // Hover (desktop)
-        li.addEventListener('mouseenter', () => scheduleOpen(panel, li));
-        li.addEventListener('mouseleave', () => scheduleClose(panel, li));
-        // Tap/click (mobile + fallback)
-        li.addEventListener('click', (e) => {
-          const targetA = e.target.closest('a');
-          // Jeśli klik w anchor z realnym linkiem — przepuszczamy
-          if (targetA && targetA.getAttribute('href') && targetA.getAttribute('href') !== '#') return;
-          e.preventDefault();
-          togglePanel(panel, li);
-        });
-      }
+  function bindMega(){
+    const btns = $$('.mega-toggle');
+    function closeAll(except){ btns.forEach(b=>{ if(b!==except) b.setAttribute('aria-expanded','false'); }); }
+    btns.forEach(btn=>{
+      const panel = document.getElementById(btn.getAttribute('aria-controls'));
+      const set = v=>btn.setAttribute('aria-expanded', v?'true':'false');
+      btn.addEventListener('click', e=>{
+        e.stopPropagation();
+        const open = btn.getAttribute('aria-expanded') !== 'true';
+        closeAll(btn); set(open);
+      });
+      if (panel) panel.addEventListener('mouseleave', ()=>set(false));
     });
-
-    // Podświetl aktualną stronę
-    try {
-      const cur = location.pathname.replace(/\/+$/,'') + '/';
-      const active = list.querySelector(`a[href="${cur}"]`);
-      if (active) active.setAttribute('aria-current', 'page');
-    } catch(_) {}
-
+    document.addEventListener('click', ()=>closeAll(null));
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAll(null); });
   }
 
-  function openPanel(key, li) {
-    if (!mega || !key) return;
-    clearTimeout(openTO); clearTimeout(closeTO);
-    if (mega.dataset.active !== key) {
-      activeLi?.querySelector('a[aria-expanded]')?.setAttribute('aria-expanded','false');
-    }
-    activeLi = li || activeLi;
-    mega.dataset.active = key;
-    mega.style.display = 'block';
-    requestAnimationFrame(() => {
-      mega.style.pointerEvents = 'auto';
-      mega.style.opacity = '1';
-      mega.style.transform = 'translateY(0)';
-    });
-    root.classList.add('mega-open');
-    li?.querySelector('a[aria-expanded]')?.setAttribute('aria-expanded','true');
+  function currentVersion(){
+    const m = document.querySelector(`meta[name="${META_NAME}"]`);
+    return (m && m.getAttribute('content')) || '';
   }
-  function closePanel(key, li) {
-    if (!mega || !key) return;
-    clearTimeout(openTO); clearTimeout(closeTO);
-    if (mega.dataset.active === key) { delete mega.dataset.active; }
-    mega.style.opacity = '0';
-    mega.style.transform = 'translateY(-8px)';
-    mega.style.pointerEvents = 'none';
-    setTimeout(() => { mega.style.display = 'none'; }, 300);
-    root.classList.remove('mega-open');
-    (li || activeLi)?.querySelector('a[aria-expanded]')?.setAttribute('aria-expanded','false');
-    activeLi = null;
-  }
-  function togglePanel(key, li) {
-    if (!mega || !key) return;
-    if (mega.dataset.active === key) closePanel(key, li);
-    else openPanel(key, li);
+  function setVersion(v){
+    let m = document.querySelector(`meta[name="${META_NAME}"]`);
+    if (!m){ m = document.createElement('meta'); m.setAttribute('name', META_NAME); document.head.appendChild(m); }
+    m.setAttribute('content', v||'');
   }
 
-  /* ========= Źródła danych ========= */
+  async function revalidate(){
+    try{
+      const lang = (document.documentElement.getAttribute('lang') || 'pl').toLowerCase();
+      const url = `${PREFIX}/bundle_${lang}.json`;
+      const res = await fetch(url, {cache:'no-store'});
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data || !data.version) return;
 
-  // 1) localStorage — natychmiastowy paint (jeżeli jest i świeże)
-  const cached = getCache(CK('nav_bundle'));
-  if (cached) renderFromBundle(cached);
+      const ul = document.getElementById(UL_ID);
+      if (!ul) return;
 
-  // 2) statyczny snapshot z serwera (autoratywny; bardzo szybki; odświeża cache+DOM)
-  fetch(`/assets/nav/bundle_${LANG}.json`, { cache:'no-store', credentials:'same-origin' })
-    .then(r => r.ok ? r.json() : Promise.reject(new Error('static 404')))
-    .then(b => {
-      if (!deepEq(b, cached)) {
-        renderFromBundle(b);
-        setCache(CK('nav_bundle'), b);
+      // Podmień tylko gdy SSR jest puste LUB wersja się zmieniła
+      if (ul.children.length === 0 || data.version !== currentVersion()){
+        ul.innerHTML = buildHTML(data);
+        bindMega();
+        setVersion(data.version);
       }
-    })
-    .catch(() => { /* brak pliku – trudno; jedziemy dalej */ });
-
-  // 3) ciche odświeżenie z GAS (jeśli skonfigurowany endpoint)
-  if (API) {
-    const url = API + (API.includes('?') ? '&' : '?')
-              + (API_KEY ? `key=${encodeURIComponent(API_KEY)}&` : '')
-              + `lang=${encodeURIComponent(LANG)}&nocache=1`;
-    fetch(url, { cache:'no-store', mode:'cors' })
-      .then(r => r.ok ? r.json() : Promise.reject(new Error('gas error')))
-      .then(j => j && j.nav_current ? j.nav_current : null)
-      .then(b => {
-        if (!b) return;
-        const cur = getCache(CK('nav_bundle')); // może już zaktualizowaliśmy przez snapshot
-        if (!deepEq(b, cur)) {
-          renderFromBundle(b);
-          setCache(CK('nav_bundle'), b);
-        }
-      })
-      .catch(() => { /* brak dostępu do GAS — nie blokujemy UI */ });
+    }catch(e){}
   }
 
+  function start(){
+    if ('requestIdleCallback' in window) requestIdleCallback(revalidate);
+    else setTimeout(revalidate, 600);
+    setInterval(revalidate, 5*60*1000);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
 })();
