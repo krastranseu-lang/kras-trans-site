@@ -10,9 +10,6 @@
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0ea5e9" />
   <meta name="theme-color" media="(prefers-color-scheme: dark)"  content="#0b1020" />
 
-  <!-- CMS endpoint (dla headera, który ciągnie NAV z GAS) -->
-  <meta name="cms-endpoint" content="{{ cms_endpoint }}" />
-
   <title>{{ page.seo_title or page.title }}</title>
   <meta name="description" content="{{ page.meta_desc }}" />
   {% if page.noindex %}<meta name="robots" content="noindex,follow" />{% else %}<meta name="robots" content="index,follow" />{% endif %}
@@ -57,9 +54,6 @@
   {% if assets.manifest %}<link rel="manifest" href="{{ assets.manifest }}" />{% endif %}
 
   {# --- Preconnecty TYLKO jeśli potrzebne --- #}
-{% if 'script.google.com' in (cms_endpoint or '') %}
-    <link rel="preconnect" href="https://script.google.com" crossorigin />
-  {% endif %}
   {% if ga_id %}
     <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
   {% endif %}

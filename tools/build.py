@@ -746,11 +746,6 @@ def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:
     if (GSC or "").strip() and not head.find("meta", attrs={"name":"google-site-verification"}):
         add_meta(name="google-site-verification", content=GSC)
 
-    # cms-endpoint
-    cms_endpoint = (f"{APPS_URL}?key={APPS_KEY}" if APPS_URL and APPS_KEY else "")
-    if cms_endpoint and not head.find("meta", attrs={"name":"cms-endpoint"}):
-        add_meta(name="cms-endpoint", content=cms_endpoint)
-
     # GA (gtag) – wstrzykuj tylko, jeśli w całym dokumencie nie ma już configu
     if (GA_ID or "").strip():
         has_gtm_any = bool(soup.find("script", src=re.compile(r"googletagmanager\.com/gtag/js")))
