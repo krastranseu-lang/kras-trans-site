@@ -811,34 +811,36 @@ def neighbors_for(
 
 # ------------------------------ RENDER / BUILD ------------------------------
 def build_all():
-    languages = LOCALES
     site = {
         "default_lang": CFG.get("site", {}).get("defaultLang", "pl"),
-        "languages": languages,
+        "languages": LOCALES,
     }
+    langs = site.get("languages", ["pl"])
+    dlang = site.get("default_lang", "pl")
     page_defs = CFG.get("pages", [])
     src = os.getenv("LOCAL_XLSX") or os.getenv("CMS_SOURCE") or "/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
     cms = cms_ingest.load_all(DATA / "cms", explicit_src=Path(src))
     print(cms.get("report","[cms] no report"))
+    if not cms.get("menu_rows"):
+        raise SystemExit("❌ CMS: menu_rows==0 (XLSX nieodczytany)")
     global CMS
     CMS = cms
 
+    existing = {p["key"] for p in page_defs}
+    meta_def = cms.get("page_meta", {}).get(dlang, {})
     def _slug(s):
         import re, unicodedata
         s = unicodedata.normalize('NFKD', s).encode('ascii','ignore').decode('ascii')
         return re.sub(r'[^a-zA-Z0-9]+','-', s).strip('-').lower() or 'page'
-    existing = {p["key"] for p in page_defs}
-    meta_default = cms.get("page_meta", {}).get(site.get("default_lang","pl"), {})
-    for key in meta_default.keys():
-        if key in existing: continue
+    for key, meta in meta_def.items():
+        if key in existing:
+            continue
         page_defs.append({
-          "key": key,
-          "template": "generic.html",
-          "parent": "home",
-          "slugs": { L: _slug(key) for L in site.get("languages",["pl"]) },
-          "title": { L: meta_default[key].get("title") or key for L in site.get("languages",["pl"]) },
-          "description": { L: meta_default[key].get("description") or "" for L in site.get("languages",["pl"]) },
-          "og_image": meta_default[key].get("og_image") or "/assets/img/placeholder.svg"
+          "key": key, "template": "generic.html", "parent": "home",
+          "slugs": {L: _slug(key) for L in langs},
+          "title": {L: meta.get("title") or key for L in langs},
+          "description": {L: meta.get("description") or "" for L in langs},
+          "og_image": meta.get("og_image") or "/assets/img/placeholder.svg"
         })
     CMS["pages"] = page_defs + CMS.get("pages", [])
 
@@ -869,16 +871,14 @@ def build_all():
     rows = cms.get("menu_rows", [])
     if rows:
         bundles, html_by_lang = {}, {}
-        for L in languages:
+        for L in langs:
             b = menu_builder.build_bundle_for_lang(rows, L)
             bundles[L] = b
             html_by_lang[L] = menu_builder.render_nav_html(b)
-        out = DIST / "assets" / "data" / "menu"
-        out.mkdir(parents=True, exist_ok=True)
+        out = DIST / "assets" / "data" / "menu"; out.mkdir(parents=True, exist_ok=True)
         for L, b in bundles.items():
             write(out / f"bundle_{L}.json", json.dumps(b, ensure_ascii=False, separators=(",",":")))
-        # twarda kontrola 404 bundla:
-        assert (out / f"bundle_{site.get('default_lang','pl')}.json").exists(), "No menu bundle generated"
+        assert (out / f"bundle_{dlang}.json").exists(), "❌ Brak bundla menu (404)"
     else:
         bundles, html_by_lang = {}, {}
     pages = base_pages()
