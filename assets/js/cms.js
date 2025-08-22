@@ -71,7 +71,15 @@
     return `/${LANG}/${slug ? (slug + '/') : ''}`;
   }
 
-  let openTO, closeTO, activeLi;
+  function ensureStyle(css) {
+    if (document.getElementById('nav-dyn')) return;
+    const s = document.createElement('style');
+    s.id = 'nav-dyn';
+    s.textContent = css;
+    document.head.appendChild(s);
+  }
+
+  let openTO, closeTO, activeLi, panels;
   function scheduleOpen(key, li) {
     clearTimeout(openTO); clearTimeout(closeTO);
     openTO = setTimeout(() => openPanel(key, li), 200);
@@ -95,26 +103,13 @@
 
     // PRIMARY NAV
     if (navList && bundle.primary_html) {
-      navList.innerHTML = passHTML(bundle.primary_html);
-      // HEADER OVERRIDES: defensywne style, aby lista nie rozszerzała layoutu
-      navList.style.display = 'flex';
-      navList.style.flexWrap = 'wrap';
-      navList.style.maxWidth = '100%';
-      navList.style.overflowX = 'visible';
-      navList.querySelectorAll('li, a, button').forEach(el => {
-        el.style.whiteSpace = 'normal';
-        el.style.maxWidth = '100%';
-      });
-      enhancePrimary(navList); // aria + obsługa mega + blokada kliknięć rodziców bez landing page
+      navList.innerHTML = bundle.primary_html;
+      enhancePrimary(navList);
     }
 
-    // MEGA‑PANELE
     if (mega && bundle.mega_html) {
-      mega.style.display = 'none';
-      mega.style.opacity = '0';
-      mega.style.transform = 'translateY(-8px)';
-      mega.style.transition = 'opacity 300ms cubic-bezier(.2,.7,.2,1), transform 300ms cubic-bezier(.2,.7,.2,1)';
-      mega.style.pointerEvents = 'none';
+      mega.innerHTML = bundle.mega_html;
+      panels = mega.querySelectorAll('.mega__section');
     }
 
     // JĘZYKI
@@ -160,6 +155,12 @@
         window.__ktHeaderOverflowLogged = true;
       }
     }
+
+    ensureStyle(`
+      .sq-nav .nav__list{display:flex;flex-wrap:wrap;gap:.5rem 1rem}
+      .mega__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+      @media(max-width:960px){.mega__grid{grid-template-columns:1fr}}
+    `);
 
     root.dispatchEvent(new CustomEvent('kt:nav:rendered', { detail: { lang: LANG }}));
   }

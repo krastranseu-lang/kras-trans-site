@@ -13,7 +13,7 @@ Generate static NAV bundles from single XLSX:
 """
 
 import json, sys, pathlib, re
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 
 from openpyxl import load_workbook
 from unidecode import unidecode
@@ -26,9 +26,9 @@ def slugify(raw: str) -> str:
     s = re.sub(r'-{2,}', '-', s).strip('-')
     return s
 
-def truthy(v):
-    s = str(v).strip().lower()
-    return s in ('1','true','yes','y','t')
+def _to_bool(v: str) -> bool:
+    s = str(v or '').strip().lower()
+    return s in {'true','1','yes','y','tak','prawda'}
 
 def read_routes(ws):
     head = [c.value for c in ws[1]]
@@ -68,19 +68,22 @@ def read_props(ws):
 
 def read_nav(ws):
     head = [c.value for c in ws[1]]
-    # required
     idx = {}
     for h in ('lang','label','href','parent','order','enabled'):
-        try: idx[h] = head.index(h)
+        try:
+            idx[h] = head.index(h)
         except ValueError:
             raise SystemExit(f"[Nav] Missing header '{h}'")
-    # optional column assignment
     if 'col' in head:
         idx['col'] = head.index('col')
+
     per_lang = defaultdict(list)
+    seen_href = defaultdict(set)
     for row in ws.iter_rows(min_row=2, values_only=True):
-        lang   = (row[idx['lang']] or '').strip().lower()
-        if lang not in LOCALES: continue
+        lang = (row[idx['lang']] or '').strip().lower()
+        if lang not in LOCALES:
+            continue
+
         label  = (row[idx['label']] or '').strip()
         href   = (row[idx['href']]  or '').strip()
         parent = (row[idx['parent']] or '').strip()
@@ -90,80 +93,34 @@ def read_nav(ws):
         if 'col' in idx:
             try:
                 c = int(row[idx['col']])
-                if 1 <= c <= 4:
+                if 1 <= c <= 3:
                     col = c
             except Exception:
                 pass
-        if not label: continue
-        if enabled is not None and not truthy(enabled): continue
-        try: order = int(order)
-        except Exception: order = 9999
+
+        if not label:
+            continue
+        if not _to_bool(enabled):
+            continue
+        if href:
+            if href in seen_href[lang]:
+                print(f"[Nav] Duplicate href '{href}' in {lang}", file=sys.stderr)
+                continue
+            seen_href[lang].add(href)
+        try:
+            order = int(order)
+        except Exception:
+            order = 0
+
         per_lang[lang].append({
-            'label':label, 'href':href, 'parent':parent, 'order':order, 'col':col
+            'label': label,
+            'href': href,
+            'parent': parent,
+            'order': order,
+            'col': col,
         })
-    # sort by order then label
-    for lang, items in per_lang.items():
-        items.sort(key=lambda x:(x['order'], x['parent'] or '', x['label']))
+
     return per_lang
-
-def primary_html_from_items(items):
-    """Build primary bar HTML from items grouped by parent.
-       - rodzic (parent none, href empty) → <li data-panel="..."><a href="#"></a>
-       - single (no parent, href set)     → <li><a href="..."></a>
-    """
-    singles = []
-    groups  = OrderedDict()
-    seen    = set()
-    for it in items:
-        key = (it['label'], it['href'], it['parent'])
-        if key in seen: continue
-        seen.add(key)
-        if it['parent']:
-            groups.setdefault(it['parent'], []).append(it)
-        elif it['href']:
-            singles.append(it)
-        else:
-            # to też traktujemy jako parent bez dzieci; pokaż w pasku jako toggle
-            groups.setdefault(it['label'], [])
-
-    # singles
-    li = []
-    for s in singles:
-        li.append(f'<li><a href="{s["href"]}">{s["label"]}</a></li>')
-    # parents
-    for parent in groups.keys():
-        li.append(f'<li data-panel="{slugify(parent)}"><a href="#">{parent}</a></li>')
-    return ''.join(li)
-
-def _cols_from_rows(rows):
-    cols = {1: [], 2: [], 3: [], 4: []}
-    next_col = 1
-    for r in rows:
-        c = r.get('col')
-        if c in cols:
-            cols[c].append(r)
-        else:
-            cols[next_col].append(r)
-            next_col = next_col % 4 + 1
-    return [cols[i] for i in range(1,5) if cols[i]]
-
-def mega_html_from_items(items):
-    groups = OrderedDict()
-    for it in items:
-        if it['parent']:
-            groups.setdefault(it['parent'], []).append(it)
-    sections = []
-    for parent, rows in groups.items():
-        cols = _cols_from_rows(rows)
-        col_divs = []
-        for col in cols:
-            cards = ''.join([f'<div class="card"><a href="{r["href"]}">{r["label"]}</a></div>' for r in col if r['href']])
-            col_divs.append(f'<div class="col">{cards}</div>')
-        N = len(cols)
-        sections.append(
-            f'<section class="mega__section" data-panel="{slugify(parent)}"><div class="mega__grid cols-{N}">' + ''.join(col_divs) + '</div></section>'
-        )
-    return ''.join(sections)
 
 def langs_html_for_lang(lang):
     # prosty picker języków – link na /{L}/ + aria-current
@@ -173,12 +130,60 @@ def langs_html_for_lang(lang):
         tags.append(f'<a href="/{L}/"{cur}><img class="flag" src="/assets/flags/{ "gb" if L=="en" else L }.svg" alt="" width="18" height="12">{L.upper()}</a>')
     return ' '.join(tags)
 
-def build_bundle(lang, items, routes, props):
+def build_bundle(lang, rows, routes, props):
+    # Structure
+    tops = [r for r in rows if not (r.get('parent') or '').strip()]
+    children = defaultdict(list)
+    for r in rows:
+        p = (r.get('parent') or '').strip()
+        if p:
+            children[p].append(r)
+
+    for arr in [tops, *children.values()]:
+        arr.sort(key=lambda r: int(r.get('order') or 0))
+
+    # Primary HTML
+    li = []
+    for t in tops:
+        label = t['label']
+        href  = t['href']
+        slug  = slugify(label)
+        kids  = children.get(label, []) + children.get(slug, [])
+        dp    = f' data-panel="{label}"' if kids else ''
+        li.append(f'<li{dp}><a href="{href}">{label}</a></li>')
+    primary_html = ''.join(li)
+
+    # Mega HTML
+    sections = []
+    for t in tops:
+        label = t['label']
+        slug  = slugify(label)
+        kids  = children.get(label, []) + children.get(slug, [])
+        if not kids:
+            continue
+        cols = {1: [], 2: [], 3: []}
+        for ch in kids:
+            try:
+                c = int(ch.get('col') or 1)
+            except Exception:
+                c = 1
+            if c not in (1,2,3):
+                c = 1
+            cols[c].append(ch)
+        col_divs = []
+        for i in (1,2,3):
+            links = ''.join(f'<div><a href="{r["href"]}">{r["label"]}</a></div>' for r in cols[i])
+            col_divs.append(f'<div class="col">{links}</div>')
+        sections.append(
+            f'<section class="mega__section" data-panel="{label}"><div class="mega__grid">' + ''.join(col_divs) + '</div></section>'
+        )
+    mega_html = ''.join(sections)
+
     bundle = {
-        'primary_html': primary_html_from_items(items),
-        'mega_html':    mega_html_from_items(items),
+        'primary_html': primary_html,
+        'mega_html':    mega_html,
         'langs_html':   langs_html_for_lang(lang),
-        'routes':       routes,   # dla CTA/langs w runtime
+        'routes':       routes,
     }
     # Props (opcjonalnie)
     p = props.get(lang, {})
