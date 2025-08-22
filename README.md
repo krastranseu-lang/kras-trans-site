@@ -16,3 +16,8 @@ For local experiments a simplified variant is available at
 `tools/build_local.py`. It uses the same `APPS_URL` and `APPS_KEY` variables and
 also outputs to `dist/`.
 
+## CMS data
+
+Menu labels must be unique within each language. During the build process,
+duplicate labels trigger a warning and the later entries are ignored.
+

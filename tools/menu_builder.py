@@ -5,6 +5,7 @@ Menu Builder for Kras-Trans.
 - Reads data/cms/cms.json OR cms.csv OR cms.xlsx (first sheet).
 - Expected columns: lang, label, href, parent, order, col, enabled
 - Produces per-language bundles and pre-rendered HTML for instant SSR.
+- Labels must be unique within each language; duplicates emit a warning and are ignored.
 """
 from __future__ import annotations
 import csv, json, hashlib, re, unicodedata, datetime, warnings
@@ -116,10 +117,11 @@ def load_cms(cms_dir: Path) -> List[Dict[str, Any]]:
     else:
         return []
 
-    # Normalizacja jak dotąd
-    norm = []
+    # Normalizacja jak dotąd + kontrola duplikatów etykiet per język
+    norm: List[Dict[str, Any]] = []
+    labels_by_lang: Dict[str, set] = {}
     for r in raw:
-        lang = str(r.get("lang","pl")).strip().lower()
+        lang = str(r.get("lang", "pl")).strip().lower()
         label = _sanitize_label(r.get("label"))
         parent = _sanitize_label(r.get("parent"))
         href = _sanitize_href(r.get("href"), lang, label)
@@ -128,10 +130,23 @@ def load_cms(cms_dir: Path) -> List[Dict[str, Any]]:
         enabled = _to_bool(r.get("enabled"))
         if not label:
             continue
+
+        seen = labels_by_lang.setdefault(lang, set())
+        if label in seen:
+            print(f"[menu_builder] WARNING: duplicate label '{label}' for lang '{lang}' — skipping")
+            continue
+        seen.add(label)
+
         norm.append({
-            "lang": lang, "label": label, "href": href,
-            "parent": parent, "order": order, "col": col, "enabled": enabled
+            "lang": lang,
+            "label": label,
+            "href": href,
+            "parent": parent,
+            "order": order,
+            "col": col,
+            "enabled": enabled,
         })
+
     norm = [r for r in norm if r["enabled"]]
     return norm
 
