@@ -28,11 +28,14 @@ OPCJONALNE:
 UŻYCIE (CI):
   python -u tools/build.py
 """
-import os, json
+import os, json, shutil
 from pathlib import Path
-import cms_ingest
 from bs4 import BeautifulSoup
-import re, io, csv, math, sys, time, glob, shutil, hashlib, unicodedata, pathlib
+try:
+    import cms_ingest  # nasz mały moduł do czytania XLSX (pkt 4 poniżej)
+except Exception:
+    cms_ingest = None
+import re, io, csv, math, sys, time, glob, hashlib, unicodedata, pathlib
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Tuple, Iterable, Optional, Set
 
@@ -812,75 +815,106 @@ def neighbors_for(
 # ------------------------------ RENDER / BUILD ------------------------------
 def build_all():
     site = {
-        "default_lang": CFG.get("site", {}).get("defaultLang", "pl"),
-        "languages": LOCALES,
+        "default_lang": CFG.get("default_lang") or CFG.get("site", {}).get("defaultLang", "pl"),
+        "languages": CFG.get("languages") or LOCALES,
+        "autogenerate_from_cms": CFG.get("autogenerate_from_cms", False),
     }
-    langs = site.get("languages", ["pl"])
+    languages = site.get("languages", ["pl"])
+    langs = languages
     dlang = site.get("default_lang", "pl")
     page_defs = CFG.get("pages", [])
-    src = os.getenv("LOCAL_XLSX") or os.getenv("CMS_SOURCE") or "/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
-    cms = cms_ingest.load_all(DATA / "cms", explicit_src=Path(src))
-    print(cms.get("report","[cms] no report"))
-    if not cms.get("menu_rows"):
-        raise SystemExit("❌ CMS: menu_rows==0 (XLSX nieodczytany)")
+    # === CMS: wczytaj XLSX z runnera (LOCAL_XLSX/CMS_SOURCE albo stała ścieżka) ===
+    src_path = os.getenv("LOCAL_XLSX") or os.getenv("CMS_SOURCE") or "/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
+    cms = {"menu_rows": [], "page_meta": {}, "blocks": {}, "report": "[cms] no module"}
+    if cms_ingest:
+        cms = cms_ingest.load_all((DATA / "cms"), explicit_src=Path(src_path))
+        print(cms.get("report", "[cms] no report"))
+    else:
+        print("[cms] cms_ingest not available")
     global CMS
     CMS = cms
-
-    existing = {p["key"] for p in page_defs}
-    meta_def = cms.get("page_meta", {}).get(dlang, {})
-    def _slug(s):
-        import re, unicodedata
-        s = unicodedata.normalize('NFKD', s).encode('ascii','ignore').decode('ascii')
-        return re.sub(r'[^a-zA-Z0-9]+','-', s).strip('-').lower() or 'page'
-    for key, meta in meta_def.items():
-        if key in existing:
-            continue
-        page_defs.append({
-          "key": key, "template": "generic.html", "parent": "home",
-          "slugs": {L: _slug(key) for L in langs},
-          "title": {L: meta.get("title") or key for L in langs},
-          "description": {L: meta.get("description") or "" for L in langs},
-          "og_image": meta.get("og_image") or "/assets/img/placeholder.svg"
-        })
+    # === MENU: jeśli są wiersze z arkusza → buduj bundlery + HTML do SSR ===
+    rows = cms.get("menu_rows") or []
+    if rows:
+        bundles, html_by_lang = {}, {}
+        for L in languages:
+            b = menu_builder.build_bundle_for_lang(rows, L)
+            bundles[L] = b
+            html_by_lang[L] = menu_builder.render_nav_html(b)
+        # zapisz bundlery do nowej i legacy ścieżki (żeby nie było 404)
+        out_new = DIST / "assets" / "data" / "menu"
+        out_old = DIST / "assets" / "nav"
+        out_new.mkdir(parents=True, exist_ok=True)
+        out_old.mkdir(parents=True, exist_ok=True)
+        for L, b in bundles.items():
+            p = out_new / f"bundle_{L}.json"
+            p.write_text(json.dumps(b, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+            shutil.copy2(p, out_old / p.name)
+    else:
+        bundles, html_by_lang = {}, {}
+        print("[cms] menu_rows empty → pozostaje dotychczasowe menu (jeśli jest)")
+    # === Auto-pages z CMS (dopisz brakujące strony na podstawie meta z domyślnego języka) ===
+    auto_on = site.get("autogenerate_from_cms", False)
+    if auto_on and cms.get("page_meta"):
+        dlang = site.get("default_lang", "pl")
+        meta_d = cms["page_meta"].get(dlang, {})
+        page_list_name = "page_defs" if "page_defs" in locals() else ("pages" if "pages" in locals() else None)
+        page_list = locals().get(page_list_name, [])
+        existing = {p.get("key") for p in page_list if isinstance(p, dict)}
+        def _slug(s):
+            import re, unicodedata
+            s = unicodedata.normalize('NFKD', s).encode('ascii','ignore').decode('ascii')
+            return re.sub(r'[^a-zA-Z0-9]+','-', s).strip('-').lower() or 'page'
+        for key, meta in meta_d.items():
+            if key in existing:
+                continue
+            page_list.append({
+                "key": key,
+                "template": "generic.html",
+                "parent": "home",
+                "slugs": { L: _slug(key) for L in languages },
+                "title": { L: (cms["page_meta"].get(L, {}).get(key, {}).get("title") or key) for L in languages },
+                "description": { L: (cms["page_meta"].get(L, {}).get(key, {}).get("description") or "") for L in languages },
+                "og_image": (cms["page_meta"].get(dlang, {}).get(key, {}).get("og_image") or "/assets/img/placeholder.svg"),
+            })
+        if page_list_name:
+            locals()[page_list_name] = page_list
+            print(f"[cms] autogenerate: added {len(page_list)-len(existing)} pages")
     CMS["pages"] = page_defs + CMS.get("pages", [])
-
+    # === Wstrzyknięcie bloków (SSR) do elementów z data-api ===
     def _inject_blocks(html, lang):
         bl = cms.get("blocks", {}).get(lang, {})
-        if not bl: return html
-        s = BeautifulSoup(html, "html.parser")
-        for el in s.select("[data-api]"):
+        if not bl:
+            return html
+        soup = BeautifulSoup(html, "html.parser")
+        for el in soup.select("[data-api]"):
             path = el.get("data-api","").split("?")[0].lstrip("/").rstrip("/")
             blk = bl.get(path)
-            if not blk: continue
+            if not blk:
+                continue
             if blk.get("html"):
-                el.clear(); el.append(BeautifulSoup(blk["html"], "html.parser"))
+                el.clear()
+                el.append(BeautifulSoup(blk["html"], "html.parser"))
             else:
                 if blk.get("title"):
                     h = el.find(["h1","h2","h3"])
                     if h: h.string = blk["title"]
                 if blk.get("body"):
-                    p = el.find(class_="lead") or el.find("p")
-                    if p: p.clear() or p.append(BeautifulSoup(blk["body"], "html.parser"))
+                    tgt = el.find(class_="lead") or el.find("p")
+                    if tgt:
+                        tgt.clear()
+                        tgt.append(BeautifulSoup(blk["body"], "html.parser"))
                 if blk.get("cta_label"):
                     btn = el.find("a", class_="btn-cta") or el.find("button", class_="btn-cta")
                     if btn:
                         btn.string = blk["cta_label"]
-                        if btn.name=="a" and blk.get("cta_href"): btn["href"]=blk["cta_href"]
-        return str(s)
-
-    rows = cms.get("menu_rows", [])
-    if rows:
-        bundles, html_by_lang = {}, {}
-        for L in langs:
-            b = menu_builder.build_bundle_for_lang(rows, L)
-            bundles[L] = b
-            html_by_lang[L] = menu_builder.render_nav_html(b)
-        out = DIST / "assets" / "data" / "menu"; out.mkdir(parents=True, exist_ok=True)
-        for L, b in bundles.items():
-            write(out / f"bundle_{L}.json", json.dumps(b, ensure_ascii=False, separators=(",",":")))
-        assert (out / f"bundle_{dlang}.json").exists(), "❌ Brak bundla menu (404)"
-    else:
-        bundles, html_by_lang = {}, {}
+                        if btn.name == "a" and blk.get("cta_href"):
+                            btn["href"] = blk["cta_href"]
+        return str(soup)
+    # === sanity: musi istnieć bundle dla domyślnego języka
+    dlang_check = site.get("default_lang", "pl")
+    assert (DIST/"assets"/"data"/"menu"/f"bundle_{dlang_check}.json").exists() or \
+           (DIST/"assets"/"nav"/f"bundle_{dlang_check}.json").exists(), "❌ Brak bundla menu (404)"
     pages = base_pages()
     city  = generate_city_service()
     all_pages = pages + city
@@ -1004,13 +1038,15 @@ def build_all():
         write_text(dest/"index.html", f"<!doctype html><meta charset='utf-8'><meta http-equiv='refresh' content='0;url={dst}'><link rel='canonical' href='{dst}'><meta name='robots' content='noindex,follow'><title>Redirect</title>")
 
     # root redirect index (+ GSC meta + canonical)
-    root_html = f"""<!doctype html><html lang="{DEFAULT_LANG}"><head><meta charset="utf-8">
-<title>{CFG.get('site',{}).get('brand','Kras-Trans')}</title>
-<meta name="google-site-verification" content="{GSC}">
-<link rel="canonical" href="/{DEFAULT_LANG}/">
-<meta http-equiv="refresh" content="0; url=/{DEFAULT_LANG}/">
-<script>location.replace('/{DEFAULT_LANG}/');</script>
-</head><body></body></html>"""
+    root_html = (
+        f"<!doctype html><html lang=\"{DEFAULT_LANG}\"><head><meta charset=\"utf-8\">"
+        f"<title>{CFG.get('site',{}).get('brand','Kras-Trans')}</title>"
+        f"<meta name=\"google-site-verification\" content=\"{GSC}\">"
+        f"<link rel=\"canonical\" href=\"/{DEFAULT_LANG}/\">"
+        f"<meta http-equiv=\"refresh\" content=\"0; url=/{DEFAULT_LANG}/\">"
+        f"<script>location.replace('/{DEFAULT_LANG}/');</script>"
+        f"</head><body></body></html>"
+    )
     write_text(OUT/"index.html", root_html)
     # GSC HTML file verification (drugi, pewny sposób weryfikacji)
     html_file = (CFG.get("constants", {}).get("GSC_HTML_FILE") or "").strip()
@@ -1060,10 +1096,8 @@ def build_all():
 
 # ----------------------------- SITEMAPS ------------------------------------
 def write_sitemaps(urls: List[Tuple[str, str, str]] | List[Tuple[str, str]] , alternates: Dict[str, Dict[str, str]] | None = None):
-    """
-    urls: [(loc, lastmod, slugKey?)] – trzeci element może nie wystąpić (wtedy alternates ignorujemy)
-    alternates: { slugKey: { 'pl': '...', 'en': '...', ... } }
-    """
+    # urls: [(loc, lastmod, slugKey?)] - trzeci element może nie wystąpić (wtedy alternates ignorujemy)
+    # alternates: { slugKey: { 'pl': '...', 'en': '...', ... } }
     alternates = alternates or {}
     # wyciągnij slugKey jeśli jest; ujednolić do 3-elementowej krotki
     norm_urls: List[Tuple[str, str, str]] = []
@@ -1200,10 +1234,8 @@ def internal_link_checker():
 
 # ----------------------------- NEWS SITEMAP ---------------------------------
 def write_news_sitemap():
-    """
-    Generuje news-sitemap na podstawie CMS.pages[type=blog_post] w oknie czasowym.
-    Działa tylko gdy NEWS_ENABLED=True lub blog.news_sitemap.enabled=True.
-    """
+    # Generuje news-sitemap na podstawie CMS.pages[type=blog_post] w oknie czasowym.
+    # Działa tylko gdy NEWS_ENABLED=True lub blog.news_sitemap.enabled=True.
     enabled_cfg = bool(CFG.get("blog", {}).get("news_sitemap", {}).get("enabled", False))
     if not (NEWS_ENABLED or enabled_cfg):
         return  # nic do roboty

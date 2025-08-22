@@ -1,4 +1,7 @@
 version: 6
+languages: [pl, en, de, fr, it, ru, ua]
+default_lang: pl
+autogenerate_from_cms: true
 
 # ============================ 1) CONSTANTS / KEYS ===========================
 constants:
