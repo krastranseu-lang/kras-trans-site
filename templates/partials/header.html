@@ -1,0 +1,17 @@
+<header id="site-header">
+  <nav id="primary-nav" class="nav" role="navigation" aria-label="{{ t.nav.aria_main }}">
+    <ul class="nav-list" id="primary-nav-list">
+      {{ menu_html|safe }}
+    </ul>
+
+    <div class="lang-switcher">
+      <label for="lang-switcher" class="sr-only">{{ t.nav.language_switch }}</label>
+      <select id="lang-switcher" aria-label="{{ t.nav.language_switch }}">
+        {{ language_options|safe }}
+      </select>
+    </div>
+
+    <a class="btn-cta" href="{{ urls.contact }}">{{ t.nav.quote }}</a>
+  </nav>
+</header>
+<script id="menu-bundle-inline" type="application/json">{{ menu_bundle_inline|safe }}</script>
