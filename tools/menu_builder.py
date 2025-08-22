@@ -7,7 +7,7 @@ Menu Builder for Kras-Trans.
 - Produces per-language bundles and pre-rendered HTML for instant SSR.
 """
 from __future__ import annotations
-import csv, json, hashlib, re, unicodedata, datetime
+import csv, json, hashlib, re, unicodedata, datetime, warnings
 from pathlib import Path
 from typing import Dict, List, Any, Tuple, Optional
 
@@ -135,7 +135,7 @@ def load_cms(cms_dir: Path) -> List[Dict[str, Any]]:
     norm = [r for r in norm if r["enabled"]]
     return norm
 
-def build_bundle_for_lang(rows: List[Dict[str, Any]], lang: str) -> Dict[str, Any]:
+def build_bundle_for_lang(rows: List[Dict[str, Any]], lang: str, orphan_report: Optional[Path] = None) -> Dict[str, Any]:
     LR = [r for r in rows if r["lang"] == lang]
     if not LR:
         return {"lang": lang, "version": "sha256:0"*8, "generated_at": datetime.datetime.utcnow().isoformat()+"Z", "items": []}
@@ -146,11 +146,23 @@ def build_bundle_for_lang(rows: List[Dict[str, Any]], lang: str) -> Dict[str, An
     by_label = {r["label"]: r for r in LR}
     children = [r for r in LR if r["parent"]]
 
-    # Group children under parent
+    # Group children under parent and note orphans
     children_by_parent: Dict[str, List[Dict[str, Any]]] = {}
+    orphans: List[Dict[str, Any]] = []
     for c in children:
         if c["parent"] in by_label:
             children_by_parent.setdefault(c["parent"], []).append(c)
+        else:
+            orphans.append(c)
+
+    if orphans:
+        lines = [f"{o['label']} -> {o['parent']}" for o in orphans]
+        warnings.warn("[menu_builder] Orphan nav items:\n" + "\n".join(f" - {ln}" for ln in lines))
+        if orphan_report:
+            orphan_report.parent.mkdir(parents=True, exist_ok=True)
+            with orphan_report.open("a", encoding="utf-8") as f:
+                for ln in lines:
+                    f.write(f"{lang}: {ln}\n")
 
     items = []
     for m in mains:
