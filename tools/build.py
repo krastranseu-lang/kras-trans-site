@@ -335,7 +335,10 @@ def _cms_local_read() -> Dict[str, Any]:
             print(f"[CMS] Błąd CSV: {e}", file=sys.stderr)
 
     # XLSX
-    p_xlsx = base / "cms.xlsx"
+    env_path = os.environ.get("LOCAL_XLSX")
+    p_xlsx = pathlib.Path(env_path) if env_path else (base / "cms.xlsx")
+    if not p_xlsx.exists():
+        p_xlsx = base / "cms.xlsx"
     if p_xlsx.exists():
         try:
             import openpyxl
@@ -347,6 +350,7 @@ def _cms_local_read() -> Dict[str, Any]:
             for row in ws.iter_rows(min_row=2, values_only=True):
                 d = {h: (row[idx[h]] if h in idx else "") for h in headers}
                 rows.append({(k or "").strip(): (str(v or "").strip()) for k, v in d.items()})
+            print(f"[CMS] Lokalnie: {p_xlsx}")
             return {"ok": True, "rows": rows}
         except Exception as e:
             print(f"[CMS] Błąd XLSX: {e}", file=sys.stderr)
@@ -807,7 +811,13 @@ def neighbors_for(
 def build_all():
     # === MENU (lokalnie: SSR + JSON dla SWR) ===
     if _MB:
-        bundles, menu_html_by_lang = _MB.build_all(_MBPath("data/cms"), LOCALES)
+        env_path = os.environ.get("LOCAL_XLSX")
+        cms_dir = _MBPath("data/cms")
+        if env_path:
+            p = _MBPath(env_path)
+            if p.exists():
+                cms_dir = p.parent
+        bundles, menu_html_by_lang = _MB.build_all(cms_dir, LOCALES)
         out = ((_MBPath('dist') if 'OUT' not in globals() else OUT) / "assets" / "data" / "menu")
         out.mkdir(parents=True, exist_ok=True)
         for L, B in bundles.items():
