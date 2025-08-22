@@ -71,6 +71,24 @@
     return `/${LANG}/${slug ? (slug + '/') : ''}`;
   }
 
+  let openTO, closeTO, activeLi;
+  function scheduleOpen(key, li) {
+    clearTimeout(openTO); clearTimeout(closeTO);
+    openTO = setTimeout(() => openPanel(key, li), 200);
+  }
+  function scheduleClose(key, li) {
+    clearTimeout(openTO); clearTimeout(closeTO);
+    closeTO = setTimeout(() => closePanel(key, li), 400);
+  }
+
+  if (mega) {
+    mega.addEventListener('mouseenter', () => clearTimeout(closeTO));
+    mega.addEventListener('mouseleave', () => {
+      const key = mega.dataset.active;
+      if (key) scheduleClose(key, activeLi);
+    });
+  }
+
   /* ========= Render ========= */
   function renderFromBundle(bundle) {
     if (!bundle) return;
@@ -84,6 +102,22 @@
     // MEGA‑PANELE
     if (mega && bundle.mega_html) {
       mega.innerHTML = passHTML(bundle.mega_html);
+      const panels = mega.querySelector('.mega__panels') || document.querySelector('#mega .mega__panels');
+      if (panels){
+        const sections = panels.querySelectorAll('.mega__section');
+        if (sections.length){
+          const grid = document.createElement('div');
+          grid.className = 'mega__grid';
+          sections.forEach(sec => grid.appendChild(sec));
+          panels.innerHTML = '';
+          panels.appendChild(grid);
+        }
+      }
+      mega.style.display = 'none';
+      mega.style.opacity = '0';
+      mega.style.transform = 'translateY(-8px)';
+      mega.style.transition = 'opacity 300ms cubic-bezier(.2,.7,.2,1), transform 300ms cubic-bezier(.2,.7,.2,1)';
+      mega.style.pointerEvents = 'none';
     }
 
     // JĘZYKI
@@ -152,8 +186,8 @@
       if (hasPanel) {
         li.classList.add('has-panel');
         // Hover (desktop)
-        li.addEventListener('mouseenter', () => openPanel(panel, li));
-        li.addEventListener('mouseleave', () => closePanel(panel, li));
+        li.addEventListener('mouseenter', () => scheduleOpen(panel, li));
+        li.addEventListener('mouseleave', () => scheduleClose(panel, li));
         // Tap/click (mobile + fallback)
         li.addEventListener('click', (e) => {
           const targetA = e.target.closest('a');
@@ -171,19 +205,37 @@
       const active = list.querySelector(`a[href="${cur}"]`);
       if (active) active.setAttribute('aria-current', 'page');
     } catch(_) {}
+
   }
 
   function openPanel(key, li) {
     if (!mega || !key) return;
+    clearTimeout(openTO); clearTimeout(closeTO);
+    if (mega.dataset.active !== key) {
+      activeLi?.querySelector('a[aria-expanded]')?.setAttribute('aria-expanded','false');
+    }
+    activeLi = li || activeLi;
     mega.dataset.active = key;
+    mega.style.display = 'block';
+    requestAnimationFrame(() => {
+      mega.style.pointerEvents = 'auto';
+      mega.style.opacity = '1';
+      mega.style.transform = 'translateY(0)';
+    });
     root.classList.add('mega-open');
     li?.querySelector('a[aria-expanded]')?.setAttribute('aria-expanded','true');
   }
   function closePanel(key, li) {
     if (!mega || !key) return;
+    clearTimeout(openTO); clearTimeout(closeTO);
     if (mega.dataset.active === key) { delete mega.dataset.active; }
+    mega.style.opacity = '0';
+    mega.style.transform = 'translateY(-8px)';
+    mega.style.pointerEvents = 'none';
+    setTimeout(() => { mega.style.display = 'none'; }, 300);
     root.classList.remove('mega-open');
-    li?.querySelector('a[aria-expanded]')?.setAttribute('aria-expanded','false');
+    (li || activeLi)?.querySelector('a[aria-expanded]')?.setAttribute('aria-expanded','false');
+    activeLi = null;
   }
   function togglePanel(key, li) {
     if (!mega || !key) return;
