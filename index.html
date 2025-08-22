@@ -51,14 +51,16 @@
   <canvas id="bg-canvas" aria-hidden="true" hidden></canvas>
 
   <!-- HEADER: Nagłówek strony (sticky, przezroczysty z efektem rozmycia tła) -->
-  <header class="site-header">
+  <header id="site-header" class="site-header sq">
     <div class="container header-grid">
       <!-- Logo firmy -->
       <a class="brand" href="/">
         <img src="/assets/media/logo-firma-transportowa-kras-trans.png" alt="{{ company[0].name or 'Kras-Trans' }}" width="132" height="32" loading="eager" fetchpriority="high" />
       </a>
       <!-- Główna nawigacja (uzupełniana dynamicznie) -->
-      <nav id="site-nav" class="nav" hidden aria-label="{{ strings.nav_main or 'Główna nawigacja' }}"></nav>
+      <nav id="primaryNav" class="nav sq-nav" hidden aria-label="{{ strings.nav_main or 'Główna nawigacja' }}">
+        <ul class="nav__list" id="navList"></ul>
+      </nav>
       <div class="header-actions">
         <!-- Przycisk przełączania motywu (jasny/ciemny/e-book) -->
         <button id="theme-toggle" class="icon-btn theme-toggle" aria-label="{{ strings.theme_toggle or 'Zmień motyw' }}" aria-pressed="false">
@@ -69,7 +71,7 @@
       </div>
     </div>
     <!-- Mega Menu (desktop) - uzupełniane przez menu-builder.js -->
-    <div id="mega-root" class="mega" hidden></div>
+    <div id="mega" class="mega" hidden></div>
   </header>
 
   <main id="main" class="content" role="main">
