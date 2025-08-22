@@ -13,6 +13,10 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     name: Build site (self-hosted)
@@ -34,18 +38,6 @@ for m in ("openpyxl","bs4","yaml"):
     try: importlib.import_module(m)
     except Exception as e: sys.exit(f"❌ Missing {m}: {e}")
 print("✅ libs OK")
-=======
-          # spróbuj z requirements.txt, ale dodatkowo doinstaluj biblioteki potrzebne dla XLSX/BS4/YAML
-          pip install -r requirements.txt || true
-          pip install --upgrade openpyxl beautifulsoup4 pyyaml
-          # twardy test – przerwij jeśli brakuje którejkolwiek z bibliotek
-          python - <<'PY'
-import sys
-try:
-    import openpyxl, bs4, yaml
-    print("OK: openpyxl/bs4/PyYAML gotowe")
-except Exception as e:
-    sys.exit(f"❌ Missing lib: {e}")
 PY
 
       - name: Provide CMS from runner
@@ -62,6 +54,9 @@ PY
           echo "CMS_SHA256: $(shasum -a 256 data/cms/menu.xlsx | awk '{print $1}')"
           ls -lah data/cms
 
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
       - name: Build
         env:
           CLEAN: '1'
@@ -74,11 +69,6 @@ PY
         run: |
           echo "--- dist/assets/data/menu ---"; ls -lah dist/assets/data/menu || true
           echo "--- dist/assets/nav (legacy) ---"; ls -lah dist/assets/nav || true
-
-          echo "--- dist/assets/data/menu ---"
-          ls -lah dist/assets/data/menu || true
-          echo "--- dist/assets/nav (legacy) ---"
-          ls -lah dist/assets/nav || true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
