@@ -39,6 +39,12 @@ try:
     from markdown import markdown
     import requests
     from bs4 import BeautifulSoup
+    # === MENU: lokalny builder (bez Google Apps Script) ===
+    from pathlib import Path as _MBPath
+    try:
+        import menu_builder as _MB  # tools/menu_builder.py
+    except Exception:
+        _MB = None
     try:
         from slugify import slugify as _slugify
     except Exception:
@@ -261,8 +267,8 @@ def _env(name: str, default: Any) -> Any:
     return default if v is None or str(v).strip()=="" else v
 
 SITE_URL = (_env("SITE_URL", C.get("SITE_URL","")) or "").rstrip("/")
-APPS_URL = (_env("APPS_URL", C.get("APPS_URL","")) or "").strip()
-APPS_KEY = (_env("APPS_KEY", C.get("APPS_KEY","")) or "").strip()
+APPS_URL = ""   # wyłączone: nie używamy Google Apps Script
+APPS_KEY = ""   # wyłączone: nie używamy Google Apps Script
 GA_ID    = _env("GA_ID", C.get("GA_ID",""))
 GSC      = _env("GSC_VERIFICATION", C.get("GSC_VERIFICATION",""))
 INDEXNOW_KEY = _env("INDEXNOW_KEY", C.get("INDEXNOW_KEY",""))
@@ -283,14 +289,13 @@ env = Environment(
     autoescape=select_autoescape(["html"])
 )
 
-# Globalne dane dostępne w KAŻDYM szablonie
+# Globalne dane dostępne w szablonach
 env.globals.update({
-    "site": CFG.get("site", {}),
-    "cms_endpoint": (f"{APPS_URL}?key={APPS_KEY}" if APPS_URL and APPS_KEY else ""),
-    "ga_id": GA_ID,
-    "gsc_verification": GSC,
-    # assets: css/js/js_late/preload z pages.yml
-    "assets": CFG.get("assets", {})
+  "site": CFG.get("site", {}),
+  "cms_endpoint": "",  # Apps Script wyłączony
+  "ga_id": GA_ID,
+  "gsc_verification": GSC,
+  "assets": CFG.get("assets", {})
 })
 
 # Nawigacja + konfiguracja headera (partials/header.html)
@@ -299,45 +304,71 @@ env.globals.update({
     "header_cfg": CFG.get("header", {})
 })
 
-# --------------------------- CMS: load + fallback ---------------------------
-def _cms_fallback() -> Dict[str,Any]:
-    p = pathlib.Path("data/cms.json")
-    if p.exists():
+# --------------------------- CMS: load (LOCAL) ------------------------------
+def _cms_local_read() -> Dict[str, Any]:
+    """
+    Czyta CMS z data/cms/cms.json (preferowane), albo data/cms/cms.csv,
+    albo data/cms/cms.xlsx. Zwraca {"ok": True, ...}.
+    """
+    base = pathlib.Path("data") / "cms"
+
+    # JSON
+    p_json = base / "cms.json"
+    if p_json.exists():
         try:
-            data = json.loads(p.read_text("utf-8"))
-            if not data.get("ok"): data["ok"]=True
-            print("[CMS] Fallback: data/cms.json", file=sys.stderr)
+            data = json.loads(p_json.read_text("utf-8"))
+            if not data.get("ok"): data["ok"] = True
+            print("[CMS] Lokalnie: data/cms/cms.json")
             return data
         except Exception as e:
-            print(f"[CMS] Błąd parsowania data/cms.json: {e}", file=sys.stderr)
-    # minimalistyczny default (home)
+            print(f"[CMS] Błąd JSON: {e}", file=sys.stderr)
+
+    # CSV
+    p_csv = base / "cms.csv"
+    if p_csv.exists():
+        try:
+            rows = []
+            raw = p_csv.read_text("utf-8")
+            sep = "\t" if "\t" in raw else ("," if raw.count(",") > raw.count(";") else ";")
+            for r in csv.DictReader(io.StringIO(raw), delimiter=sep):
+                rows.append({(k or "").strip(): (v or "").strip() for k, v in r.items()})
+            return {"ok": True, "rows": rows}
+        except Exception as e:
+            print(f"[CMS] Błąd CSV: {e}", file=sys.stderr)
+
+    # XLSX
+    p_xlsx = base / "cms.xlsx"
+    if p_xlsx.exists():
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(p_xlsx, read_only=True, data_only=True)
+            ws = wb.worksheets[0]
+            headers = [str(c.value).strip() if c.value is not None else "" for c in next(ws.iter_rows(min_row=1, max_row=1))]
+            idx = {h: i for i, h in enumerate(headers)}
+            rows = []
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                d = {h: (row[idx[h]] if h in idx else "") for h in headers}
+                rows.append({(k or "").strip(): (str(v or "").strip()) for k, v in d.items()})
+            return {"ok": True, "rows": rows}
+        except Exception as e:
+            print(f"[CMS] Błąd XLSX: {e}", file=sys.stderr)
+
+    # Minimalny fallback (strona główna)
     return {
         "ok": True,
         "pages": [{
-            "lang": DEFAULT_LANG, "slugKey":"home", "slug":"", "type":"home",
-            "h1":"Kras-Trans — firma transportowa i spedycja w Polsce i UE",
-            "title":"Kras-Trans — firma transportowa i spedycja w Polsce i UE",
-            "meta_desc": "Transport i spedycja, flota EURO6, terminowość i bezpieczeństwo.",
-            "body_md": "## Witamy w Kras-Trans\n\nTransport międzynarodowy i krajowy."
+            "lang": DEFAULT_LANG, "slugKey": "home", "slug": "",
+            "type": "home",
+            "h1": "Kras-Trans — transport i spedycja",
+            "title": "Kras-Trans — transport i spedycja",
+            "meta_desc": "Transport i spedycja w Polsce i UE.",
+            "body_md": "## Start\n\nTreść domyślna (lokalny CMS nie wykrył pliku)."
         }],
         "hreflang": {}, "redirects": [], "blocks": [], "faq": []
     }
 
-def load_cms() -> Dict[str,Any]:
-    url = f"{APPS_URL}?key={APPS_KEY}" if (APPS_URL and APPS_KEY) else ""
-    if not url:
-        print("[CMS] Brak APPS_URL/APPS_KEY → fallback", file=sys.stderr)
-        return _cms_fallback()
-    try:
-        r = requests.get(url, timeout=45)
-        r.raise_for_status()
-        data = r.json()
-        assert data.get("ok", False), "CMS .ok != true"
-        print("[CMS] OK z Apps Script")
-        return data
-    except Exception as e:
-        print(f"[CMS] Błąd pobrania CMS ({e}) → fallback", file=sys.stderr)
-        return _cms_fallback()
+def load_cms() -> Dict[str, Any]:
+    return _cms_local_read()
 
 CMS = load_cms()
 
@@ -687,6 +718,9 @@ def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:
     # description
     if (page.get("meta_desc") or "") and not head.find("meta", attrs={"name":"description"}):
         add_meta(name="description", content=page["meta_desc"])
+        # menu-bundle-version (SWR)
+        if page.get("menu_version") and not head.find("meta", attrs={"name":"menu-bundle-version"}):
+            add_meta(name="menu-bundle-version", content=str(page["menu_version"]))
 
     # OG/Twitter
     og_map = {
@@ -778,6 +812,16 @@ def neighbors_for(
 
 # ------------------------------ RENDER / BUILD ------------------------------
 def build_all():
+    # === MENU (lokalnie: SSR + JSON dla SWR) ===
+    if _MB:
+        bundles, menu_html_by_lang = _MB.build_all(_MBPath("data/cms"), LOCALES)
+        out = ((_MBPath('dist') if 'OUT' not in globals() else OUT) / "assets" / "data" / "menu")
+        out.mkdir(parents=True, exist_ok=True)
+        for L, B in bundles.items():
+            (out / f"bundle_{L}.json").write_text(json.dumps(B, ensure_ascii=False, separators=(",",":")), encoding="utf-8")
+    else:
+        bundles = {L: {"lang": L, "items": [], "version": "sha256:0"} for L in LOCALES}
+        menu_html_by_lang = {L: "" for L in LOCALES}
     pages = base_pages()
     city  = generate_city_service()
     all_pages = pages + city
@@ -815,16 +859,20 @@ def build_all():
 
         # Render Jinja
         ctx = {
-            "page": dict(p),
-            "hreflang": hreflang_map.get(p.get("slugKey", "home"), {}),
-            "ctas": {
-                "primary": p.get("cta_label") or "Wycena transportu",
-                "secondary": p.get("cta_secondary", "")
-            },
-            "jsonld": ld_html,
-            "ga_id": GA_ID,
-            "gsc_verification": GSC,
-            "ssr": ssr_ctx,
+          "page": {**p, "menu_version": (bundles.get(lang, {}) or {}).get("version","")},
+          "hreflang": hreflang_map.get(p.get("slugKey","home"), {}),
+          "ctas": {
+            "primary": p.get("cta_label") or "Wycena transportu",
+            "secondary": p.get("cta_secondary","")
+          },
+          "jsonld": ld_html,
+          "ga_id": GA_ID,
+          "gsc_verification": GSC,
+          "ssr": ssr_ctx,
+          # MENU (SSR + SWR)
+          "menu_html": menu_html_by_lang.get(lang, ""),
+          "menu_bundle_inline": json.dumps(bundles.get(lang, {}), ensure_ascii=False),
+          "menu_version": (bundles.get(lang, {}) or {}).get("version","")
         }
         tpl = p.get("template") or choose_template(p)
         try:
@@ -843,7 +891,7 @@ def build_all():
         # OSTATECZNY DOM
         soup=soupify(html)
         set_ext_link_attrs(soup, SITE_URL); set_img_defaults(soup)
-        ensure_head_injections(soup, p, hreflang_map)
+        ensure_head_injections(soup, ctx["page"], hreflang_map)
 
         # TF-IDF prosty
         tfidf_map[p.get("canonical")] = tfidf_keywords(soup.get_text(" ", strip=True))
@@ -877,12 +925,11 @@ def build_all():
         ensure_dir(dest)
         write_text(dest/"index.html", f"<!doctype html><meta charset='utf-8'><meta http-equiv='refresh' content='0;url={dst}'><link rel='canonical' href='{dst}'><meta name='robots' content='noindex,follow'><title>Redirect</title>")
 
-    # root redirect index (+ GSC meta + canonical + cms-endpoint)
+    # root redirect index (+ GSC meta + canonical)
     root_html = f"""<!doctype html><html lang="{DEFAULT_LANG}"><head><meta charset="utf-8">
 <title>{CFG.get('site',{}).get('brand','Kras-Trans')}</title>
 <meta name="google-site-verification" content="{GSC}">
 <link rel="canonical" href="/{DEFAULT_LANG}/">
-<meta name="cms-endpoint" content="{(f'{APPS_URL}?key={APPS_KEY}' if APPS_URL and APPS_KEY else '')}">
 <meta http-equiv="refresh" content="0; url=/{DEFAULT_LANG}/">
 <script>location.replace('/{DEFAULT_LANG}/');</script>
 </head><body></body></html>"""
@@ -908,19 +955,6 @@ def build_all():
     if INDEXNOW_KEY and INDEXNOW_KEY.lower()!="change_me_indexnow_key":
         write_text(OUT/f"{INDEXNOW_KEY}.txt", INDEXNOW_KEY)
 
-    # Admin: „Powiadom wyszukiwarki” (POST → Apps Script action=dispatch)
-    if (CFG.get("indexing",{}).get("ui_button",{}).get("enabled", False)):
-        admin = OUT/"admin"; admin.mkdir(parents=True, exist_ok=True)
-        btn = f"""<!doctype html><meta charset="utf-8"><title>Powiadom wyszukiwarki</title>
-<h1>Powiadom wyszukiwarki</h1>
-<button id="go">Wyślij IndexNow</button><pre id="out"></pre>
-<script>
-document.getElementById('go').onclick = async () => {{
-  const res = await fetch('{APPS_URL}?key={APPS_KEY}&action=dispatch', {{ method: 'POST' }});
-  document.getElementById('out').textContent = 'Apps Script: ' + (await res.text());
-}};
-</script>"""
-        write_text(admin/"indexing.html", btn)
 
     # SITEMAPY
     write_sitemaps(indexables, CMS.get("hreflang", {}))
