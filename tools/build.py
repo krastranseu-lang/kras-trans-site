@@ -381,6 +381,9 @@ def load_cms() -> Dict[str, Any]:
             data = cms_ingest.load_all(base)
             if data:
                 print(data.get("report", ""))
+                warnings = data.get("warnings") or []
+                if warnings:
+                    raise ValueError("\n".join(warnings))
                 blocks_list = []
                 for lang, m in (data.get("blocks") or {}).items():
                     for path, obj in m.items():
