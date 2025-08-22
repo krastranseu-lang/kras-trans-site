@@ -101,18 +101,6 @@
 
     // MEGA‑PANELE
     if (mega && bundle.mega_html) {
-      mega.innerHTML = passHTML(bundle.mega_html);
-      const panels = mega.querySelector('.mega__panels') || document.querySelector('#mega .mega__panels');
-      if (panels){
-        const sections = panels.querySelectorAll('.mega__section');
-        if (sections.length){
-          const grid = document.createElement('div');
-          grid.className = 'mega__grid';
-          sections.forEach(sec => grid.appendChild(sec));
-          panels.innerHTML = '';
-          panels.appendChild(grid);
-        }
-      }
       mega.style.display = 'none';
       mega.style.opacity = '0';
       mega.style.transform = 'translateY(-8px)';
