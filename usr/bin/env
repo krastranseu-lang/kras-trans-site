@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+cms_guard.py  — walidator CMS.xlsx (żadnych pominiętych zakładek/kolumn)
+Użycie: python tools/cms_guard.py .codex/cms_schema.yml data/cms/menu.xlsx
+Zwraca kod 1 gdy brakuje wymaganych kolumn/arkuszy lub publikowalnych wierszy.
+"""
+from __future__ import annotations
+import sys, json
+from pathlib import Path
+from typing import Dict, List, Tuple
+import yaml
+
+try:
+    import openpyxl
+except Exception as e:
+    sys.exit(f"[cms_guard] ❌ Brak openpyxl: {e}")
+
+# ——— Synonimy nagłówków (lowercase) ———
+SYN: Dict[str, Dict[str, List[str]]] = {
+    "pages": {
+        "lang":      ["lang","język","jezyk","language"],
+        "type":      ["type","rodzaj"],
+        "slug":      ["slug","path","url"],
+        "slugkey":   ["slugkey","key","page","route","id"],
+        "parentslug":["parentslug","parent_slug","parent","parentkey","parent_key","rodzic"],
+        "template":  ["template","tpl","szablon"],
+        "publish":   ["publish","enabled","visible","on","opublikuj","opublikowany"],
+        "order":     ["order","sort","kolej","kolejność","kolejnosc","poz"],
+        "h1":        ["h1"],
+        "title":     ["title","page_title","tytuł","tytul"],
+        "seo_title": ["seo_title","meta_title"],
+        "meta_desc": ["meta_desc","description","opis","desc"],
+        "hero_alt":  ["hero_alt"],
+        "hero_image":["hero_image","hero_img"],
+        "og_image":  ["og_image","og","image","grafika"],
+        "canonical": ["canonical","canon"],
+        "cta_label": ["cta_label","cta","button","przycisk"],
+        "cta_href":  ["cta_href","cta_link","href","link","url_cta"],
+        "cta_phone": ["cta_phone","phone","telefon"],
+        "whatsapp":  ["whatsapp","wa"]
+    },
+    "menu": {
+        "lang":["lang","język","jezyk"],
+        "label":["label","etykieta","nazwa","tekst"],
+        "href":["href","url","link"],
+        "parent":["parent","rodzic"],
+        "order":["order","sort","kolej","poz"],
+        "col":["col","kol","kolumna","column"],
+        "enabled":["enabled","visible","on","aktywny","prawda","true","tak","yes","1"]
+    },
+    "meta": {
+        "lang":["lang","język","jezyk"],
+        "key":["key","slugkey","page","route","id"],
+        "title":["title","meta_title","tytuł","tytul","seo_title"],
+        "description":["description","meta_desc","opis","desc"],
+        "og_image":["og_image","og","image"],
+        "canonical":["canonical","canon"]
+    },
+    "blocks": {
+        "lang":["lang","język","jezyk"],
+        "key":["key","slugkey","page","route","id"],
+        "section":["section","sekcja","blok","area","part"],
+        "path":["path","sciezka","ścieżka"],
+        "html":["html","content_html"],
+        "title":["title","naglowek","header","h1","h2","h3"],
+        "body":["body","tekst","content","markdown","md","body_md","body_html"],
+        "cta_label":["cta_label","cta","button"],
+        "cta_href":["cta_href","cta_link","href","link"]
+    }
+}
+
+def _norm(s: str) -> str:
+    return (s or "").strip().lower()
+
+def _map_headers(headers: List[str], group: str) -> Tuple[Dict[str,int], List[str]]:
+    hl = [_norm(h) for h in headers]
+    out: Dict[str,int] = {}
+    syn = SYN.get(group, {})
+    for want, aliases in syn.items():
+        for a in aliases:
+            if a in hl:
+                out[want] = hl.index(a); break
+    return out, hl
+
+def _read_sheet_headers(ws) -> List[str]:
+    it = ws.iter_rows(values_only=True)
+    headers = next(it)
+    return [str(x or "").strip() for x in headers]
+
+def _choose_sheet(wb, group: str, declared: List[str]) -> str | None:
+    best = None; score_best = -1
+    for ws in wb.worksheets:
+        try:
+            headers = _read_sheet_headers(ws)
+        except Exception:
+            continue
+        mapping, _ = _map_headers(headers, group)
+        score = len(mapping)
+        # Preferowane dopasowanie nazwą (jeśli arkusz ma nazwę jak w declared)
+        bonus = 5 if _norm(ws.title) in [ _norm(n) for n in declared ] else 0
+        if score + bonus > score_best:
+            best, score_best = ws.title, score + bonus
+    return best if score_best >= 1 else None
+
+def _truthy(v: str) -> bool:
+    return _norm(v) in {"1","true","tak","yes","on","prawda"}
+
+def validate(schema_path: Path, xlsx_path: Path) -> int:
+    if not xlsx_path.exists():
+        print(f"[cms_guard] ❌ XLSX nie istnieje: {xlsx_path}")
+        return 1
+    schema = yaml.safe_load(schema_path.read_text(encoding="utf-8")) or {}
+    required_langs = [ _norm(x) for x in (schema.get("required_langs") or []) ]
+
+    wb = openpyxl.load_workbook(xlsx_path, read_only=True, data_only=True)
+
+    # 1) PAGES
+    sconf = (schema.get("sheets") or {}).get("pages", {})
+    sheet_name = _choose_sheet(wb, "pages", ["pages","strony","page","zakladki"])
+    if not sheet_name:
+        print("[cms_guard] ❌ Nie znaleziono arkusza 'pages' (ani podobnego)")
+        return 1
+    ws = wb[sheet_name]
+    headers = _read_sheet_headers(ws)
+    mapping, headers_lc = _map_headers(headers, "pages")
+    print(f"[cms_guard] pages: znaleziony arkusz: {sheet_name}")
+    print(f"[cms_guard] pages: nagłówki (raw)  : {headers}")
+    print(f"[cms_guard] pages: nagłówki (norm): {headers_lc}")
+    print(f"[cms_guard] pages: mapowanie      : {mapping}")
+
+    # wymagane kolumny
+    missing = []
+    for col in (sconf.get("required") or []):
+        if col not in mapping:
+            missing.append(col)
+    for grp, cols in (sconf.get("required_any_of") or {}).items():
+        if not any(c in mapping for c in cols):
+            missing.append(f"{grp}({','.join(cols)})")
+    if missing:
+        print(f"[cms_guard] ❌ Brak kolumn: {missing}")
+        return 1
+
+    # statystyki per lang + publikowalne wiersze
+    it = ws.iter_rows(values_only=True)
+    next(it)  # skip header
+    langs, published = {}, {}
+    for row in it:
+        get = lambda name: (str(row[mapping[name]]).strip() if name in mapping and mapping[name] < len(row) and row[mapping[name]] is not None else "")
+        L = _norm(get("lang") or "pl")
+        pub = _truthy(get("publish") or "true")
+        langs[L] = langs.get(L, 0) + 1
+        if pub:
+            published[L] = published.get(L, 0) + 1
+    print(f"[cms_guard] pages: wiersze per lang: {json.dumps(langs, ensure_ascii=False)}")
+    print(f"[cms_guard] pages: publish per lang: {json.dumps(published, ensure_ascii=False)}")
+
+    if required_langs:
+        miss = [L for L in required_langs if published.get(L, 0) == 0]
+        if miss:
+            print(f"[cms_guard] ❌ Brak opublikowanych stron dla języków: {miss}")
+            return 1
+
+    # 2) MENU
+    mconf = (schema.get("sheets") or {}).get("menu", {})
+    mname = _choose_sheet(wb, "menu", ["menu","nav"])
+    if mname:
+        ws = wb[mname]
+        headers = _read_sheet_headers(ws)
+        mapping,_ = _map_headers(headers, "menu")
+        print(f"[cms_guard] menu: arkusz: {mname} nagłówki: {headers}")
+        miss = [c for c in (mconf.get("required") or []) if c not in mapping]
+        if miss:
+            print(f"[cms_guard] ❌ MENU: brak kolumn: {miss}")
+            return 1
+    else:
+        print("[cms_guard] menu: brak arkusza — OK, jeśli menu budujemy z pages")
+
+    # 3) META
+    tconf = (schema.get("sheets") or {}).get("meta", {})
+    tname = _choose_sheet(wb, "meta", ["meta"])
+    if tname:
+        ws = wb[tname]
+        headers = _read_sheet_headers(ws)
+        mapping,_ = _map_headers(headers, "meta")
+        print(f"[cms_guard] meta: arkusz: {tname} nagłówki: {headers}")
+        miss = [c for c in (tconf.get("required") or []) if c not in mapping]
+        if miss:
+            print(f"[cms_guard] ❌ META: brak kolumn: {miss}")
+            return 1
+
+    # 4) BLOCKS
+    bconf = (schema.get("sheets") or {}).get("blocks", {})
+    bname = _choose_sheet(wb, "blocks", ["blocks","content","sections"])
+    if bname:
+        ws = wb[bname]
+        headers = _read_sheet_headers(ws)
+        mapping,_ = _map_headers(headers, "blocks")
+        print(f"[cms_guard] blocks: arkusz: {bname} nagłówki: {headers}")
+        miss = [c for c in (bconf.get("required") or []) if c not in mapping]
+        for grp, cols in (bconf.get("required_any_of") or {}).items():
+            if not any(c in mapping for c in cols):
+                miss.append(f"{grp}({','.join(cols)})")
+        if miss:
+            print(f"[cms_guard] ❌ BLOCKS: brak kolumn: {miss}")
+            return 1
+
+    print("[cms_guard] ✅ CMS schema OK — wszystkie wymagane arkusze/kolumny są widoczne.")
+    return 0
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 3:
+        print("Użycie: python tools/cms_guard.py .codex/cms_schema.yml data/cms/menu.xlsx")
+        sys.exit(2)
+    schema_path = Path(sys.argv[1])
+    xlsx_path    = Path(sys.argv[2])
+    sys.exit(validate(schema_path, xlsx_path))
