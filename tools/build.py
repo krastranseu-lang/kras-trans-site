@@ -410,20 +410,6 @@ def load_cms() -> Dict[str, Any]:
 
 CMS = load_cms()
 
-# Ensure each language has a home page before proceeding
-for _lang in CFG.get("languages") or []:
-    L = (_lang or DEFAULT_LANG).lower()
-    pages_for_lang = [
-        p for p in CMS.get("pages", [])
-        if (p.get("lang") or DEFAULT_LANG).lower() == L
-    ]
-    has_home = any(
-        (p.get("slugKey") or "").lower() == "home" or (p.get("slug") or "") == ""
-        for p in pages_for_lang
-    )
-    if not has_home:
-        raise RuntimeError(f"[build] No home page for language '{L}'")
-
 # ---------------------------- CSV: cities / keywords ------------------------
 def read_csv(path:str, dialect="auto")->List[Dict[str,str]]:
     p=pathlib.Path(path)
