@@ -40,7 +40,21 @@ def _sanitize_href(href: Any, lang: str, label: str) -> str:
         return f"/{lang}/{_slugify(label)}/"
     # allowlist protocols
     ok = h.startswith(SAFE_PROTOCOLS)
-    return h if ok else f"/{lang}/{_slugify(label)}/"
+    if not ok:
+        return f"/{lang}/{_slugify(label)}/"
+
+    if h.startswith("/"):
+        # Ensure internal URLs end with a slash. Preserve anchors and queries
+        idx = len(h)
+        for sep in ("#", "?"):
+            pos = h.find(sep)
+            if pos != -1 and pos < idx:
+                idx = pos
+        base, suffix = h[:idx], h[idx:]
+        if not base.endswith("/"):
+            base += "/"
+        h = base + suffix
+    return h
 
 def _load_json(p: Path) -> List[Dict[str, Any]]:
     return json.loads(p.read_text(encoding="utf-8"))
