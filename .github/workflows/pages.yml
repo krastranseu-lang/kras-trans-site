@@ -1,7 +1,6 @@
 name: pages
 on:
-  push:
-    branches: [ main ]
+  push: { branches: [ main ] }
   workflow_dispatch:
 
 permissions:
@@ -17,40 +16,28 @@ jobs:
   build:
     name: Build site (self-hosted)
     runs-on: [self-hosted, macOS, X64]
-    # <<< KLUCZ: ustaw prywatny toolcache i temp w obrębie repo >>>
-    env:
-      RUNNER_TOOL_CACHE: ${{ github.workspace }}/.cache/_tool
-      RUNNER_TEMP: ${{ github.workspace }}/.cache/_temp
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare tool cache dirs
+      # Użyj systemowego Pythona, bez setup-python (eliminuje błąd /Users/runner)
+      - name: Create local venv
         run: |
-          mkdir -p "$RUNNER_TOOL_CACHE" "$RUNNER_TEMP"
-          echo "Toolcache: $RUNNER_TOOL_CACHE"
-          echo "Temp:      $RUNNER_TEMP"
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install deps
-        run: |
+          python3 -V
+          python3 -m venv .venv
+          source .venv/bin/activate
           python -m pip install --upgrade pip
-          pip install pyyaml openpyxl
+          pip install -r requirements.txt || pip install pyyaml openpyxl
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
       - name: Build
         env:
-          LOCAL_XLSX: ${{ vars.LOCAL_XLSX }}
-          CMS_SOURCE: ${{ vars.CMS_SOURCE }}
-          BASE_URL:   ${{ vars.BASE_URL }}
           CLEAN: '1'
           MINIFY: '1'
-        run: python tools/build.py
+        run: |
+          source .venv/bin/activate
+          python tools/build.py
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
