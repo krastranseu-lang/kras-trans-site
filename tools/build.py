@@ -28,7 +28,12 @@ OPCJONALNE:
 UŻYCIE (CI):
   python -u tools/build.py
 """
-import os, re, io, csv, json, math, sys, time, glob, shutil, hashlib, unicodedata, pathlib
+import os
+from pathlib import Path
+import cms_ingest
+from bs4 import BeautifulSoup
+
+import re, io, csv, json, math, sys, time, glob, shutil, hashlib, unicodedata, pathlib
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Tuple, Iterable, Optional, Set
 
@@ -38,7 +43,6 @@ try:
     from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
     from markdown import markdown
     import requests
-    from bs4 import BeautifulSoup
     # === MENU: lokalny builder (bez Google Apps Script) ===
     from pathlib import Path as _MBPath
     try:
@@ -809,22 +813,63 @@ def neighbors_for(
 
 # ------------------------------ RENDER / BUILD ------------------------------
 def build_all():
-    # === MENU (lokalnie: SSR + JSON dla SWR) ===
-    if _MB:
+    languages = LOCALES
+    src = os.getenv("LOCAL_XLSX") or os.getenv("CMS_SOURCE") or "/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
+    cms = cms_ingest.load_all(Path("data") / "cms", explicit_src=Path(src))
+    print(cms.get("report","[cms] no report"))
+    global CMS
+    CMS = cms
+
+    def _inject_blocks(html, lang):
+        bl = cms.get("blocks", {}).get(lang, {})
+        if not bl: return html
+        soup = BeautifulSoup(html, "html.parser")
+        for el in soup.select("[data-api]"):
+            path = el.get("data-api","").split("?")[0].lstrip("/").rstrip("/")
+            blk = bl.get(path)
+            if not blk: continue
+            if blk.get("html"):
+                el.clear(); el.append(BeautifulSoup(blk["html"], "html.parser"))
+            else:
+                if blk.get("title"):
+                    h = el.find(["h1","h2","h3"])
+                    if h: h.string = blk["title"]
+                if blk.get("body"):
+                    tgt = el.find(class_="lead") or el.find("p")
+                    if tgt: tgt.clear() or tgt.append(BeautifulSoup(blk["body"], "html.parser"))
+                if blk.get("cta_label"):
+                    btn = el.find("a", class_="btn-cta") or el.find("button", "btn-cta")
+                    if btn:
+                        btn.string = blk["cta_label"]
+                        if btn.name=="a" and blk.get("cta_href"): btn["href"] = blk["cta_href"]
+        return str(soup)
+
+    rows = cms.get("menu_rows", [])
+    if rows and _MB:
+        bundles, html_by_lang = {}, {}
+        for lang in languages:
+            b = _MB.build_bundle_for_lang(rows, lang)
+            bundles[lang] = b
+            html_by_lang[lang] = _MB.render_nav_html(b)
+        out = OUT / "assets" / "data" / "menu"
+        out.mkdir(parents=True, exist_ok=True)
+        for lang, b in bundles.items():
+            write_text(out / f"bundle_{lang}.json", json.dumps(b, ensure_ascii=False, separators=(",",":")))
+    elif _MB:
         env_path = os.environ.get("LOCAL_XLSX")
         cms_dir = _MBPath("data/cms")
         if env_path:
             p = _MBPath(env_path)
             if p.exists():
                 cms_dir = p.parent
-        bundles, menu_html_by_lang = _MB.build_all(cms_dir, LOCALES)
+        bundles, html_by_lang = _MB.build_all(cms_dir, LOCALES)
         out = ((_MBPath('dist') if 'OUT' not in globals() else OUT) / "assets" / "data" / "menu")
         out.mkdir(parents=True, exist_ok=True)
         for L, B in bundles.items():
             (out / f"bundle_{L}.json").write_text(json.dumps(B, ensure_ascii=False, separators=(",",":")), encoding="utf-8")
     else:
         bundles = {L: {"lang": L, "items": [], "version": "sha256:0"} for L in LOCALES}
-        menu_html_by_lang = {L: "" for L in LOCALES}
+        html_by_lang = {L: "" for L in LOCALES}
     pages = base_pages()
     city  = generate_city_service()
     all_pages = pages + city
@@ -851,6 +896,18 @@ def build_all():
         gen_og = og_image_for(p)
         if gen_og: p["og_image"]=gen_og
 
+        meta_title = p.get("seo_title") or ""
+        meta_desc = p.get("meta_desc") or ""
+        og_image = p.get("og_image") or ""
+        key = p.get("slugKey") or (p.get("slug") or "")
+        override = cms.get("page_meta", {}).get(lang, {}).get(key, {})
+        if override.get("title"): meta_title = override["title"]
+        if override.get("description"): meta_desc = override["description"]
+        if override.get("og_image"): og_image = override["og_image"]
+        p["seo_title"] = meta_title
+        p["meta_desc"] = meta_desc
+        p["og_image"] = og_image
+
         # SEO gates
         p, warns = apply_quality(p)
 
@@ -873,7 +930,7 @@ def build_all():
           "gsc_verification": GSC,
           "ssr": ssr_ctx,
           # MENU (SSR + SWR)
-          "menu_html": menu_html_by_lang.get(lang, ""),
+          "menu_html": html_by_lang.get(lang, ""),
           "menu_bundle_inline": json.dumps(bundles.get(lang, {}), ensure_ascii=False),
           "menu_version": (bundles.get(lang, {}) or {}).get("version","")
         }
@@ -886,6 +943,7 @@ def build_all():
                 f"<meta charset='utf-8'><title>{p.get('seo_title','')}</title>"
                 f"</head><body><h1>{p.get('h1','')}</h1></body></html>"
             )
+        html = _inject_blocks(html, lang)
 
         # AUTOLINKI + fallback
         html, ai, fb = inject_autolinks(html, lang)
