@@ -181,6 +181,10 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
                     "order": int(float(order or "999")),
                     "publish": True
                 })
+                page.setdefault("h1", page["slugKey"])
+                page.setdefault("title", page["h1"])
+                page.setdefault("body_md", f"## {page['h1']}\n\n")
+
                 # sanity checks for required text fields
                 if not (page.get("h1") or "").strip():
                     msg = f"[cms_ingest] page '{key}' missing h1"
