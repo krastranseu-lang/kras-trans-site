@@ -4,8 +4,6 @@
 ====================================================================================================== -->
 <header id="site-header"
         class="site-header"
-        data-api="https://script.google.com/macros/s/AKfycbyQcsU1wSCV6NGDQm8VIAGpZkL1rArZe1UZ5tutTkjJiKZtr4MjQZcDFzte26VtRJJ2KQ/exec"
-        data-key="kb6mWQJQ3hTtY0m1GQ7v2rX1pC5n9d8zA4s6L2u"
         data-static="/assets/nav"
         data-theme-sun="/assets/flags/theme-sun.svg"
         data-theme-moon="/assets/flags/theme-moon.svg"
@@ -236,9 +234,7 @@
     /* Config */
     const LOCALES = ['pl','en','de','fr','it','ru','ua'];   // EN -> GB flaga niżej
     const FLAG = L => `/assets/flags/${L==='en'?'gb':L}.svg`;
-    const API = root.dataset.api || (window.CMS_ENDPOINT||'');
-    const KEY = root.dataset.key || '';
-    const STATIC = (root.dataset.static||'/assets/nav').replace(/\/+$/,'');
+      const STATIC = (root.dataset.static||'/assets/nav').replace(/\/+$/,'');
     const TTL = 12*60*60*1000;
 
     /* Lang detection + path utils */
@@ -322,7 +318,7 @@
     langBtn.addEventListener('click', ()=>{ const exp=langBtn.getAttribute('aria-expanded')==='true'; openLangs(!exp); });
     root.addEventListener('click', e=>{ if(!$('#langsWrap').contains(e.target)) openLangs(false); });
 
-    /* ---------- RENDERING (z cache / static / API) ---------- */
+      /* ---------- RENDERING (z cache / static) ---------- */
 
     // 1) Z LOCALSTORAGE (instant)
     (function fromCache(){
@@ -352,54 +348,8 @@
       }catch(_){}
     })();
 
-    // 3) Z GAS (SWR – ciche odświeżenie, dokładne routingi językowe + blog)
-    (async function fromAPI(){
-      try{
-        if(!API || !KEY) { root.removeAttribute('aria-busy'); return; }
-        const url = `${API}?key=${encodeURIComponent(KEY)}&lang=${encodeURIComponent(currentLang)}`;
-        const res = await fetch(url, {cache:'no-store'});
-        const json = await res.json();
-        const nav = json.nav_current || (json.nav && json.nav[currentLang]) || {};
-        const routesMap = toRoutesMap(json.routes||[]);
-        renderNav(nav, routesMap, json);
-        setCache(CK('nav_bundle'), snapshot(nav, routesMap, json));
-        root.removeAttribute('aria-busy');
-      }catch(_){ root.removeAttribute('aria-busy'); }
-    })();
-
-    /* Helpers: routes map + reverse lookup */
-    function toRoutesMap(rows){
-      const map={};
-      rows.forEach(r=>{
-        const key = String(r.slugKey||r.SlugKey||'').trim(); if(!key) return;
-        const obj={}; LOCALES.forEach(L=> obj[L]=String(r[L]||r[L?.toUpperCase()]||'').trim());
-        map[key]=obj;
-      });
-      if(!map.home){ map.home={}; LOCALES.forEach(L=> map.home[L]=''); }
-      return map;
-    }
-    function findSlugKey(routes, lang, slug){
-      const s = String(slug||'').replace(/^\/|\/$/g,'');
-      for(const key in routes){ if((routes[key][lang]||'')===s) return key; }
-      return 'home';
-    }
-
-    /* Render języków (API) */
-    function renderLangs(routes){
-      const key = findSlugKey(routes, currentLang, currentSlug);
-      langFlag.src = FLAG(currentLang);
-      langCodeEl.textContent = currentLang.toUpperCase();
-      const dd = LOCALES.map(L=>{
-        const target = routes[key] && routes[key][L]!==undefined ? slugUrl(L, routes[key][L]) : `/${L}/`;
-        const cur = L===currentLang ? 'true':'false';
-        return `<a href="${target}" aria-current="${cur}"><img class="flag" src="${FLAG(L)}" alt="" width="18" height="12"><span>${L.toUpperCase()}</span></a>`;
-      }).join('');
-      langDd.innerHTML = dd;
-      mobileLangs.innerHTML = `<div class="lang-dd" style="display:grid;grid-auto-rows:min-content" aria-hidden="false">${dd}</div>`;
-    }
-
-    /* BLOG rail */
-    function renderBlog(list){
+      /* BLOG rail */
+      function renderBlog(list){
       if(!megaBlog) return; megaBlog.innerHTML='';
       (list||[]).slice(0,4).forEach(item=>{
         const href = item.path || (item.slug ? slugUrl(currentLang, item.slug) : '#');
@@ -422,51 +372,8 @@
         sec.setAttribute('data-panel', id); if(!sec.id) sec.id = 'panel-'+id; });
     }
 
-    /* Render z API */
-    function renderNav(nav, routes, json){
-      if(nav.primary_html){ navList.innerHTML = nav.primary_html; mobileList.innerHTML = nav.primary_html; }
-      if(nav.mega_html){ megaPanels.innerHTML = nav.mega_html; }
-      autoMapPanels();
-
-      if(nav.cta){
-        const href = routes[nav.cta.slugKey] ? slugUrl(currentLang, routes[nav.cta.slugKey][currentLang]||'') : slugUrl(currentLang,'kontakt');
-        cta.href = href; cta.textContent = nav.cta.label || 'Get a quote';
-        mobileCTA.href = href; mobileCTA.textContent = cta.textContent; dockQuote.href = href;
-      }
-      brandLink.href = slugUrl(currentLang, (routes.home && routes.home[currentLang])||'');
-
-      if(nav.status && nav.status.label){ statusPill.hidden=false; statusPill.textContent=nav.status.label; if(nav.status.href) statusPill.onclick=()=>location.href=nav.status.href; }
-      else statusPill.hidden=true;
-      if(nav.social){ $('#ig').href=nav.social.ig||$('#ig').href; $('#li').href=nav.social.li||$('#li').href; $('#fb').href=nav.social.fb||$('#fb').href; }
-
-      const tel = (json.company && json.company[0] && (json.company[0].telephone||json.company[0].phone)) || '';
-      if(tel){ dockCall.href = `tel:${tel}`; dockWA.href = `https://wa.me/${tel.replace(/\D+/g,'')}`; }
-
-      const blogList = (json.blog_latest && Array.isArray(json.blog_latest)) ? json.blog_latest
-                      : (Array.isArray(json.blog)? json.blog.filter(b=>String(b.lang||'').toLowerCase()===currentLang && (b.publish!==false)).slice(0,4) : []);
-      renderBlog(blogList);
-
-      renderLangs(routes);
-    }
-
-    /* Snapshot do cache (SWR) */
-    function snapshot(nav, routes, json){
-      const blogList = (json.blog_latest && Array.isArray(json.blog_latest)) ? json.blog_latest
-                      : (Array.isArray(json.blog)? json.blog.filter(b=>String(b.lang||'').toLowerCase()===currentLang && (b.publish!==false)).slice(0,4) : []);
-      return {
-        primary_html: nav.primary_html||'',
-        mega_html: nav.mega_html||'',
-        langs_html: '',        // z API generujemy w locie
-        cta: nav.cta||null,
-        status: nav.status||null,
-        social: nav.social||null,
-        routes: routes,
-        blog: blogList
-      };
-    }
-
-    /* Render z cache / statyka (mamy już gotowe HTML-e języków) */
-    function renderFromSnapshot(snap){
+      /* Render z cache / statyka (mamy już gotowe HTML-e języków) */
+      function renderFromSnapshot(snap){
       if(snap.primary_html){ navList.innerHTML = snap.primary_html; mobileList.innerHTML = snap.primary_html; }
       if(snap.mega_html){ megaPanels.innerHTML = snap.mega_html; }
       autoMapPanels();
