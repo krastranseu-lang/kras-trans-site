@@ -30,17 +30,8 @@ UŻYCIE (CI):
 """
 import os
 from pathlib import Path
-
-try:
-    import cms_ingest
-except ModuleNotFoundError as exc:
-    raise ModuleNotFoundError(
-        "Missing dependency: cms_ingest. Ensure the local module exists in the "
-        "tools/ directory or install the package if it is external."
-    ) from exc
-
+import cms_ingest
 from bs4 import BeautifulSoup
-
 import re, io, csv, json, math, sys, time, glob, shutil, hashlib, unicodedata, pathlib
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Tuple, Iterable, Optional, Set
@@ -51,12 +42,7 @@ try:
     from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
     from markdown import markdown
     import requests
-    # === MENU: lokalny builder (bez Google Apps Script) ===
-    from pathlib import Path as _MBPath
-    try:
-        import menu_builder as _MB  # tools/menu_builder.py
-    except Exception:
-        _MB = None
+    import menu_builder  # tools/menu_builder.py
     try:
         from slugify import slugify as _slugify
     except Exception:
@@ -164,9 +150,11 @@ def _ssr_home(lang:str) -> Dict[str, Any]:
     }
 
 # --------------------------- POMOCNICZE ------------------------------------
-ROOT = pathlib.Path(".")
-OUT  = pathlib.Path("dist")
-OUT.mkdir(parents=True, exist_ok=True)
+ROOT = Path(".")
+DIST = Path("dist")
+DIST.mkdir(parents=True, exist_ok=True)
+DATA = Path("data")
+OUT = DIST
 
 UTC  = lambda dt=None: (dt or datetime.now(timezone.utc)).isoformat(timespec="seconds")
 
@@ -196,9 +184,11 @@ def read_yaml(path: "str|pathlib.Path") -> Dict[str, Any]:
 def read_text(p: pathlib.Path) -> str:
     return p.read_text("utf-8") if p.exists() else ""
 
-def write_text(p: pathlib.Path, s: str):
+def write_text(p: Path, s: str):
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(s, "utf-8")
+
+write = write_text
 
 def ensure_dir(p: pathlib.Path):
     p.mkdir(parents=True, exist_ok=True)
@@ -823,7 +813,7 @@ def neighbors_for(
 def build_all():
     languages = LOCALES
     src = os.getenv("LOCAL_XLSX") or os.getenv("CMS_SOURCE") or "/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
-    cms = cms_ingest.load_all(Path("data") / "cms", explicit_src=Path(src))
+    cms = cms_ingest.load_all(DATA / "cms", explicit_src=Path(src))
     print(cms.get("report","[cms] no report"))
     global CMS
     CMS = cms
@@ -831,8 +821,8 @@ def build_all():
     def _inject_blocks(html, lang):
         bl = cms.get("blocks", {}).get(lang, {})
         if not bl: return html
-        soup = BeautifulSoup(html, "html.parser")
-        for el in soup.select("[data-api]"):
+        s = BeautifulSoup(html, "html.parser")
+        for el in s.select("[data-api]"):
             path = el.get("data-api","").split("?")[0].lstrip("/").rstrip("/")
             blk = bl.get(path)
             if not blk: continue
@@ -843,41 +833,28 @@ def build_all():
                     h = el.find(["h1","h2","h3"])
                     if h: h.string = blk["title"]
                 if blk.get("body"):
-                    tgt = el.find(class_="lead") or el.find("p")
-                    if tgt: tgt.clear() or tgt.append(BeautifulSoup(blk["body"], "html.parser"))
+                    p = el.find(class_="lead") or el.find("p")
+                    if p: p.clear() or p.append(BeautifulSoup(blk["body"], "html.parser"))
                 if blk.get("cta_label"):
-                    btn = el.find("a", class_="btn-cta") or el.find("button", "btn-cta")
+                    btn = el.find("a", class_="btn-cta") or el.find("button", class_="btn-cta")
                     if btn:
                         btn.string = blk["cta_label"]
-                        if btn.name=="a" and blk.get("cta_href"): btn["href"] = blk["cta_href"]
-        return str(soup)
+                        if btn.name=="a" and blk.get("cta_href"): btn["href"]=blk["cta_href"]
+        return str(s)
 
-    rows = cms.get("menu_rows", [])
-    if rows and _MB:
+    if cms.get("menu_rows"):
+        rows = cms["menu_rows"]
         bundles, html_by_lang = {}, {}
         for lang in languages:
-            b = _MB.build_bundle_for_lang(rows, lang)
+            b = menu_builder.build_bundle_for_lang(rows, lang)
             bundles[lang] = b
-            html_by_lang[lang] = _MB.render_nav_html(b)
-        out = OUT / "assets" / "data" / "menu"
+            html_by_lang[lang] = menu_builder.render_nav_html(b)
+        out = DIST / "assets" / "data" / "menu"
         out.mkdir(parents=True, exist_ok=True)
         for lang, b in bundles.items():
-            write_text(out / f"bundle_{lang}.json", json.dumps(b, ensure_ascii=False, separators=(",",":")))
-    elif _MB:
-        env_path = os.environ.get("LOCAL_XLSX")
-        cms_dir = _MBPath("data/cms")
-        if env_path:
-            p = _MBPath(env_path)
-            if p.exists():
-                cms_dir = p.parent
-        bundles, html_by_lang = _MB.build_all(cms_dir, LOCALES)
-        out = ((_MBPath('dist') if 'OUT' not in globals() else OUT) / "assets" / "data" / "menu")
-        out.mkdir(parents=True, exist_ok=True)
-        for L, B in bundles.items():
-            (out / f"bundle_{L}.json").write_text(json.dumps(B, ensure_ascii=False, separators=(",",":")), encoding="utf-8")
+            write(out / f"bundle_{lang}.json", json.dumps(b, ensure_ascii=False, separators=(",",":")))
     else:
-        bundles = {L: {"lang": L, "items": [], "version": "sha256:0"} for L in LOCALES}
-        html_by_lang = {L: "" for L in LOCALES}
+        bundles, html_by_lang = {}, {}
     pages = base_pages()
     city  = generate_city_service()
     all_pages = pages + city
@@ -908,10 +885,10 @@ def build_all():
         meta_desc = p.get("meta_desc") or ""
         og_image = p.get("og_image") or ""
         key = p.get("slugKey") or (p.get("slug") or "")
-        override = cms.get("page_meta", {}).get(lang, {}).get(key, {})
-        if override.get("title"): meta_title = override["title"]
-        if override.get("description"): meta_desc = override["description"]
-        if override.get("og_image"): og_image = override["og_image"]
+        over = cms.get("page_meta", {}).get(lang, {}).get(key, {})
+        if over.get("title"): meta_title = over["title"]
+        if over.get("description"): meta_desc = over["description"]
+        if over.get("og_image"): og_image = over["og_image"]
         p["seo_title"] = meta_title
         p["meta_desc"] = meta_desc
         p["og_image"] = og_image
@@ -944,21 +921,21 @@ def build_all():
         }
         tpl = p.get("template") or choose_template(p)
         try:
-            html = env.get_template(pathlib.Path(tpl).name).render(**ctx)
+            page_html = env.get_template(Path(tpl).name).render(**ctx)
         except TemplateNotFound:
-            html = (
+            page_html = (
                 f"<!doctype html><html lang=\"{lang}\"><head>"
                 f"<meta charset='utf-8'><title>{p.get('seo_title','')}</title>"
                 f"</head><body><h1>{p.get('h1','')}</h1></body></html>"
             )
-        html = _inject_blocks(html, lang)
+        page_html = _inject_blocks(page_html, lang)
 
         # AUTOLINKI + fallback
-        html, ai, fb = inject_autolinks(html, lang)
-        autolink_inline+=ai; autolink_fb+=fb
+        page_html, ai, fb = inject_autolinks(page_html, lang)
+        autolink_inline += ai; autolink_fb += fb
 
         # OSTATECZNY DOM
-        soup=soupify(html)
+        soup = soupify(page_html)
         set_ext_link_attrs(soup, SITE_URL); set_img_defaults(soup)
         ensure_head_injections(soup, ctx["page"], hreflang_map)
 
