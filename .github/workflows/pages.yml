@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create local venv (system python3) + required libs
+      - name: Create local venv (python3) & install libs
         run: |
           set -e
           python3 -V
@@ -32,36 +32,33 @@ jobs:
           source .venv/bin/activate
           python -m pip install --upgrade pip
           pip install -r requirements.txt || true
-          pip install --upgrade openpyxl beautifulsoup4 pyyaml
-          python - <<'PY'
-import importlib, sys
-for m in ("openpyxl","bs4","yaml"):
-    try:
-        importlib.import_module(m)
-    except Exception as e:
-        sys.exit(f"❌ Missing {m}: {e}")
-print("✅ libs OK")
-PY
+          pip install --upgrade openpyxl beautifulsoup4 PyYAML
+          # test importów bez heredoc (unikamy '<<' w YAML)
+          python -c 'import openpyxl, bs4, yaml; print("✅ libs OK")'
 
       - name: Provide CMS from runner
         run: |
-          set -euo pipefail
+          set -e
           mkdir -p data/cms
           SRC="${{ vars.CMS_SOURCE }}"
           [ -z "$SRC" ] && SRC="${{ vars.LOCAL_XLSX }}"
           [ -z "$SRC" ] && SRC="/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
-          SRC="$(echo "$SRC" | sed 's/[[:space:]\\.]*$//')"   # obetnij spacje/kropki z końca
+          SRC="$(echo "$SRC" | sed "s/[[:space:]\.]*$//")"
           echo "CMS_SOURCE_PATH: $SRC"
           [ -f "$SRC" ] || (echo "❌ CMS not found at: $SRC"; exit 1)
           cp "$SRC" data/cms/menu.xlsx
-          echo "CMS_SHA256: $(shasum -a 256 data/cms/menu.xlsx | awk '{print $1}')"
+          echo "CMS_SHA256: $(shasum -a 256 data/cms/menu.xlsx | awk "{print \$1}")"
           ls -lah data/cms
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
 
       - name: Build
         env:
           CLEAN: '1'
           MINIFY: '1'
         run: |
+          set -e
           source .venv/bin/activate
           python tools/build.py
 
@@ -74,15 +71,6 @@ PY
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
-
-      # Gdyby coś padło – zbierz maksimum informacji
-      - name: Debug on failure
-        if: ${{ failure() }}
-        run: |
-          echo "=== PYTHON ==="; python3 -V || true
-          echo "=== VENV PIP LIST ==="; source .venv/bin/activate && pip list || true
-          echo "=== DATA/CMS ==="; ls -lah data/cms || true
-          echo "=== DIST TREE (TOP) ==="; find dist -maxdepth 3 -type f | sed 's|^|  |' || true
 
   deploy:
     name: Deploy to GitHub Pages
