@@ -101,15 +101,6 @@
 
     // MEGA‑PANELE
     if (mega && bundle.mega_html) {
-      const tmp = document.createElement('div');
-      tmp.innerHTML = passHTML(bundle.mega_html);
-      const sections = tmp.querySelectorAll('section');
-      const grid = document.createElement('div');
-      grid.style.display = 'grid';
-      grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
-      sections.forEach(sec => grid.appendChild(sec));
-      mega.innerHTML = '';
-      mega.appendChild(grid);
       mega.style.display = 'none';
       mega.style.opacity = '0';
       mega.style.transform = 'translateY(-8px)';
