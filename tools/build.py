@@ -349,10 +349,12 @@ def _cms_local_read() -> Dict[str, Any]:
             import openpyxl
             wb = openpyxl.load_workbook(p_xlsx, read_only=True, data_only=True)
             ws = wb.worksheets[0]
+            start_cell, end_cell = ws.calculate_dimension().split(":")
+            max_row = int("".join(filter(str.isdigit, end_cell)))
             headers = [str(c.value).strip() if c.value is not None else "" for c in next(ws.iter_rows(min_row=1, max_row=1))]
             idx = {h: i for i, h in enumerate(headers)}
             rows = []
-            for row in ws.iter_rows(min_row=2, values_only=True):
+            for row in ws.iter_rows(min_row=2, values_only=True, max_row=max_row):
                 d = {h: (row[idx[h]] if h in idx else "") for h in headers}
                 rows.append({(k or "").strip(): (str(v or "").strip()) for k, v in d.items()})
             print(f"[CMS] Lokalnie: {p_xlsx}")
