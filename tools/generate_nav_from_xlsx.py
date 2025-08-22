@@ -93,7 +93,7 @@ def read_nav(ws):
         if 'col' in idx:
             try:
                 c = int(row[idx['col']])
-                if 1 <= c <= 3:
+                if 1 <= c <= 4:
                     col = c
             except Exception:
                 pass
@@ -161,17 +161,17 @@ def build_bundle(lang, rows, routes, props):
         kids  = children.get(label, []) + children.get(slug, [])
         if not kids:
             continue
-        cols = {1: [], 2: [], 3: []}
+        cols = {i: [] for i in range(1, 5)}
         for ch in kids:
             try:
                 c = int(ch.get('col') or 1)
             except Exception:
                 c = 1
-            if c not in (1,2,3):
+            if c not in cols:
                 c = 1
             cols[c].append(ch)
         col_divs = []
-        for i in (1,2,3):
+        for i in range(1, 5):
             links = ''.join(f'<div><a href="{r["href"]}">{r["label"]}</a></div>' for r in cols[i])
             col_divs.append(f'<div class="col">{links}</div>')
         sections.append(
