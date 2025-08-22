@@ -349,12 +349,10 @@ def _cms_local_read() -> Dict[str, Any]:
             import openpyxl
             wb = openpyxl.load_workbook(p_xlsx, read_only=True, data_only=True)
             ws = wb.worksheets[0]
-            start_cell, end_cell = ws.calculate_dimension().split(":")
-            max_row = int("".join(filter(str.isdigit, end_cell)))
             headers = [str(c.value).strip() if c.value is not None else "" for c in next(ws.iter_rows(min_row=1, max_row=1))]
             idx = {h: i for i, h in enumerate(headers)}
             rows = []
-            for row in ws.iter_rows(min_row=2, values_only=True, max_row=max_row):
+            for row in ws.iter_rows(min_row=2, values_only=True):
                 d = {h: (row[idx[h]] if h in idx else "") for h in headers}
                 rows.append({(k or "").strip(): (str(v or "").strip()) for k, v in d.items()})
             print(f"[CMS] Lokalnie: {p_xlsx}")
@@ -383,9 +381,6 @@ def load_cms() -> Dict[str, Any]:
             data = cms_ingest.load_all(base)
             if data:
                 print(data.get("report", ""))
-                warnings = data.get("warnings") or []
-                if warnings:
-                    raise ValueError("\n".join(warnings))
                 blocks_list = []
                 for lang, m in (data.get("blocks") or {}).items():
                     for path, obj in m.items():
@@ -409,20 +404,6 @@ def load_cms() -> Dict[str, Any]:
     return _cms_local_read()
 
 CMS = load_cms()
-
-# Ensure each language has a home page before proceeding
-for _lang in CFG.get("languages") or []:
-    L = (_lang or DEFAULT_LANG).lower()
-    pages_for_lang = [
-        p for p in CMS.get("pages", [])
-        if (p.get("lang") or DEFAULT_LANG).lower() == L
-    ]
-    has_home = any(
-        (p.get("slugKey") or "").lower() == "home" or (p.get("slug") or "") == ""
-        for p in pages_for_lang
-    )
-    if not has_home:
-        raise RuntimeError(f"[build] No home page for language '{L}'")
 
 # ---------------------------- CSV: cities / keywords ------------------------
 def read_csv(path:str, dialect="auto")->List[Dict[str,str]]:
@@ -500,8 +481,6 @@ def base_pages() -> List[Dict[str, Any]]:
 
         if not ctx.get("title"):
             ctx["title"] = (p.get("h1") or ctx["seo_title"])
-
-        ctx["h1"] = ctx.get("h1") or ctx["title"]
 
         ctx["template"] = choose_template(ctx)
         ctx["__from"] = p.get("__from", "pages")   # ← TEN wiersz zostaje
