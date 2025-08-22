@@ -59,6 +59,16 @@ jobs:
           source .venv/bin/activate
           python tools/cms_guard.py .codex/cms_schema.yml data/cms/menu.xlsx
 
+      - name: Upload CMS sheet report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cms-sheets
+          path: |
+            sheet_report.json
+            data/cms/menu.xlsx
+          if-no-files-found: warn
+
       - name: Build
         env:
           CLEAN: '1'
