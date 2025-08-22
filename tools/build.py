@@ -203,6 +203,11 @@ def write_text(p: pathlib.Path, s: str):
 def ensure_dir(p: pathlib.Path):
     p.mkdir(parents=True, exist_ok=True)
 
+def write_404_page(out_dir: pathlib.Path, default_lang: str):
+    """Generate a minimal 404 page linking to the site's home in the default language."""
+    home = f"/{default_lang}/" if default_lang else "/"
+    write_text(out_dir/"404.html", f"<h1>404</h1><p>Nie znaleziono strony. <a href='{home}'>Wróć do strony głównej</a>.</p>")
+
 def norm_slug(s: str) -> str:
     s = unicodedata.normalize("NFD", s or "").encode("ascii","ignore").decode("ascii")
     s = re.sub(r"&","-and-", s.lower())
@@ -1011,7 +1016,7 @@ def build_all():
         write_text(OUT / html_file, f"google-site-verification: {token}")
 
     # 404.html (prosty)
-    write_text(OUT/"404.html", "<h1>404</h1><p>Nie znaleziono strony. <a href='/pl/'>Wróć do strony głównej</a>.</p>")
+    write_404_page(OUT, DEFAULT_LANG)
 
     # robots.txt
     write_text(OUT/"robots.txt", f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n")
