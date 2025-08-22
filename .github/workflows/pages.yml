@@ -1,6 +1,7 @@
 name: pages
 on:
-  push: { branches: [ main ] }
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -16,38 +17,41 @@ jobs:
   build:
     name: Build site (self-hosted)
     runs-on: [self-hosted, macOS, X64]
+
     steps:
       - uses: actions/checkout@v4
 
-      # Użyj systemowego Pythona, bez setup-python (eliminuje błąd /Users/runner)
-      - name: Create local venv
+      # Venv na systemowym Pythonie + wymagane biblioteki
+      - name: Create local venv (python3) & install libs
         run: |
           python3 -V
           python3 -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip
-          # spróbuj z requirements.txt, ale dodatkowo doinstaluj biblioteki potrzebne dla XLSX/BS4/YAML
+          # spróbuj requirements.txt, a potem doinstaluj twardo potrzebne
           pip install -r requirements.txt || true
-          pip install --upgrade openpyxl beautifulsoup4 pyyaml
-          # twardy test – przerwij jeśli brakuje którejkolwiek z bibliotek
+          pip install --upgrade openpyxl beautifulsoup4 PyYAML
           python - <<'PY'
-import sys
-try:
-    import openpyxl, bs4, yaml
-    print("OK: openpyxl/bs4/PyYAML gotowe")
-except Exception as e:
-    sys.exit(f"❌ Missing lib: {e}")
+import importlib, sys
+for m in ("openpyxl","bs4","yaml"):
+    try: importlib.import_module(m)
+    except Exception as e: sys.exit(f"❌ Missing {m}: {e}")
+print("✅ libs OK")
 PY
 
+      # Skopiuj CMS z Twojego Maka do repo na czas builda
       - name: Provide CMS from runner
         run: |
           set -euo pipefail
           mkdir -p data/cms
           SRC="${{ vars.CMS_SOURCE }}"
-          if [ -z "$SRC" ]; then SRC="/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"; fi
+          [ -z "$SRC" ] && SRC="${{ vars.LOCAL_XLSX }}"
+          [ -z "$SRC" ] && SRC="/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
+          # obetnij spacje/kropki z końca (częsty błąd)
+          SRC="$(echo "$SRC" | sed 's/[[:space:]\.]*$//')"
           echo "CMS_SOURCE_PATH: $SRC"
           ls -lah "$(dirname "$SRC")" || true
-          if [ ! -f "$SRC" ]; then echo "❌ CMS not found at: $SRC"; exit 1; fi
+          [ -f "$SRC" ] || (echo "❌ CMS not found at: $SRC"; exit 1)
           cp "$SRC" data/cms/menu.xlsx
           echo "CMS_SHA256: $(shasum -a 256 data/cms/menu.xlsx | awk '{print $1}')"
           ls -lah data/cms
@@ -59,16 +63,16 @@ PY
         env:
           CLEAN: '1'
           MINIFY: '1'
+          BASE_URL: ${{ vars.BASE_URL }}   # opcjonalnie
         run: |
           source .venv/bin/activate
           python tools/build.py
 
+      # Diagnostyka – zawsze pokaż, czy bundlery istnieją
       - name: List bundles
         run: |
-          echo "--- dist/assets/data/menu ---"
-          ls -lah dist/assets/data/menu || true
-          echo "--- dist/assets/nav (legacy) ---"
-          ls -lah dist/assets/nav || true
+          echo "--- dist/assets/data/menu ---"; ls -lah dist/assets/data/menu || true
+          echo "--- dist/assets/nav (legacy) ---"; ls -lah dist/assets/nav || true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
