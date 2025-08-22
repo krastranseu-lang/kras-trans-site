@@ -113,8 +113,7 @@ img,svg,video{max-width:100%; height:auto; display:block}
 .sq-nav .nav__list{
   list-style:none; margin:0; padding:0;
   display:flex; gap:6px; align-items:center;
-  flex-wrap:nowrap;           /* <— jeden pasek */
-  overflow-x:auto;            /* poziomy scroll */
+  flex-wrap:wrap;             /* wrap to multiple rows */
   -webkit-overflow-scrolling:touch;
   scroll-behavior:smooth;
 }
