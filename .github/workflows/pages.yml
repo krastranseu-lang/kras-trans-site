@@ -21,6 +21,7 @@ jobs:
   build:
     name: Build site (self-hosted)
     runs-on: [self-hosted, macOS, X64]
+
     steps:
       - uses: actions/checkout@v4
 
@@ -33,7 +34,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt || true
           pip install --upgrade openpyxl beautifulsoup4 PyYAML
-          # test importów bez heredoc (unikamy '<<' w YAML)
           python -c 'import openpyxl, bs4, yaml; print("✅ libs OK")'
 
       - name: Provide CMS from runner
@@ -43,11 +43,11 @@ jobs:
           SRC="${{ vars.CMS_SOURCE }}"
           [ -z "$SRC" ] && SRC="${{ vars.LOCAL_XLSX }}"
           [ -z "$SRC" ] && SRC="/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
-          SRC="$(echo "$SRC" | sed "s/[[:space:]\.]*$//")"
+          SRC="$(echo "$SRC" | sed 's/[[:space:]\.]*$//')"   # obetnij spacje/kropki z końca
           echo "CMS_SOURCE_PATH: $SRC"
           [ -f "$SRC" ] || (echo "❌ CMS not found at: $SRC"; exit 1)
           cp "$SRC" data/cms/menu.xlsx
-          echo "CMS_SHA256: $(shasum -a 256 data/cms/menu.xlsx | awk "{print \$1}")"
+          echo "CMS_SHA256: $(shasum -a 256 data/cms/menu.xlsx | awk '{print $1}')"
           ls -lah data/cms
 
       - name: Configure Pages
@@ -83,6 +83,14 @@ jobs:
           set -e
           source .venv/bin/activate
           python tools/cms_verify_build.py
+
+      - name: Upload routes diag
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: routes-json
+          path: _routes.json
+          if-no-files-found: warn
 
       - name: List bundles
         run: |
