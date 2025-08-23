@@ -60,9 +60,7 @@ def _read_xlsx(path: Path):
     return {ws.title: ws for ws in wb.worksheets}
 
 def _rows(ws):
-    start_cell, end_cell = ws.calculate_dimension().split(":")
-    max_row = int("".join(filter(str.isdigit, end_cell)))
-    it = ws.iter_rows(values_only=True, max_row=max_row)
+    it = ws.iter_rows(values_only=True)
     headers = [str(x or "").strip() for x in next(it)]
     for row in it:
         yield headers, [("" if v is None else str(v).strip()) for v in row]
@@ -71,9 +69,7 @@ def _find_sheet(sheets, group):
     best = None; best_score=-1
     for name, ws in sheets.items():
         try:
-            start_cell, end_cell = ws.calculate_dimension().split(":")
-            max_row = int("".join(filter(str.isdigit, end_cell)))
-            it = ws.iter_rows(values_only=True, max_row=max_row)
+            it = ws.iter_rows(values_only=True)
             headers = [str(x or "").strip() for x in next(it)]
             m = _map_headers(headers, SYN[group])
             score = len(m)
@@ -93,7 +89,6 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
     Dane z wielu arkuszy sumują się (union).
     """
     report = []
-    warnings: List[str] = []
     # 1) wybór źródła
     src = explicit_src if explicit_src and explicit_src.exists() else \
           (cms_root / "menu.xlsx" if (cms_root / "menu.xlsx").exists() else None)
@@ -106,8 +101,8 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
     wb = openpyxl.load_workbook(src, read_only=True, data_only=True)
 
     def norm(s): return (s or "").strip().lower()
-    def headers(ws, max_row):
-        it = ws.iter_rows(values_only=True, max_row=max_row)
+    def headers(ws):
+        it = ws.iter_rows(values_only=True)
         row = next(it)
         return [str(x or "").strip() for x in row]
 
@@ -126,9 +121,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
 
     # przejrzyj wszystkie arkusze
     for ws in wb.worksheets:
-        start_cell, end_cell = ws.calculate_dimension().split(":")
-        max_row = int("".join(filter(str.isdigit, end_cell)))
-        hdr = headers(ws, max_row); hdr_lc = [norm(h) for h in hdr]
+        hdr = headers(ws); hdr_lc = [norm(h) for h in hdr]
         r = f"[sheet] {ws.title}: {hdr}"
         report.append(r)
 
@@ -155,7 +148,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
         is_strings = norm(hdr[0])=="key" and len(lang_cols)>=1
         is_routes  = norm(hdr[0]) in ("slugkey","key") and len(lang_cols)>=1 and ("lang" not in hdr_lc)
 
-        it = ws.iter_rows(values_only=True, max_row=max_row); next(it, None)
+        it = ws.iter_rows(values_only=True); next(it, None)
 
         if is_pages:
             report.append(f"[detect] pages-like: {ws.title}")
@@ -171,10 +164,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
                 par = raw.get("parentSlug") or raw.get("parent") or ""
                 order = raw.get("order") or "999"
                 rel = raw_slug.strip()
-                if rel.startswith(f"/{L}/"):
-                    rel = rel[len(f"/{L}/"):]
-                elif rel.startswith(f"{L}/"):
-                    rel = rel[len(f"{L}/"):]
+                if rel.startswith(f"/{L}/"): rel = rel[len(f"/{L}/"):]
                 rel = rel.strip("/")
                 if not key: key = (rel or "home") if rel else "home"
                 page = dict(raw)
@@ -187,20 +177,6 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
                     "order": int(float(order or "999")),
                     "publish": True
                 })
-                page.setdefault("h1", page["slugKey"])
-                page.setdefault("title", page["h1"])
-                page.setdefault("body_md", f"## {page['h1']}\n\n")
-
-                # sanity checks for required text fields
-                if not (page.get("h1") or "").strip():
-                    msg = f"[cms_ingest] page '{key}' missing h1"
-                    warnings.append(msg); report.append(msg)
-                if not (page.get("title") or "").strip():
-                    msg = f"[cms_ingest] page '{key}' missing title"
-                    warnings.append(msg); report.append(msg)
-                if not (page.get("body_md") or "").strip():
-                    msg = f"[cms_ingest] page '{key}' missing body_md"
-                    warnings.append(msg); report.append(msg)
                 pages_rows.append(page)
                 routes.setdefault(key, {})[L] = rel
                 pm = page_meta.setdefault(L, {}).setdefault(key, {})
@@ -322,7 +298,6 @@ def load_all(cms_root: Path, explicit_src: Optional[Path]=None) -> Dict[str,Any]
         "strings": strings,
         "faq_rows": faq_rows,
         "props_rows": props_rows,
-        "report": "\n".join(report),
-        "warnings": warnings,
+        "report": "\n".join(report)
     }
 
