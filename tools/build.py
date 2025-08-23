@@ -846,7 +846,6 @@ def build_all():
         "autogenerate_from_cms": CFG.get("autogenerate_from_cms", False),
     }
     languages = site.get("languages", ["pl"])
-    langs = languages
     dlang = site.get("default_lang", "pl")
     page_defs = CFG.get("pages", [])
     # === CMS: wczytaj XLSX z runnera (LOCAL_XLSX/CMS_SOURCE albo stała ścieżka) ===
@@ -859,8 +858,39 @@ def build_all():
         print("[cms] cms_ingest not available")
     global CMS
     CMS = cms
+    # === Languages union from config + CMS (pages_rows/menu_rows) ===
+    cms_langs = set(languages)
+    for r in cms.get("pages_rows", []):
+        L = (r.get("lang") or "").lower()
+        if L: cms_langs.add(L)
+    for r in cms.get("menu_rows", []):
+        L = (r.get("lang") or "").lower()
+        if L: cms_langs.add(L)
+    languages = sorted(cms_langs)
+    site["languages"] = languages
+
     # === MENU: jeśli są wiersze z arkusza → buduj bundlery + HTML do SSR ===
     rows = cms.get("menu_rows") or []
+    if not rows:
+        def _menu_from_pages(pages_rows):
+            out=[]
+            titles={ (r.get("lang"), r.get("key")): (r.get("meta",{}).get("title") or r.get("key")) for r in pages_rows }
+            for r in pages_rows:
+                lang=r.get("lang")
+                key=r.get("key")
+                slug=r.get("slug") or ""
+                parent=r.get("parent_key") or ""
+                label=titles.get((lang,key), key)
+                href=f"/{lang}/{slug + '/' if slug else ''}"
+                item={"lang":lang,"label":label,"href":href,"parent":"","order":r.get("order",999),"col":1,"enabled":True}
+                if parent:
+                    parent_label=titles.get((lang,parent),"")
+                    item["parent"]=parent_label
+                out.append(item)
+            return out
+        rows = _menu_from_pages(cms.get("pages_rows", []))
+        cms["menu_rows"] = rows
+        print("[cms] menu_rows empty → built from pages_rows")
     if rows:
         bundles, html_by_lang = {}, {}
         for L in languages:
@@ -879,29 +909,30 @@ def build_all():
     else:
         bundles, html_by_lang = {}, {}
         print("[cms] menu_rows empty → pozostaje dotychczasowe menu (jeśli jest)")
-    # === Auto-pages z CMS (dopisz brakujące strony na podstawie meta z domyślnego języka) ===
+    # === Auto-pages z CMS (dopisz brakujące strony na podstawie page_routes) ===
     auto_on = site.get("autogenerate_from_cms", False)
-    if auto_on and cms.get("page_meta"):
+    if auto_on and cms.get("page_routes"):
         dlang = site.get("default_lang", "pl")
-        meta_d = cms["page_meta"].get(dlang, {})
         page_list_name = "page_defs" if "page_defs" in locals() else ("pages" if "pages" in locals() else None)
         page_list = locals().get(page_list_name, [])
         existing = {p.get("key") for p in page_list if isinstance(p, dict)}
-        def _slug(s):
-            import re, unicodedata
-            s = unicodedata.normalize('NFKD', s).encode('ascii','ignore').decode('ascii')
-            return re.sub(r'[^a-zA-Z0-9]+','-', s).strip('-').lower() or 'page'
-        for key, meta in meta_d.items():
+        pages_rows = cms.get("pages_rows", [])
+        page_meta = cms.get("page_meta", {})
+        for key, route_map in cms.get("page_routes", {}).items():
             if key in existing:
                 continue
+            slugs = {L: route_map.get(L, "") for L in languages}
+            tpl = next((r.get("template") for r in pages_rows if r.get("lang") == dlang and r.get("key") == key), "page.html")
+            parent = next((r.get("parent_key") for r in pages_rows if r.get("lang") == dlang and r.get("key") == key), "") or "home"
+            title_map = {L: (page_meta.get(L, {}).get(key, {}).get("seo_title") or page_meta.get(L, {}).get(key, {}).get("title") or key) for L in languages}
+            desc_map  = {L: (page_meta.get(L, {}).get(key, {}).get("description") or "") for L in languages}
             page_list.append({
                 "key": key,
-                "template": "generic.html",
-                "parent": "home",
-                "slugs": { L: _slug(key) for L in languages },
-                "title": { L: (cms["page_meta"].get(L, {}).get(key, {}).get("title") or key) for L in languages },
-                "description": { L: (cms["page_meta"].get(L, {}).get(key, {}).get("description") or "") for L in languages },
-                "og_image": (cms["page_meta"].get(dlang, {}).get(key, {}).get("og_image") or "/assets/img/placeholder.svg"),
+                "template": tpl or "page.html",
+                "parent": parent,
+                "slugs": slugs,
+                "title": title_map,
+                "description": desc_map,
             })
         if page_list_name:
             locals()[page_list_name] = page_list
@@ -972,9 +1003,13 @@ def build_all():
         og_image = p.get("og_image") or ""
         key = p.get("slugKey") or (p.get("slug") or "")
         over = cms.get("page_meta", {}).get(lang, {}).get(key, {})
-        if over.get("title"): meta_title = over["title"]
-        if over.get("description"): meta_desc = over["description"]
-        if over.get("og_image"): og_image = over["og_image"]
+        meta_title = over.get("seo_title") or over.get("title") or meta_title
+        meta_desc = over.get("description") or meta_desc
+        og_image = over.get("og_image") or og_image
+        if over.get("canonical"):
+            p["canonical"] = over["canonical"]
+        cta_label = over.get("cta_label")
+        cta_href  = over.get("cta_href")
         p["seo_title"] = meta_title
         p["meta_desc"] = meta_desc
         p["og_image"] = og_image
@@ -1015,6 +1050,15 @@ def build_all():
                 f"</head><body><h1>{p.get('h1','')}</h1></body></html>"
             )
         page_html = _inject_blocks(page_html, lang)
+        if cta_label or cta_href:
+            soup_cta = BeautifulSoup(page_html, "html.parser")
+            btn = soup_cta.select_one(".btn-cta")
+            if btn:
+                if cta_label:
+                    btn.string = cta_label
+                if cta_href and btn.name == "a":
+                    btn["href"] = cta_href
+            page_html = str(soup_cta)
         # debug
         write(DIST/"_debug_cms.json", json.dumps({
           "menu_rows": len(cms.get("menu_rows",[])),
