@@ -307,10 +307,14 @@ if ASSETS_DIR.exists():
     shutil.copytree(ASSETS_DIR, OUT / "assets", dirs_exist_ok=True)
 
 # ---------------------------- ŚRODOWISKO JINJA -----------------------------
+TEMPLATES = Path(CFG["paths"]["src"]["templates"])
 env = Environment(
-    loader=FileSystemLoader(CFG["paths"]["src"]["templates"]),
+    loader=FileSystemLoader(TEMPLATES),
     autoescape=select_autoescape(["html"])
 )
+
+def render_template(name: str, ctx: Dict[str, Any]) -> str:
+    return env.get_template(name).render(**ctx)
 
 # Globalne dane dostępne w szablonach
 env.globals.update({
@@ -922,7 +926,22 @@ def build_all():
 
     if "page_defs" in locals(): page_defs = page_list
     if "pages"     in locals(): pages     = page_list
-    print(f"[cms] pages autogen: total_keys={len(slugs)}; after_merge={len(page_list)}")
+    # --- REBUILD ROUTING PO AUTOGENIE ---
+    _build_pages = page_list  # to jest nasza aktualna lista stron
+    slugs = { p["key"]: p["slugs"] for p in _build_pages }   # <-- odświeżone slugs
+    print(f"[cms] pages autogen: total_keys={len(slugs)}; after_merge={len(_build_pages)}")
+
+    # helper path_for korzystający z aktualnych slugs
+    def path_for(key: str, lang: str) -> str:
+        try:
+            s = slugs[key][lang]
+        except Exception:
+            s = ""
+        return f"/{lang}/" if not s else f"/{lang}/{s}/"
+
+    # jeżeli wcześniej wyliczałeś nav_urls przed autogenem – wylicz JESZCZE RAZ teraz:
+    nav_keys = ["home","services","fleet","about","contact"] if "nav_keys" not in locals() else nav_keys
+    nav_urls = { L: {k: path_for(k, L) for k in nav_keys if k in slugs} for L in languages }
 
     # === MENU: jeśli są wiersze z arkusza → buduj bundlery + HTML do SSR ===
     rows = cms.get("menu_rows") or []
@@ -1001,7 +1020,7 @@ def build_all():
            (DIST/"assets"/"nav"/f"bundle_{dlang_check}.json").exists(), "❌ Brak bundla menu (404)"
     pages = base_pages()
     city  = generate_city_service()
-    all_pages = pages + city
+    _build_pages = pages + city
 
     hreflang_map = CMS.get("hreflang", {})
     indexables: List[Tuple[str,str,str]] = []
@@ -1016,10 +1035,14 @@ def build_all():
     # TF-IDF (P3) – z tekstu strony
     tfidf_map={}
 
-    for p in all_pages:
+    for p in _build_pages:
         lang = p.get("lang") or DEFAULT_LANG
         slug = p.get("slug", "")
         key = p.get("slugKey") or (p.get("slug") or "")
+        if "key" not in p:
+            p["key"] = key
+        if "tsiny" in (p.get("key") or ""):
+            print("[cms] route check:", {L: path_for(p["key"], L) for L in languages})
 
         # OG image generator (opcjonalnie; tylko gdy brak)
         gen_og = og_image_for(p)
@@ -1091,9 +1114,12 @@ def build_all():
           "menu_bundle_inline": json.dumps(bundles.get(lang, {}), ensure_ascii=False),
           "menu_version": (bundles.get(lang, {}) or {}).get("version","")
         }
-        tpl = p.get("template") or choose_template(p)
+        tpl = (p.get("template") or "page.html").strip()
+        candidate1 = f"pages/{tpl}"
+        candidate2 = f"{tpl}"
+        template_rel = candidate1 if (TEMPLATES / candidate1).exists() else candidate2
         try:
-            page_html = env.get_template(Path(tpl).name).render(**ctx)
+            page_html = render_template(template_rel, ctx)
         except TemplateNotFound:
             page_html = (
                 f"<!doctype html><html lang=\"{lang}\"><head>"
