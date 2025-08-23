@@ -960,8 +960,10 @@ def build_all():
         lang_row = (row.get("lang") or dlang).lower()
         slug_row = (row.get("slug") or "").lstrip("/")
         posts_by_lang[lang_row].append({
-            "slug": f"/{lang_row}/{slug_row}/",
+            "slug": slug_row,
+            "lang": lang_row,
             "title": row.get("title") or "",
+            "h1": row.get("h1") or row.get("title") or "",
             "lead": row.get("lead") or "",
             "meta_desc": row.get("meta_desc") or "",
             "author": row.get("author") or "",
@@ -969,6 +971,7 @@ def build_all():
             "published_at": row.get("published_at") or row.get("date") or "",
             "tags": row.get("tags") or "",
             "categories": row.get("categories") or "",
+            "body": row.get("body") or row.get("html") or row.get("content") or "",
         })
 
     pages_idx = {}
@@ -1177,6 +1180,112 @@ def build_all():
             generated.append({"lang": L, "key": key, "rel": rel, "out": str(out_path)})
             if not page_rec.get("noindex"):
                 indexables.append((canonical, page_rec.get("lastmod") or today, key))
+            writes += 1
+            langs_seen.add(L)
+
+    # --- Blog listing and post detail pages ---
+    blog_list_tpl = TEMPLATES / "pages" / "blog.html"
+    if not blog_list_tpl.exists():
+        blog_list_tpl = (
+            TEMPLATES / "pages" / "page.html"
+            if (TEMPLATES / "pages" / "page.html").exists()
+            else TEMPLATES / "pages" / "generic.html"
+        )
+    blog_list_tpl_rel = str(blog_list_tpl.relative_to(TEMPLATES))
+    blog_post_tpl = TEMPLATES / "pages" / "blog_post.html"
+    if not blog_post_tpl.exists():
+        blog_post_tpl = (
+            TEMPLATES / "pages" / "page.html"
+            if (TEMPLATES / "pages" / "page.html").exists()
+            else TEMPLATES / "pages" / "generic.html"
+        )
+    blog_post_tpl_rel = str(blog_post_tpl.relative_to(TEMPLATES))
+
+    for L, posts in posts_by_lang.items():
+        if not posts:
+            continue
+        listing_page = {"title": "Blog", "h1": "Blog", "lang": L}
+
+        def path_for(kk, LL=None, _routes=routes):
+            LL = LL or L
+            rel2 = (_routes.get(kk, {}) or {}).get(LL, "").strip("/")
+            return f"/{LL}/" if not rel2 else f"/{LL}/{rel2}/"
+
+        canonical_list = _canonical_url(SITE_URL, L, "blog", None)
+        ctx_list = {
+            "lang": L,
+            "site": SITE,
+            "posts": posts,
+            "page": listing_page,
+            "pg": listing_page,
+            "meta": {},
+            "nav": CFG.get("navigation", {}),
+            "path_for": path_for,
+            "title": "Blog",
+            "h1": "Blog",
+            "meta_desc": "",
+            "canonical": canonical_list,
+        }
+        html = render_template(blog_list_tpl_rel, ctx_list)
+        html = ensure_head_injections(
+            html,
+            listing_page,
+            {},
+            site=SITE,
+            lang=L,
+            meta_title="Blog",
+            meta_description="",
+            canonical_url=canonical_list,
+            canonical_path=None,
+        )
+        out_list = _out_for(L, "blog")
+        out_list.write_text(html, encoding="utf-8")
+        generated.append({"lang": L, "key": "blog_list", "rel": "blog", "out": str(out_list)})
+        indexables.append((canonical_list, today, "blog_list"))
+        writes += 1
+        langs_seen.add(L)
+
+        for post in posts:
+            canonical_post = _canonical_url(SITE_URL, L, f"blog/{post['slug']}", None)
+            ctx_post = {
+                "lang": L,
+                "site": SITE,
+                "post": post,
+                "page": post,
+                "pg": post,
+                "meta": {},
+                "nav": CFG.get("navigation", {}),
+                "path_for": path_for,
+                "title": post.get("seo_title") or post.get("title") or "Blog",
+                "h1": post.get("h1") or post.get("title") or "",
+                "meta_desc": post.get("meta_desc") or "",
+                "canonical": canonical_post,
+            }
+            html = render_template(blog_post_tpl_rel, ctx_post)
+            html = ensure_head_injections(
+                html,
+                post,
+                {},
+                site=SITE,
+                lang=L,
+                meta_title=ctx_post["title"],
+                meta_description=ctx_post["meta_desc"],
+                canonical_url=canonical_post,
+                canonical_path=post.get("canonical_path"),
+            )
+            out_post = _out_for(L, f"blog/{post['slug']}")
+            out_post.write_text(html, encoding="utf-8")
+            generated.append(
+                {"lang": L, "key": "blog_detail", "rel": f"blog/{post['slug']}", "out": str(out_post)}
+            )
+            if not post.get("noindex"):
+                indexables.append(
+                    (
+                        canonical_post,
+                        post.get("lastmod") or post.get("published_at") or today,
+                        "blog_detail",
+                    )
+                )
             writes += 1
             langs_seen.add(L)
 
