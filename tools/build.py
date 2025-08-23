@@ -202,6 +202,18 @@ def norm_slug(s: str) -> str:
     s = re.sub(r"[^a-z0-9]+","-", s).strip("-")
     return re.sub(r"-{2,}","-", s)
 
+def _norm_slug(lang: str, raw: str) -> str:
+    s = (raw or "").strip()
+    cut = len(s)
+    for ch in ("#", "?"):
+        if ch in s:
+            cut = min(cut, s.index(ch))
+    s = s[:cut]
+    if s.startswith(f"/{lang}/"):
+        s = s[len(f"/{lang}/"):]
+    s = "/".join([p.strip() for p in s.split("/") if p.strip()])
+    return s + ("" if s.endswith("/") or s == "" else "/")
+
 def url_from(lang: str, slug: str) -> str:
     return f"/{lang}/{(slug + '/') if slug else ''}"
 
@@ -916,16 +928,16 @@ def build_all():
     if "pages"     in locals(): pages     = page_list
     # --- REBUILD ROUTING PO AUTOGENIE ---
     _build_pages = page_list  # to jest nasza aktualna lista stron
-    slugs = { p["key"]: p["slugs"] for p in _build_pages }   # <-- odświeżone slugs
+    slugs = {
+        p["key"]: {L: _norm_slug(L, (p.get("slugs") or {}).get(L, "")) for L in languages}
+        for p in _build_pages
+    }
     print(f"[cms] pages autogen: total_keys={len(slugs)}; after_merge={len(_build_pages)}")
 
     # helper path_for korzystający z aktualnych slugs
     def path_for(key: str, lang: str) -> str:
-        try:
-            s = slugs[key][lang]
-        except Exception:
-            s = ""
-        return f"/{lang}/" if not s else f"/{lang}/{s}/"
+        s = slugs.get(key, {}).get(lang, "")
+        return f"/{lang}/" + s
 
     # jeżeli wcześniej wyliczałeś nav_urls przed autogenem – wylicz JESZCZE RAZ teraz:
     nav_keys = ["home","services","fleet","about","contact"] if "nav_keys" not in locals() else nav_keys
@@ -1042,15 +1054,7 @@ def build_all():
         og_image = p.get("og_image") or ""
 
         # current path z routera
-        try:
-            current_path = path_for(key, lang)
-        except Exception:
-            try:
-                current_path = "/" + lang + "/" + (slugs[key][lang] or "")
-                if not current_path.endswith("/"):
-                    current_path += "/"
-            except Exception:
-                current_path = "/" + lang + "/"
+        current_path = path_for(key, lang)
 
         # default canonical na bazie current_path
         canonical_url = _canonical_url(site.get("base_url", ""), current_path, None)

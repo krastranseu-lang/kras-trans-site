@@ -28,25 +28,23 @@ def main() -> None:
     cms = cms_ingest.load_all(Path("data") / "cms")
     rows = cms.get("pages_rows") or []
 
-    # Build list of required output files for published page/home rows
     required = []
     for r in rows:
         typ = (r.get("type") or "page").strip().lower()
-        pub = str(r.get("meta", {}).get("publish") or "true").strip().lower()
+        pub = str(r.get("publish", True)).strip().lower()
         if pub in {"1", "true", "tak", "yes", "on", "prawda"} and typ in {"page", "home"}:
             lang = r.get("lang") or dlang
-            slug = r.get("slug") or ""
-            dst = Path("dist") / lang / (slug or "") / "index.html"
+            rel = cms_ingest._norm_slug(lang, r.get("slug") or "")
+            dst = Path("dist") / lang / (rel or "") / "index.html"
             required.append(dst)
 
     missing = [str(p) for p in required if not p.exists()]
     if missing:
-        print("Missing outputs:")
-        for p in missing[:200]:  # limit to 200 entries to avoid enormous logs
+        print(f"Missing outputs ({len(missing)}):")
+        for p in missing[:100]:
             print(" ", p)
         sys.exit(1)
 
-    # menu bundle (new or legacy locations)
     has_bundle = (
         (Path("dist/assets/data/menu") / f"bundle_{dlang}.json").exists()
         or (Path("dist/assets/nav") / f"bundle_{dlang}.json").exists()

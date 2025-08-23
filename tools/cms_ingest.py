@@ -63,6 +63,18 @@ SYN = {
 }
 
 def _lower(s:str) -> str: return (s or "").strip().lower()
+
+def _norm_slug(lang: str, raw: str) -> str:
+    s = (raw or "").strip()
+    cut = len(s)
+    for ch in ("#", "?"):
+        if ch in s:
+            cut = min(cut, s.index(ch))
+    s = s[:cut]
+    if s.startswith(f"/{lang}/"):
+        s = s[len(f"/{lang}/"):]
+    s = "/".join([p.strip() for p in s.split("/") if p.strip()])
+    return s + ("" if s.endswith("/") or s == "" else "/")
 def _map_headers(headers: List[str], syn: Dict[str,List[str]]) -> Dict[str,int]:
     hl=[_lower(h) for h in headers]; out={}
     for want, aliases in syn.items():
@@ -208,12 +220,9 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
                     parent = _cell(row, hdr_lc, "parentslug") or _cell(row, hdr_lc, "parent") or ""
                     order_v = _cell(row, hdr_lc, "order") or "999"
 
-                    rel = (raw_slug or "").strip()
-                    if rel.startswith(f"/{L}/"):
-                        rel = rel[len(f"/{L}/"):]
-                    rel = rel.strip("/")
+                    rel = _norm_slug(L, raw_slug)
                     if not key:
-                        key = (rel or "home") if rel else "home"
+                        key = (rel.rstrip("/") or "home") if rel else "home"
 
                     parent_key = (parent or "").strip()
                     if parent_key.startswith(f"/{L}/"):
