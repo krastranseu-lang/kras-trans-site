@@ -886,70 +886,37 @@ def build_all():
     langs_from_cms = sorted({r.get("lang", "pl") for r in (cms.get("pages_rows") or [])})
     languages = sorted(set(languages) | set(langs_from_cms))
     site["languages"] = languages
-    slugs = cms.get("page_routes") or {}
+    routes = cms.get("page_routes") or {}
     rows   = cms.get("pages_rows")  or []
-    by_key_lang = {}
-    for r in rows:
-        by_key_lang[(r["key"], r["lang"])] = r
+    by_key_lang = {(r["key"], r["lang"]): r for r in rows}
 
-    def meta_get(L, K):
+    def _meta_get(L, K):
         return (cms.get("page_meta", {}).get(L, {}).get(K, {})) or {}
 
     # === Auto-pages z CMS: dopisz brakujące strony ===
     page_list = locals().get("page_defs") or locals().get("pages") or []
     existing  = {p.get("key") for p in page_list if isinstance(p, dict)}
     dlang     = site.get("default_lang", "pl")
-    for key, per_lang in slugs.items():
+    for key, per_lang in routes.items():
         if key in existing:
             continue
         slug_map = {L: per_lang.get(L, "") for L in languages}
         row_dl = by_key_lang.get((key, dlang), {}) or {}
-        tpl    = row_dl.get("template") or "page.html"
+        tpl    = (row_dl.get("template") or "page.html").strip()
         parent = row_dl.get("parent_key") or "home"
 
-        title_map = {}
-        desc_map  = {}
-        for L in languages:
-            m = meta_get(L, key)
-            title_map[L] = m.get("seo_title") or m.get("title") or key
-            desc_map[L]  = m.get("description") or m.get("meta_desc") or ""
+        title_map = {L: (_meta_get(L, key).get("seo_title") or _meta_get(L, key).get("title") or key) for L in languages}
+        desc_map  = {L: (_meta_get(L, key).get("description") or _meta_get(L, key).get("meta_desc") or "") for L in languages}
 
         page_list.append({
-          "key": key,
-          "template": tpl,
-          "parent": parent,
-          "slugs": slug_map,                      # <— kluczowe: routing z arkusza
-          "title": title_map,
-          "description": desc_map,
-          "og_image": meta_get(dlang, key).get("og_image") or "/assets/img/placeholder.svg"
+          "key": key, "template": tpl, "parent": parent,
+          "slugs": slug_map, "title": title_map, "description": desc_map,
+          "og_image": _meta_get(dlang, key).get("og_image") or "/assets/img/placeholder.svg"
         })
+
 
     if "page_defs" in locals(): page_defs = page_list
     if "pages"     in locals(): pages     = page_list
-    # --- REBUILD ROUTING PO AUTOGENIE ---
-    _build_pages = page_list  # to jest nasza aktualna lista stron
-    slugs = {
-        p["key"]: {L: _norm_slug(L, (p.get("slugs") or {}).get(L, "")) for L in languages}
-        for p in _build_pages
-    }
-    print(f"[cms] pages autogen: total_keys={len(slugs)}; after_merge={len(_build_pages)}")
-
-    # helpery slug/path
-    def norm_rel_slug(lang: str, rel: str) -> str:
-        rel = (rel or "").strip()
-        if rel.startswith(f"/{lang}/"): rel = rel[len(f"/{lang}/"):]
-        rel = rel.strip("/")
-        return rel  # "" = home
-
-    def path_for(key: str, lang: str) -> str:
-        try: s = slugs[key][lang]
-        except Exception: s = ""
-        s = (s or "").strip("/")
-        return f"/{lang}/" if not s else f"/{lang}/{s}/"
-
-    # jeżeli wcześniej wyliczałeś nav_urls przed autogenem – wylicz JESZCZE RAZ teraz:
-    nav_keys = ["home","services","fleet","about","contact"] if "nav_keys" not in locals() else nav_keys
-    nav_urls = { L: {k: path_for(k, L) for k in nav_keys if k in slugs} for L in languages }
 
     # === MENU: jeśli są wiersze z arkusza → buduj bundlery + HTML do SSR ===
     rows = cms.get("menu_rows") or []
@@ -1028,7 +995,20 @@ def build_all():
            (DIST/"assets"/"nav"/f"bundle_{dlang_check}.json").exists(), "❌ Brak bundla menu (404)"
     pages = base_pages()
     city  = generate_city_service()
-    _build_pages = pages + city
+    page_list = pages + city
+
+    slugs = {}
+    for p in page_list:
+        sl = p.get("slugs") or {p.get("lang", dlang_check): p.get("slug", "")}
+        slugs[p["key"]] = sl
+
+    def path_for(key: str, lang: str) -> str:
+        s = (slugs.get(key, {}).get(lang, "") or "").strip("/")
+        return f"/{lang}/" if not s else f"/{lang}/{s}/"
+
+    nav_keys = ["home","services","fleet","about","contact"] if "nav_keys" not in locals() else nav_keys
+    nav_urls = { L: {k: path_for(k, L) for k in nav_keys if k in slugs} for L in languages }
+    print(f"[cms] pages autogen: keys={len(slugs)}; langs={len(languages)}")
 
     hreflang_map = CMS.get("hreflang", {})
     indexables: List[Tuple[str,str,str]] = []
@@ -1045,7 +1025,7 @@ def build_all():
 
     generated = []  # list of {"key":..., "lang":..., "rel":..., "out": ".../index.html"}
 
-    for p in _build_pages:
+    for p in page_list:
         lang = p.get("lang") or DEFAULT_LANG
         slug = p.get("slug", "")
         key = p.get("slugKey") or (p.get("slug") or "")
@@ -1064,14 +1044,17 @@ def build_all():
         og_image = p.get("og_image") or ""
 
         # current path z routera
-        current_path = path_for(key, lang)
-        rel = norm_rel_slug(lang, slugs[key][lang] if key in slugs else "")
+        try:
+            current_path = path_for(key, lang)
+        except Exception:
+            current_path = f"/{lang}/"
+        rel = (slugs.get(p["key"], {}).get(lang, "") or "").strip("/")
 
         # default canonical na bazie current_path
         canonical_url = _canonical_url(site.get("base_url", ""), current_path, None)
 
         # META override z CMS
-        over = cms.get("page_meta", {}).get(lang, {}).get(key, {}) or {}
+        over = _meta_get(lang, key)
         if over.get("seo_title"):
             meta_title = over["seo_title"]
         if over.get("description"):
@@ -1186,8 +1169,7 @@ def build_all():
         out_path = out_dir/"index.html"
         out_path.write_text(str(soup), "utf-8")
         generated.append({
-          "key": key, "lang": lang, "rel": rel,
-          "out": str(out_path.relative_to(ROOT))
+          "key": key, "lang": lang, "rel": rel, "out": str(out_path)
         })
         print(f"[write] {lang}/{key} -> {out_path}")
 
@@ -1200,7 +1182,7 @@ def build_all():
     from pathlib import Path as _P, PurePosixPath
     import json as _J
     _P("_routes.json").write_text(_J.dumps(generated, ensure_ascii=False, indent=2), "utf-8")
-    print(f"[routes] exported {_P('_routes.json').resolve()} count={len(generated)}")
+    print(f"[routes] exported by build count={len(generated)}")
 
     # Redirect stubs (z CMS.redirects)
     for r in CMS.get("redirects", []):
