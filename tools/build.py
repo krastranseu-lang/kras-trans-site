@@ -791,7 +791,10 @@ def ensure_head_injections(html: str, page: dict, hreflang_map: dict, *,
         el.attrs.update({"rel": rel, "href": href})
 
     # <title> i podstawowe meta
-    set_title(meta_title or page.get("title") or site.get("name"))
+    title_val = meta_title or page.get("title") or site.get("name")
+    if isinstance(title_val, dict):
+        title_val = site.get("name")
+    set_title(title_val)
     if meta_description:
         upsert_meta(name="description", content=meta_description)
 
@@ -813,7 +816,7 @@ def ensure_head_injections(html: str, page: dict, hreflang_map: dict, *,
     if meta_description:
         upsert_meta(property="og:description", content=meta_description)
     upsert_meta(property="og:url", content=canonical_url)
-
+    print(f"[head] injected for {lang}/{page.get('key')} canonical={canonical_url!s}")
     return str(soup)
 # --------- LINK GRAPH (pozostawione jak w starym; może być użyte w szabl.) --
 def neighbors_for(
@@ -1135,10 +1138,20 @@ def build_all():
         # OSTATECZNY DOM
         soup = soupify(page_html)
         set_ext_link_attrs(soup, SITE_URL); set_img_defaults(soup)
+
+        if not canonical_url:
+            canonical_url = _canonical_url(site.get("base_url", ""), current_path, None)
+        html_out = str(soup)
+        alts = hreflang_map.get(p.get("slugKey", "home"), {})  # dict z hreflang
         page_html = ensure_head_injections(
-            str(soup), ctx["page"], hreflang_map.get(p.get("slugKey", "home"), {}),
-            site=site, lang=lang, meta_title=meta_title,
-            meta_description=meta_desc, canonical_url=canonical_url
+            html_out,
+            page=p,
+            hreflang_map=alts,
+            site=site,
+            lang=lang,
+            meta_title=meta_title,
+            meta_description=meta_desc,
+            canonical_url=canonical_url,
         )
         soup = BeautifulSoup(page_html, "html.parser")
 
