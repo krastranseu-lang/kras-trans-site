@@ -78,6 +78,12 @@ jobs:
           source .venv/bin/activate
           python tools/build.py
 
+      - name: Verify build
+        run: |
+          set -e
+          source .venv/bin/activate
+          python tools/cms_verify_build.py
+
       - name: List bundles
         run: |
           echo "--- dist/assets/data/menu ---"; ls -lah dist/assets/data/menu || true
