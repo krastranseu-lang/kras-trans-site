@@ -214,32 +214,6 @@ def _norm_slug(lang: str, raw: str) -> str:
     s = "/".join([p.strip() for p in s.split("/") if p.strip()])
     return s + ("" if s.endswith("/") or s == "" else "/")
 
-def _rel_from(lang: str, slug: str | None, slug_key: str | None, ptype: str | None) -> str:
-    """
-    Zwraca relatywną ścieżkę bez języka:
-      "" (home) albo np. "blog", "company", "transport-ekspresowy-35t-kiedy-sie-oplaca"
-    Akceptuje slug w formie: "blog", "/blog/", "/pl/blog/", "/pl/", itp.
-    """
-    s = (slug or "").strip()
-    # usuń leading slash
-    if s.startswith("/"):
-        s = s.lstrip("/")
-        # jeżeli pierwszy segment to kod języka — usuń go
-        parts = s.split("/", 1)
-        if parts and parts[0] in LANGS:
-            s = parts[1] if len(parts) > 1 else ""
-    s = s.strip("/")
-
-    # home?
-    if (ptype or "").lower() == "home" or s in ("", "home", "index"):
-        return ""
-
-    # jeżeli dalej pusto — użyj slug_key
-    if not s and slug_key and slug_key not in ("home", "index"):
-        s = slug_key
-
-    return s.strip("/")
-
 def url_from(lang: str, slug: str) -> str:
     return f"/{lang}/{(slug + '/') if slug else ''}"
 
@@ -268,42 +242,35 @@ def _canonical_url(base_url: str, current_path: str, override: str | None) -> st
     return base + current_path
 
 
-def _split_slug(slug: str):
-    from cms_ingest import split_slug
-    return split_slug(slug)
+LANGS = {"pl","en","de","fr","it","ru","ua"}
 
 
-def _out_path_for(lang: str, rel: str):
-    from pathlib import Path
-    base = Path("dist") / lang
-    if rel:
-        base = base / rel
-    base.mkdir(parents=True, exist_ok=True)
-    return base / "index.html"
-
-
-LANG_KEYS = {"pl", "en", "de", "fr", "it", "ru", "ua"}
-
-
-def _resolve_lang_value(val, lang: str):
+def _resolve_lang(val, L):
     if isinstance(val, dict):
-        if lang in val and val[lang]:
-            return val[lang]
-        for k in (lang, "pl", "en"):
-            if k in val and val[k]:
-                return val[k]
-        for v in val.values():
-            if v:
-                return v
-        return ""
+        return val.get(L) or val.get("pl") or val.get("en") or next((v for v in val.values() if v), "")
     return val
 
 
-def _flatten_for_lang(obj: dict, lang: str) -> dict:
-    out = {}
-    for k, v in (obj or {}).items():
-        out[k] = _resolve_lang_value(v, lang)
-    return out
+def _flatten_page(P: dict, L: str) -> dict:
+    return {k: _resolve_lang(v, L) for k,v in (P or {}).items()}
+
+
+from pathlib import Path
+
+def _split_lang_rel(slug: str):
+    s = (slug or "").strip().strip("/")
+    if not s: return None, ""
+    parts = s.split("/",1)
+    if parts[0] in LANGS:
+        return parts[0], (parts[1] if len(parts)>1 else "")
+    return None, s
+
+
+def _out_for(L: str, rel: str) -> Path:
+    base = Path("dist")/L
+    if rel: base = base/rel
+    base.mkdir(parents=True, exist_ok=True)
+    return base/"index.html"
 
 def md_to_html(md: str) -> str:
     if not md: return ""
@@ -1102,10 +1069,14 @@ def build_all():
             if not P or not P.get("publish", True):
                 continue
             assert isinstance(P, dict), f"expected dict page, got {type(P)} for lang={L}"
-            page = _flatten_for_lang(P, L)
-            slug = (page.get("slug") or "").strip("/")
+            P2 = _flatten_page(P, L)
 
-            tpl = (page.get("template") or "page.html").strip()
+            slug_raw = P2.get("slug") or ""
+            _, rel = _split_lang_rel(slug_raw)
+            if not rel:
+                rel = (P2.get("slugKey") or key or "").strip("/")
+
+            tpl = (P2.get("template") or "page.html").strip()
             candidate1 = f"pages/{tpl}"
             candidate2 = f"{tpl}"
             template_rel = candidate1 if (TEMPLATES / candidate1).exists() else candidate2
@@ -1119,8 +1090,8 @@ def build_all():
             ctx = {
                 "site": site,
                 "lang": L,
-                "page": page,
-                "meta": page.get("meta") or {},
+                "page": P2,
+                "meta": P2.get("meta") or {},
                 "path_for": path_for,
             }
             try:
@@ -1128,33 +1099,32 @@ def build_all():
             except TemplateNotFound:
                 page_html = (
                     f"<!doctype html><html lang=\"{L}\"><head>"
-                    f"<meta charset='utf-8'><title>{page.get('seo_title','')}</title>"
-                    f"</head><body><h1>{page.get('h1','')}</h1></body></html>"
+                    f"<meta charset='utf-8'><title>{P2.get('seo_title','')}</title>"
+                    f"</head><body><h1>{P2.get('h1','')}</h1></body></html>"
                 )
             alts = hreflang_map.get(key, {})
-            canonical = page.get("canonical_path") or (f"/{L}/" if not slug else f"/{L}/{slug}/")
-            canonical_url = canonical if canonical.startswith("http") else SITE_URL + canonical
+            canonical_path = P2.get("canonical_path") or url_from(L, rel)
+            canonical_url = canonical(SITE_URL, L, rel, P2.get("canonical_path"))
             page_html = ensure_head_injections(
                 page_html,
-                page=page,
+                page=P2,
                 hreflang_map=alts,
                 site=site,
                 lang=L,
-                meta_title=page.get("seo_title") or page.get("title") or "",
-                meta_description=page.get("meta_desc") or page.get("description") or "",
+                meta_title=P2.get("seo_title") or P2.get("title") or "",
+                meta_description=P2.get("meta_desc") or P2.get("description") or "",
                 canonical_url=canonical_url,
-                canonical_path=canonical,
+                canonical_path=canonical_path,
             )
-            outdir = DIST / L / (slug if slug else "")
-            outdir.mkdir(parents=True, exist_ok=True)
-            out_path = outdir / "index.html"
+            out_path = _out_for(L, rel)
             out_path.write_text(page_html, "utf-8")
-            print(f"[write] {L}/{slug or ''} -> {out_path}")
-            generated.append({"lang": L, "key": key, "rel": slug, "out": str(out_path)})
-            if not page.get("noindex"):
-                indexables.append((SITE_URL + canonical, page.get("lastmod") or today, key))
-            logs.append(f"{L}/{slug or ''} [{page.get('__from','pages')}] warns=-")
+            print(f"[write] {L}/{rel or ''} -> {out_path}")
+            generated.append({"lang": L, "key": key, "rel": rel, "out": str(out_path)})
+            if not P2.get("noindex"):
+                indexables.append((canonical_url, P2.get("lastmod") or today, key))
+            logs.append(f"{L}/{rel or ''} [{P2.get('__from','pages')}] warns=-")
             writes += 1
+            assert isinstance(P2, dict)
 
     Path("_routes.json").write_text(json.dumps(generated, ensure_ascii=False, indent=2), "utf-8")
     print(f"[pages] writes={writes}")
