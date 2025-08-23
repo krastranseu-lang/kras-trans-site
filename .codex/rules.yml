@@ -6,9 +6,14 @@ labels:
       - "tools/build.py"
       - "tools/cms_ingest.py"
       - "tools/menu_builder.py"
+      - "tools/diag_routes.py"
+      - "tools/cms_guard.py"
+      - "tools/cms_verify_build.py"
       - "templates/**"
+      - "templates/pages/page.html"
       - "assets/**"
       - "data/**"
+      - ".codex/cms_schema.yml"
       - "!dist/**"     # nigdy nie dotykamy dist/
     # w jednym PR zmieniamy max 1 z poniższych plików „krytycznych”, żeby uniknąć konfliktów
     single_file_mutex:
@@ -20,9 +25,9 @@ labels:
       - "!dist/**"
 
 protected:
-  - "dist/**"
+  - "!dist/**"
 
 checks:
   yaml_lint: true
   deny_conflict_markers: true
-  max_files_changed: 60
+  max_files_changed: 120
