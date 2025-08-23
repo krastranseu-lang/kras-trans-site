@@ -1147,18 +1147,16 @@ def build_all():
             )
             outdir = DIST / L / (slug if slug else "")
             outdir.mkdir(parents=True, exist_ok=True)
-            dest = outdir / "index.html"
-            dest.write_text(page_html, "utf-8")
-            print(f"[write] {L}{'/' + slug if slug else ''} -> {dest}")
-            generated.append({"key": key, "lang": L, "rel": slug, "out": str(dest)})
+            out_path = outdir / "index.html"
+            out_path.write_text(page_html, "utf-8")
+            print(f"[write] {L}/{slug or ''} -> {out_path}")
+            generated.append({"lang": L, "key": key, "rel": slug, "out": str(out_path)})
             if not page.get("noindex"):
                 indexables.append((SITE_URL + canonical, page.get("lastmod") or today, key))
             logs.append(f"{L}/{slug or ''} [{page.get('__from','pages')}] warns=-")
             writes += 1
 
-    from pathlib import Path as _P, PurePosixPath
-    import json as _J
-    _P("_routes.json").write_text(_J.dumps(generated, ensure_ascii=False, indent=2), "utf-8")
+    Path("_routes.json").write_text(json.dumps(generated, ensure_ascii=False, indent=2), "utf-8")
     print(f"[pages] writes={writes}")
     print(f"[routes] exported by build count={len(generated)}")
 
