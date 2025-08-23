@@ -2,6 +2,23 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+import re
+
+LANG_RE = re.compile(r"^/([a-z]{2})(?:/([^?#]*))?/?$")
+
+
+def split_slug(slug: str):
+    """
+    Zwraca (lang, rel) dla slugów w formacie '/pl/kontakt/'.
+    Jeśli slug pusty → (None, '').
+    """
+    s = (slug or "").strip()
+    m = LANG_RE.match(s)
+    if not m:
+        return None, ""
+    lang = m.group(1)
+    rel = (m.group(2) or "").strip("/")
+    return lang, rel
 
 SYN = {
   # kolumny dla arkuszy z definicjami stron
@@ -227,9 +244,17 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
                     parent = _cell(row, hdr_lc, "parentslug") or _cell(row, hdr_lc, "parent") or ""
                     order_v = _cell(row, hdr_lc, "order") or "999"
 
-                    rel = _norm_slug(L, raw_slug)
+                    slug_lang, rel = split_slug(raw_slug)
+                    if slug_lang:
+                        L = slug_lang
+                    else:
+                        rel = (raw_slug or "").strip("/")
                     if not key:
-                        key = (rel.rstrip("/") or "home") if rel else "home"
+                        key = (rel or "home") if rel else "home"
+                    if rel == "home":
+                        rel = ""
+                    if not rel and key != "home":
+                        rel = key
 
                     parent_key = (parent or "").strip()
                     if parent_key.startswith(f"/{L}/"):
@@ -367,11 +392,31 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
 
                 lang = _norm(rec.get("lang") or "pl")
                 collections.setdefault(ws.title, {}).setdefault(lang, []).append(rec)
+                slug_lang, rel = split_slug(rec.get("slug") or "")
+                if not slug_lang:
+                    slug_lang = lang
+                    rel = (rec.get("slug") or "").strip("/")
+                key = _norm(rec.get("slugKey") or rec.get("slug") or "")
+                if rel == "home":
+                    rel = ""
+                if not rel and key:
+                    rel = key
+                if key:
+                    routes.setdefault(key, {})[slug_lang] = rel
 
     report.append(f"[rows] pages_rows={len(pages_rows)}, menu_rows={len(menu_rows)}")
     report.append(
         f"[result] meta_langs={len(page_meta)}, blocks_langs={len(blocks)}"
     )
+
+    pages_by_key: Dict[str, Dict[str, Dict[str, Any]]] = {}
+    for r in pages_rows:
+        pages_by_key.setdefault(r["key"], {})[r["lang"]] = r
+
+    for k, per_lang in routes.items():
+        for L, rel in per_lang.items():
+            if rel == "home":
+                per_lang[L] = ""
 
     return {
         "menu_rows": menu_rows,
@@ -379,6 +424,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
         "blocks": blocks,
         "page_routes": routes,
         "pages_rows": pages_rows,
+        "pages_by_key": pages_by_key,
         "collections": collections,
         "report": "\n".join(report),
     }

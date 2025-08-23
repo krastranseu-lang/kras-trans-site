@@ -267,6 +267,44 @@ def _canonical_url(base_url: str, current_path: str, override: str | None) -> st
         current_path = "/" + current_path
     return base + current_path
 
+
+def _split_slug(slug: str):
+    from cms_ingest import split_slug
+    return split_slug(slug)
+
+
+def _out_path_for(lang: str, rel: str):
+    from pathlib import Path
+    base = Path("dist") / lang
+    if rel:
+        base = base / rel
+    base.mkdir(parents=True, exist_ok=True)
+    return base / "index.html"
+
+
+LANG_KEYS = {"pl", "en", "de", "fr", "it", "ru", "ua"}
+
+
+def _resolve_lang_value(val, lang: str):
+    if isinstance(val, dict):
+        if lang in val and val[lang]:
+            return val[lang]
+        for k in (lang, "pl", "en"):
+            if k in val and val[k]:
+                return val[k]
+        for v in val.values():
+            if v:
+                return v
+        return ""
+    return val
+
+
+def _flatten_for_lang(obj: dict, lang: str) -> dict:
+    out = {}
+    for k, v in (obj or {}).items():
+        out[k] = _resolve_lang_value(v, lang)
+    return out
+
 def md_to_html(md: str) -> str:
     if not md: return ""
     return markdown(md, extensions=["extra","sane_lists","tables","toc"])
@@ -1050,163 +1088,61 @@ def build_all():
     # TF-IDF (P3) – z tekstu strony
     tfidf_map={}
 
+    routes = cms.get("page_routes", {})
+    pages_by_key = cms.get("pages_by_key") or {}
+    writes = 0
     generated = []  # list of {"key":..., "lang":..., "rel":..., "out": ".../index.html"}
 
-    for p in page_list:
-        lang = p.get("lang") or DEFAULT_LANG
-        key = p.get("slugKey") or (p.get("slug") or "")
-        if "key" not in p:
-            p["key"] = key
-        if "tsiny" in (p.get("key") or ""):
-            print("[cms] route check:", {L: path_for(p["key"], L) for L in languages})
+    for key, per_lang in routes.items():
+        for lang, rel in per_lang.items():
+            page = (pages_by_key.get(key) or {}).get(lang) or {}
+            page_ctx = _flatten_for_lang(page, lang)
 
-        rel = _rel_from(lang=lang, slug=p.get("slug"), slug_key=p.get("slugKey"), ptype=(p.get("type") or "page"))
-
-        # OG image generator (opcjonalnie; tylko gdy brak)
-        gen_og = og_image_for(p)
-        if gen_og:
-            p["og_image"] = gen_og
-
-        meta_title = p.get("seo_title") or ""
-        meta_desc = p.get("meta_desc") or ""
-        og_image = p.get("og_image") or ""
-
-        # META override z CMS
-        over = _meta_get(lang, key)
-        if over.get("seo_title"):
-            meta_title = over["seo_title"]
-        if over.get("description"):
-            meta_desc = over["description"]
-        if over.get("og_image"):
-            og_image = over["og_image"]
-
-        canonical = f"/{lang}/" + ("" if rel == "" else f"{rel}/")
-        can_over = over.get("canonical") or over.get("canonical_path")
-        if can_over:
-            can_over = can_over.strip()
-            if not can_over.startswith("http") and not can_over.startswith("/"):
-                can_over = "/" + can_over
-            if not can_over.endswith("/"):
-                can_over += "/"
-            canonical = can_over
-
-        cta_label = over.get("cta_label")
-        cta_href = over.get("cta_href")
-
-        p["canonical"] = canonical
-        p["seo_title"] = meta_title
-        p["meta_desc"] = meta_desc
-        p["og_image"] = og_image
-
-        # SEO gates
-        p, warns = apply_quality(p)
-
-        # JSON-LD (przekazany do Jinja, a dodatkowo do-inject po renderze jeśli brak)
-        ld_html = '<script type="application/ld+json">' + json.dumps(jsonld_blocks(p), ensure_ascii=False) + '</script>'
-
-        # SSR HOME: jeśli to strona "home", przekaż gotowe sekcje do szablonu
-        ssr_ctx = _ssr_home(lang) if (p.get("type") or "").lower() == "home" else None
-
-        # Render Jinja
-        ctx = {
-          "page": {**p, "menu_version": (bundles.get(lang, {}) or {}).get("version","")},
-          "canonical": canonical,
-          "hreflang": hreflang_map.get(p.get("slugKey","home"), {}),
-          "ctas": {
-            "primary": p.get("cta_label") or "Wycena transportu",
-            "secondary": p.get("cta_secondary","")
-          },
-          "jsonld": ld_html,
-          "ga_id": GA_ID,
-          "gsc_verification": GSC,
-          "ssr": ssr_ctx,
-          # MENU (SSR + SWR)
-          "menu_html": html_by_lang.get(lang, ""),
-          "menu_bundle_inline": json.dumps(bundles.get(lang, {}), ensure_ascii=False),
-          "menu_version": (bundles.get(lang, {}) or {}).get("version","")
-        }
-        tpl = (p.get("template") or "page.html").strip()
-        candidate1 = f"pages/{tpl}"
-        candidate2 = f"{tpl}"
-        template_rel = candidate1 if (TEMPLATES / candidate1).exists() else candidate2
-        try:
-            page_html = render_template(template_rel, ctx)
-        except TemplateNotFound:
-            page_html = (
-                f"<!doctype html><html lang=\"{lang}\"><head>"
-                f"<meta charset='utf-8'><title>{p.get('seo_title','')}</title>"
-                f"</head><body><h1>{p.get('h1','')}</h1></body></html>"
+            tpl = (page_ctx.get("template") or "page.html").strip()
+            candidate1 = f"pages/{tpl}"
+            candidate2 = f"{tpl}"
+            template_rel = candidate1 if (TEMPLATES / candidate1).exists() else candidate2
+            ctx = {
+                "site": site,
+                "lang": lang,
+                "page": page_ctx,
+                "meta": page_ctx.get("meta") or {},
+                "path_for": lambda kk, LL=None: f"/{LL or lang}/{routes.get(kk, {}).get(LL or lang, '')}/",
+            }
+            try:
+                page_html = render_template(template_rel, ctx)
+            except TemplateNotFound:
+                page_html = (
+                    f"<!doctype html><html lang=\"{lang}\"><head>"
+                    f"<meta charset='utf-8'><title>{page_ctx.get('seo_title','')}</title>"
+                    f"</head><body><h1>{page_ctx.get('h1','')}</h1></body></html>"
+                )
+            alts = hreflang_map.get(key, {})
+            canonical_rel = page_ctx.get("canonical_path") or f"/{lang}/{rel}/"
+            canonical_url = canonical_rel if canonical_rel.startswith("http") else SITE_URL + canonical_rel
+            page_html = ensure_head_injections(
+                page_html,
+                page=page_ctx,
+                hreflang_map=alts,
+                site=site,
+                lang=lang,
+                meta_title=page_ctx.get("seo_title") or page_ctx.get("title") or "",
+                meta_description=page_ctx.get("meta_desc") or page_ctx.get("description") or "",
+                canonical_url=canonical_url,
             )
-        page_html = _inject_blocks(page_html, lang)
-        if cta_label or cta_href:
-            soup_cta = BeautifulSoup(page_html, "html.parser")
-            btn = soup_cta.select_one(".btn-cta")
-            if btn:
-                if cta_label:
-                    btn.string = cta_label
-                if cta_href and btn.name == "a":
-                    btn["href"] = cta_href
-            page_html = str(soup_cta)
-        # debug
-        write(DIST/"_debug_cms.json", json.dumps({
-          "menu_rows": len(cms.get("menu_rows",[])),
-          "meta_langs": list(cms.get("page_meta",{}).keys()),
-          "blocks_langs": list(cms.get("blocks",{}).keys())
-        }, ensure_ascii=False, indent=2))
-
-        # AUTOLINKI + fallback
-        page_html, ai, fb = inject_autolinks(page_html, lang)
-        autolink_inline += ai; autolink_fb += fb
-
-        # OSTATECZNY DOM
-        soup = soupify(page_html)
-        set_ext_link_attrs(soup, SITE_URL); set_img_defaults(soup)
-        html_out = str(soup)
-        alts = hreflang_map.get(p.get("slugKey", "home"), {})  # dict z hreflang
-        eta_title = str(p.get("seo_title") or p.get("title") or site.get("site_title"))
-        page_html = ensure_head_injections(
-            html_out,
-            page=p,
-            hreflang_map=alts,
-            site=site,
-            lang=lang,
-            meta_title=eta_title,
-            meta_description=meta_desc,
-            canonical_url=canonical,
-        )
-        soup = BeautifulSoup(page_html, "html.parser")
-
-        # TF-IDF prosty
-        tfidf_map[p.get("canonical")] = tfidf_keywords(soup.get_text(" ", strip=True))
-
-        # simhash
-        sim = simhash(tfidf_map[p.get("canonical")])
-        near = [k for k,v in sim_index.items() if hamming(sim,v)<=4]  # bardzo podobne
-        if near: warns.append("near-duplicate")
-        sim_index[p.get("canonical")] = sim
-        if "near-duplicate" in warns: dup_warns += 1
-
-        # ZAPIS
-        out_file = Path("dist") / lang / rel / "index.html"
-        out_file.parent.mkdir(parents=True, exist_ok=True)
-        out_file.write_text(str(soup), "utf-8")
-        generated.append({
-          "key": key, "lang": lang, "rel": rel, "out": str(out_file)
-        })
-        print(f"[write] {lang}/{rel or ''} -> {out_file}")
-
-        slug_key = p.get("slugKey") or (rel or "home")
-        page_routes.setdefault(slug_key, {})[lang] = rel
-
-        # do sitemap (tylko indexowalne)
-        if not p.get("noindex"):
-            indexables.append((SITE_URL + canonical, p.get("lastmod") or today, p.get("slugKey","home")))
-
-        logs.append(f"{lang}/{rel or ''} [{p.get('__from','pages')}] warns={','.join(warns) if warns else '-'}")
+            dest = _out_path_for(lang, rel)
+            dest.write_text(page_html, "utf-8")
+            print(f"[write] {lang}/{rel or ''} -> {dest}")
+            generated.append({"key": key, "lang": lang, "rel": rel, "out": str(dest)})
+            if not page_ctx.get("noindex"):
+                indexables.append((SITE_URL + canonical_rel, page_ctx.get("lastmod") or today, key))
+            logs.append(f"{lang}/{rel or ''} [{page_ctx.get('__from','pages')}] warns=-")
+            writes += 1
 
     from pathlib import Path as _P, PurePosixPath
     import json as _J
     _P("_routes.json").write_text(_J.dumps(generated, ensure_ascii=False, indent=2), "utf-8")
+    print(f"[pages] writes={writes}")
     print(f"[routes] exported by build count={len(generated)}")
 
     # Redirect stubs (z CMS.redirects)
