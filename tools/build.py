@@ -221,25 +221,16 @@ def canonical(site_url: str, lang: str, slug: str, canonical_path: Optional[str]
     path = canonical_path or url_from(lang, slug)
     return site_url.rstrip("/") + path
 
-def _canonical_url(base_url: str, current_path: str, override: str | None) -> str:
-    """
-    Zwraca pełny kanoniczny URL.
-    - jeśli override to absolutny http(s) → zwraca override
-    - jeśli override to ścieżka względna /foo/bar/ → base_url + override
-    - jeśli override puste → base_url + current_path
-    """
+def _canonical_url(base_url: str, lang: str, rel: str, override: str | None = None) -> str:
     base = (base_url or "").rstrip("/")
     if override:
         o = override.strip()
-        if o.startswith("http://") or o.startswith("https://"):
+        if o.startswith("http"):
             return o
         if not o.startswith("/"):
             o = "/" + o
         return base + o
-    # fallback
-    if not current_path.startswith("/"):
-        current_path = "/" + current_path
-    return base + current_path
+    return f"{base}/{lang}/" if not rel else f"{base}/{lang}/{rel}/"
 
 
 LANGS = {"pl","en","de","fr","it","ru","ua"}
@@ -247,7 +238,15 @@ LANGS = {"pl","en","de","fr","it","ru","ua"}
 
 def _resolve_lang(val, L):
     if isinstance(val, dict):
-        return val.get(L) or val.get("pl") or val.get("en") or next((v for v in val.values() if v), "")
+        if L in val and val[L]:
+            return val[L]
+        for k in ("pl", "en"):
+            if k in val and val[k]:
+                return val[k]
+        for v in val.values():
+            if v:
+                return v
+        return ""
     return val
 
 
@@ -902,6 +901,7 @@ def build_all():
         "default_lang": CFG.get("default_lang") or CFG.get("site", {}).get("defaultLang", "pl"),
         "languages": CFG.get("languages") or LOCALES,
         "autogenerate_from_cms": CFG.get("autogenerate_from_cms", False),
+        "base_url": SITE_URL,
     }
     languages = site.get("languages", ["pl"])
     dlang = site.get("default_lang", "pl")
@@ -916,13 +916,25 @@ def build_all():
         print("[cms] cms_ingest not available")
     global CMS
     CMS = cms
-    # === Languages union from config + CMS ===
-    langs_from_cms = sorted({r.get("lang", "pl") for r in (cms.get("pages_rows") or [])})
+    rows   = cms.get("pages_rows") or []
+    routes = cms.get("page_routes") or {}
+    page_routes = routes
+
+    def _truthy(x):
+        return str(x or "").strip().lower() in {"1", "true", "tak", "yes", "on", "prawda"}
+
+    pages_idx = {}
+    for r in rows:
+        if not _truthy((r.get("meta") or {}).get("publish", "true")):
+            continue
+        if (r.get("type") or "page").strip().lower() not in {"page", "home"}:
+            continue
+        pages_idx[(r.get("key"), r.get("lang"))] = r
+
+    langs_from_cms = sorted({r.get("lang", "pl") for r in rows})
     languages = sorted(set(languages) | set(langs_from_cms))
     site["languages"] = languages
-    page_routes = cms.get("page_routes") or {}
-    rows   = cms.get("pages_rows")  or []
-    by_key_lang = {(r["key"], r["lang"]): r for r in rows}
+    by_key_lang = {(r.get("key"), r.get("lang")): r for r in rows}
 
     def _meta_get(L, K):
         return (cms.get("page_meta", {}).get(L, {}).get(K, {})) or {}
@@ -1057,35 +1069,30 @@ def build_all():
     # TF-IDF (P3) – z tekstu strony
     tfidf_map={}
 
-    pages_by_lang = cms.get("pages_by_lang") or cms.get("pages") or {}
-    if isinstance(pages_by_lang, list):
-        pages_by_lang = {}
     writes = 0
-    generated = []  # list of {"key":..., "lang":..., "rel":..., "out": ".../index.html"}
-
-    for L in languages:
-        lang_pages = pages_by_lang.get(L, {})
-        for key, P in lang_pages.items():
-            if not P or not P.get("publish", True):
+    generated = []
+    for key, per_lang in routes.items():
+        for L in languages:
+            if L not in per_lang:
                 continue
-            assert isinstance(P, dict), f"expected dict page, got {type(P)} for lang={L}"
+            rel = (per_lang.get(L) or "").strip("/")
+            P = pages_idx.get((key, L), {}) or {}
+            if not P:
+                P = {"lang": L, "key": key, "slug": f"/{L}/{rel}/", "title": key, "h1": key, "template": "page.html", "meta": {}}
             P2 = _flatten_page(P, L)
-
-            slug_raw = P2.get("slug") or ""
-            _, rel = _split_lang_rel(slug_raw)
-            if not rel:
-                rel = (P2.get("slugKey") or key or "").strip("/")
+            assert isinstance(P2, dict), f"expected dict page, got {type(P2)} for {L}/{key}"
 
             tpl = (P2.get("template") or "page.html").strip()
-            candidate1 = f"pages/{tpl}"
-            candidate2 = f"{tpl}"
-            template_rel = candidate1 if (TEMPLATES / candidate1).exists() else candidate2
+            cand1 = f"pages/{tpl}"
+            cand2 = f"{tpl}"
+            template_rel = cand1 if (TEMPLATES / cand1).exists() else cand2
 
-            def path_for(kk, LL=None, _pages=pages_by_lang):
+            def path_for(kk, LL=None, _routes=routes):
                 LL = LL or L
-                pp = _pages.get(LL, {}).get(kk, {}) or {}
-                s = (pp.get("slug") or "").strip("/")
-                return f"/{LL}/" if not s else f"/{LL}/{s}/"
+                rel2 = (_routes.get(kk, {}) or {}).get(LL, "").strip("/")
+                return f"/{LL}/" if not rel2 else f"/{LL}/{rel2}/"
+
+            canonical = _canonical_url(site.get("base_url", ""), L, rel, P2.get("canonical_path"))
 
             ctx = {
                 "site": site,
@@ -1093,42 +1100,22 @@ def build_all():
                 "page": P2,
                 "meta": P2.get("meta") or {},
                 "path_for": path_for,
+                "canonical": canonical,
             }
-            try:
-                page_html = render_template(template_rel, ctx)
-            except TemplateNotFound:
-                page_html = (
-                    f"<!doctype html><html lang=\"{L}\"><head>"
-                    f"<meta charset='utf-8'><title>{P2.get('seo_title','')}</title>"
-                    f"</head><body><h1>{P2.get('h1','')}</h1></body></html>"
-                )
-            alts = hreflang_map.get(key, {})
-            canonical_path = P2.get("canonical_path") or url_from(L, rel)
-            canonical_url = canonical(SITE_URL, L, rel, P2.get("canonical_path"))
-            page_html = ensure_head_injections(
-                page_html,
-                page=P2,
-                hreflang_map=alts,
-                site=site,
-                lang=L,
-                meta_title=P2.get("seo_title") or P2.get("title") or "",
-                meta_description=P2.get("meta_desc") or P2.get("description") or "",
-                canonical_url=canonical_url,
-                canonical_path=canonical_path,
-            )
+            html = render_template(template_rel, ctx)
             out_path = _out_for(L, rel)
-            out_path.write_text(page_html, "utf-8")
+            out_path.write_text(html, encoding="utf-8")
             print(f"[write] {L}/{rel or ''} -> {out_path}")
             generated.append({"lang": L, "key": key, "rel": rel, "out": str(out_path)})
             if not P2.get("noindex"):
-                indexables.append((canonical_url, P2.get("lastmod") or today, key))
-            logs.append(f"{L}/{rel or ''} [{P2.get('__from','pages')}] warns=-")
+                indexables.append((canonical, P2.get("lastmod") or today, key))
             writes += 1
-            assert isinstance(P2, dict)
 
     Path("_routes.json").write_text(json.dumps(generated, ensure_ascii=False, indent=2), "utf-8")
-    print(f"[pages] writes={writes}")
     print(f"[routes] exported by build count={len(generated)}")
+    print(f"[pages] writes={writes}")
+    if writes == 0:
+        raise SystemExit("❌ No pages written — check routing or template mapping")
 
     # Redirect stubs (z CMS.redirects)
     for r in CMS.get("redirects", []):
