@@ -934,10 +934,18 @@ def build_all():
     }
     print(f"[cms] pages autogen: total_keys={len(slugs)}; after_merge={len(_build_pages)}")
 
-    # helper path_for korzystający z aktualnych slugs
+    # helpery slug/path
+    def norm_rel_slug(lang: str, rel: str) -> str:
+        rel = (rel or "").strip()
+        if rel.startswith(f"/{lang}/"): rel = rel[len(f"/{lang}/"):]
+        rel = rel.strip("/")
+        return rel  # "" = home
+
     def path_for(key: str, lang: str) -> str:
-        s = slugs.get(key, {}).get(lang, "")
-        return f"/{lang}/" + s
+        try: s = slugs[key][lang]
+        except Exception: s = ""
+        s = (s or "").strip("/")
+        return f"/{lang}/" if not s else f"/{lang}/{s}/"
 
     # jeżeli wcześniej wyliczałeś nav_urls przed autogenem – wylicz JESZCZE RAZ teraz:
     nav_keys = ["home","services","fleet","about","contact"] if "nav_keys" not in locals() else nav_keys
@@ -1035,6 +1043,8 @@ def build_all():
     # TF-IDF (P3) – z tekstu strony
     tfidf_map={}
 
+    generated = []  # list of {"key":..., "lang":..., "rel":..., "out": ".../index.html"}
+
     for p in _build_pages:
         lang = p.get("lang") or DEFAULT_LANG
         slug = p.get("slug", "")
@@ -1055,6 +1065,7 @@ def build_all():
 
         # current path z routera
         current_path = path_for(key, lang)
+        rel = norm_rel_slug(lang, slugs[key][lang] if key in slugs else "")
 
         # default canonical na bazie current_path
         canonical_url = _canonical_url(site.get("base_url", ""), current_path, None)
@@ -1172,13 +1183,24 @@ def build_all():
         # ZAPIS
         out_dir = OUT / lang / (slug or "")
         ensure_dir(out_dir)
-        (out_dir/"index.html").write_text(str(soup), "utf-8")
+        out_path = out_dir/"index.html"
+        out_path.write_text(str(soup), "utf-8")
+        generated.append({
+          "key": key, "lang": lang, "rel": rel,
+          "out": str(out_path.relative_to(ROOT))
+        })
+        print(f"[write] {lang}/{key} -> {out_path}")
 
         # do sitemap (tylko indexowalne)
         if not p.get("noindex"):
             indexables.append((p["canonical"], p.get("lastmod") or today, p.get("slugKey","home")))
 
         logs.append(f"{lang}/{slug or ''} [{p.get('__from','pages')}] warns={','.join(warns) if warns else '-'}")
+
+    from pathlib import Path as _P, PurePosixPath
+    import json as _J
+    _P("_routes.json").write_text(_J.dumps(generated, ensure_ascii=False, indent=2), "utf-8")
+    print(f"[routes] exported {_P('_routes.json').resolve()} count={len(generated)}")
 
     # Redirect stubs (z CMS.redirects)
     for r in CMS.get("redirects", []):
