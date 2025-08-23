@@ -26,7 +26,7 @@ def validate(schema_path: Path, xlsx_path: Path) -> None:
 
     report: Dict[str, List[Dict[str, List[str]]]] = {"sheets": []}
     errors = 0
-    unrecognized: List[str] = []
+    content_like: List[Dict[str, str]] = []
 
     for ws in wb.worksheets:
         first_row = next(ws.iter_rows(values_only=True))
@@ -36,21 +36,35 @@ def validate(schema_path: Path, xlsx_path: Path) -> None:
 
         header_index = {h: i for i, h in enumerate(hdr_lc)}
 
-        is_pages = "lang" in hdr_lc and "publish" in hdr_lc and (
-            "slug" in hdr_lc or "slugkey" in hdr_lc
-        ) and "template" in hdr_lc
-        is_menu = "lang" in hdr_lc and "label" in hdr_lc and "href" in hdr_lc and "enabled" in hdr_lc
-        is_meta = "lang" in hdr_lc and "key" in hdr_lc
-        is_blocks = "lang" in hdr_lc and ("html" in hdr_lc or "body" in hdr_lc)
+        def has(*cols: str) -> bool:
+            return all(c in hdr_lc for c in cols)
 
-        content_like = "lang" in hdr_lc and "publish" in hdr_lc
-        recognized = is_pages or is_menu or is_meta or is_blocks
-        if content_like and not recognized:
-            unrecognized.append(ws.title)
-
-        class_name = (
-            "pages" if is_pages else "menu" if is_menu else "meta" if is_meta else "blocks" if is_blocks else "other"
+        is_pages = has("lang", "publish", "template") and (
+            ("slug" in hdr_lc) or ("slugkey" in hdr_lc)
         )
+        is_menu = has("lang", "label", "href", "enabled")
+        is_meta = has("lang", "key")
+        is_blocks = ("lang" in hdr_lc) and (("html" in hdr_lc) or ("body" in hdr_lc))
+        is_collection = ("lang" in hdr_lc and "publish" in hdr_lc) and not (
+            is_pages or is_menu or is_meta or is_blocks
+        )
+
+        klass = (
+            "pages"
+            if is_pages
+            else "menu"
+            if is_menu
+            else "meta"
+            if is_meta
+            else "blocks"
+            if is_blocks
+            else "collection"
+            if is_collection
+            else "other"
+        )
+
+        if "lang" in hdr_lc and "publish" in hdr_lc:
+            content_like.append({"name": ws.title, "class": klass})
 
         lang_idx = header_index.get("lang")
         publish_idx = header_index.get("publish")
@@ -63,7 +77,7 @@ def validate(schema_path: Path, xlsx_path: Path) -> None:
 
         rows_per_lang: Dict[str, int] = {}
         published_per_lang: Dict[str, int] = {}
-        pub_col = enabled_idx if class_name == "menu" else publish_idx
+        pub_col = enabled_idx if klass == "menu" else publish_idx
 
         for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
             vals = list(row)
@@ -77,7 +91,7 @@ def validate(schema_path: Path, xlsx_path: Path) -> None:
             if is_published and lang_val:
                 published_per_lang[lang_val] = published_per_lang.get(lang_val, 0) + 1
 
-            if class_name == "pages" and publish_idx is not None and truthy(
+            if klass == "pages" and publish_idx is not None and truthy(
                 vals[publish_idx] if publish_idx < len(vals) else None
             ):
                 missing: List[str] = []
@@ -92,7 +106,7 @@ def validate(schema_path: Path, xlsx_path: Path) -> None:
                 if missing:
                     print(f"[cms_guard] ❌ pages row {row_idx}: missing {', '.join(missing)}")
                     errors += 1
-            elif class_name == "menu" and enabled_idx is not None and truthy(
+            elif klass == "menu" and enabled_idx is not None and truthy(
                 vals[enabled_idx] if enabled_idx < len(vals) else None
             ):
                 missing: List[str] = []
@@ -105,15 +119,23 @@ def validate(schema_path: Path, xlsx_path: Path) -> None:
                     errors += 1
 
         print(
-            f"[cms_guard] sheet '{ws.title}' class={class_name} rows_per_lang={rows_per_lang} published_per_lang={published_per_lang}"
+            f"[cms_guard] sheet '{ws.title}' class={klass} rows_per_lang={rows_per_lang} published_per_lang={published_per_lang}"
         )
 
     Path("sheet_report.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
+    unrecognized = [
+        s
+        for s in content_like
+        if s["class"] not in ("pages", "menu", "meta", "blocks", "collection")
+    ]
     if unrecognized:
-        print(f"[cms_guard] ❌ unrecognized content-like sheets: {', '.join(unrecognized)}")
+        print(
+            "[cms_guard] ❌ unrecognized content-like sheets: "
+            + ", ".join(s["name"] for s in unrecognized)
+        )
         sys.exit(1)
 
     if errors:
