@@ -209,6 +209,26 @@ def canonical(site_url: str, lang: str, slug: str, canonical_path: Optional[str]
     path = canonical_path or url_from(lang, slug)
     return site_url.rstrip("/") + path
 
+def _canonical_url(base_url: str, current_path: str, override: str | None) -> str:
+    """
+    Zwraca pełny kanoniczny URL.
+    - jeśli override to absolutny http(s) → zwraca override
+    - jeśli override to ścieżka względna /foo/bar/ → base_url + override
+    - jeśli override puste → base_url + current_path
+    """
+    base = (base_url or "").rstrip("/")
+    if override:
+        o = override.strip()
+        if o.startswith("http://") or o.startswith("https://"):
+            return o
+        if not o.startswith("/"):
+            o = "/" + o
+        return base + o
+    # fallback
+    if not current_path.startswith("/"):
+        current_path = "/" + current_path
+    return base + current_path
+
 def md_to_html(md: str) -> str:
     if not md: return ""
     return markdown(md, extensions=["extra","sane_lists","tables","toc"])
@@ -862,7 +882,7 @@ def build_all():
     langs_from_cms = sorted({r.get("lang", "pl") for r in (cms.get("pages_rows") or [])})
     languages = sorted(set(languages) | set(langs_from_cms))
     site["languages"] = languages
-    routes = cms.get("page_routes") or {}
+    slugs = cms.get("page_routes") or {}
     rows   = cms.get("pages_rows")  or []
     by_key_lang = {}
     for r in rows:
@@ -875,10 +895,10 @@ def build_all():
     page_list = locals().get("page_defs") or locals().get("pages") or []
     existing  = {p.get("key") for p in page_list if isinstance(p, dict)}
     dlang     = site.get("default_lang", "pl")
-    for key, per_lang in routes.items():
+    for key, per_lang in slugs.items():
         if key in existing:
             continue
-        slugs = {L: per_lang.get(L, "") for L in languages}
+        slug_map = {L: per_lang.get(L, "") for L in languages}
         row_dl = by_key_lang.get((key, dlang), {}) or {}
         tpl    = row_dl.get("template") or "page.html"
         parent = row_dl.get("parent_key") or "home"
@@ -894,7 +914,7 @@ def build_all():
           "key": key,
           "template": tpl,
           "parent": parent,
-          "slugs": slugs,                         # <— kluczowe: routing z arkusza
+          "slugs": slug_map,                      # <— kluczowe: routing z arkusza
           "title": title_map,
           "description": desc_map,
           "og_image": meta_get(dlang, key).get("og_image") or "/assets/img/placeholder.svg"
@@ -902,7 +922,7 @@ def build_all():
 
     if "page_defs" in locals(): page_defs = page_list
     if "pages"     in locals(): pages     = page_list
-    print(f"[cms] pages autogen: total_keys={len(routes)}; after_merge={len(page_list)}")
+    print(f"[cms] pages autogen: total_keys={len(slugs)}; after_merge={len(page_list)}")
 
     # === MENU: jeśli są wiersze z arkusza → buduj bundlery + HTML do SSR ===
     rows = cms.get("menu_rows") or []
@@ -997,27 +1017,49 @@ def build_all():
     tfidf_map={}
 
     for p in all_pages:
-        lang=p.get("lang") or DEFAULT_LANG
-        slug=p.get("slug","")
-        p["canonical"]=canonical(SITE_URL, lang, slug, p.get("canonical_path"))
+        lang = p.get("lang") or DEFAULT_LANG
+        slug = p.get("slug", "")
+        key = p.get("slugKey") or (p.get("slug") or "")
 
         # OG image generator (opcjonalnie; tylko gdy brak)
         gen_og = og_image_for(p)
-        if gen_og: p["og_image"]=gen_og
+        if gen_og:
+            p["og_image"] = gen_og
 
         meta_title = p.get("seo_title") or ""
         meta_desc = p.get("meta_desc") or ""
         og_image = p.get("og_image") or ""
-        canonical = p.get("canonical")
-        key = p.get("slugKey") or (p.get("slug") or "")
-        m = meta_get(lang, key)
-        if m.get("seo_title"): meta_title = m["seo_title"]
-        if m.get("description"): meta_desc = m["description"]
-        if m.get("og_image"): og_image = m["og_image"]
-        if m.get("canonical"): canonical = m["canonical"]
-        cta_label = m.get("cta_label")
-        cta_href  = m.get("cta_href")
-        p["canonical"] = canonical
+
+        # current path z routera
+        try:
+            current_path = path_for(key, lang)
+        except Exception:
+            try:
+                current_path = "/" + lang + "/" + (slugs[key][lang] or "")
+                if not current_path.endswith("/"):
+                    current_path += "/"
+            except Exception:
+                current_path = "/" + lang + "/"
+
+        # default canonical na bazie current_path
+        canonical_url = _canonical_url(site.get("base_url", ""), current_path, None)
+
+        # META override z CMS
+        over = cms.get("page_meta", {}).get(lang, {}).get(key, {}) or {}
+        if over.get("seo_title"):
+            meta_title = over["seo_title"]
+        if over.get("description"):
+            meta_desc = over["description"]
+        if over.get("og_image"):
+            og_image = over["og_image"]
+        # >>> USTAW canonical BEZPIECZNIE <<<
+        canonical_url = _canonical_url(site.get("base_url", ""), current_path,
+                                       over.get("canonical") or over.get("canonical_path"))
+
+        cta_label = over.get("cta_label")
+        cta_href = over.get("cta_href")
+
+        p["canonical"] = canonical_url
         p["seo_title"] = meta_title
         p["meta_desc"] = meta_desc
         p["og_image"] = og_image
@@ -1034,6 +1076,7 @@ def build_all():
         # Render Jinja
         ctx = {
           "page": {**p, "menu_version": (bundles.get(lang, {}) or {}).get("version","")},
+          "canonical": canonical_url,
           "hreflang": hreflang_map.get(p.get("slugKey","home"), {}),
           "ctas": {
             "primary": p.get("cta_label") or "Wycena transportu",
