@@ -1,39 +1,28 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
-import sys, json, yaml
+import sys, yaml
 sys.path.append("tools")
 import cms_ingest
 
-OK="✅ Verify:"; ERR="❌ Verify:"
+OK = "✅ Verify:"; ERR = "❌ Verify:"
 
 def main():
-    routes_file = Path("_routes.json")
+    cms = cms_ingest.load_all(Path("data")/"cms")
+    routes = cms.get("page_routes") or {}
     required = []
-
-    if routes_file.exists():
-        data = json.loads(routes_file.read_text("utf-8"))
-        for r in data:
-            out = Path(r.get("out",""))
-            if out.suffix == ".html":
-                required.append(out)
-    else:
-        site = yaml.safe_load((Path("data")/"site.yml").read_text("utf-8"))
-        dlang = site.get("default_lang","pl")
-        cms   = cms_ingest.load_all(Path("data")/"cms")
-        rows  = cms.get("pages_rows") or []
-        def truthy(v): return str(v or "").strip().lower() in {"1","true","tak","yes","on","prawda"}
-        for r in rows:
-            typ = (r.get("type") or "page").strip().lower()
-            pub = truthy((r.get("meta") or {}).get("publish","true"))
-            if not pub or typ not in {"page","home"}:
-                continue
-            L   = r.get("lang") or dlang
-            rel = r.get("slug") or ""
-            required.append(Path("dist")/L/(rel or "")/"index.html")
+    for key, per_lang in routes.items():
+        for lang, rel in per_lang.items():
+            required.append(Path("dist")/lang/(rel or "")/"index.html")
 
     missing = [str(p) for p in required if not p.exists()]
     if missing:
         print("Missing outputs:"); [print(" ", p) for p in missing[:200]]
+        sys.exit(1)
+
+    total_routes = sum(len(v) for v in routes.values())
+    existing = len(required) - len(missing)
+    if existing < total_routes:
+        print("Missing outputs:")
         sys.exit(1)
 
     site = yaml.safe_load((Path("data")/"site.yml").read_text("utf-8"))
