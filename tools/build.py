@@ -736,12 +736,19 @@ def og_image_for(page:Dict[str,Any])->Optional[str]:
     return f"/og/{name}"
 
 # ------------------------------ HEAD INJECTIONS -----------------------------
-def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:Dict[str,Dict[str,str]]):
+from bs4 import BeautifulSoup
+
+def ensure_head_injections(html: str, page: dict, hreflang_map: dict, *,
+                           site: dict, lang: str, meta_title: str,
+                           meta_description: str, canonical_url: str) -> str:
     """
-    Wstrzykuje: canonical, hreflang, OG/Twitter, GSC, GA, JSON-LD (jeśli brak).
-    Bez duplikacji. Szanuje istniejące tagi z szablonów.
+    Wstrzykuje <title>, <meta>, <link rel='canonical'>, hreflang do <head>.
+    Używa attrs= zamiast kwargów kolidujących z 'name'.
     """
-    head = soup.find("head")
+    soup = BeautifulSoup(html, "html.parser")
+
+    # head
+    head = soup.head
     if not head:
         head = soup.new_tag("head")
         if soup.html:
@@ -749,87 +756,65 @@ def ensure_head_injections(soup:BeautifulSoup, page:Dict[str,Any], hreflang_map:
         else:
             soup.insert(0, head)
 
-    def has_selector(sel:str)->bool:
-        return bool(head.select_one(sel))
+    def set_title(text: str):
+        if not text:
+            return
+        t = head.find("title")
+        if not t:
+            t = soup.new_tag("title")
+            head.append(t)
+        t.string = text
 
-    def add_meta(**attrs):
-        if not head.find("meta", attrs=attrs):
-            head.append(soup.new_tag("meta", **attrs))
+    def upsert_meta(**kv):
+        # przyjmuje np. upsert_meta(name="description", content="...")
+        # tworzy <meta ...> tylko przez attrs
+        if "name" in kv:
+            el = head.find("meta", attrs={"name": kv["name"]})
+        elif "property" in kv:
+            el = head.find("meta", attrs={"property": kv["property"]})
+        else:
+            el = None
+        if not el:
+            el = soup.new_tag("meta")
+            head.append(el)
+        el.attrs.clear()
+        el.attrs.update(kv)
 
-    def add_link(**attrs):
-        # unikaj duplikatów
-        for link in head.find_all("link"):
-            if all(link.get(k) == v for k, v in attrs.items()):
-                return
-        head.append(soup.new_tag("link", **attrs))
+    def upsert_link(rel: str, href: str):
+        if not href:
+            return
+        el = head.find("link", attrs={"rel": rel})
+        if not el:
+            el = soup.new_tag("link")
+            head.append(el)
+        el.attrs.clear()
+        el.attrs.update({"rel": rel, "href": href})
+
+    # <title> i podstawowe meta
+    set_title(meta_title or page.get("title") or site.get("name"))
+    if meta_description:
+        upsert_meta(name="description", content=meta_description)
 
     # canonical
-    if page.get("canonical") and not has_selector('link[rel="canonical"]'):
-        add_link(rel="canonical", href=page["canonical"])
+    upsert_link("canonical", canonical_url)
 
     # hreflang alternates
-    alts = (hreflang_map.get(page.get("slugKey","home"), {}) or {})
-    for L, href in alts.items():
-        add_link(rel="alternate", hreflang=L, href=href)
+    alts = hreflang_map or {}
+    for hrefl, href in alts.items():
+        el = soup.find("link", attrs={"rel": "alternate", "hreflang": hrefl})
+        if not el:
+            el = soup.new_tag("link")
+            head.append(el)
+        el.attrs.clear()
+        el.attrs.update({"rel": "alternate", "hreflang": hrefl, "href": href})
 
-    # description
-    if (page.get("meta_desc") or "") and not head.find("meta", attrs={"name":"description"}):
-        add_meta(name="description", content=page["meta_desc"])
-        # menu-bundle-version (SWR)
-        if page.get("menu_version") and not head.find("meta", attrs={"name":"menu-bundle-version"}):
-            add_meta(name="menu-bundle-version", content=str(page["menu_version"]))
+    # Open Graph (minimal)
+    upsert_meta(property="og:title", content=meta_title or site.get("name",""))
+    if meta_description:
+        upsert_meta(property="og:description", content=meta_description)
+    upsert_meta(property="og:url", content=canonical_url)
 
-    # OG/Twitter
-    og_map = {
-        "og:title": page.get("seo_title") or page.get("title") or page.get("h1") or "",
-        "og:description": page.get("meta_desc") or "",
-        "og:url": page.get("canonical") or "",
-        "og:image": page.get("og_image") or CFG.get("seo",{}).get("open_graph",{}).get("default_image",""),
-        "og:type": "website" if (page.get("slug","")=="" or page.get("type") in (None,"home","page")) else "article"
-    }
-    for prop,val in og_map.items():
-        if val and not head.find("meta", attrs={"property":prop}):
-            head.append(soup.new_tag("meta", **{"property":prop, "content":val}))
-    if og_map["og:image"] and not head.find("meta", attrs={"name":"twitter:card"}):
-        add_meta(name="twitter:card", content="summary_large_image")
-    if og_map["og:title"] and not head.find("meta", attrs={"name":"twitter:title"}):
-        add_meta(name="twitter:title", content=og_map["og:title"])
-    if og_map["og:description"] and not head.find("meta", attrs={"name":"twitter:description"}):
-        add_meta(name="twitter:description", content=og_map["og:description"])
-    if og_map["og:image"] and not head.find("meta", attrs={"name":"twitter:image"}):
-        add_meta(name="twitter:image", content=og_map["og:image"])
-
-    # GSC verification
-    if (GSC or "").strip() and not head.find("meta", attrs={"name":"google-site-verification"}):
-        add_meta(name="google-site-verification", content=GSC)
-
-    # GA (gtag) – wstrzykuj tylko, jeśli w całym dokumencie nie ma już configu
-    if (GA_ID or "").strip():
-        has_gtm_any = bool(soup.find("script", src=re.compile(r"googletagmanager\.com/gtag/js")))
-        has_conf_any = bool(soup.find("script", string=re.compile(r"gtag\('config',\s*['\"]"+re.escape(GA_ID))))
-        if not has_gtm_any:
-            s = soup.new_tag("script", src=f"https://www.googletagmanager.com/gtag/js?id={GA_ID}")
-            s["async"] = "async"
-            head.append(s)
-        if not has_conf_any:
-            conf = soup.new_tag("script")
-            conf.string = (
-                "window.dataLayer=window.dataLayer||[];"
-                "function gtag(){dataLayer.push(arguments);}gtag('js',new Date());"
-                f"gtag('config','{GA_ID}',{{anonymize_ip:true}});"
-            )
-            head.append(conf)
-
-    # JSON-LD – dołóż tylko jeśli w całym dokumencie nie ma ld+json
-    if not soup.find("script", attrs={"type":"application/ld+json"}):
-        try:
-            ld = json.dumps(jsonld_blocks(page), ensure_ascii=False)
-            ld_tag = soup.new_tag("script", type="application/ld+json")
-            ld_tag.string = ld
-            head.append(ld_tag)
-        except Exception:
-            pass
-
+    return str(soup)
 # --------- LINK GRAPH (pozostawione jak w starym; może być użyte w szabl.) --
 def neighbors_for(
     city_pages: List[Dict[str, Any]],
@@ -1150,7 +1135,12 @@ def build_all():
         # OSTATECZNY DOM
         soup = soupify(page_html)
         set_ext_link_attrs(soup, SITE_URL); set_img_defaults(soup)
-        ensure_head_injections(soup, ctx["page"], hreflang_map)
+        page_html = ensure_head_injections(
+            str(soup), ctx["page"], hreflang_map.get(p.get("slugKey", "home"), {}),
+            site=site, lang=lang, meta_title=meta_title,
+            meta_description=meta_desc, canonical_url=canonical_url
+        )
+        soup = BeautifulSoup(page_html, "html.parser")
 
         # TF-IDF prosty
         tfidf_map[p.get("canonical")] = tfidf_keywords(soup.get_text(" ", strip=True))
