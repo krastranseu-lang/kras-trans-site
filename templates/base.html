@@ -10,7 +10,7 @@
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0ea5e9" />
   <meta name="theme-color" media="(prefers-color-scheme: dark)"  content="#0b1020" />
 
-  <title>{{ page.seo_title or page.title }}</title>
+  <title>{{ title or (page.seo_title or page.title or site.brand) }}</title>
   <meta name="description" content="{{ page.meta_desc }}" />
   {% if page.noindex %}<meta name="robots" content="noindex,follow" />{% else %}<meta name="robots" content="index,follow" />{% endif %}
   <link rel="canonical" href="{{ page.canonical or canonical }}" />
