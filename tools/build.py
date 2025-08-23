@@ -858,16 +858,51 @@ def build_all():
         print("[cms] cms_ingest not available")
     global CMS
     CMS = cms
-    # === Languages union from config + CMS (pages_rows/menu_rows) ===
-    cms_langs = set(languages)
-    for r in cms.get("pages_rows", []):
-        L = (r.get("lang") or "").lower()
-        if L: cms_langs.add(L)
-    for r in cms.get("menu_rows", []):
-        L = (r.get("lang") or "").lower()
-        if L: cms_langs.add(L)
-    languages = sorted(cms_langs)
+    # === Languages union from config + CMS ===
+    langs_from_cms = sorted({r.get("lang", "pl") for r in (cms.get("pages_rows") or [])})
+    languages = sorted(set(languages) | set(langs_from_cms))
     site["languages"] = languages
+    routes = cms.get("page_routes") or {}
+    rows   = cms.get("pages_rows")  or []
+    by_key_lang = {}
+    for r in rows:
+        by_key_lang[(r["key"], r["lang"])] = r
+
+    def meta_get(L, K):
+        return (cms.get("page_meta", {}).get(L, {}).get(K, {})) or {}
+
+    # === Auto-pages z CMS: dopisz brakujące strony ===
+    page_list = locals().get("page_defs") or locals().get("pages") or []
+    existing  = {p.get("key") for p in page_list if isinstance(p, dict)}
+    dlang     = site.get("default_lang", "pl")
+    for key, per_lang in routes.items():
+        if key in existing:
+            continue
+        slugs = {L: per_lang.get(L, "") for L in languages}
+        row_dl = by_key_lang.get((key, dlang), {}) or {}
+        tpl    = row_dl.get("template") or "page.html"
+        parent = row_dl.get("parent_key") or "home"
+
+        title_map = {}
+        desc_map  = {}
+        for L in languages:
+            m = meta_get(L, key)
+            title_map[L] = m.get("seo_title") or m.get("title") or key
+            desc_map[L]  = m.get("description") or m.get("meta_desc") or ""
+
+        page_list.append({
+          "key": key,
+          "template": tpl,
+          "parent": parent,
+          "slugs": slugs,                         # <— kluczowe: routing z arkusza
+          "title": title_map,
+          "description": desc_map,
+          "og_image": meta_get(dlang, key).get("og_image") or "/assets/img/placeholder.svg"
+        })
+
+    if "page_defs" in locals(): page_defs = page_list
+    if "pages"     in locals(): pages     = page_list
+    print(f"[cms] pages autogen: total_keys={len(routes)}; after_merge={len(page_list)}")
 
     # === MENU: jeśli są wiersze z arkusza → buduj bundlery + HTML do SSR ===
     rows = cms.get("menu_rows") or []
@@ -909,34 +944,6 @@ def build_all():
     else:
         bundles, html_by_lang = {}, {}
         print("[cms] menu_rows empty → pozostaje dotychczasowe menu (jeśli jest)")
-    # === Auto-pages z CMS (dopisz brakujące strony na podstawie page_routes) ===
-    auto_on = site.get("autogenerate_from_cms", False)
-    if auto_on and cms.get("page_routes"):
-        dlang = site.get("default_lang", "pl")
-        page_list_name = "page_defs" if "page_defs" in locals() else ("pages" if "pages" in locals() else None)
-        page_list = locals().get(page_list_name, [])
-        existing = {p.get("key") for p in page_list if isinstance(p, dict)}
-        pages_rows = cms.get("pages_rows", [])
-        page_meta = cms.get("page_meta", {})
-        for key, route_map in cms.get("page_routes", {}).items():
-            if key in existing:
-                continue
-            slugs = {L: route_map.get(L, "") for L in languages}
-            tpl = next((r.get("template") for r in pages_rows if r.get("lang") == dlang and r.get("key") == key), "page.html")
-            parent = next((r.get("parent_key") for r in pages_rows if r.get("lang") == dlang and r.get("key") == key), "") or "home"
-            title_map = {L: (page_meta.get(L, {}).get(key, {}).get("seo_title") or page_meta.get(L, {}).get(key, {}).get("title") or key) for L in languages}
-            desc_map  = {L: (page_meta.get(L, {}).get(key, {}).get("description") or "") for L in languages}
-            page_list.append({
-                "key": key,
-                "template": tpl or "page.html",
-                "parent": parent,
-                "slugs": slugs,
-                "title": title_map,
-                "description": desc_map,
-            })
-        if page_list_name:
-            locals()[page_list_name] = page_list
-            print(f"[cms] autogenerate: added {len(page_list)-len(existing)} pages")
     CMS["pages"] = page_defs + CMS.get("pages", [])
     # === Wstrzyknięcie bloków (SSR) do elementów z data-api ===
     def _inject_blocks(html, lang):
@@ -1001,15 +1008,16 @@ def build_all():
         meta_title = p.get("seo_title") or ""
         meta_desc = p.get("meta_desc") or ""
         og_image = p.get("og_image") or ""
+        canonical = p.get("canonical")
         key = p.get("slugKey") or (p.get("slug") or "")
-        over = cms.get("page_meta", {}).get(lang, {}).get(key, {})
-        meta_title = over.get("seo_title") or over.get("title") or meta_title
-        meta_desc = over.get("description") or meta_desc
-        og_image = over.get("og_image") or og_image
-        if over.get("canonical"):
-            p["canonical"] = over["canonical"]
-        cta_label = over.get("cta_label")
-        cta_href  = over.get("cta_href")
+        m = meta_get(lang, key)
+        if m.get("seo_title"): meta_title = m["seo_title"]
+        if m.get("description"): meta_desc = m["description"]
+        if m.get("og_image"): og_image = m["og_image"]
+        if m.get("canonical"): canonical = m["canonical"]
+        cta_label = m.get("cta_label")
+        cta_href  = m.get("cta_href")
+        p["canonical"] = canonical
         p["seo_title"] = meta_title
         p["meta_desc"] = meta_desc
         p["og_image"] = og_image
