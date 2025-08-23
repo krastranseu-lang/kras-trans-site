@@ -87,6 +87,12 @@ def _read_xlsx(path: Path):
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
     return {ws.title: ws for ws in wb.worksheets}
 
+def _log_path(path: Path) -> Path:
+    """Ensure ``path`` is :class:`Path` and log it."""
+    p = Path(path)
+    print(f"[cms_ingest] loading {p}")
+    return p
+
 def _rows(ws):
     it = ws.iter_rows(values_only=True)
     headers = [str(x or "").strip() for x in next(it)]
@@ -114,6 +120,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
     klucze wymagane przez zadanie.
     """
 
+    cms_root = _log_path(cms_root)
     report: List[str] = []
 
     # wybór źródła
