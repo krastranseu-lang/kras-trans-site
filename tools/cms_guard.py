@@ -36,17 +36,25 @@ def validate(schema_path: Path, xlsx_path: Path) -> None:
 
         header_index = {h: i for i, h in enumerate(hdr_lc)}
 
-        def has(*cols: str) -> bool:
-            return all(c in hdr_lc for c in cols)
-
-        is_pages = has("lang", "publish", "template") and (
-            ("slug" in hdr_lc) or ("slugkey" in hdr_lc)
+        is_pages = (
+            "lang" in hdr_lc
+            and "publish" in hdr_lc
+            and "template" in hdr_lc
+            and (("slug" in hdr_lc) or ("slugkey" in hdr_lc))
         )
-        is_menu = has("lang", "label", "href", "enabled")
-        is_meta = has("lang", "key")
+        is_menu = (
+            "lang" in hdr_lc
+            and "enabled" in hdr_lc
+            and "label" in hdr_lc
+            and "href" in hdr_lc
+        )
+        is_meta = "lang" in hdr_lc and "key" in hdr_lc
         is_blocks = ("lang" in hdr_lc) and (("html" in hdr_lc) or ("body" in hdr_lc))
-        is_collection = ("lang" in hdr_lc and "publish" in hdr_lc) and not (
-            is_pages or is_menu or is_meta or is_blocks
+        # NOWE:
+        is_collection = (
+            "lang" in hdr_lc
+            and "publish" in hdr_lc
+            and not (is_pages or is_menu or is_meta or is_blocks)
         )
 
         klass = (
@@ -118,9 +126,7 @@ def validate(schema_path: Path, xlsx_path: Path) -> None:
                     print(f"[cms_guard] ❌ menu row {row_idx}: missing {', '.join(missing)}")
                     errors += 1
 
-        print(
-            f"[cms_guard] sheet '{ws.title}' class={klass} rows_per_lang={rows_per_lang} published_per_lang={published_per_lang}"
-        )
+        print(f"[cms_guard] sheet '{ws.title}' class={klass} rows_per_lang={rows_per_lang} published_per_lang={published_per_lang}")
 
     Path("sheet_report.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
