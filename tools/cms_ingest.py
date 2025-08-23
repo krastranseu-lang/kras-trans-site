@@ -138,6 +138,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
     blocks: Dict[str, Dict[str, Dict[str, Any]]] = {}
     pages_rows: List[Dict[str, Any]] = []
     routes: Dict[str, Dict[str, str]] = {}
+    collections: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
 
     for ws in wb.worksheets:
         rows = list(ws.iter_rows(values_only=True))
@@ -163,6 +164,17 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
         is_menu = all(k in m_menu for k in ("lang", "label", "href", "enabled"))
         is_meta = all(k in m_meta for k in ("lang", "key"))
         is_blocks = ("lang" in m_blocks) and ("html" in m_blocks or "body" in m_blocks)
+        klass = (
+            "pages"
+            if is_pages
+            else "menu"
+            if is_menu
+            else "meta"
+            if is_meta
+            else "blocks"
+            if is_blocks
+            else "collection"
+        )
 
         if is_pages:
             report.append(f"[detect] pages-like: {ws.title}")
@@ -303,6 +315,22 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
                         if val:
                             b[fld] = val
 
+        if klass == "collection":
+            idx_map = {name: i for i, name in enumerate(hdr)}
+            it2 = ws.iter_rows(values_only=True)
+            next(it2, None)
+            for row in it2:
+                lang_val = (
+                    str(row[idx_map.get("lang", -1)] or "").strip().lower()
+                    if "lang" in hdr_lc
+                    else "pl"
+                )
+                rec: Dict[str, str] = {}
+                for j, col in enumerate(hdr):
+                    val = row[j]
+                    rec[str(col).strip()] = "" if val is None else str(val).strip()
+                collections.setdefault(ws.title, {}).setdefault(lang_val or "pl", []).append(rec)
+
     report.append(
         f"[result] pages_rows={len(pages_rows)}, menu_rows={len(menu_rows)}, meta_langs={len(page_meta)}, blocks_langs={len(blocks)}"
     )
@@ -313,6 +341,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
         "menu_rows": menu_rows,
         "page_meta": page_meta,
         "blocks": blocks,
+        "collections": collections,
         "report": "\n".join(report),
     }
 
