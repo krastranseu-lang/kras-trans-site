@@ -817,7 +817,8 @@ from bs4 import BeautifulSoup
 
 def ensure_head_injections(html: str, page: dict, hreflang_map: dict, *,
                            site: dict, lang: str, meta_title: str,
-                           meta_description: str, canonical_url: str) -> str:
+                           meta_description: str, canonical_url: str,
+                           canonical_path: str | None = None) -> str:
     """
     Wstrzykuje <title>, <meta>, <link rel='canonical'>, hreflang do <head>.
     Używa attrs= zamiast kwargów kolidujących z 'name'.
@@ -893,7 +894,8 @@ def ensure_head_injections(html: str, page: dict, hreflang_map: dict, *,
     if meta_description:
         upsert_meta(property="og:description", content=meta_description)
     upsert_meta(property="og:url", content=canonical_url)
-    print(f"[head] injected for {lang}/{page.get('key')} canonical={canonical_url!s}")
+    slug_log = (page.get("slug") or page.get("key") or "").strip("/")
+    print(f"[head] injected for {lang}/{slug_log} canonical={canonical_path or canonical_url}")
     return str(soup)
 # --------- LINK GRAPH (pozostawione jak w starym; może być użyte w szabl.) --
 def neighbors_for(
@@ -1088,55 +1090,70 @@ def build_all():
     # TF-IDF (P3) – z tekstu strony
     tfidf_map={}
 
-    routes = cms.get("page_routes", {})
-    pages_by_key = cms.get("pages_by_key") or {}
+    pages_by_lang = cms.get("pages_by_lang") or cms.get("pages") or {}
+    if isinstance(pages_by_lang, list):
+        pages_by_lang = {}
     writes = 0
     generated = []  # list of {"key":..., "lang":..., "rel":..., "out": ".../index.html"}
 
-    for key, per_lang in routes.items():
-        for lang, rel in per_lang.items():
-            page = (pages_by_key.get(key) or {}).get(lang) or {}
-            page_ctx = _flatten_for_lang(page, lang)
+    for L in languages:
+        lang_pages = pages_by_lang.get(L, {})
+        for key, P in lang_pages.items():
+            if not P or not P.get("publish", True):
+                continue
+            assert isinstance(P, dict), f"expected dict page, got {type(P)} for lang={L}"
+            page = _flatten_for_lang(P, L)
+            slug = (page.get("slug") or "").strip("/")
 
-            tpl = (page_ctx.get("template") or "page.html").strip()
+            tpl = (page.get("template") or "page.html").strip()
             candidate1 = f"pages/{tpl}"
             candidate2 = f"{tpl}"
             template_rel = candidate1 if (TEMPLATES / candidate1).exists() else candidate2
+
+            def path_for(kk, LL=None, _pages=pages_by_lang):
+                LL = LL or L
+                pp = _pages.get(LL, {}).get(kk, {}) or {}
+                s = (pp.get("slug") or "").strip("/")
+                return f"/{LL}/" if not s else f"/{LL}/{s}/"
+
             ctx = {
                 "site": site,
-                "lang": lang,
-                "page": page_ctx,
-                "meta": page_ctx.get("meta") or {},
-                "path_for": lambda kk, LL=None: f"/{LL or lang}/{routes.get(kk, {}).get(LL or lang, '')}/",
+                "lang": L,
+                "page": page,
+                "meta": page.get("meta") or {},
+                "path_for": path_for,
             }
             try:
                 page_html = render_template(template_rel, ctx)
             except TemplateNotFound:
                 page_html = (
-                    f"<!doctype html><html lang=\"{lang}\"><head>"
-                    f"<meta charset='utf-8'><title>{page_ctx.get('seo_title','')}</title>"
-                    f"</head><body><h1>{page_ctx.get('h1','')}</h1></body></html>"
+                    f"<!doctype html><html lang=\"{L}\"><head>"
+                    f"<meta charset='utf-8'><title>{page.get('seo_title','')}</title>"
+                    f"</head><body><h1>{page.get('h1','')}</h1></body></html>"
                 )
             alts = hreflang_map.get(key, {})
-            canonical_rel = page_ctx.get("canonical_path") or f"/{lang}/{rel}/"
-            canonical_url = canonical_rel if canonical_rel.startswith("http") else SITE_URL + canonical_rel
+            canonical = page.get("canonical_path") or (f"/{L}/" if not slug else f"/{L}/{slug}/")
+            canonical_url = canonical if canonical.startswith("http") else SITE_URL + canonical
             page_html = ensure_head_injections(
                 page_html,
-                page=page_ctx,
+                page=page,
                 hreflang_map=alts,
                 site=site,
-                lang=lang,
-                meta_title=page_ctx.get("seo_title") or page_ctx.get("title") or "",
-                meta_description=page_ctx.get("meta_desc") or page_ctx.get("description") or "",
+                lang=L,
+                meta_title=page.get("seo_title") or page.get("title") or "",
+                meta_description=page.get("meta_desc") or page.get("description") or "",
                 canonical_url=canonical_url,
+                canonical_path=canonical,
             )
-            dest = _out_path_for(lang, rel)
+            outdir = DIST / L / (slug if slug else "")
+            outdir.mkdir(parents=True, exist_ok=True)
+            dest = outdir / "index.html"
             dest.write_text(page_html, "utf-8")
-            print(f"[write] {lang}/{rel or ''} -> {dest}")
-            generated.append({"key": key, "lang": lang, "rel": rel, "out": str(dest)})
-            if not page_ctx.get("noindex"):
-                indexables.append((SITE_URL + canonical_rel, page_ctx.get("lastmod") or today, key))
-            logs.append(f"{lang}/{rel or ''} [{page_ctx.get('__from','pages')}] warns=-")
+            print(f"[write] {L}{'/' + slug if slug else ''} -> {dest}")
+            generated.append({"key": key, "lang": L, "rel": slug, "out": str(dest)})
+            if not page.get("noindex"):
+                indexables.append((SITE_URL + canonical, page.get("lastmod") or today, key))
+            logs.append(f"{L}/{slug or ''} [{page.get('__from','pages')}] warns=-")
             writes += 1
 
     from pathlib import Path as _P, PurePosixPath
