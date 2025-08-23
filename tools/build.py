@@ -214,6 +214,32 @@ def _norm_slug(lang: str, raw: str) -> str:
     s = "/".join([p.strip() for p in s.split("/") if p.strip()])
     return s + ("" if s.endswith("/") or s == "" else "/")
 
+def _rel_from(lang: str, slug: str | None, slug_key: str | None, ptype: str | None) -> str:
+    """
+    Zwraca relatywną ścieżkę bez języka:
+      "" (home) albo np. "blog", "company", "transport-ekspresowy-35t-kiedy-sie-oplaca"
+    Akceptuje slug w formie: "blog", "/blog/", "/pl/blog/", "/pl/", itp.
+    """
+    s = (slug or "").strip()
+    # usuń leading slash
+    if s.startswith("/"):
+        s = s.lstrip("/")
+        # jeżeli pierwszy segment to kod języka — usuń go
+        parts = s.split("/", 1)
+        if parts and parts[0] in LANGS:
+            s = parts[1] if len(parts) > 1 else ""
+    s = s.strip("/")
+
+    # home?
+    if (ptype or "").lower() == "home" or s in ("", "home", "index"):
+        return ""
+
+    # jeżeli dalej pusto — użyj slug_key
+    if not s and slug_key and slug_key not in ("home", "index"):
+        s = slug_key
+
+    return s.strip("/")
+
 def url_from(lang: str, slug: str) -> str:
     return f"/{lang}/{(slug + '/') if slug else ''}"
 
@@ -312,6 +338,7 @@ NEWS_ENABLED = str(_env("NEWS_ENABLED", C.get("NEWS_ENABLED", False))).lower() i
 
 DEFAULT_LANG = CFG.get("site",{}).get("defaultLang","pl")
 LOCALES      = list((CFG.get("site",{}).get("locales") or {}).keys()) or ["pl"]
+LANGS = {"pl","en","de","fr","it","ru","ua"}
 
 # --------------------------- KOPIOWANIE ASSETS ------------------------------
 ASSETS_DIR = pathlib.Path("assets")
@@ -886,7 +913,7 @@ def build_all():
     langs_from_cms = sorted({r.get("lang", "pl") for r in (cms.get("pages_rows") or [])})
     languages = sorted(set(languages) | set(langs_from_cms))
     site["languages"] = languages
-    routes = cms.get("page_routes") or {}
+    page_routes = cms.get("page_routes") or {}
     rows   = cms.get("pages_rows")  or []
     by_key_lang = {(r["key"], r["lang"]): r for r in rows}
 
@@ -897,7 +924,7 @@ def build_all():
     page_list = locals().get("page_defs") or locals().get("pages") or []
     existing  = {p.get("key") for p in page_list if isinstance(p, dict)}
     dlang     = site.get("default_lang", "pl")
-    for key, per_lang in routes.items():
+    for key, per_lang in page_routes.items():
         if key in existing:
             continue
         slug_map = {L: per_lang.get(L, "") for L in languages}
@@ -1027,12 +1054,13 @@ def build_all():
 
     for p in page_list:
         lang = p.get("lang") or DEFAULT_LANG
-        slug = p.get("slug", "")
         key = p.get("slugKey") or (p.get("slug") or "")
         if "key" not in p:
             p["key"] = key
         if "tsiny" in (p.get("key") or ""):
             print("[cms] route check:", {L: path_for(p["key"], L) for L in languages})
+
+        rel = _rel_from(lang=lang, slug=p.get("slug"), slug_key=p.get("slugKey"), ptype=(p.get("type") or "page"))
 
         # OG image generator (opcjonalnie; tylko gdy brak)
         gen_og = og_image_for(p)
@@ -1043,16 +1071,6 @@ def build_all():
         meta_desc = p.get("meta_desc") or ""
         og_image = p.get("og_image") or ""
 
-        # current path z routera
-        try:
-            current_path = path_for(key, lang)
-        except Exception:
-            current_path = f"/{lang}/"
-        rel = (slugs.get(p["key"], {}).get(lang, "") or "").strip("/")
-
-        # default canonical na bazie current_path
-        canonical_url = _canonical_url(site.get("base_url", ""), current_path, None)
-
         # META override z CMS
         over = _meta_get(lang, key)
         if over.get("seo_title"):
@@ -1061,14 +1079,21 @@ def build_all():
             meta_desc = over["description"]
         if over.get("og_image"):
             og_image = over["og_image"]
-        # >>> USTAW canonical BEZPIECZNIE <<<
-        canonical_url = _canonical_url(site.get("base_url", ""), current_path,
-                                       over.get("canonical") or over.get("canonical_path"))
+
+        canonical = f"/{lang}/" + ("" if rel == "" else f"{rel}/")
+        can_over = over.get("canonical") or over.get("canonical_path")
+        if can_over:
+            can_over = can_over.strip()
+            if not can_over.startswith("http") and not can_over.startswith("/"):
+                can_over = "/" + can_over
+            if not can_over.endswith("/"):
+                can_over += "/"
+            canonical = can_over
 
         cta_label = over.get("cta_label")
         cta_href = over.get("cta_href")
 
-        p["canonical"] = canonical_url
+        p["canonical"] = canonical
         p["seo_title"] = meta_title
         p["meta_desc"] = meta_desc
         p["og_image"] = og_image
@@ -1085,7 +1110,7 @@ def build_all():
         # Render Jinja
         ctx = {
           "page": {**p, "menu_version": (bundles.get(lang, {}) or {}).get("version","")},
-          "canonical": canonical_url,
+          "canonical": canonical,
           "hreflang": hreflang_map.get(p.get("slugKey","home"), {}),
           "ctas": {
             "primary": p.get("cta_label") or "Wycena transportu",
@@ -1136,20 +1161,18 @@ def build_all():
         # OSTATECZNY DOM
         soup = soupify(page_html)
         set_ext_link_attrs(soup, SITE_URL); set_img_defaults(soup)
-
-        if not canonical_url:
-            canonical_url = _canonical_url(site.get("base_url", ""), current_path, None)
         html_out = str(soup)
         alts = hreflang_map.get(p.get("slugKey", "home"), {})  # dict z hreflang
+        eta_title = str(p.get("seo_title") or p.get("title") or site.get("site_title"))
         page_html = ensure_head_injections(
             html_out,
             page=p,
             hreflang_map=alts,
             site=site,
             lang=lang,
-            meta_title=meta_title,
+            meta_title=eta_title,
             meta_description=meta_desc,
-            canonical_url=canonical_url,
+            canonical_url=canonical,
         )
         soup = BeautifulSoup(page_html, "html.parser")
 
@@ -1164,20 +1187,22 @@ def build_all():
         if "near-duplicate" in warns: dup_warns += 1
 
         # ZAPIS
-        out_dir = OUT / lang / (slug or "")
-        ensure_dir(out_dir)
-        out_path = out_dir/"index.html"
-        out_path.write_text(str(soup), "utf-8")
+        out_file = Path("dist") / lang / rel / "index.html"
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+        out_file.write_text(str(soup), "utf-8")
         generated.append({
-          "key": key, "lang": lang, "rel": rel, "out": str(out_path)
+          "key": key, "lang": lang, "rel": rel, "out": str(out_file)
         })
-        print(f"[write] {lang}/{key} -> {out_path}")
+        print(f"[write] {lang}/{rel or ''} -> {out_file}")
+
+        slug_key = p.get("slugKey") or (rel or "home")
+        page_routes.setdefault(slug_key, {})[lang] = rel
 
         # do sitemap (tylko indexowalne)
         if not p.get("noindex"):
-            indexables.append((p["canonical"], p.get("lastmod") or today, p.get("slugKey","home")))
+            indexables.append((SITE_URL + canonical, p.get("lastmod") or today, p.get("slugKey","home")))
 
-        logs.append(f"{lang}/{slug or ''} [{p.get('__from','pages')}] warns={','.join(warns) if warns else '-'}")
+        logs.append(f"{lang}/{rel or ''} [{p.get('__from','pages')}] warns={','.join(warns) if warns else '-'}")
 
     from pathlib import Path as _P, PurePosixPath
     import json as _J
