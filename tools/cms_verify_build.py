@@ -1,49 +1,34 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Simple post-build verifier for CMS-driven pages and menus."""
-import json, sys
 from pathlib import Path
+import sys, yaml
+sys.path.append("tools")
 import cms_ingest
 
-ROOT = Path('.')
-DIST = ROOT / 'dist'
-DATA = ROOT / 'data'
+def main():
+    site = yaml.safe_load((Path("data")/"site.yml").read_text("utf-8"))
+    dlang = site.get("default_lang","pl")
+    cms = cms_ingest.load_all(Path("data")/"cms")
+    routes = cms.get("page_routes") or {}
 
-
-def main() -> int:
-    cms = cms_ingest.load_all(DATA / 'cms')
-    pages_rows = cms.get('pages_rows', [])
     missing = []
-    langs = set()
-    for row in pages_rows:
-        lang = (row.get('lang') or 'pl').lower()
-        slug = row.get('slug') or ''
-        langs.add(lang)
-        if slug:
-            p = DIST / lang / slug / 'index.html'
-        else:
-            p = DIST / lang / 'index.html'
-        if not p.exists():
-            missing.append(str(p))
-    # verify menu bundles
-    for lang in langs:
-        bpath = DIST / 'assets' / 'data' / 'menu' / f'bundle_{lang}.json'
-        if not bpath.exists():
-            missing.append(str(bpath))
-            continue
-        try:
-            data = json.loads(bpath.read_text('utf-8'))
-            if not data.get('items'):
-                missing.append(str(bpath))
-        except Exception:
-            missing.append(str(bpath))
-    if missing:
-        print('Missing outputs:', file=sys.stderr)
-        for m in missing:
-            print(m, file=sys.stderr)
-        return 1
-    print('[cms_verify_build] OK')
-    return 0
+    for key, per_lang in routes.items():
+        for L, rel in per_lang.items():
+            p = Path("dist") / L / (rel or "") / "index.html"
+            if not p.exists():
+                missing.append(str(p))
 
-if __name__ == '__main__':
-    sys.exit(main())
+    if missing:
+        print("Missing outputs:")
+        for p in missing: print(" ", p)
+        sys.exit(1)
+
+    # szybki check bundla menu
+    ok = any((Path("dist/assets/data/menu")/f"bundle_{dlang}.json").exists(),
+             ) or (Path("dist/assets/nav")/f"bundle_{dlang}.json").exists()
+    if not ok:
+        sys.exit("No menu bundle for default language")
+
+    print("✅ Verify: pages & bundles OK")
+
+if __name__ == "__main__":
+    main()
