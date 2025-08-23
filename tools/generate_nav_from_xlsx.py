@@ -31,15 +31,13 @@ def _to_bool(v: str) -> bool:
     return s in {'true','1','yes','y','tak','prawda'}
 
 def read_routes(ws):
-    start_cell, end_cell = ws.calculate_dimension().split(":")
-    max_row = int("".join(filter(str.isdigit, end_cell)))
     head = [c.value for c in ws[1]]
     try: idx_slug = head.index('slugKey')
     except ValueError:
         raise SystemExit("[Routes] Missing 'slugKey' header")
     langs = [h for h in head if h and h.lower() in LOCALES]
     routes = {}
-    for row in ws.iter_rows(min_row=2, values_only=True, max_row=max_row):
+    for row in ws.iter_rows(min_row=2, values_only=True):
         slug_key = (row[idx_slug] or '').strip()
         if not slug_key: continue
         m = {}
@@ -52,8 +50,6 @@ def read_routes(ws):
     return routes
 
 def read_props(ws):
-    start_cell, end_cell = ws.calculate_dimension().split(":")
-    max_row = int("".join(filter(str.isdigit, end_cell)))
     props = defaultdict(dict)  # props[lang][key] = value
     head = [c.value for c in ws[1]]
     try:
@@ -62,7 +58,7 @@ def read_props(ws):
         i_val  = head.index('value')
     except ValueError:
         raise SystemExit("[Props] Expected headers: key, lang, value")
-    for row in ws.iter_rows(min_row=2, values_only=True, max_row=max_row):
+    for row in ws.iter_rows(min_row=2, values_only=True):
         key  = (row[i_key]  or '').strip()
         lang = (row[i_lang] or '').strip().lower()
         val  = (row[i_val]  or '').strip()
@@ -71,8 +67,6 @@ def read_props(ws):
     return props
 
 def read_nav(ws):
-    start_cell, end_cell = ws.calculate_dimension().split(":")
-    max_row = int("".join(filter(str.isdigit, end_cell)))
     head = [c.value for c in ws[1]]
     idx = {}
     for h in ('lang','label','href','parent','order','enabled'):
@@ -85,7 +79,7 @@ def read_nav(ws):
 
     per_lang = defaultdict(list)
     seen_href = defaultdict(set)
-    for row in ws.iter_rows(min_row=2, values_only=True, max_row=max_row):
+    for row in ws.iter_rows(min_row=2, values_only=True):
         lang = (row[idx['lang']] or '').strip().lower()
         if lang not in LOCALES:
             continue

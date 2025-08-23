@@ -84,9 +84,7 @@ def _map_headers(headers: List[str], group: str) -> Tuple[Dict[str,int], List[st
     return out, hl
 
 def _read_sheet_headers(ws) -> List[str]:
-    start_cell, end_cell = ws.calculate_dimension().split(":")
-    max_row = int("".join(filter(str.isdigit, end_cell)))
-    it = ws.iter_rows(values_only=True, max_row=max_row)
+    it = ws.iter_rows(values_only=True)
     headers = next(it)
     return [str(x or "").strip() for x in headers]
 
@@ -144,10 +142,8 @@ def validate(schema_path: Path, xlsx_path: Path) -> int:
         return 1
 
     # statystyki per lang + publikowalne wiersze
-      start_cell, end_cell = ws.calculate_dimension().split(":")
-      max_row = int("".join(filter(str.isdigit, end_cell)))
-      it = ws.iter_rows(values_only=True, max_row=max_row)
-      next(it)  # skip header
+    it = ws.iter_rows(values_only=True)
+    next(it)  # skip header
     langs, published = {}, {}
     for row in it:
         get = lambda name: (str(row[mapping[name]]).strip() if name in mapping and mapping[name] < len(row) and row[mapping[name]] is not None else "")
