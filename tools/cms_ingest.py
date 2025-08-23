@@ -126,11 +126,30 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
 
     wb = openpyxl.load_workbook(src, read_only=True, data_only=True)
 
-    def norm(s: Optional[str]) -> str:
-        return (s or "").strip().lower()
+    def _norm(s):
+        return (str(s or "")).strip().lower()
+
+    def _idx(headers_lc, name):
+        try:
+            return headers_lc.index(name)
+        except ValueError:
+            return -1
+
+    def _cell(row, headers_lc, name):
+        i = _idx(headers_lc, name)
+        if i < 0:
+            return ""
+        try:
+            v = row[i]
+        except IndexError:
+            return ""
+        return "" if v is None else str(v).strip()
+
+    def _row_empty(row):
+        return all((c is None or str(c).strip() == "") for c in row)
 
     def truthy(v: str) -> bool:
-        return norm(v) in {"1", "true", "tak", "yes", "on", "prawda"}
+        return _norm(v) in {"1", "true", "tak", "yes", "on", "prawda"}
 
     # akumulatory
     menu_rows: List[Dict[str, Any]] = []
@@ -145,7 +164,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
         if not rows:
             continue
         hdr = [str(x or "").strip() for x in rows[0]]
-        hdr_lc = [norm(h) for h in hdr]
+        hdr_lc = [_norm(h) for h in hdr]
         report.append(f"[sheet] {ws.title}: {hdr}")
 
         m_pages = _map_headers(hdr, SYN.get("pages", {}))
@@ -179,149 +198,154 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
         if is_pages:
             report.append(f"[detect] pages-like: {ws.title}")
             for row in data_rows:
-                vals = ["" if v is None else str(v).strip() for v in row]
-                L = norm(vals[m_pages.get("lang", -1)]) or "pl"
-                pub_val = vals[m_pages.get("publish", -1)] if "publish" in m_pages else "1"
-                if not truthy(pub_val):
-                    continue
-                slug_raw = vals[m_pages.get("slug", -1)] if "slug" in m_pages else ""
-                key = norm(vals[m_pages.get("key", -1)]) if "key" in m_pages else ""
-                template = vals[m_pages.get("template", -1)] if "template" in m_pages else ""
-                parent_raw = vals[m_pages.get("parent", -1)] if "parent" in m_pages else ""
-                order_val = vals[m_pages.get("order", -1)] if "order" in m_pages else ""
-
-                def rel(lang: str, s: str) -> str:
-                    s = (s or "").strip()
-                    if s.startswith(f"/{lang}/"):
-                        s = s[len(f"/{lang}/"):]
-                    return s.strip("/")
-
-                slug_rel = rel(L, slug_raw)
-                if not key:
-                    key = slug_rel or "home"
-                parent_key = rel(L, parent_raw)
-
-                meta_fields: Dict[str, Any] = {}
-                for fld in ("title", "seo_title", "description", "og_image", "canonical"):
-                    idx = m_pages.get(fld)
-                    if idx is not None and idx < len(vals):
-                        val = vals[idx]
-                        if val:
-                            meta_fields[fld] = val
-
-                known_idx = set(m_pages.values())
-                extras: Dict[str, Any] = {}
-                for i, h in enumerate(hdr):
-                    if i in known_idx:
+                try:
+                    if _row_empty(row):
                         continue
-                    if i < len(vals):
-                        v = vals[i]
-                        if v:
-                            extras[h] = v
+                    L = _norm(_cell(row, hdr_lc, "lang") or "pl")
+                    pub = _norm(_cell(row, hdr_lc, "publish") or "true") in {"1","true","tak","yes","on","prawda"}
+                    if not pub:
+                        continue
+                    raw_slug = _cell(row, hdr_lc, "slug")
+                    key = _norm(_cell(row, hdr_lc, "slugkey") or "")
+                    tpl = _cell(row, hdr_lc, "template") or "page.html"
+                    parent = _cell(row, hdr_lc, "parentslug") or _cell(row, hdr_lc, "parent") or ""
+                    order_v = _cell(row, hdr_lc, "order") or "999"
 
-                pages_rows.append(
-                    {
-                        "lang": L,
-                        "key": key,
-                        "slug": slug_rel,
-                        "parent_key": parent_key,
-                        "template": template,
-                        "order": int(float(order_val or "999")),
-                        "meta": {**meta_fields, "extras": extras},
+                    rel = (raw_slug or "").strip()
+                    if rel.startswith(f"/{L}/"):
+                        rel = rel[len(f"/{L}/"):]
+                    rel = rel.strip("/")
+                    if not key:
+                        key = (rel or "home") if rel else "home"
+
+                    parent_key = (parent or "").strip()
+                    if parent_key.startswith(f"/{L}/"):
+                        parent_key = parent_key[len(f"/{L}/"):]
+                    parent_key = parent_key.strip("/")
+
+                    meta = {
+                        "h1": _cell(row, hdr_lc, "h1"),
+                        "title": _cell(row, hdr_lc, "title"),
+                        "seo_title": _cell(row, hdr_lc, "seo_title"),
+                        "meta_desc": _cell(row, hdr_lc, "meta_desc"),
+                        "hero_alt": _cell(row, hdr_lc, "hero_alt"),
+                        "hero_image": _cell(row, hdr_lc, "hero_image"),
+                        "og_image": _cell(row, hdr_lc, "og_image"),
+                        "canonical": _cell(row, hdr_lc, "canonical"),
+                        "cta_label": _cell(row, hdr_lc, "cta_label"),
+                        "cta_href": _cell(row, hdr_lc, "cta_href"),
+                        "cta_phone": _cell(row, hdr_lc, "cta_phone"),
+                        "whatsapp": _cell(row, hdr_lc, "whatsapp"),
                     }
-                )
-                routes.setdefault(key, {})[L] = slug_rel
-                pm = page_meta.setdefault(L, {}).setdefault(key, {})
-                pm.update(meta_fields)
-                pm.update(extras)
+                    meta_clean = {k: v for k, v in meta.items() if v}
+
+                    pages_rows.append(
+                        {
+                            "lang": L,
+                            "key": key,
+                            "slug": rel,
+                            "parent_key": parent_key,
+                            "template": tpl,
+                            "order": int(float(order_v or "999")),
+                            "meta": meta_clean,
+                        }
+                    )
+                    routes.setdefault(key, {})[L] = rel
+                    pm = page_meta.setdefault(L, {}).setdefault(key, {})
+                    pm.update(meta_clean)
+                except IndexError:
+                    continue
 
         if is_menu:
             report.append(f"[detect] menu-like: {ws.title}")
             for row in data_rows:
-                vals = ["" if v is None else str(v).strip() for v in row]
-                L = norm(vals[m_menu.get("lang", -1)]) or "pl"
-                label = vals[m_menu.get("label", -1)] if "label" in m_menu else ""
-                href = vals[m_menu.get("href", -1)] if "href" in m_menu else ""
-                if not label or not href:
+                try:
+                    if _row_empty(row):
+                        continue
+                    L = _norm(_cell(row, hdr_lc, "lang") or "pl")
+                    if not _norm(_cell(row, hdr_lc, "enabled") or "true") in {"1","true","tak","yes","on","prawda"}:
+                        continue
+                    label = _cell(row, hdr_lc, "label")
+                    href = _cell(row, hdr_lc, "href")
+                    if not label or not href:
+                        continue
+                    parent = _cell(row, hdr_lc, "parent") or ""
+                    order_v = _cell(row, hdr_lc, "order") or "999"
+                    col_v = _cell(row, hdr_lc, "col") or "1"
+                    menu_rows.append(
+                        {
+                            "lang": L,
+                            "label": label,
+                            "href": href,
+                            "parent": parent,
+                            "order": int(float(order_v or "999")),
+                            "col": int(float(col_v or "1")),
+                            "enabled": True,
+                        }
+                    )
+                except IndexError:
                     continue
-                parent = vals[m_menu.get("parent", -1)] if "parent" in m_menu else ""
-                order_v = vals[m_menu.get("order", -1)] if "order" in m_menu else "999"
-                col_v = vals[m_menu.get("col", -1)] if "col" in m_menu else "1"
-                en_v = vals[m_menu.get("enabled", -1)] if "enabled" in m_menu else "1"
-                if not truthy(en_v):
-                    continue
-                menu_rows.append(
-                    {
-                        "lang": L,
-                        "label": label,
-                        "href": href,
-                        "parent": parent,
-                        "order": int(float(order_v or "999")),
-                        "col": int(float(col_v or "1")),
-                        "enabled": True,
-                    }
-                )
 
         if is_meta:
             report.append(f"[detect] meta-like: {ws.title}")
             for row in data_rows:
-                vals = ["" if v is None else str(v).strip() for v in row]
-                L = norm(vals[m_meta.get("lang", -1)]) or "pl"
-                key = norm(vals[m_meta.get("key", -1)]) if "key" in m_meta else ""
-                if not key:
-                    continue
-                pm = page_meta.setdefault(L, {}).setdefault(key, {})
-                for fld in ("title", "seo_title", "description", "og_image", "canonical"):
-                    idx = m_meta.get(fld)
-                    if idx is not None and idx < len(vals):
-                        val = vals[idx]
+                try:
+                    if _row_empty(row):
+                        continue
+                    L = _norm(_cell(row, hdr_lc, "lang") or "pl")
+                    key = _norm(_cell(row, hdr_lc, "key") or "")
+                    if not key:
+                        continue
+                    pm = page_meta.setdefault(L, {}).setdefault(key, {})
+                    for fld in ("title", "seo_title", "description", "og_image", "canonical"):
+                        val = _cell(row, hdr_lc, fld)
                         if val:
                             pm[fld] = val
-                known_idx = set(m_meta.values())
-                for i, h in enumerate(hdr):
-                    if i in known_idx:
-                        continue
-                    if i < len(vals):
-                        v = vals[i]
-                        if v:
-                            pm[h] = v
+                    known = {"lang", "key", "title", "seo_title", "description", "og_image", "canonical"}
+                    for h in hdr_lc:
+                        if h in known:
+                            continue
+                        val = _cell(row, hdr_lc, h)
+                        if val:
+                            pm[h] = val
+                except IndexError:
+                    continue
 
         if is_blocks:
             report.append(f"[detect] blocks-like: {ws.title}")
             for row in data_rows:
-                vals = ["" if v is None else str(v).strip() for v in row]
-                L = norm(vals[m_blocks.get("lang", -1)]) or "pl"
-                path = vals[m_blocks.get("path", -1)] if "path" in m_blocks else ""
-                if not path:
-                    key = norm(vals[m_blocks.get("key", -1)]) if "key" in m_blocks else ""
-                    section = norm(vals[m_blocks.get("section", -1)]) if "section" in m_blocks else ""
-                    if key and section:
-                        path = f"pages/{key}/{section}"
-                if not path:
-                    continue
-                b = blocks.setdefault(L, {}).setdefault(path.lstrip("/"), {})
-                if "html" in m_blocks:
-                    html = vals[m_blocks.get("html", -1)]
-                    if html:
-                        b["html"] = html
-                if "body" in m_blocks and "html" not in b:
-                    body = vals[m_blocks.get("body", -1)]
-                    if body:
-                        b["body"] = body
-                for fld in ("title", "cta_label", "cta_href"):
-                    idx = m_blocks.get(fld)
-                    if idx is not None and idx < len(vals):
-                        val = vals[idx]
+                try:
+                    if _row_empty(row):
+                        continue
+                    L = _norm(_cell(row, hdr_lc, "lang") or "pl")
+                    path = _cell(row, hdr_lc, "path")
+                    if not path:
+                        key = _norm(_cell(row, hdr_lc, "key") or "")
+                        section = _norm(_cell(row, hdr_lc, "section") or "")
+                        if key and section:
+                            path = f"pages/{key}/{section}"
+                    if not path:
+                        continue
+                    b = blocks.setdefault(L, {}).setdefault(path.lstrip("/"), {})
+                    html_val = _cell(row, hdr_lc, "html")
+                    if html_val:
+                        b["html"] = html_val
+                    body_val = _cell(row, hdr_lc, "body")
+                    if body_val and "html" not in b:
+                        b["body"] = body_val
+                    for fld in ("title", "cta_label", "cta_href"):
+                        val = _cell(row, hdr_lc, fld)
                         if val:
                             b[fld] = val
+                except IndexError:
+                    continue
 
         if klass == "collection":
-            idx_map = {name: i for i, name in enumerate(hdr)}
             it2 = ws.iter_rows(values_only=True)
             next(it2, None)
             for row in it2:
                 lang_val = (
-                    str(row[idx_map.get("lang", -1)] or "").strip().lower()
+                    _norm(_cell(row, hdr_lc, "lang") or "pl")
                     if "lang" in hdr_lc
                     else "pl"
                 )
@@ -331,8 +355,9 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
                     rec[str(col).strip()] = "" if val is None else str(val).strip()
                 collections.setdefault(ws.title, {}).setdefault(lang_val or "pl", []).append(rec)
 
+    report.append(f"[rows] pages_rows={len(pages_rows)}, menu_rows={len(menu_rows)}")
     report.append(
-        f"[result] pages_rows={len(pages_rows)}, menu_rows={len(menu_rows)}, meta_langs={len(page_meta)}, blocks_langs={len(blocks)}"
+        f"[result] meta_langs={len(page_meta)}, blocks_langs={len(blocks)}"
     )
 
     return {
