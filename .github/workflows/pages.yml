@@ -41,7 +41,7 @@ jobs:
           set -e
           mkdir -p data/cms
           SRC="${{ vars.CMS_SOURCE }}"
-          [ -z "$SRC" ] && SRC="${{ vars.LOCAL_XLSX }}"   # opcjonalny fallback, można usunąć
+          [ -z "$SRC" ] && SRC="${{ vars.LOCAL_XLSX }}"   # opcjonalny fallback; jeśli nie używasz, usuń tę linię
           [ -z "$SRC" ] && SRC="/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
           SRC="$(echo "$SRC" | sed 's/[[:space:]\.]*$//')"   # obetnij spacje/kropki z końca
           echo "CMS_SOURCE_PATH: $SRC"
@@ -78,19 +78,11 @@ jobs:
           source .venv/bin/activate
           python tools/build.py
 
-      # Fallback: jeżeli build nie zapisał _routes.json, zeskanuj dist i utwórz go tutaj
+      # Fallback: jeśli build nie zapisał _routes.json, zeskanuj dist i utwórz go tu (bez heredoca)
       - name: Export routes from dist (fallback)
         run: |
           set -e
-          python - <<'PY'
-from pathlib import Path
-import json
-items=[]
-for p in Path('dist').rglob('index.html'):
-    items.append({'out': str(p)})
-Path('_routes.json').write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding='utf-8')
-print(f"[routes] exported from dist, count={len(items)}")
-PY
+          python -c "from pathlib import Path; import json; items=[{'out':str(p)} for p in Path('dist').rglob('index.html')]; Path('_routes.json').write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding='utf-8'); print(f'[routes] exported from dist, count={len(items)}')"
 
       - name: Verify build
         run: |
