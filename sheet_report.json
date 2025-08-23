@@ -1,0 +1,387 @@
+{
+  "sheets": [
+    {
+      "name": "_lists",
+      "headers": [
+        "name",
+        "vals"
+      ]
+    },
+    {
+      "name": "Pages",
+      "headers": [
+        "lang",
+        "type",
+        "slug",
+        "slugKey",
+        "parentSlug",
+        "template",
+        "publish",
+        "order",
+        "h1",
+        "title",
+        "seo_title",
+        "meta_desc",
+        "hero_alt",
+        "hero_image",
+        "og_image",
+        "canonical_path",
+        "cta_label",
+        "cta_secondary",
+        "cta_phone",
+        "cta_whatsapp",
+        "lead",
+        "body_md",
+        "min_outlinks",
+        "max_outlinks",
+        "structured_data",
+        "links_suggest",
+        "city",
+        "service",
+        "hero_video",
+        "tags",
+        "service_languages",
+        "secondary_keywords",
+        "anchor_text_suggestions",
+        "structured_data_types"
+      ]
+    },
+    {
+      "name": "Nav",
+      "headers": [
+        "lang",
+        "label",
+        "href",
+        "parent",
+        "order",
+        "col",
+        "enabled",
+        "nav.logo.src",
+        "nav.logo.alt",
+        "nav.cta.label",
+        "nav.cta.slugKey",
+        "nav.status.label",
+        "nav.status.href",
+        "nav.social.ig",
+        "nav.social.li",
+        "nav.social.fb"
+      ]
+    },
+    {
+      "name": "props",
+      "headers": [
+        "key",
+        "lang",
+        "value"
+      ]
+    },
+    {
+      "name": "Routes",
+      "headers": [
+        "slugKey",
+        "pl",
+        "en",
+        "de",
+        "fr",
+        "it",
+        "ru",
+        "ua"
+      ]
+    },
+    {
+      "name": "Strings",
+      "headers": [
+        "key",
+        "pl",
+        "en",
+        "de",
+        "fr",
+        "it",
+        "ru",
+        "ua",
+        "uk"
+      ]
+    },
+    {
+      "name": "FAQ",
+      "headers": [
+        "lang",
+        "q",
+        "a",
+        "page_slug",
+        "order",
+        "enabled",
+        "Kolumna nr 7",
+        "Kolumna nr 8",
+        "Kolumna nr 9",
+        "Kolumna nr 10"
+      ]
+    },
+    {
+      "name": "_report",
+      "headers": [
+        "sheet",
+        "lang",
+        "rowA",
+        "rowB",
+        "field",
+        "sim",
+        "valueA",
+        "valueB"
+      ]
+    },
+    {
+      "name": "Media",
+      "headers": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "name": "Company",
+      "headers": [
+        "name",
+        "legal_name",
+        "telephone",
+        "phone",
+        "address",
+        "country",
+        "email",
+        "website",
+        null
+      ]
+    },
+    {
+      "name": "Leady",
+      "headers": [
+        "created_at",
+        "name",
+        "phone",
+        "email",
+        "message",
+        "source",
+        "utm_source",
+        "utm_medium",
+        "utm_campaign"
+      ]
+    },
+    {
+      "name": "Blocks",
+      "headers": [
+        "block",
+        "lang",
+        "page",
+        "type",
+        "title",
+        "body_md",
+        "desc",
+        "href",
+        "order",
+        "lead",
+        "body_md",
+        "cta_label",
+        "cta_href",
+        "enabled"
+      ]
+    },
+    {
+      "name": "Templates",
+      "headers": [
+        "name",
+        "description"
+      ]
+    },
+    {
+      "name": "Arkusz15",
+      "headers": [
+        "sheet",
+        "lang",
+        "rowA",
+        "rowB",
+        "field",
+        "sim",
+        "valueA",
+        "valueB"
+      ]
+    },
+    {
+      "name": "Places",
+      "headers": [
+        "slug",
+        "type",
+        "name",
+        "lang",
+        "title",
+        "h1",
+        "lead",
+        "meta_desc"
+      ]
+    },
+    {
+      "name": "Reviews",
+      "headers": [
+        "source",
+        "author",
+        "rating",
+        "text",
+        "date",
+        "url",
+        "lang"
+      ]
+    },
+    {
+      "name": "CaseStudies",
+      "headers": [
+        "lang",
+        "slug",
+        "title",
+        "lead",
+        "meta_desc",
+        "body_md",
+        "category",
+        "date"
+      ]
+    },
+    {
+      "name": "Locations",
+      "headers": [
+        "lang",
+        "slug",
+        "city",
+        "street",
+        "postal",
+        "country",
+        "phone",
+        "opening_hours",
+        "body_md"
+      ]
+    },
+    {
+      "name": "Jobs",
+      "headers": [
+        "publish",
+        "lang",
+        "slug",
+        "title",
+        "location",
+        "type",
+        "salary",
+        "body_md",
+        "active"
+      ]
+    },
+    {
+      "name": "AutoLinks",
+      "headers": [
+        "lang",
+        "from_type",
+        "match",
+        "target_href",
+        "anchor",
+        "max_per_page",
+        "nofollow",
+        "priority"
+      ]
+    },
+    {
+      "name": "Redirects",
+      "headers": [
+        "from",
+        "to",
+        "code"
+      ]
+    },
+    {
+      "name": "SEO_Stats",
+      "headers": [
+        "url",
+        "lighthouse_desktop",
+        "lighthouse_mobile",
+        "cls",
+        "lcp",
+        "inp",
+        "timestamp"
+      ]
+    },
+    {
+      "name": "README",
+      "headers": [
+        "Kras-Trans CMS PRO (xlsx) — instrukcja",
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "name": "Blog",
+      "headers": [
+        "publish",
+        "lang",
+        "slug",
+        "slugKey",
+        "title",
+        "h1",
+        "lead",
+        "body_md",
+        "seo_title",
+        "meta_desc",
+        "og_image",
+        "hero_image",
+        "authorSlug",
+        "categories",
+        "tags",
+        "published_at",
+        "updated_at",
+        "template"
+      ]
+    },
+    {
+      "name": "Categories",
+      "headers": [
+        "slug",
+        "name",
+        "description",
+        "lang",
+        "parent"
+      ]
+    },
+    {
+      "name": "Authors",
+      "headers": [
+        "slug",
+        "name",
+        "job_title",
+        "bio_md",
+        "avatar",
+        "website",
+        "twitter",
+        "linkedin"
+      ]
+    }
+  ],
+  "rows_per_lang": {
+    "pl": 84,
+    "en": 81,
+    "de": 71,
+    "fr": 73,
+    "it": 71,
+    "ru": 70,
+    "ua": 69
+  },
+  "published_per_lang": {
+    "pl": 7,
+    "en": 12,
+    "de": 5,
+    "fr": 7,
+    "it": 5,
+    "ru": 4,
+    "ua": 3
+  }
+}
