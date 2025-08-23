@@ -129,6 +129,9 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
     def _norm(s):
         return (str(s or "")).strip().lower()
 
+    def _row_empty(row):
+        return row is None or all((c is None or str(c).strip() == "") for c in row)
+
     def _idx(headers_lc, name):
         try:
             return headers_lc.index(name)
@@ -139,14 +142,8 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
         i = _idx(headers_lc, name)
         if i < 0:
             return ""
-        try:
-            v = row[i]
-        except IndexError:
-            return ""
+        v = row[i] if i < len(row) else ""
         return "" if v is None else str(v).strip()
-
-    def _row_empty(row):
-        return all((c is None or str(c).strip() == "") for c in row)
 
     def truthy(v: str) -> bool:
         return _norm(v) in {"1", "true", "tak", "yes", "on", "prawda"}
@@ -344,16 +341,16 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
             it2 = ws.iter_rows(values_only=True)
             next(it2, None)
             for row in it2:
-                lang_val = (
-                    _norm(_cell(row, hdr_lc, "lang") or "pl")
-                    if "lang" in hdr_lc
-                    else "pl"
-                )
+                if _row_empty(row):
+                    continue
+                vals = list(row or [])
                 rec: Dict[str, str] = {}
-                for j, col in enumerate(hdr):
-                    val = row[j]
-                    rec[str(col).strip()] = "" if val is None else str(val).strip()
-                collections.setdefault(ws.title, {}).setdefault(lang_val or "pl", []).append(rec)
+                for idx, col_name in enumerate(hdr):
+                    v = vals[idx] if idx < len(vals) else ""
+                    rec[str(col_name).strip()] = "" if v is None else str(v).strip()
+
+                lang = _norm(rec.get("lang") or "pl")
+                collections.setdefault(ws.title, {}).setdefault(lang, []).append(rec)
 
     report.append(f"[rows] pages_rows={len(pages_rows)}, menu_rows={len(menu_rows)}")
     report.append(
@@ -361,11 +358,11 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
     )
 
     return {
-        "pages_rows": pages_rows,
-        "page_routes": routes,
         "menu_rows": menu_rows,
         "page_meta": page_meta,
         "blocks": blocks,
+        "page_routes": routes,
+        "pages_rows": pages_rows,
         "collections": collections,
         "report": "\n".join(report),
     }
