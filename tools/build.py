@@ -30,6 +30,7 @@ UŻYCIE (CI):
 """
 import os, json, shutil
 from pathlib import Path
+from collections import defaultdict
 from bs4 import BeautifulSoup
 try:
     import cms_ingest  # nasz mały moduł do czytania XLSX (pkt 4 poniżej)
@@ -193,6 +194,8 @@ def write_text(p: Path, s: str):
 
 write = write_text
 
+SITE = read_yaml(DATA/"site.yml") if (DATA/"site.yml").exists() else {}
+
 def ensure_dir(p: pathlib.Path):
     p.mkdir(parents=True, exist_ok=True)
 
@@ -270,6 +273,29 @@ def _out_for(L: str, rel: str) -> Path:
     if rel: base = base/rel
     base.mkdir(parents=True, exist_ok=True)
     return base/"index.html"
+
+def resolve_template(page: Dict[str, Any]) -> str:
+    """Return template path relative to ``templates/`` with fallbacks."""
+    base = TEMPLATES
+    tpl = (page.get("template") or "").strip().lstrip("/")
+    if tpl:
+        candidates = []
+        if "/" not in tpl:
+            candidates.append(base / "pages" / tpl)
+            candidates.append(base / tpl)
+        else:
+            candidates.append(base / tpl)
+        for cand in candidates:
+            if cand.exists():
+                return str(cand.relative_to(base))
+    mapping = {"home": "pages/page.html", "page": "pages/page.html", "blog": "pages/page.html"}
+    tpl_rel = mapping.get((page.get("type") or "").lower(), "pages/generic.html")
+    if not (base / tpl_rel).exists():
+        if (base / "pages/page.html").exists():
+            tpl_rel = "pages/page.html"
+        else:
+            tpl_rel = "pages/generic.html"
+    return tpl_rel
 
 def md_to_html(md: str) -> str:
     if not md: return ""
@@ -897,14 +923,14 @@ def neighbors_for(
 
 # ------------------------------ RENDER / BUILD ------------------------------
 def build_all():
-    site = {
+    site_cfg = {
         "default_lang": CFG.get("default_lang") or CFG.get("site", {}).get("defaultLang", "pl"),
         "languages": CFG.get("languages") or LOCALES,
         "autogenerate_from_cms": CFG.get("autogenerate_from_cms", False),
         "base_url": SITE_URL,
     }
-    languages = site.get("languages", ["pl"])
-    dlang = site.get("default_lang", "pl")
+    languages = site_cfg.get("languages", ["pl"])
+    dlang = site_cfg.get("default_lang", "pl")
     page_defs = CFG.get("pages", [])
     # === CMS: wczytaj XLSX z runnera (LOCAL_XLSX/CMS_SOURCE albo stała ścieżka) ===
     src_path = os.getenv("LOCAL_XLSX") or os.getenv("CMS_SOURCE") or "/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
@@ -923,6 +949,28 @@ def build_all():
     def _truthy(x):
         return str(x or "").strip().lower() in {"1", "true", "tak", "yes", "on", "prawda"}
 
+    blocks_by_page_lang = cms.get("blocks_by_page_lang", {})
+    faq_by_page_lang = cms.get("faq_by_page_lang", {})
+
+    BLOG = cms.get("Blog", [])
+    posts_by_lang: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for row in BLOG:
+        if not _truthy(row.get("publish")):
+            continue
+        lang_row = (row.get("lang") or dlang).lower()
+        slug_row = (row.get("slug") or "").lstrip("/")
+        posts_by_lang[lang_row].append({
+            "slug": f"/{lang_row}/{slug_row}/",
+            "title": row.get("title") or "",
+            "lead": row.get("lead") or "",
+            "meta_desc": row.get("meta_desc") or "",
+            "author": row.get("author") or "",
+            "hero_image": row.get("hero_image") or "",
+            "published_at": row.get("published_at") or row.get("date") or "",
+            "tags": row.get("tags") or "",
+            "categories": row.get("categories") or "",
+        })
+
     pages_idx = {}
     for r in rows:
         if not _truthy((r.get("meta") or {}).get("publish", "true")):
@@ -933,7 +981,7 @@ def build_all():
 
     langs_from_cms = sorted({r.get("lang", "pl") for r in rows})
     languages = sorted(set(languages) | set(langs_from_cms))
-    site["languages"] = languages
+    site_cfg["languages"] = languages
     by_key_lang = {(r.get("key"), r.get("lang")): r for r in rows}
 
     def _meta_get(L, K):
@@ -942,7 +990,7 @@ def build_all():
     # === Auto-pages z CMS: dopisz brakujące strony ===
     page_list = locals().get("page_defs") or locals().get("pages") or []
     existing  = {p.get("key") for p in page_list if isinstance(p, dict)}
-    dlang     = site.get("default_lang", "pl")
+    dlang     = site_cfg.get("default_lang", "pl")
     for key, per_lang in page_routes.items():
         if key in existing:
             continue
@@ -1036,7 +1084,7 @@ def build_all():
                             btn["href"] = blk["cta_href"]
         return str(soup)
     # === sanity: musi istnieć bundle dla domyślnego języka
-    dlang_check = site.get("default_lang", "pl")
+    dlang_check = site_cfg.get("default_lang", "pl")
     assert (DIST/"assets"/"data"/"menu"/f"bundle_{dlang_check}.json").exists() or \
            (DIST/"assets"/"nav"/f"bundle_{dlang_check}.json").exists(), "❌ Brak bundla menu (404)"
     pages = base_pages()
@@ -1071,6 +1119,7 @@ def build_all():
 
     writes = 0
     generated = []
+    langs_seen: Set[str] = set()
     for key, per_lang in routes.items():
         for L in languages:
             if L not in per_lang:
@@ -1082,26 +1131,31 @@ def build_all():
             P2 = _flatten_page(P, L)
             assert isinstance(P2, dict), f"expected dict page, got {type(P2)} for {L}/{key}"
 
-            tpl = (P2.get("template") or "page.html").strip()
-            cand1 = f"pages/{tpl}"
-            cand2 = f"{tpl}"
-            template_rel = cand1 if (TEMPLATES / cand1).exists() else cand2
+            template_rel = resolve_template(P2)
 
             def path_for(kk, LL=None, _routes=routes):
                 LL = LL or L
                 rel2 = (_routes.get(kk, {}) or {}).get(LL, "").strip("/")
                 return f"/{LL}/" if not rel2 else f"/{LL}/{rel2}/"
 
-            canonical = _canonical_url(site.get("base_url", ""), L, rel, P2.get("canonical_path"))
+            canonical = _canonical_url(SITE_URL, L, rel, P2.get("canonical_path"))
 
+            page_key = key
             ctx = {
-                "site": site,
+                "site": SITE,
                 "lang": L,
                 "page": P2,
-                "meta": P2.get("meta") or {},
+                "title": P2.get("seo_title") or P2.get("title") or SITE.get("brand") or SITE.get("title"),
+                "h1": P2.get("h1") or P2.get("title") or "",
+                "meta_desc": P2.get("meta_desc") or "",
+                "blocks": (blocks_by_page_lang.get((L, page_key)) if isinstance(blocks_by_page_lang, dict) else {}),
+                "faq": (faq_by_page_lang.get((L, page_key)) if isinstance(faq_by_page_lang, dict) else []),
                 "path_for": path_for,
                 "canonical": canonical,
+                "meta": P2.get("meta") or {},
             }
+            if (P2.get("slugKey") or "").lower() == "blog" or (P2.get("type") or "").lower() == "blog":
+                ctx["blog_posts"] = posts_by_lang.get(L, [])
             html = render_template(template_rel, ctx)
             out_path = _out_for(L, rel)
             out_path.write_text(html, encoding="utf-8")
@@ -1110,6 +1164,7 @@ def build_all():
             if not P2.get("noindex"):
                 indexables.append((canonical, P2.get("lastmod") or today, key))
             writes += 1
+            langs_seen.add(L)
 
     Path("_routes.json").write_text(json.dumps(generated, ensure_ascii=False, indent=2), "utf-8")
     print(f"[routes] exported by build count={len(generated)}")
@@ -1184,6 +1239,7 @@ def build_all():
     write_text(OUT/"_reports"/"summary.txt", "\n".join(report))
     print("\n".join(report))
     print("\n".join(logs[:80] + (["…"] if len(logs)>80 else [])))
+    print(f"[result] pages_rendered={writes}, langs={sorted(langs_seen)}")
 
 # ----------------------------- SITEMAPS ------------------------------------
 def write_sitemaps(urls: List[Tuple[str, str, str]] | List[Tuple[str, str]] , alternates: Dict[str, Dict[str, str]] | None = None):
