@@ -1125,44 +1125,58 @@ def build_all():
             if L not in per_lang:
                 continue
             rel = (per_lang.get(L) or "").strip("/")
-            P = pages_idx.get((key, L), {}) or {}
-            if not P:
-                P = {"lang": L, "key": key, "slug": f"/{L}/{rel}/", "title": key, "h1": key, "template": "page.html", "meta": {}}
-            P2 = _flatten_page(P, L)
-            assert isinstance(P2, dict), f"expected dict page, got {type(P2)} for {L}/{key}"
+            page_raw = pages_idx.get((key, L), {}) or {}
+            if not page_raw:
+                page_raw = {"lang": L, "key": key, "slug": f"/{L}/{rel}/", "title": key, "h1": key, "template": "page.html", "meta": {}}
+            page_rec = _flatten_page(page_raw, L)
+            assert isinstance(page_rec, dict), f"expected dict page, got {type(page_rec)} for {L}/{key}"
 
-            template_rel = resolve_template(P2)
+            template_rel = resolve_template(page_rec)
 
             def path_for(kk, LL=None, _routes=routes):
                 LL = LL or L
                 rel2 = (_routes.get(kk, {}) or {}).get(LL, "").strip("/")
                 return f"/{LL}/" if not rel2 else f"/{LL}/{rel2}/"
 
-            canonical = _canonical_url(SITE_URL, L, rel, P2.get("canonical_path"))
+            canonical = _canonical_url(SITE_URL, L, rel, page_rec.get("canonical_path"))
 
             page_key = key
+            meta = page_rec.get("meta") or {}
             ctx = {
-                "site": SITE,
                 "lang": L,
-                "page": P2,
-                "title": P2.get("seo_title") or P2.get("title") or SITE.get("brand") or SITE.get("title"),
-                "h1": P2.get("h1") or P2.get("title") or "",
-                "meta_desc": P2.get("meta_desc") or "",
+                "site": SITE,
+                "page": page_rec,
+                "pg": page_rec,
+                "meta": meta,
+                "nav": CFG.get("navigation", {}),
+                "path_for": path_for,
+                "title": page_rec.get("seo_title") or page_rec.get("title") or SITE.get("brand") or SITE.get("title"),
+                "h1": page_rec.get("h1") or page_rec.get("title") or "",
+                "meta_desc": page_rec.get("meta_desc") or "",
                 "blocks": (blocks_by_page_lang.get((L, page_key)) if isinstance(blocks_by_page_lang, dict) else {}),
                 "faq": (faq_by_page_lang.get((L, page_key)) if isinstance(faq_by_page_lang, dict) else []),
-                "path_for": path_for,
                 "canonical": canonical,
-                "meta": P2.get("meta") or {},
             }
-            if (P2.get("slugKey") or "").lower() == "blog" or (P2.get("type") or "").lower() == "blog":
+            if (page_rec.get("slugKey") or "").lower() == "blog" or (page_rec.get("type") or "").lower() == "blog":
                 ctx["blog_posts"] = posts_by_lang.get(L, [])
             html = render_template(template_rel, ctx)
+            html = ensure_head_injections(
+                html,
+                page_rec,
+                hreflang_map.get(page_key, {}),
+                site=SITE,
+                lang=L,
+                meta_title=ctx["title"],
+                meta_description=ctx["meta_desc"],
+                canonical_url=canonical,
+                canonical_path=page_rec.get("canonical_path"),
+            )
             out_path = _out_for(L, rel)
             out_path.write_text(html, encoding="utf-8")
             print(f"[write] {L}/{rel or ''} -> {out_path}")
             generated.append({"lang": L, "key": key, "rel": rel, "out": str(out_path)})
-            if not P2.get("noindex"):
-                indexables.append((canonical, P2.get("lastmod") or today, key))
+            if not page_rec.get("noindex"):
+                indexables.append((canonical, page_rec.get("lastmod") or today, key))
             writes += 1
             langs_seen.add(L)
 
