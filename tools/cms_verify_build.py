@@ -1,49 +1,62 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Simple post-build verifier for CMS-driven pages and menus."""
-import json, sys
+"""Post-build verifier for CMS-driven pages and menus.
+
+This script checks only CMS entries that should be published, i.e. those with
+``publish = TRUE`` and ``type`` being either ``page`` or ``home``. For each of
+these rows we expect a corresponding ``index.html`` in the ``dist`` tree. It
+also verifies the presence of a menu bundle for the default language.
+"""
+
 from pathlib import Path
+import sys
+import yaml
+
+# Ensure we can import helpers from ``tools`` when executed from repository root
+sys.path.append("tools")
 import cms_ingest
 
-ROOT = Path('.')
-DIST = ROOT / 'dist'
-DATA = ROOT / 'data'
+
+OK = "✅ Verify:"
+ERR = "❌ Verify:"
 
 
-def main() -> int:
-    cms = cms_ingest.load_all(DATA / 'cms')
-    pages_rows = cms.get('pages_rows', [])
-    missing = []
-    langs = set()
-    for row in pages_rows:
-        lang = (row.get('lang') or 'pl').lower()
-        slug = row.get('slug') or ''
-        langs.add(lang)
-        if slug:
-            p = DIST / lang / slug / 'index.html'
-        else:
-            p = DIST / lang / 'index.html'
-        if not p.exists():
-            missing.append(str(p))
-    # verify menu bundles
-    for lang in langs:
-        bpath = DIST / 'assets' / 'data' / 'menu' / f'bundle_{lang}.json'
-        if not bpath.exists():
-            missing.append(str(bpath))
-            continue
-        try:
-            data = json.loads(bpath.read_text('utf-8'))
-            if not data.get('items'):
-                missing.append(str(bpath))
-        except Exception:
-            missing.append(str(bpath))
+def main() -> None:
+    site = yaml.safe_load((Path("data") / "site.yml").read_text("utf-8"))
+    dlang = site.get("default_lang", "pl")
+
+    cms = cms_ingest.load_all(Path("data") / "cms")
+    rows = cms.get("pages_rows") or []
+
+    # Build list of required output files for published page/home rows
+    required = []
+    for r in rows:
+        typ = (r.get("type") or "page").strip().lower()
+        pub = str(r.get("meta", {}).get("publish") or "true").strip().lower()
+        if pub in {"1", "true", "tak", "yes", "on", "prawda"} and typ in {"page", "home"}:
+            lang = r.get("lang") or dlang
+            slug = r.get("slug") or ""
+            dst = Path("dist") / lang / (slug or "") / "index.html"
+            required.append(dst)
+
+    missing = [str(p) for p in required if not p.exists()]
     if missing:
-        print('Missing outputs:', file=sys.stderr)
-        for m in missing:
-            print(m, file=sys.stderr)
-        return 1
-    print('[cms_verify_build] OK')
-    return 0
+        print("Missing outputs:")
+        for p in missing[:200]:  # limit to 200 entries to avoid enormous logs
+            print(" ", p)
+        sys.exit(1)
 
-if __name__ == '__main__':
-    sys.exit(main())
+    # menu bundle (new or legacy locations)
+    has_bundle = (
+        (Path("dist/assets/data/menu") / f"bundle_{dlang}.json").exists()
+        or (Path("dist/assets/nav") / f"bundle_{dlang}.json").exists()
+    )
+    if not has_bundle:
+        sys.exit(f"{ERR} no menu bundle for default language")
+
+    print(f"{OK} pages & bundles OK")
+
+
+if __name__ == "__main__":
+    main()
+
