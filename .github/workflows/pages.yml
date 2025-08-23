@@ -78,6 +78,19 @@ jobs:
           source .venv/bin/activate
           python tools/build.py
 
+      - name: DIAG routes
+        run: |
+          set -e
+          python tools/diag_routes.py
+        continue-on-error: true
+
+      - name: Upload diag
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: diag-cms
+          path: _diag_cms.json
+
       - name: Verify build
         run: |
           set -e

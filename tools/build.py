@@ -929,7 +929,7 @@ def build_all():
     # --- REBUILD ROUTING PO AUTOGENIE ---
     _build_pages = page_list  # to jest nasza aktualna lista stron
     slugs = { p["key"]: p["slugs"] for p in _build_pages }   # <-- odświeżone slugs
-    print(f"[cms] pages autogen: total_keys={len(slugs)}; after_merge={len(_build_pages)}")
+    print(f"[cms] pages autogen: keys={len(slugs)}; langs={len(languages)}")
 
     # helper path_for korzystający z aktualnych slugs
     def path_for(key: str, lang: str) -> str:
