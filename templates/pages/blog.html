@@ -2,7 +2,7 @@
 {% block content %}
 <main>
 {% for post in posts %}
-  <a href="/{{lang}}/blog/{{ post.slug }}/">{{ post.h1 or post.title }}</a>
+  <a href="/{{lang}}/blog/{{ post.slug }}/">{{ post.h1 or post.title or 'Tytuł artykułu' }}</a>
 {% endfor %}
 </main>
 {% endblock %}
