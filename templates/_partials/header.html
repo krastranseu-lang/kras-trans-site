@@ -135,7 +135,9 @@
       <ul class="nav__list" id="navList">
         {% for item in (nav_data.primary or []) %}
           {% if item.panel %}
-            <li data-panel="{{ item.panel }}"><a href="{{ item.href or '#' }}">{{ item.label }}</a></li>
+            <li data-panel="{{ item.panel }}">
+              <button type="button" aria-expanded="false" aria-controls="panel-{{ item.panel }}">{{ item.label }}</button>
+            </li>
           {% else %}
             <li><a href="{{ item.href }}">{{ item.label }}</a></li>
           {% endif %}
@@ -202,7 +204,7 @@
       <div class="mega__grid-wrap">
         <div class="mega__panels" id="megaPanels">
           {% for pid, panel in (nav_data.mega or {}).items() %}
-            <section class="mega__section" data-panel="{{ pid }}">
+            <section id="panel-{{ pid }}" class="mega__section" data-panel="{{ pid }}">
               <div class="mega__grid">
                 {% for col in (panel.columns or []) %}
                   <div>
@@ -331,9 +333,9 @@
         trg?.setAttribute('aria-expanded','true'); openMega(id); },140); }
     function armClose(){ clearTimeout(openT); clearTimeout(closeT); closeT=setTimeout(closeMega,380); }
 
-    navList.addEventListener('pointerenter', e=>{ const li=e.target.closest('li[data-panel]'); if(!li) return; armOpen(li.getAttribute('data-panel'), li.querySelector('a,button')); });
+    navList.addEventListener('pointerenter', e=>{ const li=e.target.closest('li[data-panel]'); if(!li) return; armOpen(li.getAttribute('data-panel'), li.querySelector('button')); });
     navList.addEventListener('pointerleave', armClose);
-    navList.addEventListener('focusin', e=>{ const li=e.target.closest('li[data-panel]'); if(!li) return; armOpen(li.getAttribute('data-panel'), li.querySelector('a,button')); });
+    navList.addEventListener('focusin', e=>{ const li=e.target.closest('li[data-panel]'); if(!li) return; armOpen(li.getAttribute('data-panel'), li.querySelector('button')); });
     navList.addEventListener('focusout', armClose);
     mega.addEventListener('pointerenter', ()=>clearTimeout(closeT));
     mega.addEventListener('pointerleave', armClose);
