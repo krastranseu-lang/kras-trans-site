@@ -38,9 +38,8 @@ def _sanitize_href(href: Any, lang: str, label: str) -> str:
     h = str(href or "").strip()
     if not h:
         return f"/{lang}/{_slugify(label)}/"
-    # allowlist protocols
-    ok = h.startswith(SAFE_PROTOCOLS)
-    if not ok:
+    # allowlist protocols (case-insensitive)
+    if not h.lower().startswith(SAFE_PROTOCOLS):
         return f"/{lang}/{_slugify(label)}/"
 
     if h.startswith("/"):

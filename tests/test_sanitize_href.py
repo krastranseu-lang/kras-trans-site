@@ -22,3 +22,7 @@ def test_internal_with_query_no_trailing_slash():
 
 def test_internal_with_anchor_no_trailing_slash():
     assert _sanitize_href('/foo#bar', 'pl', 'Foo') == '/foo/#bar'
+
+
+def test_external_uppercase_protocol():
+    assert _sanitize_href('HTTPS://example.com', 'pl', 'Foo') == 'HTTPS://example.com'
