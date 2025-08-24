@@ -144,10 +144,13 @@
       try {
         if (localStorage.getItem('promoBarClosed')==='1') promo.hidden = true;
       } catch(_){}
-      $('[data-action="promo-close"]', promo)?.addEventListener('click', () => {
-        promo.hidden = true;
-        try { localStorage.setItem('promoBarClosed','1'); } catch(_){ }
-      });
+      const promoClose = $('[data-action="promo-close"]', promo);
+      if (promoClose) {
+        promoClose.addEventListener('click', () => {
+          promo.hidden = true;
+          try { localStorage.setItem('promoBarClosed','1'); } catch(_){ }
+        });
+      }
     }
 
     // sticky & shrink
@@ -171,7 +174,9 @@
       header.dataset.mega = 'closed';
       currentId = null;
       // aria-expanded reset
-      primary?.querySelectorAll('[aria-expanded="true"]').forEach(el => el.setAttribute('aria-expanded','false'));
+      if (primary) {
+        primary.querySelectorAll('[aria-expanded="true"]').forEach(el => el.setAttribute('aria-expanded','false'));
+      }
       if (lastFocus) { try { lastFocus.focus(); } catch(_){} }
     }
 
@@ -193,14 +198,16 @@
       currentId = id;
       const focusable = panel.querySelector('a,button,input,select,textarea');
       lastFocus = document.activeElement;
-      focusable?.focus();
+      if (focusable) focusable.focus();
     }
 
     function armOpen(id, triggerEl) {
       clearTimeout(closeTimer); clearTimeout(openTimer);
       openTimer = setTimeout(() => {
-        primary?.querySelectorAll('[aria-expanded="true"]').forEach(el => el.setAttribute('aria-expanded','false'));
-        triggerEl?.setAttribute('aria-expanded','true');
+        if (primary) {
+          primary.querySelectorAll('[aria-expanded="true"]').forEach(el => el.setAttribute('aria-expanded','false'));
+        }
+        if (triggerEl) triggerEl.setAttribute('aria-expanded','true');
         openMega(id);
       }, OPEN_MS);
     }
@@ -232,7 +239,7 @@
       mega.addEventListener('pointerenter', () => { clearTimeout(closeTimer); });
       mega.addEventListener('pointerleave', () => armClose());
       document.addEventListener('click', e => {
-        if (mega?.dataset.state === 'open' && !header.contains(e.target)) closeMega();
+        if (mega && mega.dataset.state === 'open' && !header.contains(e.target)) closeMega();
       });
     }
 
@@ -249,22 +256,26 @@
       document.body.classList.remove('nav-open');
       setTimeout(() => { drawer.hidden = true; }, 280);
     }
-    toggle?.addEventListener('click', () => {
-      const exp = toggle.getAttribute('aria-expanded') === 'true';
-      exp ? closeDrawer() : openDrawer();
-    });
-    closeMob?.addEventListener('click', closeDrawer);
-    dockMenu?.addEventListener('click', e => { e.preventDefault(); openDrawer(); });
-    drawer?.addEventListener('click', e => {
-      if (e.target === drawer) closeDrawer();
-    });
+    if (toggle) {
+      toggle.addEventListener('click', () => {
+        const exp = toggle.getAttribute('aria-expanded') === 'true';
+        exp ? closeDrawer() : openDrawer();
+      });
+    }
+    if (closeMob) closeMob.addEventListener('click', closeDrawer);
+    if (dockMenu) dockMenu.addEventListener('click', e => { e.preventDefault(); openDrawer(); });
+    if (drawer) {
+      drawer.addEventListener('click', e => {
+        if (e.target === drawer) closeDrawer();
+      });
+    }
 
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') {
         closeMega();
-        if (drawer?.getAttribute('data-open') === 'true') closeDrawer();
+        if (drawer && drawer.getAttribute('data-open') === 'true') closeDrawer();
       }
-      if (e.key === 'Tab' && mega?.dataset.state === 'open') {
+      if (e.key === 'Tab' && mega && mega.dataset.state === 'open') {
         const focusable = mega.querySelectorAll('a,button,input,select,textarea');
         if (!focusable.length) return;
         const first = focusable[0], last = focusable[focusable.length-1];
@@ -278,11 +289,12 @@
       const liWithNoId = primary.querySelectorAll('li:not([data-panel])');
       const sections = $$('.mega__section', panelsWrap);
       liWithNoId.forEach((li, i) => {
-        const id = sections[i]?.getAttribute('data-panel') || ('auto-'+i);
-        if (!li.hasAttribute('data-panel') && sections[i]) {
+        const section = sections[i];
+        const id = (section ? section.getAttribute('data-panel') : null) || ('auto-'+i);
+        if (!li.hasAttribute('data-panel') && section) {
           li.setAttribute('data-panel', id);
-          sections[i].setAttribute('data-panel', id);
-          sections[i].id = sections[i].id || ('panel-'+id);
+          section.setAttribute('data-panel', id);
+          section.id = section.id || ('panel-'+id);
         }
       });
     }
