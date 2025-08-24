@@ -146,6 +146,8 @@
     <div class="actions">
       <span id="statusPill" class="status-pill" hidden>🚚 auto wolne</span>
 
+      {% set _slug = page.slugKey or page.slug or 'home' %}
+      {% set _routes = nav_data.routes or {} %}
       <div class="langs" id="langsWrap">
         <button id="langBtn" class="lang-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="langsDd">
           <img class="flag" id="langFlag" src="/assets/flags/{{ 'gb' if (page.lang or 'pl') == 'en' else (page.lang or 'pl') }}.svg" alt="" width="18" height="12"><span id="langCode">{{ (page.lang or 'pl')|upper }}</span>
@@ -153,7 +155,9 @@
         </button>
         <div id="langsDd" class="lang-dd" role="menu" aria-hidden="true" aria-label="Wybór języka">
           {% for l in (nav_data.langs or []) %}
-            <a href="/{{ l.code }}/"{% if l.code == (page.lang or 'pl') %} aria-current="true"{% endif %}><img class="flag" src="{{ l.flag }}" alt="" width="18" height="12">{{ l.code|upper }}</a>
+            {% set rel = (_routes.get(_slug, {}) or {}).get(l.code, '') %}
+            {% set href = '/' ~ l.code ~ '/' ~ (rel ~ '/' if rel) %}
+            <a href="{{ href }}" hreflang="{{ l.code }}"{% if l.code == (page.lang or 'pl') %} aria-current="true"{% endif %}><img class="flag" src="{{ l.flag }}" alt="" width="18" height="12">{{ l.code|upper }}</a>
           {% endfor %}
         </div>
       </div>
@@ -235,7 +239,9 @@
       <div class="mobile-langs" id="mobileLangs">
         <div class="lang-dd" style="display:grid;grid-auto-rows:min-content" aria-hidden="false">
           {% for l in (nav_data.langs or []) %}
-            <a href="/{{ l.code }}/"{% if l.code == (page.lang or 'pl') %} aria-current="true"{% endif %}><img class="flag" src="{{ l.flag }}" alt="" width="18" height="12">{{ l.code|upper }}</a>
+            {% set rel = (_routes.get(_slug, {}) or {}).get(l.code, '') %}
+            {% set href = '/' ~ l.code ~ '/' ~ (rel ~ '/' if rel) %}
+            <a href="{{ href }}" hreflang="{{ l.code }}"{% if l.code == (page.lang or 'pl') %} aria-current="true"{% endif %}><img class="flag" src="{{ l.flag }}" alt="" width="18" height="12">{{ l.code|upper }}</a>
           {% endfor %}
         </div>
       </div>
@@ -446,12 +452,23 @@
       if(snap.social){ $('#ig').href=snap.social.ig||$('#ig').href; $('#li').href=snap.social.li||$('#li').href; $('#fb').href=snap.social.fb||$('#fb').href; }
 
       if(snap.blog) renderBlog(snap.blog);
-      if(snap.langs_html){
-        langDd.innerHTML = snap.langs_html;
-        mobileLangs.innerHTML = `<div class="lang-dd" style="display:grid;grid-auto-rows:min-content" aria-hidden="false">${snap.langs_html}</div>`;
-        langFlag.src = FLAG(currentLang); langCodeEl.textContent = currentLang.toUpperCase();
+        if(snap.langs_html){
+          langDd.innerHTML = snap.langs_html;
+          mobileLangs.innerHTML = `<div class="lang-dd" style="display:grid;grid-auto-rows:min-content" aria-hidden="false">${snap.langs_html}</div>`;
+          const updateLangLinks = rootEl => {
+            $$('a', rootEl).forEach(a => {
+              const lang = (a.getAttribute('hreflang') || a.textContent || '').trim().toLowerCase();
+              const rel = (snap.routes && snap.routes[currentSlug] && snap.routes[currentSlug][lang]) || '';
+              a.href = slugUrl(lang, rel);
+              a.setAttribute('hreflang', lang);
+              if(lang===currentLang) a.setAttribute('aria-current','true'); else a.removeAttribute('aria-current');
+            });
+          };
+          updateLangLinks(langDd);
+          updateLangLinks(mobileLangs);
+          langFlag.src = FLAG(currentLang); langCodeEl.textContent = currentLang.toUpperCase();
+        }
       }
-    }
 
     function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
   })();
