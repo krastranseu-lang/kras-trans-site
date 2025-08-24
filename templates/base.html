@@ -130,17 +130,10 @@
 
   <script>document.documentElement.classList.remove('no-js');</script>
 </head>
-<body>
-  <a class="skip-link" href="#main">{{ (i18n and i18n.skip_to_content) or 'Skip to content' }}</a>
-
-  {# --- HEADER partial (Twoja ścieżka > fallback) --- #}
-  {% if header_path %}
-    {% include header_path %}
-  {% else %}
+  <body>
     {% include "_partials/header.html" %}
-  {% endif %}
 
-  <main id="main" tabindex="-1" role="main">
+    <main id="main" tabindex="-1" role="main">
     {% block content %}{% endblock %}
   </main>
 

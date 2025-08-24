@@ -2,6 +2,7 @@
      Static-first (bundle_{lang}.json) + SWR z GAS
      Mega-menu pełnej szerokości (grid + blog rail)
 ====================================================================================================== -->
+<a class="skip-link" href="#main">{{ (i18n and i18n.skip_to_content) or 'Skip to content' }}</a>
 <header id="site-header"
         class="site-header sq"
         data-static="/assets/nav"
@@ -118,6 +119,11 @@
     .dock svg{width:22px;height:22px}.dock span{font-size:.72rem}
     @media (max-width:980px){ .nav{display:none}.menu-toggle{display:inline-block}.dock{display:block}}
   </style>
+
+  <div id="promoBar" class="promo-bar" hidden>
+    <span>Twoja promocja</span>
+    <button class="promo-close" data-action="promo-close" aria-label="Zamknij">&times;</button>
+  </div>
 
   <div class="wrap bar">
     <a class="brand" id="brandLink" href="/{{ page.lang or 'pl' }}/">
