@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta http-equiv="x-ua-compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="referrer" content="{{ site.privacy.referrerPolicy or 'strict-origin-when-cross-origin' }}" />
+  <meta name="referrer"
+        content="{{ site.get('privacy', {}).get('referrerPolicy', 'strict-origin-when-cross-origin') }}" />
   <meta name="color-scheme" content="light dark" />
   <!-- Theme color per scheme (bez migotania paska adresu) -->
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0ea5e9" />

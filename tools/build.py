@@ -195,6 +195,8 @@ def write_text(p: Path, s: str):
 write = write_text
 
 SITE = read_yaml(DATA/"site.yml") if (DATA/"site.yml").exists() else {}
+SITE.setdefault("privacy", {})
+SITE["privacy"].setdefault("referrerPolicy", "strict-origin-when-cross-origin")
 
 def ensure_dir(p: pathlib.Path):
     p.mkdir(parents=True, exist_ok=True)
