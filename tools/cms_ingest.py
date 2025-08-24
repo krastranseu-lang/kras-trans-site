@@ -76,8 +76,47 @@ SYN = {
     "key":["key","prop","nazwa"],
     "lang":["lang","język","jezyk"],
     "value":["value","wartosc","wartość","val","content"]
+  },
+  "blog": {
+    "lang": ["lang", "język", "jezyk"],
+    "publish": ["publish", "enabled", "widoczne", "visible", "aktywny", "active"],
+    "slug": ["slug", "url", "path"],
+    "title": ["title", "tytuł", "tytul"],
+    "h1": ["h1", "header", "naglowek"],
+    "lead": ["lead", "intro", "opis", "description", "meta_desc"],
+    "body": ["body", "html", "content", "markdown", "md"],
+    "hero_image": ["hero_image", "image", "img"],
+    "published_at": ["published_at", "date", "published", "data"],
+    "tags": ["tags", "tagi"],
+    "categories": ["categories", "kategorie"]
+  },
+  "routes": {
+    "slugkey": ["slugkey", "slug_key", "key", "route", "slug"],
+  },
+  "strings": {
+    "key": ["key", "nazwa"],
+  },
+  "media": {
+    "src": ["src", "path", "url"],
+    "alt": ["alt", "opis", "description"],
+    "title": ["title", "tytuł", "tytul"],
+  },
+  "company": {
+    "name": ["name", "nazwa"],
+    "street_address": ["street_address", "address", "street", "adres"],
+    "postal_code": ["postal_code", "post_code", "zip", "kod"],
+    "city": ["city", "miasto"],
+    "telephone": ["telephone", "phone", "tel"],
+    "email": ["email", "mail"],
+    "same_as": ["same_as", "social", "socials", "links"],
+  },
+  "redirects": {
+    "from": ["from", "src", "source"],
+    "to": ["to", "dst", "dest", "target"],
   }
 }
+
+LOCALES = {"pl", "en", "de", "fr", "it", "ru", "ua"}
 
 def _lower(s:str) -> str: return (s or "").strip().lower()
 
@@ -150,9 +189,16 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
         return {
             "pages_rows": [],
             "page_routes": {},
+            "routes": {},
             "menu_rows": [],
             "page_meta": {},
             "blocks": {},
+            "blog_rows": [],
+            "strings": [],
+            "media": [],
+            "company": [],
+            "redirects": [],
+            "collections": {},
             "report": "[cms] no source",
         }
 
@@ -191,6 +237,11 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
     pages_rows: List[Dict[str, Any]] = []
     routes: Dict[str, Dict[str, str]] = {}
     collections: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
+    blog_rows: List[Dict[str, Any]] = []
+    strings_rows: List[Dict[str, Any]] = []
+    media_rows: List[Dict[str, Any]] = []
+    company_rows: List[Dict[str, Any]] = []
+    redirect_rows: List[Dict[str, Any]] = []
 
     for ws in wb.worksheets:
         rows = list(ws.iter_rows(values_only=True))
@@ -204,6 +255,12 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
         m_menu = _map_headers(hdr, SYN["menu"])
         m_meta = _map_headers(hdr, SYN["meta"])
         m_blocks = _map_headers(hdr, SYN["blocks"])
+        m_blog = _map_headers(hdr, SYN.get("blog", {}))
+        m_routes_sheet = _map_headers(hdr, SYN.get("routes", {}))
+        m_strings = _map_headers(hdr, SYN.get("strings", {}))
+        m_media = _map_headers(hdr, SYN.get("media", {}))
+        m_company = _map_headers(hdr, SYN.get("company", {}))
+        m_redirects = _map_headers(hdr, SYN.get("redirects", {}))
 
         data_rows = rows[1:]
 
@@ -216,6 +273,12 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
         is_menu = all(k in m_menu for k in ("lang", "label", "href", "enabled"))
         is_meta = all(k in m_meta for k in ("lang", "key"))
         is_blocks = ("lang" in m_blocks) and ("html" in m_blocks or "body" in m_blocks)
+        is_blog = ("lang" in m_blog) and ("slug" in m_blog or "title" in m_blog)
+        is_routes_sheet = "slugkey" in m_routes_sheet
+        is_strings = "key" in m_strings and any(h in LOCALES for h in hdr_lc)
+        is_media = bool(m_media)
+        is_company = bool(m_company)
+        is_redirects = all(k in m_redirects for k in ("from", "to"))
         klass = (
             "pages"
             if is_pages
@@ -225,6 +288,18 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
             if is_meta
             else "blocks"
             if is_blocks
+            else "blog"
+            if is_blog
+            else "routes"
+            if is_routes_sheet
+            else "strings"
+            if is_strings
+            else "media"
+            if is_media
+            else "company"
+            if is_company
+            else "redirects"
+            if is_redirects
             else "collection"
         )
 
@@ -378,6 +453,81 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
                 except IndexError:
                     continue
 
+        if is_blog:
+            report.append(f"[detect] blog-like: {ws.title}")
+            for row in data_rows:
+                if _row_empty(row):
+                    continue
+                rec: Dict[str, Any] = {}
+                for idx, col_name in enumerate(hdr_lc):
+                    v = row[idx] if idx < len(row) else ""
+                    rec[col_name] = "" if v is None else str(v).strip()
+                blog_rows.append(rec)
+
+        if is_routes_sheet:
+            report.append(f"[detect] routes-like: {ws.title}")
+            langs = [h for h in hdr_lc if h in LOCALES]
+            for row in data_rows:
+                if _row_empty(row):
+                    continue
+                slug_key = _cell(row, hdr_lc, "slugkey")
+                if not slug_key:
+                    continue
+                for L in langs:
+                    idx = hdr_lc.index(L)
+                    v = row[idx] if idx < len(row) else ""
+                    if v:
+                        routes.setdefault(slug_key, {})[L] = str(v).strip().lstrip("/").rstrip("/")
+
+        if is_strings:
+            report.append(f"[detect] strings-like: {ws.title}")
+            langs = [h for h in hdr_lc if h in LOCALES]
+            for row in data_rows:
+                if _row_empty(row):
+                    continue
+                key = _cell(row, hdr_lc, "key")
+                if not key:
+                    continue
+                rec = {"key": key}
+                for L in langs:
+                    idx = hdr_lc.index(L)
+                    v = row[idx] if idx < len(row) else ""
+                    if v:
+                        rec[L] = str(v).strip()
+                strings_rows.append(rec)
+
+        if is_media:
+            report.append(f"[detect] media-like: {ws.title}")
+            for row in data_rows:
+                if _row_empty(row):
+                    continue
+                rec = {}
+                for idx, col_name in enumerate(hdr):
+                    v = row[idx] if idx < len(row) else ""
+                    rec[str(col_name).strip()] = "" if v is None else str(v).strip()
+                media_rows.append(rec)
+
+        if is_company:
+            report.append(f"[detect] company-like: {ws.title}")
+            for row in data_rows:
+                if _row_empty(row):
+                    continue
+                rec = {}
+                for idx, col_name in enumerate(hdr):
+                    v = row[idx] if idx < len(row) else ""
+                    rec[str(col_name).strip()] = "" if v is None else str(v).strip()
+                company_rows.append(rec)
+
+        if is_redirects:
+            report.append(f"[detect] redirects-like: {ws.title}")
+            for row in data_rows:
+                if _row_empty(row):
+                    continue
+                src = _cell(row, hdr_lc, "from")
+                dst = _cell(row, hdr_lc, "to")
+                if src and dst:
+                    redirect_rows.append({"from": src, "to": dst})
+
         if klass == "collection":
             it2 = ws.iter_rows(values_only=True)
             next(it2, None)
@@ -423,9 +573,15 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
         "page_meta": page_meta,
         "blocks": blocks,
         "page_routes": routes,
+        "routes": routes,
         "pages_rows": pages_rows,
         "pages_by_key": pages_by_key,
         "collections": collections,
+        "blog_rows": blog_rows,
+        "strings": strings_rows,
+        "media": media_rows,
+        "company": company_rows,
+        "redirects": redirect_rows,
         "report": "\n".join(report),
     }
 
