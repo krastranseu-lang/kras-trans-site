@@ -12,8 +12,8 @@ CMS data and writes the generated site to the `dist/` directory.
 Menu labels must be unique within each language. During the build process,
 duplicate labels trigger a warning and the later entries are ignored.
 
-If the GitHub Actions runner cannot find a CMS Excel file, the workflow now
-creates an empty placeholder at `data/cms/menu.xlsx` and continues. This allows
-builds and tests to run without a private CMS source, though generated content
-will be minimal.
+If `data/cms/menu.xlsx` is missing, the build script tries to fetch the sheet
+from the location specified by the `CMS_SOURCE` environment variable. The value
+may point to a local file path or an HTTP(S) URL. The downloaded file is cached
+under `data/cms/menu.xlsx` for subsequent runs.
 

@@ -2,7 +2,14 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+import os
 import re
+import shutil
+
+try:
+    import requests
+except Exception:  # pragma: no cover - requests may be missing in minimal envs
+    requests = None
 
 LANG_RE = re.compile(r"^/([a-z]{2})(?:/([^?#]*))?/?$")
 
@@ -180,11 +187,33 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
     report: List[str] = []
 
     # wybór źródła
-    src = (
-        explicit_src
-        if explicit_src and explicit_src.exists()
-        else (cms_root / "menu.xlsx" if (cms_root / "menu.xlsx").exists() else None)
-    )
+    cache = cms_root / "menu.xlsx"
+    src: Optional[Path] = None
+    if explicit_src and explicit_src.exists():
+        src = explicit_src
+    elif cache.exists():
+        src = cache
+    else:
+        cms_source = os.getenv("CMS_SOURCE")
+        if cms_source:
+            report.append(f"[cms_ingest] fetch: {cms_source}")
+            try:
+                if cms_source.startswith("http://") or cms_source.startswith("https://"):
+                    if not requests:
+                        raise RuntimeError("requests not available")
+                    resp = requests.get(cms_source, timeout=15)
+                    resp.raise_for_status()
+                    cms_root.mkdir(parents=True, exist_ok=True)
+                    cache.write_bytes(resp.content)
+                    src = cache
+                else:
+                    p = Path(cms_source)
+                    if p.exists():
+                        cms_root.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(p, cache)
+                        src = cache
+            except Exception as e:
+                report.append(f"[cms_ingest] warn: fetch failed: {e}")
     if not src:
         return {
             "pages_rows": [],
