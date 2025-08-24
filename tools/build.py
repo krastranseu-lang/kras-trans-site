@@ -481,7 +481,7 @@ env.globals.update({
   "assets": CFG.get("assets", {})
 })
 
-# Nawigacja + konfiguracja headera (partials/header.html)
+# Nawigacja + konfiguracja headera (_partials/header.html)
 env.globals.update({
     "nav": CFG.get("navigation", {}),
     "header_cfg": CFG.get("header", {})
