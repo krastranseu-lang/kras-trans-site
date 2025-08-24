@@ -280,6 +280,8 @@ def resolve_template(page: Dict[str, Any]) -> str:
     """Return template path relative to ``templates/`` with fallbacks."""
     base = TEMPLATES
     tpl = (page.get("template") or "").strip().lstrip("/")
+    if tpl.startswith("templates/"):
+        tpl = tpl[len("templates/"):]
     if tpl:
         candidates = []
         if "/" not in tpl:
@@ -1308,17 +1310,22 @@ def build_all():
         ensure_dir(dest)
         write_text(dest/"index.html", f"<!doctype html><meta charset='utf-8'><meta http-equiv='refresh' content='0;url={dst}'><link rel='canonical' href='{dst}'><meta name='robots' content='noindex,follow'><title>Redirect</title>")
 
-    # root redirect index (+ GSC meta + canonical)
-    root_html = (
-        f"<!doctype html><html lang=\"{DEFAULT_LANG}\"><head><meta charset=\"utf-8\">"
-        f"<title>{CFG.get('site',{}).get('brand','Kras-Trans')}</title>"
-        f"<meta name=\"google-site-verification\" content=\"{GSC}\">"
-        f"<link rel=\"canonical\" href=\"/{DEFAULT_LANG}/\">"
-        f"<meta http-equiv=\"refresh\" content=\"0; url=/{DEFAULT_LANG}/\">"
-        f"<script>location.replace('/{DEFAULT_LANG}/');</script>"
-        f"</head><body></body></html>"
-    )
-    write_text(OUT/"index.html", root_html)
+    # root index: redirect or copy default language homepage
+    if CFG.get("routing", {}).get("enforce_lang_prefix", True):
+        root_html = (
+            f"<!doctype html><html lang=\"{DEFAULT_LANG}\"><head><meta charset=\"utf-8\">"
+            f"<title>{CFG.get('site',{}).get('brand','Kras-Trans')}</title>"
+            f"<meta name=\"google-site-verification\" content=\"{GSC}\">"
+            f"<link rel=\"canonical\" href=\"/{DEFAULT_LANG}/\">"
+            f"<meta http-equiv=\"refresh\" content=\"0; url=/{DEFAULT_LANG}/\">"
+            f"<script>location.replace('/{DEFAULT_LANG}/');</script>"
+            f"</head><body></body></html>"
+        )
+        write_text(OUT/"index.html", root_html)
+    else:
+        src = OUT/DEFAULT_LANG/"index.html"
+        if src.exists():
+            shutil.copyfile(src, OUT/"index.html")
     # GSC HTML file verification (drugi, pewny sposób weryfikacji)
     html_file = (CFG.get("constants", {}).get("GSC_HTML_FILE") or "").strip()
     if html_file and html_file.startswith("google") and html_file.endswith(".html"):
