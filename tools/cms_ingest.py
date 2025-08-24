@@ -319,11 +319,27 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
                     parent = _cell(row, hdr_lc, "parentslug") or _cell(row, hdr_lc, "parent") or ""
                     order_v = _cell(row, hdr_lc, "order") or "999"
 
+                    orig_L = L
                     slug_lang, rel = split_slug(raw_slug)
+                    if slug_lang and slug_lang != orig_L:
+                        report.append(
+                            f"[warn] slug/lang mismatch: slug={raw_slug!r} col={orig_L} -> {slug_lang}"
+                        )
+                    L = slug_lang or orig_L
                     if slug_lang:
-                        L = slug_lang
+                        rel = rel
                     else:
                         rel = (raw_slug or "").strip("/")
+                    canon_slug = f"/{L}/{rel}/"
+                    chk_L, chk_rel = split_slug(canon_slug)
+                    if chk_L != L or chk_rel != rel:
+                        report.append(
+                            f"[warn] bad slug {raw_slug!r} -> {canon_slug!r}"
+                        )
+                    if raw_slug and raw_slug != canon_slug:
+                        report.append(
+                            f"[warn] slug normalized: {raw_slug!r} -> {canon_slug!r}"
+                        )
                     if not key:
                         key = (rel or "home") if rel else "home"
                     if rel == "home":
@@ -351,6 +367,11 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
                         "whatsapp": _cell(row, hdr_lc, "whatsapp"),
                     }
                     meta_clean = {k: v for k, v in meta.items() if v}
+                    for fld in ("h1", "title", "seo_title", "meta_desc"):
+                        if not meta_clean.get(fld):
+                            report.append(
+                                f"[warn] missing {fld} for {L}/{key}"
+                            )
 
                     pages_rows.append(
                         {
@@ -462,6 +483,24 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
                 for idx, col_name in enumerate(hdr_lc):
                     v = row[idx] if idx < len(row) else ""
                     rec[col_name] = "" if v is None else str(v).strip()
+                raw_slug = rec.get("slug") or ""
+                L_blog = _norm(rec.get("lang") or "pl")
+                slug_lang, rel = split_slug(raw_slug)
+                if slug_lang and slug_lang != L_blog:
+                    report.append(
+                        f"[warn] blog slug/lang mismatch: slug={raw_slug!r} col={L_blog} -> {slug_lang}"
+                    )
+                canon_rel = rel if slug_lang else raw_slug.strip("/")
+                canon_slug = f"/{L_blog}/{canon_rel}/"
+                chk_L, chk_rel = split_slug(canon_slug)
+                if chk_L != L_blog or chk_rel != canon_rel:
+                    report.append(
+                        f"[warn] bad blog slug {raw_slug!r} -> {canon_slug!r}"
+                    )
+                if raw_slug and raw_slug != canon_slug:
+                    report.append(
+                        f"[warn] blog slug normalized: {raw_slug!r} -> {canon_slug!r}"
+                    )
                 blog_rows.append(rec)
 
         if is_routes_sheet:
