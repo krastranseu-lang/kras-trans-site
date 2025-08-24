@@ -959,6 +959,16 @@ def build_all():
     languages = site_cfg.get("languages", ["pl"])
     dlang = site_cfg.get("default_lang", "pl")
     page_defs = CFG.get("pages", [])
+
+    # Nawigacja: preferuj rekordy z CMS, inaczej fallback z data/nav.yml
+    nav_fallback = {}
+    nav_path = DATA / "nav.yml"
+    if nav_path.exists():
+        try:
+            nav_fallback = read_yaml(nav_path) or {}
+        except Exception as e:
+            print(f"[nav.yml] read error: {e}", file=sys.stderr)
+    nav_by_lang = nav_fallback
     # === CMS: wczytaj XLSX z runnera (LOCAL_XLSX/CMS_SOURCE albo stała ścieżka) ===
     src_path = os.getenv("LOCAL_XLSX") or os.getenv("CMS_SOURCE") or "/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
     cms = {"menu_rows": [], "page_meta": {}, "blocks": {}, "report": "[cms] no module"}
@@ -972,6 +982,8 @@ def build_all():
     CMS.setdefault("blog", cms.get("blog_rows", []))
     CMS.setdefault("routes", cms.get("routes") or cms.get("page_routes") or {})
     CMS.setdefault("strings", cms.get("strings", []))
+    if cms.get("nav"):
+        nav_by_lang = cms.get("nav") or nav_by_lang
     rows = cms.get("pages_rows") or []
     routes = CMS.get("routes") or {}
     page_routes = routes
@@ -1189,6 +1201,7 @@ def build_all():
                 "pg": page_rec,
                 "meta": meta,
                 "nav": CFG.get("navigation", {}),
+                "nav_data": nav_by_lang.get(L, {}),
                 "path_for": path_for,
                 "title": page_rec.get("seo_title") or page_rec.get("title") or SITE.get("brand") or SITE.get("title"),
                 "h1": page_rec.get("h1") or page_rec.get("title") or "",
@@ -1259,6 +1272,7 @@ def build_all():
             "pg": listing_page,
             "meta": {},
             "nav": CFG.get("navigation", {}),
+            "nav_data": nav_by_lang.get(L, {}),
             "path_for": path_for,
             "title": listing_page["title"],
             "h1": listing_page["h1"],
@@ -1295,6 +1309,7 @@ def build_all():
                 "pg": post,
                 "meta": {},
                 "nav": CFG.get("navigation", {}),
+                "nav_data": nav_by_lang.get(L, {}),
                 "path_for": path_for,
                 "title": post.get("seo_title") or post.get("title") or "Blog",
                 "h1": post.get("h1") or post.get("title") or "",

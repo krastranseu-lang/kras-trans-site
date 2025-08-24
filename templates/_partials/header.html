@@ -120,13 +120,21 @@
   </style>
 
   <div class="wrap bar">
-    <a class="brand" id="brandLink" href="/">
+    <a class="brand" id="brandLink" href="/{{ page.lang or 'pl' }}/">
       <img class="brand__logo" width="176" height="40" alt="Kras-Trans — transport i spedycja"
            src="/assets/media/logo-firma-transportowa-kras-trans.png" loading="eager" decoding="async">
     </a>
 
     <nav id="primaryNav" class="nav sq-nav" role="navigation" aria-label="Główne menu">
-      <ul class="nav__list" id="navList"><li><a href="/pl/">Start</a></li></ul>
+      <ul class="nav__list" id="navList">
+        {% for item in (nav_data.primary or []) %}
+          {% if item.panel %}
+            <li data-panel="{{ item.panel }}"><a href="{{ item.href or '#' }}">{{ item.label }}</a></li>
+          {% else %}
+            <li><a href="{{ item.href }}">{{ item.label }}</a></li>
+          {% endif %}
+        {% endfor %}
+      </ul>
     </nav>
 
     <div class="actions">
@@ -134,10 +142,14 @@
 
       <div class="langs" id="langsWrap">
         <button id="langBtn" class="lang-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="langsDd">
-          <img class="flag" id="langFlag" src="/assets/flags/pl.svg" alt="" width="18" height="12"><span id="langCode">PL</span>
+          <img class="flag" id="langFlag" src="/assets/flags/{{ 'gb' if (page.lang or 'pl') == 'en' else (page.lang or 'pl') }}.svg" alt="" width="18" height="12"><span id="langCode">{{ (page.lang or 'pl')|upper }}</span>
           <svg class="chev" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5.2 7.6 10 12.4l4.8-4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <div id="langsDd" class="lang-dd" role="menu" aria-hidden="true" aria-label="Wybór języka"></div>
+        <div id="langsDd" class="lang-dd" role="menu" aria-hidden="true" aria-label="Wybór języka">
+          {% for l in (nav_data.langs or []) %}
+            <a href="/{{ l.code }}/"{% if l.code == (page.lang or 'pl') %} aria-current="true"{% endif %}><img class="flag" src="{{ l.flag }}" alt="" width="18" height="12">{{ l.code|upper }}</a>
+          {% endfor %}
+        </div>
       </div>
 
       <div class="theme" id="themeWrap">
@@ -163,7 +175,7 @@
         </a>
       </div>
 
-      <a id="cta" class="btn btn-primary" href="/pl/kontakt/">Zamów wycenę</a>
+      <a id="cta" class="btn btn-primary" href="{{ (nav_data.cta.href if nav_data.cta else '/pl/kontakt/') }}">{{ (nav_data.cta.label if nav_data.cta else 'Zamów wycenę') }}</a>
       <button id="menuToggle" class="menu-toggle" aria-expanded="false" aria-controls="mobileMenu" aria-label="Menu"></button>
     </div>
   </div>
@@ -171,7 +183,24 @@
   <div id="mega" class="mega" data-state="closed" aria-hidden="true">
     <div class="mega__wrap wrap">
       <div class="mega__grid-wrap">
-        <div class="mega__panels" id="megaPanels"></div>
+        <div class="mega__panels" id="megaPanels">
+          {% for pid, panel in (nav_data.mega or {}).items() %}
+            <section class="mega__section" data-panel="{{ pid }}">
+              <div class="mega__grid">
+                {% for col in (panel.columns or []) %}
+                  <div>
+                    {% if col.title %}<h3>{{ col.title }}</h3>{% endif %}
+                    <ul>
+                      {% for ch in (col.items or []) %}
+                        <li><a href="{{ ch.href }}">{{ ch.label }}</a></li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                {% endfor %}
+              </div>
+            </section>
+          {% endfor %}
+        </div>
         <aside class="mega__aside" id="megaBlog"></aside>
       </div>
     </div>
@@ -184,10 +213,20 @@
         <button id="closeMobile" class="menu-toggle" aria-label="Zamknij" aria-expanded="true"></button>
       </div>
       <nav class="mobile-nav" aria-label="Nawigacja mobilna">
-        <ul class="mobile-nav__list" id="mobileList"><li><a href="/pl/">Start</a></li></ul>
+        <ul class="mobile-nav__list" id="mobileList">
+          {% for item in (nav_data.primary or []) %}
+            <li><a href="{{ item.href or '#' }}">{{ item.label }}</a></li>
+          {% endfor %}
+        </ul>
       </nav>
-      <div class="mobile-langs" id="mobileLangs"></div>
-      <a class="btn btn-primary mobile-cta" id="mobileCTA" href="/pl/kontakt/">Zamów wycenę</a>
+      <div class="mobile-langs" id="mobileLangs">
+        <div class="lang-dd" style="display:grid;grid-auto-rows:min-content" aria-hidden="false">
+          {% for l in (nav_data.langs or []) %}
+            <a href="/{{ l.code }}/"{% if l.code == (page.lang or 'pl') %} aria-current="true"{% endif %}><img class="flag" src="{{ l.flag }}" alt="" width="18" height="12">{{ l.code|upper }}</a>
+          {% endfor %}
+        </div>
+      </div>
+      <a class="btn btn-primary mobile-cta" id="mobileCTA" href="{{ (nav_data.cta.href if nav_data.cta else '/pl/kontakt/') }}">{{ (nav_data.cta.label if nav_data.cta else 'Zamów wycenę') }}</a>
     </div>
   </div>
 
@@ -199,9 +238,9 @@
       <li><a id="dockWA" href="#" aria-label="WhatsApp">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M.5 23.5 3 17.9a10 10 0 1 1 3.8 3.6L.5 23.5Zm6.7-3.8.3.2a8.3 8.3 0 1 0-2.7-2.6l.2.3-1.2 3.2 3.4-1.1Zm9.8-3.8c-.1 0-.1 0 0 0-1.3-.7-2.9-1.2-3.3-1.3-.5-.1-.9 0-1.2.5s-1.1 1.3-1.4 1.5c-.2.2-.4.2-.7.1a6.7 6.7 0 0 1-2-1.2 7.5 7.5 0 0 1-1.6-2c-.2-.4 0-.6.2-.8l.5-.6c.2-.3.2-.5 0-.8l-.8-2c-.2-.5-.5-.6-1-.5h-.8c-.3 0-.7.2-.9.4-1 1-1.1 2.6-.3 4.3.8 1.6 2.4 3.6 4.8 4.7 1.7.7 3 .9 4 .6.7-.2 1.3-.7 1.5-1.3.2-.5.2-1 .2-1.2-.1-.2-.3-.3-.6-.4Z"/></svg>
         <span>WhatsApp</span></a></li>
-      <li><a id="dockQuote" href="/pl/kontakt/" class="btn-primary" aria-label="Wycena">
+      <li><a id="dockQuote" href="{{ (nav_data.cta.href if nav_data.cta else '/pl/kontakt/') }}" class="btn-primary" aria-label="{{ (nav_data.cta.label if nav_data.cta else 'Wycena') }}">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 6H8a2 2 0 0 0-2 2v8h2V8h13V6ZM5 10H3v10c0 1.1.9 2 2 2h12v-2H5V10Zm16 3h-8v2h8v-2Zm0 4h-8v2h8v-2Zm0-8h-8v2h8V9Z"/></svg>
-        <span>Wycena</span></a></li>
+        <span>{{ (nav_data.cta.label if nav_data.cta else 'Wycena') }}</span></a></li>
       <li><a id="dockMenu" href="#mobileMenu" aria-label="Menu">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3V6Zm0 5h18v2H3v-2Zm0 5h18v2H3v-2Z"/></svg>
         <span>Menu</span></a></li>
@@ -320,33 +359,35 @@
 
       /* ---------- RENDERING (z cache / static) ---------- */
 
-    // 1) Z LOCALSTORAGE (instant)
-    (function fromCache(){
-      const snap = getCache(CK('nav_bundle'));
-      if(!snap) return;
-      try{ renderFromSnapshot(snap); root.removeAttribute('aria-busy'); }catch(_){}
-    })();
+    if(navList.children.length===0){
+      // 1) Z LOCALSTORAGE (instant)
+      (function fromCache(){
+        const snap = getCache(CK('nav_bundle'));
+        if(!snap) return;
+        try{ renderFromSnapshot(snap); root.removeAttribute('aria-busy'); }catch(_){}
+      })();
 
-    // 2) Z BUNDLA STATYCZNEGO (instant przy 1. wizycie)
-    (async function fromStatic(){
-      try{
-        const res = await fetch(`${STATIC}/bundle_${currentLang}.json`, {cache:'force-cache'});
-        if(!res.ok) return;
-        const bundle = await res.json();
-        const snap = {
-          primary_html: bundle.primary_html||'',
-          mega_html: bundle.mega_html||'',
-          langs_html: bundle.langs_html||'',
-          cta: bundle.cta||null,
-          status: bundle.status||null,
-          social: bundle.social||null,
-          routes: {}, blog:[]
-        };
-        renderFromSnapshot(snap);
-        setCache(CK('nav_bundle'), snap);
-        root.removeAttribute('aria-busy');
-      }catch(_){}
-    })();
+      // 2) Z BUNDLA STATYCZNEGO (instant przy 1. wizycie)
+      (async function fromStatic(){
+        try{
+          const res = await fetch(`${STATIC}/bundle_${currentLang}.json`, {cache:'force-cache'});
+          if(!res.ok) return;
+          const bundle = await res.json();
+          const snap = {
+            primary_html: bundle.primary_html||'',
+            mega_html: bundle.mega_html||'',
+            langs_html: bundle.langs_html||'',
+            cta: bundle.cta||null,
+            status: bundle.status||null,
+            social: bundle.social||null,
+            routes: {}, blog:[]
+          };
+          renderFromSnapshot(snap);
+          setCache(CK('nav_bundle'), snap);
+          root.removeAttribute('aria-busy');
+        }catch(_){}
+      })();
+    }
 
       /* BLOG rail */
       function renderBlog(list){
