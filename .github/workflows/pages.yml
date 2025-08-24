@@ -36,6 +36,31 @@ jobs:
           pip install --upgrade openpyxl beautifulsoup4 PyYAML pytest
           python -c 'import openpyxl, bs4, yaml, pytest; print("✅ libs OK")'
 
+      - name: Cache Playwright browsers
+        if: ${{ hashFiles('tests/**') != '' }}
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/ms-playwright
+          key: ${{ runner.os }}-pw-${{ hashFiles('**/requirements.txt') }}
+
+      - name: Install Playwright (browser)
+        if: ${{ hashFiles('tests/**') != '' }}
+        run: |
+          source .venv/bin/activate
+          pip install --upgrade playwright
+          python -m playwright install chromium
+
+      - name: Run tests
+        if: ${{ hashFiles('tests/**') != '' }}
+        run: |
+          source .venv/bin/activate
+          pytest -q
+
+      # Jeśli chcesz tymczasowo ominąć test z Playwright:
+      # run: |
+      #   source .venv/bin/activate
+      #   pytest -q -k 'not dropdown_keyboard'
+
       - name: Provide CMS from runner
         run: |
           set -e
@@ -93,12 +118,6 @@ jobs:
           set -e
           source .venv/bin/activate
           python tools/cms_verify_build.py
-
-      - name: Run tests
-        run: |
-          set -e
-          source .venv/bin/activate
-          pytest -q
 
       - name: Upload routes diag
         if: ${{ always() }}
