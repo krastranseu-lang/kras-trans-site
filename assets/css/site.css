@@ -62,6 +62,11 @@ img,svg,video{max-width:100%; height:auto; display:block}
 
 body.nav-open{overflow:hidden}
 
+/* CSR-only hiding: sekcje "busy" chowamy dopiero gdy JS ustawi data-csr="true" na <body> */
+body[data-csr="true"] [aria-busy="true"]{
+  display:none !important;
+}
+
 /* ---------------- LAYOUT HELPERS ---------------- */
 .wrap{max-width:var(--wrap); margin-inline:auto; padding-inline:var(--pad)}
 @media (min-width:768px){ .wrap{padding-inline:var(--pad-l)} }

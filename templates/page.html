@@ -46,7 +46,7 @@
    ================================================================ #}
 {% set H = ssr.hero if ssr else {} %}
 <section id="hero" class="section section--hero theme-glass" aria-labelledby="hero-title"
-         data-api="/home/hero" aria-busy="{{ 'false' if ssr else 'true' }}">
+        data-api="/home/hero" aria-busy="false">
   <div class="wrap hero__wrap">
     <div class="hero__copy">
       <p class="hero__claim" data-bind="text: hero.claim">{{ H.claim if ssr and H.claim else '' }}</p>
@@ -121,7 +121,7 @@
    1) SERVICES — kafle, reel na mobile
    ================================================================ #}
 <section id="services" class="section section--altA" aria-labelledby="services-title"
-         data-api="/home/services" aria-busy="{{ 'false' if ssr else 'true' }}">
+        data-api="/home/services" aria-busy="false">
   <div class="wrap">
     <header class="section__head">
       <h2 id="services-title">
@@ -163,7 +163,7 @@
    2) INDUSTRIES — siatka 3/4 kolumny
    ================================================================ #}
 <section id="industries" class="section section--altB" aria-labelledby="ind-title"
-         data-api="/home/industries" aria-busy="{{ 'false' if ssr else 'true' }}">
+        data-api="/home/industries" aria-busy="false">
   <div class="wrap">
     <header class="section__head">
       <h2 id="ind-title">{{ ssr.home.section_titles.industries if ssr and ssr.home.section_titles.industries else '' }}</h2>
@@ -193,7 +193,7 @@
    3) COVERAGE — korytarze, mini map-widget (dekor)
    ================================================================ #}
 <section id="coverage" class="section section--altC" aria-labelledby="cov-title"
-         data-api="/home/coverage" aria-busy="{{ 'false' if ssr else 'true' }}">
+        data-api="/home/coverage" aria-busy="false">
   <div class="wrap">
     <header class="section__head">
       <h2 id="cov-title">{{ ssr.home.section_titles.coverage if ssr and ssr.home.section_titles.coverage else '' }}</h2>
@@ -226,7 +226,7 @@
    4) PROCESS — timeline (ol > li)
    ================================================================ #}
 <section id="process" class="section section--timeline" aria-labelledby="proc-title"
-         data-api="/home/process" aria-busy="{{ 'false' if ssr else 'true' }}">
+        data-api="/home/process" aria-busy="false">
   <div class="wrap">
     <header class="section__head">
       <h2 id="proc-title">{{ ssr.home.section_titles.process if ssr and ssr.home.section_titles.process else '' }}</h2>
@@ -253,7 +253,7 @@
    5) TRUST — KPI kafle
    ================================================================ #}
 <section id="trust" class="section section--altD" aria-labelledby="trust-title"
-         data-api="/home/trust" aria-busy="{{ 'false' if ssr else 'true' }}">
+        data-api="/home/trust" aria-busy="false">
   <div class="wrap">
     <header class="section__head">
       <h2 id="trust-title">{{ ssr.home.section_titles.trust if ssr and ssr.home.section_titles.trust else '' }}</h2>
@@ -285,7 +285,7 @@
    6) TESTIMONIALS — karuzela „reel”
    ================================================================ #}
 <section id="testimonials" class="section section--altE" aria-labelledby="testi-title"
-         data-api="/home/testimonials" aria-busy="{{ 'false' if ssr else 'true' }}">
+        data-api="/home/testimonials" aria-busy="false">
   <div class="wrap">
     <header class="section__head">
       <h2 id="testi-title">{{ ssr.home.section_titles.testimonials if ssr and ssr.home.section_titles.testimonials else '' }}</h2>
@@ -321,7 +321,7 @@
    7) PARTNERS — paski logo
    ================================================================ #}
 <section id="partners" class="section section--altF" aria-labelledby="partners-title"
-         data-api="/home/partners" aria-busy="{{ 'false' if ssr else 'true' }}">
+        data-api="/home/partners" aria-busy="false">
   <div class="wrap">
     <header class="section__head">
       <h2 id="partners-title">{{ ssr.home.section_titles.partners if ssr and ssr.home.section_titles.partners else '' }}</h2>
@@ -348,7 +348,7 @@
    8) FLEET — kafle
    ================================================================ #}
 <section id="fleet" class="section section--altG" aria-labelledby="fleet-title"
-         data-api="/home/fleet" aria-busy="{{ 'false' if ssr else 'true' }}">
+        data-api="/home/fleet" aria-busy="false">
   <div class="wrap">
     <header class="section__head">
       <h2 id="fleet-title">{{ ssr.home.section_titles.fleet if ssr and ssr.home.section_titles.fleet else '' }}</h2>
@@ -378,7 +378,7 @@
    9) PRICING / QUOTE — kafle linkujące
    ================================================================ #}
 <section id="pricing" class="section section--altH" aria-labelledby="pricing-title"
-         data-api="/home/pricing" aria-busy="{{ 'false' if ssr else 'true' }}">
+        data-api="/home/pricing" aria-busy="false">
   <div class="wrap">
     <header class="section__head">
       <h2 id="pricing-title">{{ ssr.home.section_titles.pricing if ssr and ssr.home.section_titles.pricing else '' }}</h2>
@@ -411,7 +411,7 @@
    10) INSIGHTS — blog/cases (reel)
    ================================================================ #}
 <section id="insights" class="section section--altI" aria-labelledby="ins-title"
-         data-api="/blog/latest" aria-busy="{{ 'false' if ssr else 'true' }}">
+        data-api="/blog/latest" aria-busy="false">
   <div class="wrap">
     <header class="section__head">
       <h2 id="ins-title">{{ ssr.home.section_titles.insights if ssr and ssr.home.section_titles.insights else '' }}</h2>
@@ -443,7 +443,7 @@
    11) FAQ — details/summary
    ================================================================ #}
 <section id="faq" class="section section--faq" aria-labelledby="faq-title"
-         data-api="/faq/list" aria-busy="{{ 'false' if ssr else 'true' }}">
+        data-api="/faq/list" aria-busy="false">
   <div class="wrap">
     <header class="section__head">
       <h2 id="faq-title">{{ ssr.home.section_titles.faq if ssr and ssr.home.section_titles.faq else '' }}</h2>
@@ -473,7 +473,7 @@
    12) FINAL CTA — przyciski
    ================================================================ #}
 <section id="final-cta" class="section section--final" data-api="/home/final"
-         aria-labelledby="final-cta-title" aria-busy="{{ 'false' if ssr else 'true' }}">
+        aria-labelledby="final-cta-title" aria-busy="false">
   <div class="wrap">
     <h2 id="final-cta-title">{{ ssr.final.title if ssr and ssr.final and ssr.final.title else '' }}</h2>
     <p class="final__desc">{{ ssr.final.desc if ssr and ssr.final and ssr.final.desc else '' }}</p>
