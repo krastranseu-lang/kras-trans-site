@@ -33,8 +33,8 @@ jobs:
           source .venv/bin/activate
           python -m pip install --upgrade pip
           pip install -r requirements.txt || true
-          pip install --upgrade openpyxl beautifulsoup4 PyYAML
-          python -c 'import openpyxl, bs4, yaml; print("✅ libs OK")'
+          pip install --upgrade openpyxl beautifulsoup4 PyYAML pytest
+          python -c 'import openpyxl, bs4, yaml, pytest; print("✅ libs OK")'
 
       - name: Provide CMS from runner
         run: |
@@ -89,6 +89,12 @@ jobs:
           set -e
           source .venv/bin/activate
           python tools/cms_verify_build.py
+
+      - name: Run tests
+        run: |
+          set -e
+          source .venv/bin/activate
+          pytest -q
 
       - name: Upload routes diag
         if: ${{ always() }}
