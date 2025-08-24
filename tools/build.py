@@ -268,7 +268,12 @@ def _resolve_lang(val, L):
 
 
 def _flatten_page(P: dict, L: str) -> dict:
-    return {k: _resolve_lang(v, L) for k,v in (P or {}).items()}
+    base = {k: _resolve_lang(v, L) for k, v in (P or {}).items() if k != "meta"}
+    meta = (P or {}).get("meta") or {}
+    if isinstance(meta, dict):
+        for k, v in meta.items():
+            base[k] = _resolve_lang(v, L)
+    return base
 
 
 from pathlib import Path
@@ -592,6 +597,8 @@ def base_pages() -> List[Dict[str, Any]]:
         lang = p.get("lang") or DEFAULT_LANG
         slug = p.get("slug", "")
         ctx = dict(p)
+        meta = ctx.pop("meta", {}) if isinstance(ctx.get("meta"), dict) else {}
+        ctx.update(meta)
         ctx["canonical"] = canonical(CANONICAL_BASE, lang, slug, p.get("canonical_path"))
         ctx["og_image"] = p.get("og_image") or CFG.get("seo", {}).get("open_graph", {}).get("default_image")
         ctx["body_html"] = p.get("body_html") or md_to_html(p.get("body_md", ""))
@@ -994,7 +1001,7 @@ def build_all():
     blocks_by_page_lang = cms.get("blocks_by_page_lang", {})
     faq_by_page_lang = cms.get("faq_by_page_lang", {})
 
-    BLOG = CMS.get("blog", [])
+    BLOG = [r for r in CMS.get("blog", []) if (r.get("type") or "").strip().lower() == "blog_post"]
     strings_map = {(s.get("key") or "").strip(): s for s in CMS.get("strings", [])}
     def STR(L, key):
         rec = strings_map.get(key, {})
@@ -1173,6 +1180,8 @@ def build_all():
     generated = []
     langs_seen: Set[str] = set()
     for key, per_lang in routes.items():
+        if key == "blog" or key.startswith("blog__") or key == "blog_post":
+            continue
         for L in languages:
             if L not in per_lang:
                 continue
@@ -1251,12 +1260,17 @@ def build_all():
         )
     blog_post_tpl_rel = str(blog_post_tpl.relative_to(TEMPLATES))
 
-    for L, posts in posts_by_lang.items():
-        if not posts:
-            continue
+    for L in languages:
+        posts = posts_by_lang.get(L, [])
         blog_rel = (routes.get("blog", {}) or {}).get(L, "blog").strip("/") or "blog"
         routes.setdefault("blog", {})[L] = blog_rel
-        listing_page = {"title": STR(L, "blog_title") or "Blog", "h1": STR(L, "blog_h1") or "Blog", "lang": L}
+        meta = _meta_get(L, "blog")
+        listing_page = {
+            "title": meta.get("seo_title") or meta.get("title") or STR(L, "blog_title") or "Blog",
+            "h1": meta.get("h1") or STR(L, "blog_h1") or "Blog",
+            "lang": L,
+            "meta_desc": meta.get("meta_desc") or STR(L, "blog_meta_desc") or "",
+        }
 
         def path_for(kk, LL=None, _routes=routes):
             LL = LL or L
@@ -1276,7 +1290,7 @@ def build_all():
             "path_for": path_for,
             "title": listing_page["title"],
             "h1": listing_page["h1"],
-            "meta_desc": STR(L, "blog_meta_desc"),
+            "meta_desc": listing_page["meta_desc"],
             "canonical": canonical_list,
         }
         html = render_template(blog_list_tpl_rel, ctx_list)

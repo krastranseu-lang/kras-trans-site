@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 <main>
-{% for post in posts %}
-  <a href="/{{lang}}/blog/{{ post.slug }}/">{{ post.h1 or post.title or 'Tytuł artykułu' }}</a>
-{% endfor %}
+  <h1>{{ page.h1 or pg.h1 or 'Blog' }}</h1>
+  {% for post in posts %}
+    <a href="/{{lang}}/blog/{{ post.slug }}/">{{ post.h1 or post.title or 'Tytuł artykułu' }}</a>
+  {% endfor %}
 </main>
 {% endblock %}
