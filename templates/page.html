@@ -68,12 +68,12 @@
         <a class="btn btn-primary"
            href="{{ href_by_slugkey('quote') }}"
            data-bind="href: hero.cta_primary.slugKey|slug, text: hero.cta_primary.label">
-          {{ H.cta_primary.label if ssr else 'Poznaj ofertę' }}
+          {{ H.cta_primary.label if ssr else STR('cta_quote_primary') }}
         </a>
         <a class="btn btn-ghost"
            href="{{ href_by_slugkey('contact') }}"
            data-bind="href: hero.cta_secondary.slugKey|slug, text: hero.cta_secondary.label">
-           {{ H.cta_secondary.label if ssr else 'Skontaktuj się' }}
+           {{ H.cta_secondary.label if ssr else STR('cta_quote_secondary') }}
         </a>
         {% if company and company[0] and company[0].telephone %}
           <a class="btn btn-ghost"
@@ -519,12 +519,12 @@
       <a class="btn btn-primary"
          href="{{ href_by_slugkey('quote') }}"
          data-bind="href: final.cta_primary.slugKey|slug, text: final.cta_primary.label">
-        {{ ssr.final.cta_primary.label if ssr and ssr.final and ssr.final.cta_primary else 'Poznaj ofertę' }}
+        {{ ssr.final.cta_primary.label if ssr and ssr.final and ssr.final.cta_primary else STR('cta_quote_primary') }}
       </a>
       <a class="btn btn-ghost"
          href="{{ href_by_slugkey('contact') }}"
          data-bind="href: final.cta_secondary.slugKey|slug, text: final.cta_secondary.label">
-        {{ ssr.final.cta_secondary.label if ssr and ssr.final and ssr.final.cta_secondary else 'Skontaktuj się' }}
+        {{ ssr.final.cta_secondary.label if ssr and ssr.final and ssr.final.cta_secondary else STR('cta_quote_secondary') }}
       </a>
     </div>
   </div>

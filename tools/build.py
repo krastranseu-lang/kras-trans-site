@@ -1203,6 +1203,7 @@ def build_all():
 
             page_key = key
             meta = page_rec.get("meta") or {}
+            strings_local = {k: (v.get(L) or v.get(dlang) or "") for k, v in strings_map.items()}
             ctx = {
                 "lang": L,
                 "site": SITE,
@@ -1218,6 +1219,8 @@ def build_all():
                 "blocks": (blocks_by_page_lang.get((L, page_key)) if isinstance(blocks_by_page_lang, dict) else {}),
                 "faq": (faq_by_page_lang.get((L, page_key)) if isinstance(faq_by_page_lang, dict) else []),
                 "canonical": canonical,
+                "STR": lambda key, _L=L: STR(_L, key),
+                "strings": strings_local,
             }
             if (page_rec.get("slugKey") or "").lower() == "blog" or (page_rec.get("type") or "").lower() == "blog":
                 ctx["blog_posts"] = posts_by_lang.get(L, [])
