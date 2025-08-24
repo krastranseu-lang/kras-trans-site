@@ -376,6 +376,7 @@ def _env(name: str, default: Any) -> Any:
     return default if v is None or str(v).strip()=="" else v
 
 SITE_URL = (_env("SITE_URL", C.get("SITE_URL","")) or "").rstrip("/")
+CANONICAL_BASE = "https://kras-trans.com"
 GA_ID    = _env("GA_ID", C.get("GA_ID",""))
 GSC      = _env("GSC_VERIFICATION", C.get("GSC_VERIFICATION",""))
 INDEXNOW_KEY = _env("INDEXNOW_KEY", C.get("INDEXNOW_KEY",""))
@@ -591,7 +592,7 @@ def base_pages() -> List[Dict[str, Any]]:
         lang = p.get("lang") or DEFAULT_LANG
         slug = p.get("slug", "")
         ctx = dict(p)
-        ctx["canonical"] = canonical(SITE_URL, lang, slug, p.get("canonical_path"))
+        ctx["canonical"] = canonical(CANONICAL_BASE, lang, slug, p.get("canonical_path"))
         ctx["og_image"] = p.get("og_image") or CFG.get("seo", {}).get("open_graph", {}).get("default_image")
         ctx["body_html"] = p.get("body_html") or md_to_html(p.get("body_md", ""))
 
@@ -1177,7 +1178,7 @@ def build_all():
                 rel2 = (_routes.get(kk, {}) or {}).get(LL, "").strip("/")
                 return f"/{LL}/" if not rel2 else f"/{LL}/{rel2}/"
 
-            canonical = _canonical_url(SITE_URL, L, rel, page_rec.get("canonical_path"))
+            canonical = _canonical_url(CANONICAL_BASE, L, rel, page_rec.get("canonical_path"))
 
             page_key = key
             meta = page_rec.get("meta") or {}
@@ -1249,7 +1250,7 @@ def build_all():
             rel2 = (_routes.get(kk, {}) or {}).get(LL, "").strip("/")
             return f"/{LL}/" if not rel2 else f"/{LL}/{rel2}/"
 
-        canonical_list = _canonical_url(SITE_URL, L, blog_rel, None)
+        canonical_list = _canonical_url(CANONICAL_BASE, L, blog_rel, None)
         ctx_list = {
             "lang": L,
             "site": SITE,
@@ -1285,7 +1286,7 @@ def build_all():
 
         for post in posts:
             post_rel = (routes.get(post.get("slug_key"), {}) or {}).get(L, f"blog/{post['slug']}").strip("/")
-            canonical_post = _canonical_url(SITE_URL, L, post_rel, None)
+            canonical_post = _canonical_url(CANONICAL_BASE, L, post_rel, None)
             ctx_post = {
                 "lang": L,
                 "site": SITE,
@@ -1494,7 +1495,7 @@ def build_feeds():
              f"<link>{SITE_URL}/{L}/blog/</link>",
              f"<description>Aktualności</description>"]
         for p in postsL[:50]:
-            link=canonical(SITE_URL, L, p.get("slug",""), p.get("canonical_path"))
+            link=canonical(CANONICAL_BASE, L, p.get("slug",""), p.get("canonical_path"))
             rss.append("<item>")
             rss.append(f"<title>{(p.get('h1') or p.get('title') or '').strip()}</title>")
             rss.append(f"<link>{link}</link>")
@@ -1514,7 +1515,7 @@ def build_feeds():
               f"<updated>{UTC()}</updated>",
               f"<id>{SITE_URL}/{L}/blog/</id>"]
         for p in postsL[:50]:
-            link=canonical(SITE_URL, L, p.get("slug",""), p.get("canonical_path"))
+            link=canonical(CANONICAL_BASE, L, p.get("slug",""), p.get("canonical_path"))
             atom.append("<entry>")
             atom.append(f"<title>{(p.get('h1') or p.get('title') or '').strip()}</title>")
             atom.append(f"<link href=\"{link}\"/>")
@@ -1563,7 +1564,7 @@ def write_news_sitemap():
             try:
                 dt = datetime.fromisoformat(str(p["date"]).replace("Z", "+00:00"))
                 if dt >= limit_dt:
-                    loc = canonical(SITE_URL, p.get("lang", "pl"), p.get("slug", ""), p.get("canonical_path"))
+                    loc = canonical(CANONICAL_BASE, p.get("lang", "pl"), p.get("slug", ""), p.get("canonical_path"))
                     items.append((loc, dt.isoformat()))
             except Exception:
                 pass
