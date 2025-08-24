@@ -1,10 +1,9 @@
-<!doctype html>
-<section class="page-generic">
-  <div class="container">
-    <header class="page-header">
-      <h1>{{ meta.title }}</h1>
-      {% if meta.description %}<p class="lead">{{ meta.description }}</p>{% endif %}
-    </header>
-    <section data-api="/pages/{{ page.key }}/body?lang={{ lang }}"></section>
-  </div>
-</section>
+{% extends "base.html" %}
+{% block content %}
+<main class="wrap" aria-busy="false">
+  <h1 class="page__title">{{ pg.h1 or pg.title or title }}</h1>
+  {% if pg.lead %}<p class="lead">{{ pg.lead }}</p>{% endif %}
+  {% if page_html %}<article class="content">{{ page_html|safe }}</article>
+  {% elif pg.body_md %}<article class="content">{{ pg.body_md }}</article>{% endif %}
+</main>
+{% endblock %}

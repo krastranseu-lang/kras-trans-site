@@ -33,12 +33,8 @@
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0ea5e9" />
   <meta name="theme-color" media="(prefers-color-scheme: dark)"  content="#0b1020" />
 
-  <title>
-    {{ page.seo_title
-       or page.title
-       or _og_title
-       or _brand_name }}
-  </title>
+  {# bezpieczny tytuł: preferuj seo_title, potem h1/title, w ostateczności brand #}
+  <title>{{ page.seo_title or page.h1 or page.title or _og_title or _brand_name }}</title>
   <meta name="description" content="{{ page.meta_desc or _meta_desc }}" />
   {% if page.noindex %}<meta name="robots" content="noindex,follow" />{% else %}<meta name="robots" content="index,follow" />{% endif %}
   <link rel="canonical" href="{{ page.canonical or canonical }}" />
@@ -200,6 +196,15 @@
       else { window.addEventListener('load', loadGA, {once:true}); }
     })('{{ ga_id }}');
   </script>
+  {% endif %}
+
+  {# dopisz lekki debug overlay – włącza się querystringiem ?debug=1 #}
+  {% if request and request.args and request.args.get('debug') %}
+  <style>
+    .debug-banner{position:fixed;inset:auto 0 0 0;background:#111;color:#0f0;
+    font:12px/1.4 ui-monospace,monospace;padding:.5rem 1rem;z-index:9999;opacity:.9}
+  </style>
+  <div class="debug-banner">DEBUG: lang={{ lang }} • canonical={{ canonical }} • tpl={{ template if template is defined else '' }}</div>
   {% endif %}
 
   <noscript><style>.site-header{position:sticky}.reel{scroll-snap-type:none}</style></noscript>

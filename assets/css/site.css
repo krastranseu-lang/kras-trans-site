@@ -62,10 +62,12 @@ img,svg,video{max-width:100%; height:auto; display:block}
 
 body.nav-open{overflow:hidden}
 
-/* CSR-only hiding: sekcje "busy" chowamy dopiero gdy JS ustawi data-csr="true" na <body> */
-body[data-csr="true"] [aria-busy="true"]{
-  display:none !important;
-}
+/* CSR-only hiding: sekcje ukrywamy dopiero gdy JS zgłosi gotowość */
+body[data-csr="true"] [aria-busy="true"]{ display:none }
+
+/* fallbacky no-SSR, żeby mieć zawsze jakąś wysokość i widoczność */
+.lead{font-size:clamp(16px,2vw,18px);color:var(--muted,#555)}
+.content{max-width:72ch}
 
 /* ---------------- LAYOUT HELPERS ---------------- */
 .wrap{max-width:var(--wrap); margin-inline:auto; padding-inline:var(--pad)}
@@ -233,10 +235,10 @@ body[data-csr="true"] [aria-busy="true"]{
 }
 
 /* ================= HERO / CARDS / GRIDS ================= */
-.section--hero{padding-top:32px}
+.section--hero{padding-top:32px;min-height:40vh}
 .hero__wrap{display:grid; gap:16px; align-items:center}
 @media (min-width:1024px){ .hero__wrap{grid-template-columns:1.1fr .9fr; gap:24px} }
-.hero__title{font-size:var(--h1); line-height:1.1; margin:0 0 8px}
+.hero__title,.page__title{font-size:clamp(28px,4vw,40px);line-height:1.1;margin:.5rem 0 1rem}
 .hero__lead{font-size:clamp(17px,1.4vw,20px); color:var(--muted); margin:0 0 16px}
 .hero__kpi{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; padding:0; margin:16px 0 0; list-style:none}
 .hero__kpi li{display:grid; grid-template-columns:auto 1fr; align-items:baseline; gap:10px; background:rgba(0,0,0,.035); padding:10px 12px; border-radius:var(--radius)}
