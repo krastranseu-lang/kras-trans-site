@@ -2,6 +2,15 @@
 {% block content %}
 {# bezpieczny alias na rekord strony #}
 {% set pg = pg or page or {} %}
+{% set _slug = pg.slugKey or pg.slug or page.slugKey or page.slug or '' %}
+{% set _lang = pg.lang or page.lang or site.defaultLang or 'pl' %}
+{% set BLOCKS = (
+  blocks|selectattr('enabled','ne',False)
+        |selectattr('page','equalto',_slug)
+        |selectattr('lang','equalto',_lang)
+        |sort(attribute='order')
+        |list
+) if blocks is defined else [] %}
 {# =========================
    KRAS-TRANS • HOME (SSR+CSR)
    - Zero widocznych tekstów „na sztywno”
@@ -116,6 +125,35 @@
   </div>
   <div class="divider divider--bottom"></div>
 </section>
+
+{% if pg.body_md or pg.cta_label or pg.cta_secondary or pg.cta_phone or pg.cta_whatsapp %}
+<section id="page-body" class="section section--content">
+  <div class="wrap">
+    {% if pg.body_md %}<article class="content" data-md>{{ pg.body_md }}</article>{% endif %}
+    {% if pg.cta_label or pg.cta_secondary or pg.cta_phone or pg.cta_whatsapp %}
+    <div class="cta-row">
+      {% if pg.cta_label %}<a class="btn btn-primary" href="{{ pg.cta_href or '#' }}">{{ pg.cta_label }}</a>{% endif %}
+      {% if pg.cta_secondary %}<a class="btn btn-ghost" href="{{ href_by_slugkey('contact') }}">{{ pg.cta_secondary }}</a>{% endif %}
+      {% if pg.cta_phone %}<a class="btn btn-ghost" href="tel:{{ pg.cta_phone }}">{{ pg.cta_phone }}</a>{% endif %}
+      {% if pg.cta_whatsapp %}<a class="btn btn-ghost" href="https://wa.me/{{ pg.cta_whatsapp }}">WhatsApp</a>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{% for blk in BLOCKS %}
+<section class="section block block--{{ blk.block }}" id="block-{{ loop.index }}" aria-labelledby="block-{{ loop.index }}-title">
+  <div class="wrap">
+    {% if blk.title %}<h2 id="block-{{ loop.index }}-title">{{ blk.title }}</h2>{% endif %}
+    {% if blk.lead %}<p class="lead">{{ blk.lead }}</p>{% endif %}
+    {% if blk.body_md %}<div class="content" data-md>{{ blk.body_md }}</div>{% endif %}
+    {% if blk.cta_label and blk.cta_href %}
+      <div class="cta-row"><a class="btn btn-primary" href="{{ blk.cta_href }}">{{ blk.cta_label }}</a></div>
+    {% endif %}
+  </div>
+</section>
+{% endfor %}
 
 {# ================================================================
    1) SERVICES — kafle, reel na mobile
