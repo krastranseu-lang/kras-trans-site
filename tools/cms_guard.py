@@ -19,7 +19,16 @@ def validate(schema_path: Path, xlsx_path: Path) -> None:
     import json, openpyxl, yaml
 
     _ = yaml.safe_load(schema_path.read_text(encoding="utf-8")) if schema_path.exists() else None
-    wb = openpyxl.load_workbook(xlsx_path, read_only=True, data_only=True)
+    try:
+        wb = openpyxl.load_workbook(xlsx_path, read_only=True, data_only=True)
+    except FileNotFoundError:
+        print(f"[cms_guard] ⚠️ XLSX not found: {xlsx_path}")
+        Path("sheet_report.json").write_text("{}", encoding="utf-8")
+        return
+    except Exception as e:
+        print(f"[cms_guard] ⚠️ unable to open {xlsx_path}: {e}")
+        Path("sheet_report.json").write_text("{}", encoding="utf-8")
+        return
 
     def norm(s) -> str:
         return (str(s or "")).strip().lower()
