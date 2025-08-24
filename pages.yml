@@ -87,8 +87,8 @@ templates:
   header: "templates/header.html"
   page: "templates/page.html"
   location: "templates/location.html"
-  blog_index: "templates/blog_index.html"
-  blog_post: "templates/blog_post.html"
+  blog_index: "templates/pages/blog.html"
+  blog_post: "templates/pages/blog_post.html"
   reviews: "templates/reviews.html"
   jobs_index: "templates/jobs_index.html"
   job_item: "templates/job_item.html"
@@ -100,8 +100,8 @@ template_rules:
     service:     "templates/page.html"
     city_service: "templates/location.html"
     contact:     "templates/page.html"
-    blog:        "templates/blog_index.html"
-    blog_post:   "templates/blog_post.html"
+    blog:        "templates/pages/blog.html"
+    blog_post:   "templates/pages/blog_post.html"
     job:         "templates/job_item.html"
   by_slugKey:
     pricing: "templates/page.html"
@@ -109,7 +109,7 @@ template_rules:
     contact: "templates/page.html"
   by_slug_pattern:
     - { match: "^uslugi/.+$", template: "templates/page.html" }
-    - { match: "^blog/.+$",   template: "templates/blog_post.html" }
+    - { match: "^blog/.+$",   template: "templates/pages/blog_post.html" }
 
 # =============================== ASSETS ===============================
 assets:
@@ -194,8 +194,8 @@ collections:
       service:     "templates/page.html"
       city_service: "templates/location.html"
       contact:     "templates/page.html"
-      blog:        "templates/blog_index.html"
-      blog_post:   "templates/blog_post.html"
+      blog:        "templates/pages/blog.html"
+      blog_post:   "templates/pages/blog_post.html"
       job:         "templates/job_item.html"
     output: { pattern: "/{lang}/{slug}/", ensureTrailingSlash: true }
     seo:

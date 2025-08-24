@@ -2,6 +2,13 @@
 {# `site` bywa stringiem — normalizujemy do dict #}
 {% set _site = site if site is mapping else {} %}
 
+{# `company` z arkusza może być listą lub dict – normalizujemy #}
+{% set _company = (
+  company[0] if company is sequence and company|length > 0
+  else company if company is mapping
+  else {}
+) %}
+
 {# brand może być dict albo string #}
 {% set _brand_obj = _site.get('brand') %}
 {% if _brand_obj is mapping %}
@@ -38,6 +45,9 @@
   <meta name="description" content="{{ page.meta_desc or _meta_desc }}" />
   {% if page.noindex %}<meta name="robots" content="noindex,follow" />{% else %}<meta name="robots" content="index,follow" />{% endif %}
   <link rel="canonical" href="{{ page.canonical or canonical }}" />
+
+  {% if _company.telephone %}<meta name="telephone" content="{{ _company.telephone }}" />{% endif %}
+  {% if _company.email %}<meta name="email" content="{{ _company.email }}" />{% endif %}
 
   {# --- HREFLANG (z buildera) --- #}
   {% if alternates %}
