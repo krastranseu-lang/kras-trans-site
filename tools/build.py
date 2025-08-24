@@ -1041,11 +1041,10 @@ def build_all():
         except Exception as e:
             print(f"[nav.yml] read error: {e}", file=sys.stderr)
     nav_by_lang = nav_fallback
-    # === CMS: wczytaj XLSX z runnera (LOCAL_XLSX/CMS_SOURCE albo stała ścieżka) ===
-    src_path = os.getenv("LOCAL_XLSX") or os.getenv("CMS_SOURCE") or "/Users/illia/Desktop/Kras_transStrona/CMS.xlsx"
+    # === CMS: wczytaj XLSX z katalogu DATA/cms (pobierany automatycznie) ===
     cms = {"menu_rows": [], "page_meta": {}, "blocks": {}, "report": "[cms] no module"}
     if cms_ingest:
-        cms = cms_ingest.load_all((DATA / "cms"), explicit_src=Path(src_path))
+        cms = cms_ingest.load_all(DATA / "cms")
         print(cms.get("report", "[cms] no report"))
     else:
         print("[cms] cms_ingest not available")
