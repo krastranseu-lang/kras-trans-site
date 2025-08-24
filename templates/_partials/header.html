@@ -191,7 +191,7 @@
                   <div>
                     {% if col.title %}<h3>{{ col.title }}</h3>{% endif %}
                     <ul>
-                      {% for ch in (col.items or []) %}
+                      {% for ch in (col.get('items') or []) %}
                         <li><a href="{{ ch.href }}">{{ ch.label }}</a></li>
                       {% endfor %}
                     </ul>
