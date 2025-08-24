@@ -13,6 +13,7 @@ labels:
       - "templates/pages/page.html"
       - "assets/**"
       - "data/**"
+      - "tests/**"
       - ".codex/cms_schema.yml"
       - "!dist/**"     # nigdy nie dotykamy dist/
     # w jednym PR zmieniamy max 1 z poniższych plików „krytycznych”, żeby uniknąć konfliktów
