@@ -2,7 +2,7 @@
 {% block content %}
 <main class="wrap" aria-busy="false">
   <h1 class="page__title">{{ pg.h1 or pg.title or title or 'Tytuł strony' }}</h1>
-  {% if pg.lead %}<p class="lead">{{ pg.lead }}</p>{% endif %}
+  {% if pg.lead %}<p id="hero-lead" class="lead">{{ pg.lead }}</p>{% endif %}
   {% if page_html %}<article class="content">{{ page_html|safe }}</article>
   {% elif pg.body_md %}<article class="content">{{ pg.body_md }}</article>{% endif %}
 </main>

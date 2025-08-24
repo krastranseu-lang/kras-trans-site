@@ -62,7 +62,7 @@
     <div class="hero__copy">
       <p class="hero__claim" data-bind="text: hero.claim">{{ H.claim if ssr and H.claim else pg.lead or STR('hero_claim') }}</p>
       <h1 id="hero-title" class="hero__title">{{ (H.title if ssr else (pg.h1 or pg.title)) or title }}</h1>
-      <p class="hero__lead">{{ H.lead if ssr and H.lead else pg.lead or meta_desc or STR('hero_lead') }}</p>
+      <p id="hero-lead" class="hero__lead">{{ H.lead if ssr and H.lead else pg.lead or meta_desc or STR('hero_lead') }}</p>
 
       <div class="cta-row">
         <a class="btn btn-primary"
