@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <article class="wrap" aria-busy="false">
-  <h1 class="post__title">{{ pg.h1 or pg.title or title }}</h1>
+  <h1 class="post__title">{{ pg.h1 or pg.title or title or 'Artykuł' }}</h1>
   {% if pg.lead %}<p class="lead">{{ pg.lead }}</p>{% endif %}
   {% if pg.date %}<p class="post__meta"><time datetime="{{ pg.date }}">{{ pg.date }}</time></p>{% endif %}
   {% if page_html %}<div class="content">{{ page_html|safe }}</div>

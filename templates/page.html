@@ -4,6 +4,7 @@
 {% set pg = pg or page or {} %}
 {% set _slug = pg.slugKey or pg.slug or page.slugKey or page.slug or '' %}
 {% set _lang = pg.lang or page.lang or site.defaultLang or 'pl' %}
+{% set STR = strings if strings is defined else {} %}
 {% set BLOCKS = (
   blocks|selectattr('enabled','ne',False)
         |selectattr('page','equalto',_slug)
@@ -60,20 +61,20 @@
         data-api="/home/hero" aria-busy="false">
   <div class="wrap hero__wrap">
     <div class="hero__copy">
-      <p class="hero__claim" data-bind="text: hero.claim">{{ (H.claim if ssr and H.claim else pg.lead) or '' }}</p>
-      <h1 id="hero-title" class="hero__title">{{ (H.title if ssr else (pg.h1 or pg.title)) or title }}</h1>
-      <p class="hero__lead">{{ (H.lead if ssr else (pg.lead or meta_desc)) or '' }}</p>
+      <p class="hero__claim" data-bind="text: hero.claim">{{ (H.claim if ssr and H.claim else pg.lead) or STR.hero.sub or 'Flota EURO6, monitoring 24/7 i terminowość.' }}</p>
+      <h1 id="hero-title" class="hero__title">{{ (H.title if ssr else (pg.h1 or pg.title)) or title or STR.hero.headline or 'Transport międzynarodowy bez niespodzianek' }}</h1>
+      <p class="hero__lead">{{ (H.lead if ssr else (pg.lead or meta_desc)) or STR.hero.sub or 'Flota EURO6, monitoring 24/7 i terminowość.' }}</p>
 
       <div class="cta-row">
         <a class="btn btn-primary"
            href="{{ href_by_slugkey('quote') }}"
            data-bind="href: hero.cta_primary.slugKey|slug, text: hero.cta_primary.label">
-          {{ H.cta_primary.label if ssr else '' }}
+          {{ H.cta_primary.label if ssr else (pg.cta_label or STR.cta.quote or 'Wyceń transport') }}
         </a>
         <a class="btn btn-ghost"
            href="{{ href_by_slugkey('contact') }}"
            data-bind="href: hero.cta_secondary.slugKey|slug, text: hero.cta_secondary.label">
-           {{ H.cta_secondary.label if ssr else '' }}
+           {{ H.cta_secondary.label if ssr else (pg.cta_secondary or STR.cta.contact or 'Skontaktuj się') }}
         </a>
         {% if company and company[0] and company[0].telephone %}
           <a class="btn btn-ghost"
@@ -93,7 +94,10 @@
         {% else %}
           {# CSR: cztery puste sloty do wypełnienia #}
           {% for i in range(0,4) %}
-            <li role="listitem"><strong data-bind="text: hero.kpi[{{ i }}].value"></strong><span data-bind="text: hero.kpi[{{ i }}].label"></span></li>
+            <li role="listitem">
+              <strong data-bind="text: hero.kpi[{{ i }}].value">{{ pg.kpi[i].value if pg.kpi is defined and pg.kpi|length>i and pg.kpi[i].value else '0' }}</strong>
+              <span data-bind="text: hero.kpi[{{ i }}].label">{{ pg.kpi[i].label if pg.kpi is defined and pg.kpi|length>i and pg.kpi[i].label else 'KPI' }}</span>
+            </li>
           {% endfor %}
         {% endif %}
       </ul>
@@ -103,9 +107,9 @@
       <picture>
         {# Możesz mieć srcset w JSON; JS podmieni, a builder doda preload #}
         <img id="heroLCP" width="1280" height="720" decoding="async" loading="eager" fetchpriority="high"
-             src="{{ H.image.src if ssr else '' }}"
-             srcset="{{ H.image.srcset if ssr else '' }}"
-             alt="{{ H.image.alt if ssr else '' }}"
+             src="{{ H.image.src if ssr else (pg.hero_image.src if pg.hero_image is defined else '') }}"
+             srcset="{{ H.image.srcset if ssr else (pg.hero_image.srcset if pg.hero_image is defined else '') }}"
+             alt="{{ H.image.alt if ssr else (pg.hero_image.alt if pg.hero_image is defined else '') }}"
              data-bind="attr: { src: hero.image.src, srcset: hero.image.srcset, alt: hero.image.alt }">
       </picture>
       <div class="hero__backdrop">
@@ -162,15 +166,15 @@
         data-api="/home/services" aria-busy="false">
   <div class="wrap">
     <header class="section__head">
-      <h2 id="services-title">
-        {{ ssr.home.section_titles.services if ssr else '' }}
-      </h2>
-      <p class="section__sub">
-        {{ ssr.home.section_subtitles.services if ssr else '' }}
-      </p>
+        <h2 id="services-title">
+          {{ ssr.home.section_titles.services if ssr else pg.services_title or 'Nasze usługi' }}
+        </h2>
+        <p class="section__sub">
+          {{ ssr.home.section_subtitles.services if ssr else pg.services_sub or '' }}
+        </p>
     </header>
 
-    <div class="reel services__reel" role="list" aria-label="" data-bind="aria: { label: home.aria_services }">
+      <div class="reel services__reel" role="list" aria-label="{{ pg.aria_services or STR.home.aria_services or 'Usługi' }}" data-bind="aria: { label: home.aria_services }">
       {% if ssr and ssr.services %}
         {% for s in ssr.services %}
           {% set href = ssr.routes[s.slugKey][page.lang] if ssr.routes.get(s.slugKey) else '/' ~ (page.lang or 'pl') ~ '/' ~ s.slugKey ~ '/' %}
@@ -183,14 +187,14 @@
         {% endfor %}
       {% else %}
         {# CSR placeholder: 8 slotów #}
-        {% for i in range(0,8) %}
-          <article class="card card--service" role="listitem">
-            <div class="card__icon" aria-hidden="true" data-bind="html: services[{{ i }}].icon"></div>
-            <h3 class="card__title" data-bind="text: services[{{ i }}].title"></h3>
-            <p class="card__desc" data-bind="text: services[{{ i }}].desc"></p>
-            <a class="card__link" data-bind="href: services[{{ i }}].slugKey|slug, text: services[{{ i }}].cta.label"></a>
-          </article>
-        {% endfor %}
+          {% for i in range(0,8) %}
+            <article class="card card--service" role="listitem">
+              <div class="card__icon" aria-hidden="true" data-bind="html: services[{{ i }}].icon">{{ pg.service_icon|safe if pg.service_icon is defined else '' }}</div>
+              <h3 class="card__title" data-bind="text: services[{{ i }}].title">{{ pg.service_title or 'Usługa' }}</h3>
+              <p class="card__desc" data-bind="text: services[{{ i }}].desc">{{ pg.service_desc or '' }}</p>
+              <a class="card__link" data-bind="href: services[{{ i }}].slugKey|slug, text: services[{{ i }}].cta.label">{{ pg.service_cta_label or STR.cta.quote or 'Wyceń transport' }}</a>
+            </article>
+          {% endfor %}
       {% endif %}
     </div>
   </div>
@@ -216,12 +220,12 @@
           </article>
         {% endfor %}
       {% else %}
-        {% for i in range(0,6) %}
-          <article class="tile3d" role="listitem">
-            <h3 data-bind="text: industries[{{ i }}].title"></h3>
-            <p data-bind="text: industries[{{ i }}].desc"></p>
-          </article>
-        {% endfor %}
+          {% for i in range(0,6) %}
+            <article class="tile3d" role="listitem">
+              <h3 data-bind="text: industries[{{ i }}].title">{{ pg.industry_title or 'Branża' }}</h3>
+              <p data-bind="text: industries[{{ i }}].desc">{{ pg.industry_desc or '' }}</p>
+            </article>
+          {% endfor %}
       {% endif %}
     </div>
   </div>
@@ -246,12 +250,12 @@
           </article>
         {% endfor %}
       {% else %}
-        {% for i in range(0,6) %}
-          <article class="card card--ghost" role="listitem">
-            <h3 class="card__title" data-bind="text: coverage[{{ i }}].title"></h3>
-            <p class="card__desc" data-bind="text: coverage[{{ i }}].desc"></p>
-          </article>
-        {% endfor %}
+          {% for i in range(0,6) %}
+            <article class="card card--ghost" role="listitem">
+              <h3 class="card__title" data-bind="text: coverage[{{ i }}].title">{{ pg.coverage_title or 'Region' }}</h3>
+              <p class="card__desc" data-bind="text: coverage[{{ i }}].desc">{{ pg.coverage_desc or '' }}</p>
+            </article>
+          {% endfor %}
       {% endif %}
     </div>
     <div class="map-decor" aria-hidden="true">
@@ -276,12 +280,12 @@
           <li class="step" role="listitem"><h3>{{ it.title }}</h3><p>{{ it.desc }}</p></li>
         {% endfor %}
       {% else %}
-        {% for i in range(0,6) %}
-          <li class="step" role="listitem">
-            <h3 data-bind="text: process[{{ i }}].title"></h3>
-            <p data-bind="text: process[{{ i }}].desc"></p>
-          </li>
-        {% endfor %}
+          {% for i in range(0,6) %}
+            <li class="step" role="listitem">
+              <h3 data-bind="text: process[{{ i }}].title">{{ pg.process_title or 'Krok' }}</h3>
+              <p data-bind="text: process[{{ i }}].desc">{{ pg.process_desc or '' }}</p>
+            </li>
+          {% endfor %}
       {% endif %}
     </ol>
   </div>
@@ -307,13 +311,13 @@
           </article>
         {% endfor %}
       {% else %}
-        {% for i in range(0,6) %}
-          <article class="kpi" role="listitem">
-            <div class="kpi__value" data-bind="text: trust[{{ i }}].value"></div>
-            <div class="kpi__label" data-bind="text: trust[{{ i }}].label"></div>
-            <p class="kpi__desc" data-bind="text: trust[{{ i }}].desc"></p>
-          </article>
-        {% endfor %}
+          {% for i in range(0,6) %}
+            <article class="kpi" role="listitem">
+              <div class="kpi__value" data-bind="text: trust[{{ i }}].value">{{ pg.trust_value or '0' }}</div>
+              <div class="kpi__label" data-bind="text: trust[{{ i }}].label">{{ pg.trust_label or 'KPI' }}</div>
+              <p class="kpi__desc" data-bind="text: trust[{{ i }}].desc">{{ pg.trust_desc or '' }}</p>
+            </article>
+          {% endfor %}
       {% endif %}
     </div>
   </div>
@@ -341,15 +345,15 @@
           </figure>
         {% endfor %}
       {% else %}
-        {% for i in range(0,6) %}
-          <figure class="quote card card--quote" role="listitem">
-            <blockquote class="quote__text" data-bind="text: testimonials[{{ i }}].quote"></blockquote>
-            <figcaption class="quote__meta">
-              <span class="quote__author" data-bind="text: testimonials[{{ i }}].author"></span>
-              <span class="quote__role" data-bind="text: testimonials[{{ i }}].role"></span>
-            </figcaption>
-          </figure>
-        {% endfor %}
+          {% for i in range(0,6) %}
+            <figure class="quote card card--quote" role="listitem">
+              <blockquote class="quote__text" data-bind="text: testimonials[{{ i }}].quote">{{ pg.testimonial_quote or '' }}</blockquote>
+              <figcaption class="quote__meta">
+                <span class="quote__author" data-bind="text: testimonials[{{ i }}].author">{{ pg.testimonial_author or '' }}</span>
+                <span class="quote__role" data-bind="text: testimonials[{{ i }}].role">{{ pg.testimonial_role or '' }}</span>
+              </figcaption>
+            </figure>
+          {% endfor %}
       {% endif %}
     </div>
   </div>
@@ -374,9 +378,9 @@
           </li>
         {% endfor %}
       {% else %}
-        {% for i in range(0,8) %}
-          <li role="listitem"><img loading="lazy" decoding="async" data-bind="attr: { src: partners[{{ i }}].src, alt: partners[{{ i }}].alt }"></li>
-        {% endfor %}
+          {% for i in range(0,8) %}
+            <li role="listitem"><img loading="lazy" decoding="async" src="{{ pg.partner_src or '' }}" alt="{{ pg.partner_alt or 'Partner' }}" data-bind="attr: { src: partners[{{ i }}].src, alt: partners[{{ i }}].alt }}"></li>
+          {% endfor %}
       {% endif %}
     </ul>
   </div>
@@ -401,12 +405,12 @@
           </article>
         {% endfor %}
       {% else %}
-        {% for i in range(0,6) %}
-          <article class="card card--fleet" role="listitem">
-            <h3 class="card__title" data-bind="text: fleet[{{ i }}].title"></h3>
-            <p class="card__desc" data-bind="text: fleet[{{ i }}].desc"></p>
-          </article>
-        {% endfor %}
+          {% for i in range(0,6) %}
+            <article class="card card--fleet" role="listitem">
+              <h3 class="card__title" data-bind="text: fleet[{{ i }}].title">{{ pg.fleet_title or 'Pojazd' }}</h3>
+              <p class="card__desc" data-bind="text: fleet[{{ i }}].desc">{{ pg.fleet_desc or '' }}</p>
+            </article>
+          {% endfor %}
       {% endif %}
     </div>
   </div>
@@ -433,13 +437,13 @@
           </article>
         {% endfor %}
       {% else %}
-        {% for i in range(0,4) %}
-          <article class="card card--pricing" role="listitem">
-            <h3 class="card__title" data-bind="text: pricing[{{ i }}].title"></h3>
-            <p class="card__desc" data-bind="text: pricing[{{ i }}].desc"></p>
-            <a class="card__link" data-bind="href: pricing[{{ i }}].slugKey|slug, text: pricing[{{ i }}].cta.label"></a>
-          </article>
-        {% endfor %}
+          {% for i in range(0,4) %}
+            <article class="card card--pricing" role="listitem">
+              <h3 class="card__title" data-bind="text: pricing[{{ i }}].title">{{ pg.pricing_title or 'Oferta' }}</h3>
+              <p class="card__desc" data-bind="text: pricing[{{ i }}].desc">{{ pg.pricing_desc or '' }}</p>
+              <a class="card__link" data-bind="href: pricing[{{ i }}].slugKey|slug, text: pricing[{{ i }}].cta.label">{{ pg.pricing_cta_label or STR.cta.quote or 'Wyceń transport' }}</a>
+            </article>
+          {% endfor %}
       {% endif %}
     </div>
   </div>
@@ -465,13 +469,13 @@
           </article>
         {% endfor %}
       {% else %}
-        {% for i in range(0,6) %}
-          <article class="card card--post" role="listitem">
-            <h3 class="card__title" data-bind="text: blog[{{ i }}].title"></h3>
-            <p class="card__desc" data-bind="text: blog[{{ i }}].lead"></p>
-            <a class="card__link" data-bind="href: blog[{{ i }}].canonical_path, text: blog[{{ i }}].cta.label"></a>
-          </article>
-        {% endfor %}
+          {% for i in range(0,6) %}
+            <article class="card card--post" role="listitem">
+              <h3 class="card__title" data-bind="text: blog[{{ i }}].title">{{ pg.blog_title or 'Artykuł' }}</h3>
+              <p class="card__desc" data-bind="text: blog[{{ i }}].lead">{{ pg.blog_lead or '' }}</p>
+              <a class="card__link" data-bind="href: blog[{{ i }}].canonical_path, text: blog[{{ i }}].cta.label">{{ pg.blog_cta_label or 'Czytaj więcej' }}</a>
+            </article>
+          {% endfor %}
       {% endif %}
     </div>
   </div>
@@ -496,12 +500,12 @@
           </details>
         {% endfor %}
       {% else %}
-        {% for i in range(0,12) %}
-          <details class="qa" role="listitem">
-            <summary data-bind="text: faq[{{ i }}].q"></summary>
-            <div class="a"><p data-bind="text: faq[{{ i }}].a"></p></div>
-          </details>
-        {% endfor %}
+          {% for i in range(0,12) %}
+            <details class="qa" role="listitem">
+              <summary data-bind="text: faq[{{ i }}].q">{{ pg.faq_q or 'Pytanie' }}</summary>
+              <div class="a"><p data-bind="text: faq[{{ i }}].a">{{ pg.faq_a or '' }}</p></div>
+            </details>
+          {% endfor %}
       {% endif %}
     </div>
   </div>
@@ -513,18 +517,18 @@
 <section id="final-cta" class="section section--final" data-api="/home/final"
         aria-labelledby="final-cta-title" aria-busy="false">
   <div class="wrap">
-    <h2 id="final-cta-title">{{ ssr.final.title if ssr and ssr.final and ssr.final.title else '' }}</h2>
-    <p class="final__desc">{{ ssr.final.desc if ssr and ssr.final and ssr.final.desc else '' }}</p>
+      <h2 id="final-cta-title">{{ ssr.final.title if ssr and ssr.final and ssr.final.title else pg.final_title or 'Gotowy na współpracę?' }}</h2>
+      <p class="final__desc">{{ ssr.final.desc if ssr and ssr.final and ssr.final.desc else pg.final_desc or '' }}</p>
     <div class="cta-row">
       <a class="btn btn-primary"
          href="{{ href_by_slugkey('quote') }}"
-         data-bind="href: final.cta_primary.slugKey|slug, text: final.cta_primary.label">
-        {{ ssr.final.cta_primary.label if ssr and ssr.final and ssr.final.cta_primary else '' }}
+           data-bind="href: final.cta_primary.slugKey|slug, text: final.cta_primary.label">
+          {{ ssr.final.cta_primary.label if ssr and ssr.final and ssr.final.cta_primary else (pg.final_cta_primary or STR.cta.quote or 'Wyceń transport') }}
       </a>
       <a class="btn btn-ghost"
          href="{{ href_by_slugkey('contact') }}"
-         data-bind="href: final.cta_secondary.slugKey|slug, text: final.cta_secondary.label">
-        {{ ssr.final.cta_secondary.label if ssr and ssr.final and ssr.final.cta_secondary else '' }}
+           data-bind="href: final.cta_secondary.slugKey|slug, text: final.cta_secondary.label">
+          {{ ssr.final.cta_secondary.label if ssr and ssr.final and ssr.final.cta_secondary else (pg.final_cta_secondary or STR.cta.contact or 'Skontaktuj się') }}
       </a>
     </div>
   </div>
@@ -533,7 +537,7 @@
 {# ================================================================
    Dodatkowe UI: przełącznik motywu (light/dark) — bez tekstów
    ================================================================ #}
-<button class="theme-toggle" type="button" data-action="theme-toggle" aria-label="" data-bind="attr:{'aria-label': home.theme_toggle_aria}">
+<button class="theme-toggle" type="button" data-action="theme-toggle" aria-label="{{ pg.theme_toggle_aria or STR.home.theme_toggle_aria or 'Przełącz motyw' }}" data-bind="attr:{'aria-label': home.theme_toggle_aria}">
   <svg width="24" height="24" aria-hidden="true" class="sun"><circle cx="12" cy="12" r="5"/></svg>
   <svg width="24" height="24" aria-hidden="true" class="moon"><path d="M13 2a9 9 0 1 0 9 9A7 7 0 0 1 13 2z"/></svg>
 </button>
