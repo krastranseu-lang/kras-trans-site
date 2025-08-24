@@ -73,12 +73,15 @@
       const lang = (document.documentElement.getAttribute('lang') || 'pl').toLowerCase();
       const url = `${PREFIX}/bundle_${lang}.json`;
       const res = await fetch(url, {cache:'no-store'});
-      if (!res.ok) return;
+      if (!res.ok){ console.warn('[cms] navigation bundle fetch failed'); return; }
       const data = await res.json();
-      if (!data || !data.version) return;
+      if (!data || !data.version || !Array.isArray(data.items) || data.items.length===0){
+        console.warn('[cms] navigation data missing');
+        return;
+      }
 
       const ul = document.getElementById(UL_ID);
-      if (!ul) return;
+      if (!ul){ console.warn('[cms] nav list element missing'); return; }
 
       // Podmień tylko gdy SSR jest puste LUB wersja się zmieniła
       if (ul.children.length === 0 || data.version !== currentVersion()){
@@ -86,7 +89,7 @@
         bindMega();
         setVersion(data.version);
       }
-    }catch(e){}
+    }catch(e){ console.warn('[cms] navigation update failed', e); }
   }
 
   function start(){
