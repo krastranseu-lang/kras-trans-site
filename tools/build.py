@@ -62,26 +62,38 @@ except Exception as e:
 
 # --- SSR (HOME): składamy sekcje 1:1 z CMS na etapie builda ---------------
 def _routes_map() -> Dict[str, Dict[str, str]]:
-    """mapa slugKey -> { lang: '/{lang}/{slug}/' } na podstawie CMS.hreflang lub z Pages"""
+    """mapa slugKey -> { lang: '/{lang}/{slug}/' } na podstawie CMS.Routes"""
     out: Dict[str, Dict[str, str]] = {}
+    routes = CMS.get("routes") or {}
+    if routes:
+        for key, per_lang in routes.items():
+            out[key] = {}
+            for L, rel in (per_lang or {}).items():
+                rel = (rel or "").strip("/")
+                out[key][L] = f"/{L}/" if not rel else f"/{L}/{rel}/"
+        return out
+
+    # fallback z CMS.hreflang (pełne URL-e)
     hre = CMS.get("hreflang") or {}
     for key, m in hre.items():
         out[key] = {}
         for L, href in (m or {}).items():
-            # href to pełny URL — zamieniamy na ścieżkę
             try:
-                path = "/" + href.split("://",1)[-1].split("/",1)[-1]  # po domenie
+                path = "/" + href.split("://", 1)[-1].split("/", 1)[-1]
                 out[key][L] = path if path.endswith("/") else (path + "/")
             except Exception:
                 pass
-    # fallback z pages, jeśli brak hreflang
+
+    # fallback z pages, jeśli nadal brak mapy
     if not out:
         for p in CMS.get("pages", []):
             lang = (p.get("lang") or DEFAULT_LANG).lower()
             slugKey = p.get("slugKey") or (p.get("slug") or "")
-            if not slugKey: slugKey = "home"
+            if not slugKey:
+                slugKey = "home"
             out.setdefault(slugKey, {})
-            out[slugKey][lang] = f"/{lang}/{(p.get('slug') or '') + '/' if p.get('slug') else ''}"
+            slug = p.get("slug") or ""
+            out[slugKey][lang] = f"/{lang}/{slug + '/' if slug else ''}"
     return out
 
 def _ssr_home(lang:str) -> Dict[str, Any]:
@@ -461,14 +473,22 @@ def _cms_local_read() -> Dict[str, Any]:
     return {
         "ok": True,
         "pages": [{
-            "lang": DEFAULT_LANG, "slugKey": "home", "slug": "",
+            "lang": DEFAULT_LANG,
+            "slugKey": "home",
+            "slug": "",
             "type": "home",
             "h1": "Kras-Trans — transport i spedycja",
             "title": "Kras-Trans — transport i spedycja",
             "meta_desc": "Transport i spedycja w Polsce i UE.",
-            "body_md": "## Start\n\nTreść domyślna (lokalny CMS nie wykrył pliku)."
+            "body_md": "## Start\n\nTreść domyślna (lokalny CMS nie wykrył pliku).",
         }],
-        "hreflang": {}, "redirects": [], "blocks": [], "faq": []
+        "hreflang": {},
+        "redirects": [],
+        "blocks": [],
+        "faq": [],
+        "routes": {},
+        "strings": [],
+        "blog": [],
     }
 
 def load_cms() -> Dict[str, Any]:
@@ -493,7 +513,9 @@ def load_cms() -> Dict[str, Any]:
                     "props": data.get("props_rows", []),
                     "hreflang": data.get("page_routes", {}),
                     "menu_rows": data.get("menu_rows", []),
-                    "page_meta": data.get("page_meta", {})
+                    "page_meta": data.get("page_meta", {}),
+                    "routes": data.get("routes", {}),
+                    "blog": data.get("blog_rows", []),
                 }
                 return cms
         except Exception as e:
@@ -946,8 +968,11 @@ def build_all():
         print("[cms] cms_ingest not available")
     global CMS
     CMS = cms
-    rows   = cms.get("pages_rows") or []
-    routes = cms.get("page_routes") or {}
+    CMS.setdefault("blog", cms.get("blog_rows", []))
+    CMS.setdefault("routes", cms.get("routes") or cms.get("page_routes") or {})
+    CMS.setdefault("strings", cms.get("strings", []))
+    rows = cms.get("pages_rows") or []
+    routes = CMS.get("routes") or {}
     page_routes = routes
 
     def _truthy(x):
@@ -956,15 +981,22 @@ def build_all():
     blocks_by_page_lang = cms.get("blocks_by_page_lang", {})
     faq_by_page_lang = cms.get("faq_by_page_lang", {})
 
-    BLOG = cms.get("Blog", [])
+    BLOG = CMS.get("blog", [])
+    strings_map = {(s.get("key") or "").strip(): s for s in CMS.get("strings", [])}
+    def STR(L, key):
+        rec = strings_map.get(key, {})
+        return (rec.get(L) or rec.get(dlang) or "").strip()
     posts_by_lang: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for row in BLOG:
         if not _truthy(row.get("publish")):
             continue
         lang_row = (row.get("lang") or dlang).lower()
         slug_row = (row.get("slug") or "").lstrip("/")
+        slug_key = f"blog__{slug_row}" if slug_row else "blog_post"
+        routes.setdefault(slug_key, {})[lang_row] = f"blog/{slug_row}" if slug_row else "blog"
         posts_by_lang[lang_row].append({
             "slug": slug_row,
+            "slug_key": slug_key,
             "lang": lang_row,
             "title": row.get("title") or "",
             "h1": row.get("h1") or row.get("title") or "",
@@ -1208,14 +1240,16 @@ def build_all():
     for L, posts in posts_by_lang.items():
         if not posts:
             continue
-        listing_page = {"title": "Blog", "h1": "Blog", "lang": L}
+        blog_rel = (routes.get("blog", {}) or {}).get(L, "blog").strip("/") or "blog"
+        routes.setdefault("blog", {})[L] = blog_rel
+        listing_page = {"title": STR(L, "blog_title") or "Blog", "h1": STR(L, "blog_h1") or "Blog", "lang": L}
 
         def path_for(kk, LL=None, _routes=routes):
             LL = LL or L
             rel2 = (_routes.get(kk, {}) or {}).get(LL, "").strip("/")
             return f"/{LL}/" if not rel2 else f"/{LL}/{rel2}/"
 
-        canonical_list = _canonical_url(SITE_URL, L, "blog", None)
+        canonical_list = _canonical_url(SITE_URL, L, blog_rel, None)
         ctx_list = {
             "lang": L,
             "site": SITE,
@@ -1225,9 +1259,9 @@ def build_all():
             "meta": {},
             "nav": CFG.get("navigation", {}),
             "path_for": path_for,
-            "title": "Blog",
-            "h1": "Blog",
-            "meta_desc": "",
+            "title": listing_page["title"],
+            "h1": listing_page["h1"],
+            "meta_desc": STR(L, "blog_meta_desc"),
             "canonical": canonical_list,
         }
         html = render_template(blog_list_tpl_rel, ctx_list)
@@ -1237,20 +1271,21 @@ def build_all():
             {},
             site=SITE,
             lang=L,
-            meta_title="Blog",
-            meta_description="",
+            meta_title=ctx_list["title"],
+            meta_description=ctx_list["meta_desc"],
             canonical_url=canonical_list,
             canonical_path=None,
         )
-        out_list = _out_for(L, "blog")
+        out_list = _out_for(L, blog_rel)
         out_list.write_text(html, encoding="utf-8")
-        generated.append({"lang": L, "key": "blog_list", "rel": "blog", "out": str(out_list)})
+        generated.append({"lang": L, "key": "blog_list", "rel": blog_rel, "out": str(out_list)})
         indexables.append((canonical_list, today, "blog_list"))
         writes += 1
         langs_seen.add(L)
 
         for post in posts:
-            canonical_post = _canonical_url(SITE_URL, L, f"blog/{post['slug']}", None)
+            post_rel = (routes.get(post.get("slug_key"), {}) or {}).get(L, f"blog/{post['slug']}").strip("/")
+            canonical_post = _canonical_url(SITE_URL, L, post_rel, None)
             ctx_post = {
                 "lang": L,
                 "site": SITE,
@@ -1277,10 +1312,10 @@ def build_all():
                 canonical_url=canonical_post,
                 canonical_path=post.get("canonical_path"),
             )
-            out_post = _out_for(L, f"blog/{post['slug']}")
+            out_post = _out_for(L, post_rel)
             out_post.write_text(html, encoding="utf-8")
             generated.append(
-                {"lang": L, "key": "blog_detail", "rel": f"blog/{post['slug']}", "out": str(out_post)}
+                {"lang": L, "key": "blog_detail", "rel": post_rel, "out": str(out_post)}
             )
             if not post.get("noindex"):
                 indexables.append(

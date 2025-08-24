@@ -66,6 +66,7 @@ cms:
     - redirects
     - company
     - blocks
+    - blog
   client:
     cache: false
     enforceLangRedirect: true
