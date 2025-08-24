@@ -60,9 +60,9 @@
         data-api="/home/hero" aria-busy="false">
   <div class="wrap hero__wrap">
     <div class="hero__copy">
-      <p class="hero__claim" data-bind="text: hero.claim">{{ (H.claim if ssr and H.claim else pg.lead) or 'Mocne hasło' }}</p>
+      <p class="hero__claim" data-bind="text: hero.claim">{{ H.claim if ssr and H.claim else pg.lead or STR('hero_claim') }}</p>
       <h1 id="hero-title" class="hero__title">{{ (H.title if ssr else (pg.h1 or pg.title)) or title }}</h1>
-      <p class="hero__lead">{{ (H.lead if ssr else (pg.lead or meta_desc)) or 'Krótki opis' }}</p>
+      <p class="hero__lead">{{ H.lead if ssr and H.lead else pg.lead or meta_desc or STR('hero_lead') }}</p>
 
       <div class="cta-row">
         <a class="btn btn-primary"
@@ -186,9 +186,9 @@
         {% for i in range(0,8) %}
           <article class="card card--service" role="listitem">
             <div class="card__icon" aria-hidden="true" data-bind="html: services[{{ i }}].icon">&#128663;</div>
-            <h3 class="card__title" data-bind="text: services[{{ i }}].title">Tytuł usługi</h3>
-            <p class="card__desc" data-bind="text: services[{{ i }}].desc">Opis usługi</p>
-            <a class="card__link" data-bind="href: services[{{ i }}].slugKey|slug, text: services[{{ i }}].cta.label">Poznaj usługę</a>
+              <h3 class="card__title" data-bind="text: services[{{ i }}].title">{{ STR('service_title') }}</h3>
+              <p class="card__desc" data-bind="text: services[{{ i }}].desc">{{ STR('service_desc') }}</p>
+              <a class="card__link" data-bind="href: services[{{ i }}].slugKey|slug, text: services[{{ i }}].cta.label">{{ STR('service_cta') }}</a>
           </article>
         {% endfor %}
       {% endif %}
