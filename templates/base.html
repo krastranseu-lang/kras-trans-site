@@ -1,11 +1,19 @@
+{# --- SAFE CONTEXT GUARDS ------------------------------------------- #}
+{# W niektórych kontekstach `site` bywa stringiem; zabezpiecz to: #}
+{% set _site = site if site is mapping else {} %}
+{% set _brand = _site.get('brand') or {} %}
+{% set _priv  = _site.get('privacy') or {} %}
+{% set _meta  = _site.get('meta') or {} %}
+{% set _og    = _site.get('og') or {} %}
+
 <!doctype html>
-<html lang="{{ page.lang or site.get('defaultLang', 'pl') }}" class="no-js" data-color-scheme="light dark">
+<html lang="{{ page.lang or _site.get('defaultLang', 'pl') }}" class="no-js" data-color-scheme="light dark">
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="x-ua-compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="referrer"
-        content="{{ site.get('privacy', {}).get('referrerPolicy', 'strict-origin-when-cross-origin') }}" />
+        content="{{ _priv.get('referrerPolicy', 'strict-origin-when-cross-origin') }}" />
   <meta name="color-scheme" content="light dark" />
   <!-- Theme color per scheme (bez migotania paska adresu) -->
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0ea5e9" />
@@ -14,10 +22,10 @@
   <title>
     {{ page.seo_title
        or page.title
-       or (site.get('brand') or {}).get('name')
+       or _brand.get('name')
        or 'Kras‑Trans' }}
   </title>
-  <meta name="description" content="{{ page.meta_desc or (site.get('brand') or {}).get('description', '') }}" />
+  <meta name="description" content="{{ page.meta_desc or _meta.get('description','') }}" />
   {% if page.noindex %}<meta name="robots" content="noindex,follow" />{% else %}<meta name="robots" content="index,follow" />{% endif %}
   <link rel="canonical" href="{{ page.canonical or canonical }}" />
 
@@ -38,15 +46,15 @@
 
   {# --- OG / Twitter --- #}
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="{{ (site.get('brand') or {}).get('name') or 'Kras‑Trans' }}" />
+  <meta property="og:site_name" content="{{ _brand.get('name') or 'Kras‑Trans' }}" />
   <meta property="og:url" content="{{ page.canonical or canonical }}" />
-  <meta property="og:title" content="{{ page.seo_title or page.title or (site.get('brand') or {}).get('name') or 'Kras‑Trans' }}" />
-  <meta property="og:description" content="{{ page.meta_desc or (site.get('brand') or {}).get('description', '') }}" />
-  <meta property="og:image" content="{{ (site.get('url') or site.get('base_url') or '') ~ (page.og_image or '/assets/media/og-default.webp') }}" />
+  <meta property="og:title" content="{{ page.seo_title or page.title or _og.get('title') or _brand.get('name') or 'Kras‑Trans' }}" />
+  <meta property="og:description" content="{{ page.meta_desc or _meta.get('description','') }}" />
+  <meta property="og:image" content="{{ (_site.get('url') or _site.get('base_url') or '') ~ (page.og_image or _og.get('image') or '/assets/media/og-default.webp') }}" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="{{ page.seo_title or page.title or (site.get('brand') or {}).get('name') or 'Kras‑Trans' }}" />
-  <meta name="twitter:description" content="{{ page.meta_desc or (site.get('brand') or {}).get('description', '') }}" />
-  <meta name="twitter:image" content="{{ (site.get('url') or site.get('base_url') or '') ~ (page.og_image or '/assets/media/og-default.webp') }}" />
+  <meta name="twitter:title" content="{{ page.seo_title or page.title or _brand.get('name') or 'Kras‑Trans' }}" />
+  <meta name="twitter:description" content="{{ page.meta_desc or _meta.get('description','') }}" />
+  <meta name="twitter:image" content="{{ (_site.get('url') or _site.get('base_url') or '') ~ (page.og_image or _og.get('image') or '/assets/media/og-default.webp') }}" />
 
   {# --- Ikony (bez 404 – tylko to, co faktycznie masz) --- #}
   {% set has_favicon = assets.icons and assets.icons.favicon %}
