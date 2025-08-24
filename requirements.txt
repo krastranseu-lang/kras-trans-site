@@ -7,3 +7,4 @@ beautifulsoup4>=4.12
 lxml>=4.9
 python-slugify>=8.0
 Pillow>=10.3   # opcjonalnie – jeśli włączymy pipeline obrazów (AVIF/WebP)
+playwright>=1.42

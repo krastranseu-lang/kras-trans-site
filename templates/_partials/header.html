@@ -372,6 +372,19 @@
     });
     document.addEventListener('click', e=>{ if(!themeDd.contains(e.target) && e.target!==themeBtn) { themeDd.setAttribute('aria-hidden','true'); themeBtn.setAttribute('aria-expanded','false'); }});
 
+    document.addEventListener('keydown', e=>{
+      if(e.key==='Escape'){
+        if(langBtn.getAttribute('aria-expanded')==='true'){
+          openLangs(false); langBtn.focus();
+        }
+        if(themeBtn.getAttribute('aria-expanded')==='true'){
+          themeDd.setAttribute('aria-hidden','true');
+          themeBtn.setAttribute('aria-expanded','false');
+          themeBtn.focus();
+        }
+      }
+    });
+
     /* LANGS dropdown */
     function openLangs(open){ langBtn.setAttribute('aria-expanded', String(open)); langDd.setAttribute('aria-hidden', String(!open)); }
     langBtn.addEventListener('click', ()=>{ const exp=langBtn.getAttribute('aria-expanded')==='true'; openLangs(!exp); });
