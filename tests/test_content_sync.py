@@ -1,3 +1,5 @@
+"""Content synchronization tests."""
+
 import json
 from pathlib import Path
 
