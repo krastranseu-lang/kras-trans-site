@@ -1,10 +1,25 @@
 {# --- SAFE CONTEXT GUARDS ------------------------------------------- #}
-{# W niektórych kontekstach `site` bywa stringiem; zabezpiecz to: #}
+{# `site` bywa stringiem — normalizujemy do dict #}
 {% set _site = site if site is mapping else {} %}
-{% set _brand = _site.get('brand') or {} %}
-{% set _priv  = _site.get('privacy') or {} %}
-{% set _meta  = _site.get('meta') or {} %}
-{% set _og    = _site.get('og') or {} %}
+
+{# brand może być dict albo string #}
+{% set _brand_obj = _site.get('brand') %}
+{% if _brand_obj is mapping %}
+  {% set _brand_name = _brand_obj.get('name') or 'Kras‑Trans' %}
+{% else %}
+  {% set _brand_name = _brand_obj or 'Kras‑Trans' %}
+{% endif %}
+
+{# meta / og / privacy — tylko jeśli to dict, inaczej puste/def. #}
+{% set _meta_obj = _site.get('meta') %}
+{% set _meta_desc = (_meta_obj.get('description') if _meta_obj is mapping else '') %}
+
+{% set _og_obj = _site.get('og') %}
+{% set _og_title = (_og_obj.get('title') if _og_obj is mapping else None) %}
+{% set _og_image = (_og_obj.get('image') if _og_obj is mapping else None) %}
+
+{% set _priv_obj = _site.get('privacy') %}
+{% set _referrer_policy = (_priv_obj.get('referrerPolicy') if _priv_obj is mapping else 'strict-origin-when-cross-origin') %}
 
 <!doctype html>
 <html lang="{{ page.lang or _site.get('defaultLang', 'pl') }}" class="no-js" data-color-scheme="light dark">
@@ -12,8 +27,7 @@
   <meta charset="utf-8" />
   <meta http-equiv="x-ua-compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="referrer"
-        content="{{ _priv.get('referrerPolicy', 'strict-origin-when-cross-origin') }}" />
+  <meta name="referrer" content="{{ _referrer_policy }}" />
   <meta name="color-scheme" content="light dark" />
   <!-- Theme color per scheme (bez migotania paska adresu) -->
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0ea5e9" />
@@ -22,10 +36,10 @@
   <title>
     {{ page.seo_title
        or page.title
-       or _brand.get('name')
-       or 'Kras‑Trans' }}
+       or _og_title
+       or _brand_name }}
   </title>
-  <meta name="description" content="{{ page.meta_desc or _meta.get('description','') }}" />
+  <meta name="description" content="{{ page.meta_desc or _meta_desc }}" />
   {% if page.noindex %}<meta name="robots" content="noindex,follow" />{% else %}<meta name="robots" content="index,follow" />{% endif %}
   <link rel="canonical" href="{{ page.canonical or canonical }}" />
 
@@ -46,15 +60,15 @@
 
   {# --- OG / Twitter --- #}
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="{{ _brand.get('name') or 'Kras‑Trans' }}" />
+  <meta property="og:site_name" content="{{ _brand_name }}" />
   <meta property="og:url" content="{{ page.canonical or canonical }}" />
-  <meta property="og:title" content="{{ page.seo_title or page.title or _og.get('title') or _brand.get('name') or 'Kras‑Trans' }}" />
-  <meta property="og:description" content="{{ page.meta_desc or _meta.get('description','') }}" />
-  <meta property="og:image" content="{{ (_site.get('url') or _site.get('base_url') or '') ~ (page.og_image or _og.get('image') or '/assets/media/og-default.webp') }}" />
+  <meta property="og:title" content="{{ page.seo_title or page.title or _og_title or _brand_name }}" />
+  <meta property="og:description" content="{{ page.meta_desc or _meta_desc }}" />
+  <meta property="og:image" content="{{ (_site.get('url') or _site.get('base_url') or '') ~ (page.og_image or _og_image or '/assets/media/og-default.webp') }}" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="{{ page.seo_title or page.title or _brand.get('name') or 'Kras‑Trans' }}" />
-  <meta name="twitter:description" content="{{ page.meta_desc or _meta.get('description','') }}" />
-  <meta name="twitter:image" content="{{ (_site.get('url') or _site.get('base_url') or '') ~ (page.og_image or _og.get('image') or '/assets/media/og-default.webp') }}" />
+  <meta name="twitter:title" content="{{ page.seo_title or page.title or _og_title or _brand_name }}" />
+  <meta name="twitter:description" content="{{ page.meta_desc or _meta_desc }}" />
+  <meta name="twitter:image" content="{{ (_site.get('url') or _site.get('base_url') or '') ~ (page.og_image or _og_image or '/assets/media/og-default.webp') }}" />
 
   {# --- Ikony (bez 404 – tylko to, co faktycznie masz) --- #}
   {% set has_favicon = assets.icons and assets.icons.favicon %}
