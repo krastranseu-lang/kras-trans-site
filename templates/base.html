@@ -99,6 +99,19 @@
           {% if page.lcp_image.srcset %}imagesrcset="{{ page.lcp_image.srcset }}"{% endif %} />
   {% endif %}
 
+  {# --- Early theme (avoid flash of wrong theme before CSS) --- #}
+  <script>
+    (function () {
+      window.THEME_KEY = 'kt_theme';
+      window.themeIsDark = function () {
+        const saved = localStorage.getItem(window.THEME_KEY) || 'auto';
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        return saved === 'dark' || (saved === 'auto' && prefersDark);
+      };
+      document.documentElement.classList.toggle('theme-dark', window.themeIsDark());
+    })();
+  </script>
+
   {# --- Preloady / CSS (z pages.yml / buildera) --- #}
   {% if assets.preload %}
     {% for p in assets.preload %}

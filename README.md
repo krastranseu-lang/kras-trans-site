@@ -17,3 +17,10 @@ from the location specified by the `CMS_SOURCE` environment variable. The value
 may point to a local file path or an HTTP(S) URL. The downloaded file is cached
 under `data/cms/menu.xlsx` for subsequent runs.
 
+## Theme handling
+
+The base template includes a tiny inline script that reads the saved theme from
+`localStorage` and toggles `theme-dark` before CSS loads. This prevents a flash
+of the wrong theme on initial page render. The same logic powers the theme
+switcher in `templates/_partials/header.html`.
+
