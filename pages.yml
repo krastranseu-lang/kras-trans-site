@@ -111,6 +111,51 @@ template_rules:
     - { match: "^uslugi/.+$", template: "templates/page.html" }
     - { match: "^blog/.+$",   template: "templates/pages/blog_post.html" }
 
+# =============================== PAGES ===============================
+pages:
+  - key: home
+    slugKey: home
+    lang: pl
+    slug: ""
+    type: home
+    template: templates/page.html
+  - key: home
+    slugKey: home
+    lang: en
+    slug: ""
+    type: home
+    template: templates/page.html
+  - key: home
+    slugKey: home
+    lang: de
+    slug: ""
+    type: home
+    template: templates/page.html
+  - key: home
+    slugKey: home
+    lang: fr
+    slug: ""
+    type: home
+    template: templates/page.html
+  - key: home
+    slugKey: home
+    lang: it
+    slug: ""
+    type: home
+    template: templates/page.html
+  - key: home
+    slugKey: home
+    lang: ru
+    slug: ""
+    type: home
+    template: templates/page.html
+  - key: home
+    slugKey: home
+    lang: ua
+    slug: ""
+    type: home
+    template: templates/page.html
+
 # =============================== ASSETS ===============================
 assets:
   css:
