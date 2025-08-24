@@ -206,7 +206,25 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
 
     import openpyxl
 
-    wb = openpyxl.load_workbook(src, read_only=True, data_only=True)
+    try:
+        wb = openpyxl.load_workbook(src, read_only=True, data_only=True)
+    except Exception as e:
+        report.append(f"[cms_ingest] warn: {e}")
+        return {
+            "pages_rows": [],
+            "page_routes": {},
+            "routes": {},
+            "menu_rows": [],
+            "page_meta": {},
+            "blocks": {},
+            "blog_rows": [],
+            "strings": [],
+            "media": [],
+            "company": [],
+            "redirects": [],
+            "collections": {},
+            "report": "\n".join(report),
+        }
 
     def _norm(s):
         return (str(s or "")).strip().lower()
