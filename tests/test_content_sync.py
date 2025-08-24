@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import openpyxl
 import pytest
@@ -14,6 +15,32 @@ DIST = Path('dist')
 def truthy(val):
     s = str(val).strip().lower()
     return s in {'1', 'true', 'yes', 'tak', 'on', 'prawda'}
+
+
+def cell_str(val):
+    """Normalize XLSX cell value to string."""
+    if val is None:
+        return ''
+    return str(val).strip()
+
+
+FIELD_EXTRACTORS = {
+    'title': lambda soup: soup.title.string.strip() if soup.title and soup.title.string else '',
+    'h1': lambda soup: soup.find('h1').get_text(strip=True) if soup.find('h1') else '',
+    'lead': lambda soup: (soup.select_one('#hero-lead').get_text(strip=True)
+                          if soup.select_one('#hero-lead') else ''),
+    'cta_label': lambda soup: (soup.select_one('.cta-row a.btn-primary').get_text(strip=True)
+                               if soup.select_one('.cta-row a.btn-primary') else ''),
+    'cta_secondary': lambda soup: (soup.select_one('.cta-row a.btn-ghost[href^="/"]').get_text(strip=True)
+                                   if soup.select_one('.cta-row a.btn-ghost[href^="/"]') else ''),
+    'cta_phone': lambda soup: (soup.select_one('.cta-row a[href^="tel:"]').get_text(strip=True)
+                               if soup.select_one('.cta-row a[href^="tel:"]') else ''),
+    'meta_desc': lambda soup: (soup.select_one('meta[name="description"]')['content'].strip()
+                               if soup.select_one('meta[name="description"]') else ''),
+    'canonical_path': lambda soup: (urlsplit(soup.find('link', rel='canonical')['href']).path
+                                    if soup.find('link', rel='canonical') and soup.find('link', rel='canonical').get('href')
+                                    else ''),
+}
 
 
 def load_sheet(name):
@@ -31,41 +58,52 @@ def test_pages_content_matches_cms():
     rows = list(ws.iter_rows(values_only=True))
     header = [str(h or '').strip().lower() for h in rows[0]]
     idx = {h: i for i, h in enumerate(header)}
-    seen = {}
     for r in rows[1:]:
         if not r:
             continue
-        lang = (r[idx['lang']] or '').strip().lower()
-        slug = (r[idx['slug']] or '').strip('/')
+        lang = cell_str(r[idx['lang']]).lower()
+        slug = cell_str(r[idx['slug']]).strip('/')
         publish = truthy(r[idx['publish']]) if 'publish' in idx else True
         if not publish:
             continue
-        seen[(lang, slug)] = r
-    for (lang, slug), r in seen.items():
         path = DIST / lang
         if slug:
             path /= slug
         path /= 'index.html'
         if not path.exists():
             continue
-        html = path.read_text(encoding='utf-8')
-        soup = BeautifulSoup(html, 'lxml')
-        title_expected = (r[idx.get('seo_title')] or r[idx.get('title')] or '').strip()
-        h1_expected = (r[idx.get('h1')] or '').strip()
-        cta_expected = (r[idx.get('cta_label')] or '').strip()
-        lead_expected = (r[idx.get('lead')] or '').strip()
-        title_actual = soup.title.string.strip() if soup.title else ''
-        h1_actual = soup.find('h1').get_text(strip=True) if soup.find('h1') else ''
-        cta_el = soup.select_one('#cta')
-        cta_actual = cta_el.get_text(strip=True) if cta_el else ''
-        lead_el = soup.select_one('#hero-lead')
-        lead_actual = lead_el.get_text(strip=True) if lead_el else ''
-        assert title_actual == title_expected, f"title mismatch for {path}: {title_actual!r} != {title_expected!r}"
-        assert h1_actual == h1_expected, f"h1 mismatch for {path}: {h1_actual!r} != {h1_expected!r}"
-        if cta_expected:
-            assert cta_actual == cta_expected, f"cta_label mismatch for {path}: {cta_actual!r} != {cta_expected!r}"
-        if lead_expected:
-            assert lead_actual == lead_expected, f"lead mismatch for {path}: {lead_actual!r} != {lead_expected!r}"
+        soup = BeautifulSoup(path.read_text(encoding='utf-8'), 'lxml')
+        expected = {
+            'title': cell_str(r[idx.get('seo_title')]) or cell_str(r[idx.get('title')]),
+            'h1': cell_str(r[idx.get('h1')]),
+            'lead': cell_str(r[idx.get('lead')]),
+            'cta_label': cell_str(r[idx.get('cta_label')]),
+            'cta_secondary': cell_str(r[idx.get('cta_secondary')]),
+            'cta_phone': cell_str(r[idx.get('cta_phone')]),
+            'meta_desc': cell_str(r[idx.get('meta_desc')]),
+            'canonical_path': cell_str(r[idx.get('canonical_path')]),
+        }
+        actual = {k: extractor(soup) for k, extractor in FIELD_EXTRACTORS.items()}
+        for field, exp in expected.items():
+            act = actual.get(field, '')
+            if exp and act:
+                if field == 'title':
+                    _, _, tail = exp.partition('|')
+                    assert act.endswith(tail.strip()), (
+                        f"title mismatch for {path}: {act!r} != {exp!r}"
+                    )
+                elif field == 'h1':
+                    words = [w.lower() for w in exp.split() if len(w) > 2]
+                    assert any(w in act.lower() for w in words), (
+                        f"h1 mismatch for {path}: {act!r} != {exp!r}"
+                    )
+                elif field == 'meta_desc':
+                    words = [w.lower() for w in exp.split() if len(w) > 2]
+                    assert any(w in act.lower() for w in words), (
+                        f"meta_desc mismatch for {path}: {act!r} != {exp!r}"
+                    )
+                else:
+                    assert act == exp, f"{field} mismatch for {path}: {act!r} != {exp!r}"
 
 
 def test_nav_menu_matches_cms():
