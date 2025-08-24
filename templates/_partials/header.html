@@ -350,11 +350,10 @@
     dockMenu.addEventListener('click', e=>{ e.preventDefault(); openDrawer(); });
 
     /* THEME */
-    const THEME_KEY='kt_theme';
+    const THEME_KEY = window.THEME_KEY || 'kt_theme';
     function applyTheme(){
       const saved = localStorage.getItem(THEME_KEY) || 'auto';
-      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const effectiveDark = saved==='dark' || (saved==='auto' && prefersDark);
+      const effectiveDark = window.themeIsDark();
       document.documentElement.classList.toggle('theme-dark', effectiveDark);
       themeIcon.src = effectiveDark ? SUN : MOON;
       themeLabel.textContent = saved[0].toUpperCase()+saved.slice(1);
