@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
+{# bezpieczny alias na rekord strony #}
+{% set pg = pg or page or {} %}
 {# =========================
    KRAS-TRANS • HOME (SSR+CSR)
    - Zero widocznych tekstów „na sztywno”
@@ -49,11 +51,9 @@
         data-api="/home/hero" aria-busy="false">
   <div class="wrap hero__wrap">
     <div class="hero__copy">
-      <p class="hero__claim" data-bind="text: hero.claim">{{ H.claim if ssr and H.claim else '' }}</p>
-      <h1 id="hero-title" class="hero__title">
-        {{ H.title if ssr else '' }}
-      </h1>
-      <p class="hero__lead">{{ H.lead if ssr else '' }}</p>
+      <p class="hero__claim" data-bind="text: hero.claim">{{ (H.claim if ssr and H.claim else pg.lead) or '' }}</p>
+      <h1 id="hero-title" class="hero__title">{{ (H.title if ssr else (pg.h1 or pg.title)) or title }}</h1>
+      <p class="hero__lead">{{ (H.lead if ssr else (pg.lead or meta_desc)) or '' }}</p>
 
       <div class="cta-row">
         <a class="btn btn-primary"
