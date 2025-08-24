@@ -163,16 +163,23 @@
         </div>
       </div>
 
+      {% set social = nav_data.social or {} %}
       <div class="social" id="social">
-        <a id="ig" href="https://www.instagram.com/kras_trans.express.eu?igsh=bHZkODhlazFicGt2&utm_source=qr" aria-label="Instagram" rel="noopener" target="_blank">
+        {% if social.ig %}
+        <a id="ig" href="{{ social.ig }}" aria-label="Instagram" rel="noopener" target="_blank">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7Zm5 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6Zm5.35-.95a1.15 1.15 0 1 1 0 2.3 1.15 1.15 0 0 1 0-2.3Z"/></svg>
         </a>
-        <a id="li" href="https://www.linkedin.com/company/kras-trans" aria-label="LinkedIn" rel="noopener" target="_blank">
+        {% endif %}
+        {% if social.li %}
+        <a id="li" href="{{ social.li }}" aria-label="LinkedIn" rel="noopener" target="_blank">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5c0 1.38-1.12 2.5-2.49 2.5A2.5 2.5 0 0 1 0 3.5 2.5 2.5 0 0 1 2.49 1c1.37 0 2.49 1.12 2.49 2.5ZM.5 8.5h4V23h-4V8.5Zm7.5 0h3.84v1.98h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.77 2.65 4.77 6.1V23h-4v-5.87c0-1.4-.03-3.2-1.95-3.2-1.95 0-2.25 1.52-2.25 3.1V23h-4V8.5Z"/></svg>
         </a>
-        <a id="fb" href="https://www.facebook.com/share/sS2jgJPwdgvrF4az/?mibextid=LQQJ4d" aria-label="Facebook" rel="noopener" target="_blank">
+        {% endif %}
+        {% if social.fb %}
+        <a id="fb" href="{{ social.fb }}" aria-label="Facebook" rel="noopener" target="_blank">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22 12.07C22 6.48 17.52 2 11.93 2S2 6.48 2 12.07C2 17.1 5.66 21.25 10.44 22v-7.04H7.9v-2.9h2.54V9.85c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.23.2 2.23.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.87h2.78l-.44 2.9h-2.34V22C18.34 21.25 22 17.1 22 12.07Z"/></svg>
         </a>
+        {% endif %}
       </div>
 
       <a id="cta" class="btn btn-primary" href="{{ (nav_data.cta.href if nav_data.cta else '/pl/kontakt/') }}">{{ (nav_data.cta.label if nav_data.cta else 'Zamów wycenę') }}</a>

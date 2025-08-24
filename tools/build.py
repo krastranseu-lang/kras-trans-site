@@ -250,6 +250,10 @@ def _canonical_url(base_url: str, lang: str, rel: str, override: str | None = No
     return f"{base}/{lang}/" if not rel else f"{base}/{lang}/{rel}/"
 
 
+def _truthy(x: Any) -> bool:
+    return str(x or "").strip().lower() in {"1", "true", "tak", "yes", "on", "prawda"}
+
+
 LANGS = {"pl","en","de","fr","it","ru","ua"}
 
 
@@ -274,6 +278,67 @@ def _flatten_page(P: dict, L: str) -> dict:
         for k, v in meta.items():
             base[k] = _resolve_lang(v, L)
     return base
+
+
+def _nav_data_from_rows(rows, fallback):
+    out = {}
+    rows = rows or []
+    by_lang = defaultdict(list)
+    for r in rows:
+        L = (r.get("lang") or "pl").lower()
+        if not _truthy(r.get("enabled", True)):
+            continue
+        by_lang[L].append(r)
+    for L, arr in by_lang.items():
+        prim = []
+        mega = {}
+        children = defaultdict(list)
+        for r in arr:
+            parent = (r.get("parent") or "").strip()
+            if parent:
+                children[parent].append(r)
+        for r in arr:
+            parent = (r.get("parent") or "").strip()
+            if parent:
+                continue
+            label = (r.get("label") or "").strip()
+            href = (r.get("href") or "").strip()
+            order = int(r.get("order") or 0)
+            slug = norm_slug(label)
+            kids = children.get(label) or children.get(slug) or []
+            item = {"label": label, "href": href, "order": order}
+            if kids:
+                item["panel"] = slug
+                m = mega.setdefault(slug, {"columns": []})
+                for ch in kids:
+                    col = int(ch.get("col") or 1)
+                    while len(m["columns"]) < col:
+                        m["columns"].append({"title": "", "items": []})
+                    m["columns"][col - 1]["items"].append({
+                        "label": (ch.get("label") or "").strip(),
+                        "href": (ch.get("href") or "").strip(),
+                        "order": int(ch.get("order") or 0),
+                    })
+            prim.append(item)
+        prim.sort(key=lambda i: (i.get("order", 0), i.get("label", "")))
+        for m in mega.values():
+            for col in m["columns"]:
+                col["items"].sort(key=lambda i: (i.get("order", 0), i.get("label", "")))
+                for it in col["items"]:
+                    it.pop("order", None)
+        for it in prim:
+            it.pop("order", None)
+        data = {"primary": prim}
+        if mega:
+            data["mega"] = mega
+        base = fallback.get(L, {})
+        for k in ("langs", "cta", "logo", "social"):
+            if k in base:
+                data.setdefault(k, base[k])
+        out[L] = data
+    for L, base in fallback.items():
+        out.setdefault(L, base)
+    return out
 
 
 from pathlib import Path
@@ -989,14 +1054,12 @@ def build_all():
     CMS.setdefault("blog", cms.get("blog_rows", []))
     CMS.setdefault("routes", cms.get("routes") or cms.get("page_routes") or {})
     CMS.setdefault("strings", cms.get("strings", []))
-    if cms.get("nav"):
-        nav_by_lang = cms.get("nav") or nav_by_lang
+    nav_rows = cms.get("nav") or cms.get("menu_rows") or []
+    if nav_rows:
+        nav_by_lang = _nav_data_from_rows(nav_rows, nav_fallback)
     rows = cms.get("pages_rows") or []
     routes = CMS.get("routes") or {}
     page_routes = routes
-
-    def _truthy(x):
-        return str(x or "").strip().lower() in {"1", "true", "tak", "yes", "on", "prawda"}
 
     blocks_by_page_lang = cms.get("blocks_by_page_lang", {})
     faq_by_page_lang = cms.get("faq_by_page_lang", {})
