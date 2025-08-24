@@ -77,7 +77,7 @@ paths:
 
 routing:
   locales_regex: "^(pl|en|de|fr|it|ru|ua)$"
-  enforce_lang_prefix: true
+  enforce_lang_prefix: false
   trailing_slash: true
 
 # ============================== 5) TEMPLATES ================================
