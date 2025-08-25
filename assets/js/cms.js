@@ -102,3 +102,82 @@
     start();
   }
 })();
+
+/* --- Mega menu toggle binding --- */
+(function () {
+  if (window.__cmsMegaBound) return;
+  window.__cmsMegaBound = true;
+
+  function closeOthers(current, root) {
+    if (!root.querySelectorAll) return;
+    root.querySelectorAll('.mega-toggle[aria-expanded="true"]').forEach(btn => {
+      if (btn === current) return;
+      btn.setAttribute('aria-expanded', 'false');
+      const id = btn.getAttribute('aria-controls');
+      const panel = root.getElementById ? root.getElementById(id) : document.getElementById(id);
+      if (panel) {
+        panel.hidden = true;
+        panel.setAttribute('aria-hidden', 'true');
+      }
+    });
+  }
+
+  function toggleMega(btn, root = document) {
+    if (!btn) return;
+    const id = btn.getAttribute('aria-controls');
+    const panel = root.getElementById ? root.getElementById(id) : document.getElementById(id);
+    const expanded = btn.getAttribute('aria-expanded') === 'true';
+    const next = !expanded;
+    closeOthers(btn, root);
+    btn.setAttribute('aria-expanded', String(next));
+    if (panel) {
+      panel.hidden = !next;
+      panel.setAttribute('aria-hidden', String(!next));
+    }
+  }
+
+  function markBtn(btn) {
+    if (btn && btn.dataset) btn.dataset.megaBound = '1';
+  }
+
+  function bindMegaMenu(root = document) {
+    if (!root.__cmsMegaListener) {
+      root.addEventListener('click', e => {
+        const btn = e.target.closest && e.target.closest('.mega-toggle');
+        if (!btn) return;
+        toggleMega(btn, root);
+      });
+      root.__cmsMegaListener = true;
+    }
+
+    if (root.querySelectorAll) {
+      root.querySelectorAll('.mega-toggle').forEach(markBtn);
+    }
+
+    if (typeof MutationObserver === 'function') {
+      const target = root === document ? document.body : root;
+      if (!target) return;
+      const mo = new MutationObserver(muts => {
+        muts.forEach(m => {
+          m.addedNodes.forEach(node => {
+            if (!(node instanceof Element)) return;
+            if (node.matches && node.matches('.mega-toggle')) markBtn(node);
+            if (node.querySelectorAll) {
+              node.querySelectorAll('.mega-toggle').forEach(markBtn);
+            }
+          });
+        });
+      });
+      mo.observe(target, { childList: true, subtree: true });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => bindMegaMenu(document));
+  } else {
+    bindMegaMenu(document);
+  }
+
+  window.CMS = window.CMS || {};
+  window.CMS.bindMegaMenu = bindMegaMenu;
+})();
