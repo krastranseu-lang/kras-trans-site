@@ -31,7 +31,7 @@
           }).join('');
           return `<li class="has-mega">
             <button class="mega-toggle" aria-expanded="false" aria-controls="${id}">${label}</button>
-            <div id="${id}" class="mega" role="dialog" aria-label="${label}" aria-modal="false">
+            <div id="${id}" class="mega" role="dialog" aria-label="${label}" aria-modal="false" hidden aria-hidden="true">
               <div class="mega-grid">${colsHTML}</div>
             </div>
           </li>`;
@@ -42,13 +42,24 @@
   }
 
   let docBound = false;
-  function closeAll(except){ $$('.mega-toggle').forEach(b=>{ if(b!==except) b.setAttribute('aria-expanded','false'); }); }
+  function closeAll(except){
+    $$('.mega-toggle').forEach(b=>{
+      if(except && b===except) return;
+      b.setAttribute('aria-expanded','false');
+      const p = document.getElementById(b.getAttribute('aria-controls'));
+      if(p){ p.hidden=true; p.setAttribute('aria-hidden','true'); }
+    });
+  }
   function bindMega(){
     $$('.mega-toggle').forEach(btn=>{
       if(btn.dataset.megaBound) return;
       btn.dataset.megaBound='1';
       const panel = document.getElementById(btn.getAttribute('aria-controls'));
-      const set = v=>btn.setAttribute('aria-expanded', v?'true':'false');
+      if(panel){ panel.hidden=true; panel.setAttribute('aria-hidden','true'); }
+      const set = v=>{
+        btn.setAttribute('aria-expanded', v?'true':'false');
+        if(panel){ panel.hidden=!v; panel.setAttribute('aria-hidden', v?'false':'true'); }
+      };
       btn.addEventListener('click', e=>{
         e.stopPropagation();
         const open = btn.getAttribute('aria-expanded') !== 'true';
@@ -57,8 +68,8 @@
       if (panel) panel.addEventListener('mouseleave', ()=>set(false));
     });
     if(!docBound){
-      document.addEventListener('click', ()=>closeAll(null));
-      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAll(null); });
+      document.addEventListener('click', ()=>closeAll());
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAll(); });
       docBound = true;
     }
   }
