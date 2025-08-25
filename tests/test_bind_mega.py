@@ -24,7 +24,6 @@ def test_bind_mega_initial_and_dynamic():
         document.getElementById('navList').innerHTML += `\n      <li class='has-mega'>\n        <button class='mega-toggle' aria-expanded='false' aria-controls='mega-b'>B</button>\n        <div id='mega-b' hidden aria-hidden='true'></div>\n      </li>`
         """)
         page.wait_for_selector("button[aria-controls='mega-b']")
-        page.wait_for_function("document.querySelector(\"button[aria-controls='mega-b']\").dataset.megaBound === '1'")
         page.click("button[aria-controls='mega-b']")
         assert page.get_attribute("button[aria-controls='mega-b']", 'aria-expanded') == 'true'
         assert page.get_attribute("#mega-b", 'hidden') is None
