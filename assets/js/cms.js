@@ -26,7 +26,7 @@
         if(Array.isArray(it.cols) && it.cols.length){
           const id = slug(label) || (`m-${i}`);
           return `<li class="has-mega" data-panel="${id}">
-            <button type="button" aria-expanded="false" aria-controls="panel-${id}">${label}</button>
+            <button class="mega-toggle" type="button" aria-expanded="false" aria-controls="panel-${id}">${label}</button>
           </li>`;
         } else {
           return `<li><a href="${href}">${label}</a></li>`;
@@ -96,9 +96,69 @@
     setInterval(revalidate, 5*60*1000);
   }
 
+  function initMega(){
+    const mark = btn => { btn.dataset.megaBound = '1'; };
+
+    document.querySelectorAll('button.mega-toggle').forEach(mark);
+    new MutationObserver(muts => {
+      muts.forEach(m => m.addedNodes.forEach(n => {
+        if (!(n instanceof HTMLElement)) return;
+        if (n.matches('button.mega-toggle')) mark(n);
+        n.querySelectorAll && n.querySelectorAll('button.mega-toggle').forEach(mark);
+      }));
+    }).observe(document, {subtree:true, childList:true});
+
+    // Delegacja na dokumencie: click na button.mega-toggle
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('button.mega-toggle');
+      if (!btn) return;
+      const id = btn.getAttribute('aria-controls');
+      const panel = id ? document.getElementById(id) : null;
+
+      const isOpen = btn.getAttribute('aria-expanded') === 'true';
+
+      // (opcjonalnie) zamknij inne megi w tym samym navList:
+      const root = btn.closest('#navList') || document;
+      root.querySelectorAll('button.mega-toggle[aria-expanded="true"]').forEach(b => {
+        if (b === btn) return;
+        b.setAttribute('aria-expanded','false');
+        const pid = b.getAttribute('aria-controls');
+        const p = pid ? document.getElementById(pid) : null;
+        if (p) { p.hidden = true; p.setAttribute('aria-hidden','true'); }
+      });
+
+      // przełącz bieżący
+      btn.setAttribute('aria-expanded', String(!isOpen));
+      if (panel) {
+        if (isOpen) {
+          panel.hidden = true;
+          panel.setAttribute('aria-hidden','true');
+        } else {
+          panel.hidden = false;
+          panel.setAttribute('aria-hidden','false');
+        }
+      }
+    });
+
+    // (opcjonalnie) klawiatura: Enter/Space na .mega-toggle
+    document.addEventListener('keydown', (e) => {
+      if ((e.key !== 'Enter' && e.key !== ' ') ) return;
+      const btn = e.target.closest('button.mega-toggle');
+      if (!btn) return;
+      e.preventDefault();
+      btn.click();
+    });
+  }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start);
   } else {
     start();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMega, { once: true });
+  } else {
+    initMega();
   }
 })();
