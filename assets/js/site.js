@@ -72,13 +72,15 @@
   function themeToggle() {
     const btn = $('[data-action="theme-toggle"]');
     if (!btn) return;
+    const KEY = window.THEME_KEY || 'kt_theme';
     btn.addEventListener('click', () => {
-      const dark = document.documentElement.classList.toggle('theme-dark');
-      try { localStorage.setItem('theme', dark?'dark':'auto'); } catch(_){}
+      const saved = localStorage.getItem(KEY) || 'auto';
+      const next = saved === 'dark' ? 'auto' : 'dark';
+      try { localStorage.setItem(KEY, next); } catch(_){}
+      document.documentElement.classList.toggle('theme-dark', window.themeIsDark());
     });
     try {
-      const pref = localStorage.getItem('theme');
-      if (pref === 'dark') document.documentElement.classList.add('theme-dark');
+      if (window.themeIsDark()) document.documentElement.classList.add('theme-dark');
     } catch(_){}
   }
 
@@ -123,6 +125,12 @@
     const dockMenu = $('#dockMenu');
     const mobileList = $('#mobileList');
     const promo = $('#promoBar');
+
+    // langs & theme
+    const langBtn = $('#langBtn'), langDd = $('#langsDd'), langWrap = $('#langsWrap');
+    const themeBtn = $('#themeBtn'), themeDd = $('#themeDd'), themeIcon = $('#themeIcon'), themeLabel = $('#themeLabel');
+    const SUN = header.dataset.themeSun || '/assets/flags/theme-sun.svg';
+    const MOON = header.dataset.themeMoon || '/assets/flags/theme-moon.svg';
 
     header.dataset.mega = 'closed';
     if (mobileList && primary && mobileList.children.length === 0) {
@@ -277,10 +285,68 @@
       });
     }
 
+    // THEME dropdown
+    const THEME_KEY = window.THEME_KEY || 'kt_theme';
+    function applyTheme() {
+      const saved = localStorage.getItem(THEME_KEY) || 'auto';
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const dark = saved === 'dark' || (saved === 'auto' && prefersDark);
+      document.documentElement.classList.toggle('theme-dark', dark);
+      if (themeIcon) themeIcon.src = dark ? SUN : MOON;
+      if (themeLabel) themeLabel.textContent = saved.charAt(0).toUpperCase() + saved.slice(1);
+      if (themeBtn) themeBtn.setAttribute('aria-expanded','false');
+      if (themeDd) themeDd.setAttribute('aria-hidden','true');
+    }
+    if (themeBtn && themeDd) {
+      applyTheme();
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+      }
+      themeBtn.addEventListener('click', () => {
+        const exp = themeBtn.getAttribute('aria-expanded') === 'true';
+        themeBtn.setAttribute('aria-expanded', String(!exp));
+        themeDd.setAttribute('aria-hidden', String(exp));
+      });
+      themeDd.addEventListener('click', e => {
+        const b = e.target.closest('button[data-theme]');
+        if (!b) return;
+        try { localStorage.setItem(THEME_KEY, b.dataset.theme); } catch(_){}
+        applyTheme();
+      });
+      document.addEventListener('click', e => {
+        if (!themeDd.contains(e.target) && e.target !== themeBtn) {
+          themeDd.setAttribute('aria-hidden','true');
+          themeBtn.setAttribute('aria-expanded','false');
+        }
+      });
+    }
+
+    // LANGS dropdown
+    function openLangs(open) {
+      if (!langBtn || !langDd) return;
+      langBtn.setAttribute('aria-expanded', String(open));
+      langDd.setAttribute('aria-hidden', String(!open));
+    }
+    if (langBtn && langDd) {
+      langBtn.addEventListener('click', () => {
+        const exp = langBtn.getAttribute('aria-expanded') === 'true';
+        openLangs(!exp);
+      });
+      header.addEventListener('click', e => {
+        if (!langWrap || !langWrap.contains(e.target)) openLangs(false);
+      });
+    }
+
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') {
         closeMega();
         if (drawer && drawer.getAttribute('data-open') === 'true') closeDrawer();
+        if (langBtn && langBtn.getAttribute('aria-expanded') === 'true') { openLangs(false); try { langBtn.focus(); } catch(_){} }
+        if (themeBtn && themeBtn.getAttribute('aria-expanded') === 'true') {
+          themeDd.setAttribute('aria-hidden','true');
+          themeBtn.setAttribute('aria-expanded','false');
+          try { themeBtn.focus(); } catch(_){}
+        }
       }
       if (e.key === 'Tab' && mega && mega.dataset.state === 'open') {
         const focusable = mega.querySelectorAll('a,button,input,select,textarea');
