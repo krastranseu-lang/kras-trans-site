@@ -143,7 +143,37 @@
     <nav id="primaryNav" class="nav sq-nav" role="navigation" aria-label="Główne menu">
       <ul class="nav__list" id="navList">
         {% for item in (nav_data.primary or []) %}
-          {% if item.panel %}
+          {% if item.cols %}
+            {% set mid = 'mega-' ~ loop.index %}
+            <li class="has-mega">
+              <button class="mega-toggle" type="button" aria-expanded="false" aria-controls="{{ mid }}">{{ item.label }}</button>
+              <div id="{{ mid }}" class="mega" aria-hidden="true">
+                <div class="mega__grid">
+                  {% for col in (item.cols or []) %}
+                    <div>
+                      {% if col.title %}<h3>{{ col.title }}</h3>{% endif %}
+                      <ul>
+                        {% for ch in (col.items or []) %}
+                          {% if ch.items %}
+                            <li>
+                              <span>{{ ch.label }}</span>
+                              <ul>
+                                {% for sub in (ch.items or []) %}
+                                  <li><a href="{{ sub.href }}">{{ sub.label }}</a></li>
+                                {% endfor %}
+                              </ul>
+                            </li>
+                          {% else %}
+                            <li><a href="{{ ch.href }}">{{ ch.label }}</a></li>
+                          {% endif %}
+                        {% endfor %}
+                      </ul>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </li>
+          {% elif item.panel %}
             <li data-panel="{{ item.panel }}">
               <button type="button" aria-expanded="false" aria-controls="panel-{{ item.panel }}">{{ item.label }}</button>
             </li>
@@ -243,7 +273,34 @@
       <nav class="mobile-nav" aria-label="Nawigacja mobilna">
         <ul class="mobile-nav__list" id="mobileList">
           {% for item in (nav_data.primary or []) %}
-            <li><a href="{{ item.href or '#' }}">{{ item.label }}</a></li>
+            {% if item.cols %}
+              {% set mid = 'm-' ~ loop.index %}
+              <li class="has-children">
+                <button type="button" aria-expanded="false" aria-controls="{{ mid }}">{{ item.label }}</button>
+                <ul id="{{ mid }}" hidden>
+                  {% for col in (item.cols or []) %}
+                    {% if col.title %}<li class="heading">{{ col.title }}</li>{% endif %}
+                    {% for ch in (col.items or []) %}
+                      {% if ch.items %}
+                        {% set sid = mid ~ '-' ~ loop.parentloop.index ~ '-' ~ loop.index %}
+                        <li class="has-children">
+                          <button type="button" aria-expanded="false" aria-controls="{{ sid }}">{{ ch.label }}</button>
+                          <ul id="{{ sid }}" hidden>
+                            {% for sub in (ch.items or []) %}
+                              <li><a href="{{ sub.href }}">{{ sub.label }}</a></li>
+                            {% endfor %}
+                          </ul>
+                        </li>
+                      {% else %}
+                        <li><a href="{{ ch.href }}">{{ ch.label }}</a></li>
+                      {% endif %}
+                    {% endfor %}
+                  {% endfor %}
+                </ul>
+              </li>
+            {% else %}
+              <li><a href="{{ item.href or '#' }}">{{ item.label }}</a></li>
+            {% endif %}
           {% endfor %}
         </ul>
       </nav>
