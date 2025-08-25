@@ -1,9 +1,3 @@
 {
-"home": {
-"services": [
-{ "icon": "🚚", "title": {"pl":"FTL / LTL","en":"FTL / LTL"}, "desc": {"pl":"Całopojazdowe i częściowe.","en":"Full and partial loads."} },
-{ "icon": "🕒", "title": {"pl":"Just‑in‑time","en":"Just‑in‑time"}, "desc": {"pl":"Dostawy na czas.","en":"On‑time deliveries."} },
-{ "icon": "🔒", "title": {"pl":"Bezpieczeństwo","en":"Safety"}, "desc": {"pl":"Monitoring 24/7.","en":"24/7 tracking."} }
-]
-}
+  "note": "deprecated file menu.json - use menu.xlsx"
 }
