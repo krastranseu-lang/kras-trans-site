@@ -1,30 +1,228 @@
-<header>
-  <div class="sticky top-0 z-50 backdrop-blur bg-white/80 border-b">
-    <div class="max-w-screen-xl mx-auto flex items-center justify-between px-6 py-4">
-      
-      <!-- Logo -->
-      <a href="/" class="flex items-center">
-        <img src="/assets/media/logo-firma-transportowa-kras-trans.png" alt="Keras-Trans – transport i spedycja" class="h-10 w-auto">
-      </a>
-      
-      <!-- Menu -->
-      <nav class="hidden md:flex space-x-8">
-        <a href="/pl/cennik/" class="hover:text-primary">Cennik</a>
-        <a href="/pl/zamow/" class="hover:text-primary">Zamow</a>
-        <a href="/pl/harmonogramy/" class="hover:text-primary">Harmonogramy</a>
-        <a href="/pl/sledenie/" class="hover:text-primary">ćledenie</a>
-        <a href="/pl/zarzadzaj/" class="hover:text-primary">Zarzěadj</a>
-        <a href="/pl/uslugi/" class="hover:text-primary">Usżgi</a>
-        <a href="/pl/firma/" class="hover:text-primary">Firma</a>
-        <a href="/pl/wsparcie/" class="hover:text-primary">Wsparcie</a>
-        <a href="/pl/blog/" class="hover:text-primary">Blog</a>
-        <a href="/pl/kontakt/" class="hover:text-primary">Kontakt</a>
-      </nav>
-      
-      <!-- CTA -->
-      <div class="flex items-center space-x-4">
-        <a href="/pl/zamow-wycene/" class="bg-primary text-white px4 py2 rounded-2xl hover:bg-primary/80 transition">Zamówz wycenę</a>
-      </div>
-    </div>
-  </div>
-</header>
+{# --- SAFE CONTEXT GUARDS ------------------------------------------- #}
+{# `site` bywa stringiem — normalizujemy do dict #}
+{% set _site = site if site is mapping else {} %}
+
+{# `company` z arkusza może być listą lub dict – normalizujemy #}
+{% set _company = (
+  company[0] if company is sequence and company|length > 0
+  else company if company is mapping
+  else {}
+) %}
+
+{# brand może być dict albo string #}
+{% set _brand_obj = _site.get('brand') %}
+{% if _brand_obj is mapping %}
+  {% set _brand_name = _brand_obj.get('name') or 'Kras‑Trans' %}
+{% else %}
+  {% set _brand_name = _brand_obj or 'Kras‑Trans' %}
+{% endif %}
+
+{# meta / og / privacy — tylko jeśli to dict, inaczej puste/def. #}
+{% set _meta_obj = _site.get('meta') %}
+{% set _meta_desc = (_meta_obj.get('description') if _meta_obj is mapping else '') %}
+
+{% set _og_obj = _site.get('og') %}
+{% set _og_title = (_og_obj.get('title') if _og_obj is mapping else None) %}
+{% set _og_image = (_og_obj.get('image') if _og_obj is mapping else None) %}
+
+{% set _priv_obj = _site.get('privacy') %}
+{% set _referrer_policy = (_priv_obj.get('referrerPolicy') if _priv_obj is mapping else 'strict-origin-when-cross-origin') %}
+
+<!doctype html>
+<html lang="{{ page.lang or _site.get('defaultLang', 'pl') }}" class="no-js" data-color-scheme="light dark">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="x-ua-compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="referrer" content="{{ _referrer_policy }}" />
+  <meta name="color-scheme" content="light dark" />
+  <!-- Theme color per scheme (bez migotania paska adresu) -->
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0ea5e9" />
+  <meta name="theme-color" media="(prefers-color-scheme: dark)"  content="#0b1020" />
+
+  {# bezpieczny tytuł: preferuj seo_title, potem h1/title, w ostateczności brand #}
+  <title>{{ page.seo_title or page.h1 or page.title or _og_title or _brand_name }}</title>
+  <meta name="description" content="{{ page.meta_desc or _meta_desc }}" />
+  {% if page.noindex %}<meta name="robots" content="noindex,follow" />{% else %}<meta name="robots" content="index,follow" />{% endif %}
+  <link rel="canonical" href="{{ page.canonical or canonical }}" />
+
+  {% if _company.telephone %}<meta name="telephone" content="{{ _company.telephone }}" />{% endif %}
+  {% if _company.email %}<meta name="email" content="{{ _company.email }}" />{% endif %}
+
+  {# --- HREFLANG (z buildera) --- #}
+  {% if alternates %}
+    {% for code, href in alternates.items() %}
+      <link rel="alternate" hreflang="{{ code }}" href="{{ href }}" />
+    {% endfor %}
+  {% endif %}
+  {% if hreflang %}
+    {% for code, href in hreflang.items() %}
+      <link rel="alternate" hreflang="{{ code }}" href="{{ href }}" />
+    {% endfor %}
+  {% endif %}
+
+  {# --- GSC --- #}
+  {% if gsc_verification %}<meta name="google-site-verification" content="{{ gsc_verification }}" />{% endif %}
+
+  {# --- OG / Twitter --- #}
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="{{ _brand_name }}" />
+  <meta property="og:url" content="{{ page.canonical or canonical }}" />
+  <meta property="og:title" content="{{ page.seo_title or page.title or _og_title or _brand_name }}" />
+  <meta property="og:description" content="{{ page.meta_desc or _meta_desc }}" />
+  <meta property="og:image" content="{{ (_site.get('url') or _site.get('base_url') or '') ~ (page.og_image or _og_image or '/assets/media/og-default.webp') }}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{ page.seo_title or page.title or _og_title or _brand_name }}" />
+  <meta name="twitter:description" content="{{ page.meta_desc or _meta_desc }}" />
+  <meta name="twitter:image" content="{{ (_site.get('url') or _site.get('base_url') or '') ~ (page.og_image or _og_image or '/assets/media/og-default.webp') }}" />
+
+  {# --- Ikony (bez 404 – tylko to, co faktycznie masz) --- #}
+  {% set has_favicon = assets.icons and assets.icons.favicon %}
+  {% set has_svgicon = assets.icons and assets.icons.svg %}
+  {% set has_apple   = assets.icons and assets.icons.apple %}
+  {% if has_favicon %}<link rel="icon" href="{{ assets.icons.favicon }}" sizes="any" />{% endif %}
+  {% if has_svgicon %}<link rel="icon" href="{{ assets.icons.svg }}" type="image/svg+xml" />{% endif %}
+  {% if has_apple   %}<link rel="apple-touch-icon" href="{{ assets.icons.apple }}" />{% endif %}
+
+  {# --- Manifest (warunkowo; usunie 404, jeśli brak pliku) --- #}
+  {% if assets.manifest %}<link rel="manifest" href="{{ assets.manifest }}" />{% endif %}
+
+  {# --- Preconnecty TYLKO jeśli potrzebne --- #}
+  {% if ga_id %}
+    <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+  {% endif %}
+
+  {# --- LCP image SSR (jeśli znany) --- #}
+  {% if page.lcp_image %}
+    <link rel="preload" as="image" fetchpriority="high"
+          href="{{ page.lcp_image.src or page.lcp_image }}"
+          {% if page.lcp_image.srcset %}imagesrcset="{{ page.lcp_image.srcset }}"{% endif %} />
+  {% endif %}
+
+  {# --- Early theme (avoid flash of wrong theme before CSS) --- #}
+  <script>
+    (function () {
+      window.THEME_KEY = 'kt_theme';
+      window.themeIsDark = function () {
+        const saved = localStorage.getItem(window.THEME_KEY) || 'auto';
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        return saved === 'dark' || (saved === 'auto' && prefersDark);
+      };
+      document.documentElement.classList.toggle('theme-dark', window.themeIsDark());
+    })();
+  </script>
+
+  {# --- Preloady / CSS (z pages.yml / buildera) --- #}
+  {% if assets.preload %}
+    {% for p in assets.preload %}
+      <link rel="preload" as="{{ p.as }}" href="{{ p.href }}"{% if p.crossorigin %} crossorigin{% endif %}{% if p.fetchpriority %} fetchpriority="{{ p.fetchpriority }}"{% endif %} />
+    {% endfor %}
+  {% endif %}
+  {% if assets.css %}
+    {% for href in assets.css %}
+      <link rel="stylesheet" href="{{ href }}" />
+    {% endfor %}
+  {% endif %}
+
+  {# --- Self-host fonts + minimum krytycznego CSS (a11y + layout) --- #}
+  <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable.woff2" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/InterVariable-Italic.woff2" crossorigin>
+  <style>
+    @font-face{font-family:'InterVariable';src:url('/assets/fonts/InterVariable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
+    @font-face{font-family:'InterVariable';src:url('/assets/fonts/InterVariable-Italic.woff2') format('woff2');font-weight:100 900;font-style:italic;font-display:swap}
+    :root{--brand:#0ea5e9;--focus:#22C3A6;--fg:#0b1020}
+    html{scroll-behavior:smooth}
+    body{margin:0;font-family:'InterVariable',system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial,'Noto Sans','Liberation Sans',sans-serif;color:#1f2937;background:#fff}
+    .wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+    .skip-link{position:absolute;left:-999px;top:auto;width:1px;height:1px;overflow:hidden}
+    .skip-link:focus{left:12px;top:8px;width:auto;height:auto;background:#111;color:#fff;padding:8px 12px;border-radius:12px;z-index:100}
+    :focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+    .site-header{position:sticky;top:0;z-index:50;backdrop-filter:saturate(180%) blur(12px);background:rgba(255,255,255,.72);border-bottom:1px solid rgba(0,0,0,.06)}
+    @media (prefers-color-scheme: dark){body{background:#0b1020;color:#e5e7eb}.site-header{background:rgba(15,23,42,.62);border-color:rgba(255,255,255,.08)}}
+  </style>
+
+  <script>document.documentElement.classList.remove('no-js');</script>
+</head>
+  <body>
+    {% include "_partials/header.html" %}
+
+    <main id="main" tabindex="-1" role="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  {# --- FOOTER partial (Twoja ścieżka > fallback) --- #}
+  {% if footer_path %}
+    {% include footer_path %}
+  {% else %}
+    {% include "_partials/footer.html" %}
+  {% endif %}
+
+  {# --- JSON-LD (builder wstrzykuje gotowy <script type="application/ld+json">) --- #}
+  {% if jsonld %}{{ jsonld|safe }}{% endif %}
+
+  {# --- JS (defer) z pages.yml / buildera --- #}
+  {% if assets.js %}
+    {% for src in assets.js %}
+      <script defer src="{{ src }}"></script>
+    {% endfor %}
+  {% endif %}
+
+  {# --- Late loader (opcjonalny pakiet po idle) --- #}
+  <script>
+  (function(){
+    function loadLate(){
+      document.querySelectorAll('script[data-late]').forEach(function(s){
+        var n=document.createElement('script');
+        for (var i=0;i<s.attributes.length;i++){var a=s.attributes[i]; if(a.name!=='data-late') n.setAttribute(a.name,a.value);}
+        n.defer = s.defer || true; s.remove(); document.body.appendChild(n);
+      });
+      {% if assets.js_late %}
+        try { var late={{ assets.js_late | tojson }}; late.forEach(function(src){ var n=document.createElement('script'); n.defer=true; n.src=src; document.body.appendChild(n); }); } catch(e){}
+      {% endif %}
+    }
+    if('requestIdleCallback' in window){ requestIdleCallback(loadLate,{timeout:1500}); }
+    else { window.addEventListener('load', loadLate, {once:true}); }
+  })();
+  </script>
+
+  {# --- CMS_ENDPOINT stała --- #}
+  <script>
+    window.CMS_ENDPOINT = window.CMS_ENDPOINT || '';
+  </script>
+
+  {# --- Fallback: doładuj /assets/js/cms.js jeśli nie ma w assets.js --- #}
+  <script>
+    (function(){
+      if(!document.querySelector('script[src*="/assets/js/cms.js"],script[data-src*="/assets/js/cms.js"]')){
+        var s=document.createElement('script'); s.defer=true; s.src='/assets/js/cms.js'; document.body.appendChild(s);
+      }
+    })();
+  </script>
+
+  {# --- Google Analytics (lekko, po idle/zgodzie) --- #}
+  {% if ga_id %}
+  <script>
+    (function(id){
+      function loadGA(){ if(window.__gaLoaded) return; window.__gaLoaded=true;
+        var s=document.createElement('script'); s.async=true; s.src='https://www.googletagmanager.com/gtag/js?id='+id; document.head.appendChild(s);
+        window.dataLayer=window.dataLayer||[]; function gtag(){dataLayer.push(arguments);} window.gtag=gtag; gtag('js', new Date()); gtag('config', id, {anonymize_ip:true});
+      }
+      if(window.ktConsentGranted===true){ loadGA(); }
+      else if('requestIdleCallback' in window){ requestIdleCallback(loadGA,{timeout:2000}); }
+      else { window.addEventListener('load', loadGA, {once:true}); }
+    })('{{ ga_id }}');
+  </script>
+  {% endif %}
+
+  {# dopisz lekki debug overlay – włącza się querystringiem ?debug=1 #}
+  {% if request and request.args and request.args.get('debug') %}
+  <style>
+    .debug-banner{position:fixed;inset:auto 0 0 0;background:#111;color:#0f0;
+    font:12px/1.4 ui-monospace,monospace;padding:.5rem 1rem;z-index:9999;opacity:.9}
+  </style>
+  <div class="debug-banner">DEBUG: lang={{ lang }} • canonical={{ canonical }} • tpl={{ template if template is defined else '' }}</div>
+  {% endif %}
+
+  <noscript><style>.site-header{position:sticky}.reel{scroll-snap-type:none}</style></noscript>
+</body>
+</html>
