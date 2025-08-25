@@ -40,7 +40,7 @@
             const list = buildList(col.items||[]);
             return `<div class="mega-col">${title}${list}</div>`;
           }).join('');
-          return `<li class="has-mega"><button class="mega-toggle" aria-expanded="false" aria-controls="${id}">${label}</button><div id="${id}" class="mega" aria-hidden="true"><div class="mega-grid">${colsHTML}</div></div></li>`;
+          return `<li class="has-mega"><button class="mega-toggle" aria-expanded="false" aria-controls="${id}">${label}</button><div id="${id}" class="mega" aria-hidden="true" hidden><div class="mega-grid">${colsHTML}</div></div></li>`;
         }
         return `<li><a href="${href}">${label}</a></li>`;
       }).join('');
@@ -52,18 +52,22 @@
       btns.forEach(b=>{
         const p = document.getElementById(b.getAttribute('aria-controls'));
         b.setAttribute('aria-expanded','false');
-        if(p) p.hidden=true;
+        if(p){ p.hidden=true; p.setAttribute('aria-hidden','true'); }
       });
     }
     btns.forEach((btn,idx)=>{
       const panel = document.getElementById(btn.getAttribute('aria-controls'));
-      if(panel) panel.hidden=true;
+      if(panel){ panel.hidden=true; panel.setAttribute('aria-hidden','true'); }
       btn.addEventListener('click',e=>{
         const exp = btn.getAttribute('aria-expanded')==='true';
         closeAll();
         if(!exp){
           btn.setAttribute('aria-expanded','true');
-          if(panel){ panel.hidden=false; const first = panel.querySelector('a,button'); first&&first.focus(); }
+          if(panel){
+            panel.hidden=false;
+            panel.setAttribute('aria-hidden','false');
+            const first = panel.querySelector('a,button'); first&&first.focus();
+          }
         }
         e.stopPropagation();
       });
