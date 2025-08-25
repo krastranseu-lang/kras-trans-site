@@ -41,10 +41,12 @@
       }).join('');
   }
 
+  let docBound = false;
+  function closeAll(except){ $$('.mega-toggle').forEach(b=>{ if(b!==except) b.setAttribute('aria-expanded','false'); }); }
   function bindMega(){
-    const btns = $$('.mega-toggle');
-    function closeAll(except){ btns.forEach(b=>{ if(b!==except) b.setAttribute('aria-expanded','false'); }); }
-    btns.forEach(btn=>{
+    $$('.mega-toggle').forEach(btn=>{
+      if(btn.dataset.megaBound) return;
+      btn.dataset.megaBound='1';
       const panel = document.getElementById(btn.getAttribute('aria-controls'));
       const set = v=>btn.setAttribute('aria-expanded', v?'true':'false');
       btn.addEventListener('click', e=>{
@@ -54,8 +56,11 @@
       });
       if (panel) panel.addEventListener('mouseleave', ()=>set(false));
     });
-    document.addEventListener('click', ()=>closeAll(null));
-    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAll(null); });
+    if(!docBound){
+      document.addEventListener('click', ()=>closeAll(null));
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAll(null); });
+      docBound = true;
+    }
   }
 
   function currentVersion(){
@@ -92,7 +97,16 @@
     }catch(e){ console.warn('[cms] navigation update failed', e); }
   }
 
+  function watchNav(){
+    const ul = document.getElementById(UL_ID);
+    if(!ul) return;
+    const mo = new MutationObserver(()=>bindMega());
+    mo.observe(ul, {childList:true, subtree:true});
+  }
+
   function start(){
+    bindMega();
+    watchNav();
     if ('requestIdleCallback' in window) requestIdleCallback(revalidate);
     else setTimeout(revalidate, 600);
     setInterval(revalidate, 5*60*1000);
