@@ -14,6 +14,18 @@
   function slug(s){return (s||'').normalize('NFKD').replace(/[^\w\s-]/g,'')
     .replace(/\s+/g,'-').replace(/-+/g,'-').toLowerCase();}
 
+  function buildList(list){
+    if(!Array.isArray(list)) return '';
+    return '<ul>' + list.map(it=>{
+      const lbl = esc(it.label||'');
+      const href = esc(it.href||'/');
+      if(Array.isArray(it.items) && it.items.length){
+        return `<li class="has-sub"><button type="button" aria-expanded="false">${lbl}</button>` + buildList(it.items) + '</li>';
+      }
+      return `<li><a href="${href}">${lbl}</a></li>`;
+    }).join('') + '</ul>';
+  }
+
   function buildHTML(bundle){
     if(!bundle || !Array.isArray(bundle.items)) return '';
     return bundle.items
@@ -22,36 +34,56 @@
         const label = esc(it.label||'');
         const href  = esc(it.href||'/');
         if(Array.isArray(it.cols) && it.cols.length){
-          const id = "mega-"+slug(label);
+          const id = 'mega-' + slug(label);
           const colsHTML = it.cols.map(col=>{
-            const lis = (col||[]).map(ch=>`<li><a href="${esc(ch.href||'/')}">${esc(ch.label||'')}</a></li>`).join('');
-            return `<div class="mega-col"><ul>${lis}</ul></div>`;
+            const title = col.title ? `<h3>${esc(col.title)}</h3>` : '';
+            const list = buildList(col.items||[]);
+            return `<div class="mega-col">${title}${list}</div>`;
           }).join('');
-          return `<li class="has-mega">
-            <button class="mega-toggle" aria-expanded="false" aria-controls="${id}">${label}</button>
-            <div id="${id}" class="mega" role="dialog" aria-label="${label}" aria-modal="false">
-              <div class="mega-grid">${colsHTML}</div>
-            </div>
-          </li>`;
-        } else {
-          return `<li><a href="${href}">${label}</a></li>`;
+          return `<li class="has-mega"><button class="mega-toggle" aria-expanded="false" aria-controls="${id}">${label}</button><div id="${id}" class="mega" aria-hidden="true"><div class="mega-grid">${colsHTML}</div></div></li>`;
         }
+        return `<li><a href="${href}">${label}</a></li>`;
       }).join('');
   }
 
   function bindMega(){
     const btns = $$('.mega-toggle');
-    function closeAll(except){ btns.forEach(b=>{ if(b!==except) b.setAttribute('aria-expanded','false'); }); }
-    btns.forEach(btn=>{
-      const set = v=>btn.setAttribute('aria-expanded', v?'true':'false');
-      btn.addEventListener('mouseenter', e=>{
-        e.stopPropagation();
-        closeAll(btn); set(true);
+    function closeAll(){
+      btns.forEach(b=>{
+        const p = document.getElementById(b.getAttribute('aria-controls'));
+        b.setAttribute('aria-expanded','false');
+        if(p) p.hidden=true;
       });
-      btn.addEventListener('mouseleave', ()=>set(false));
+    }
+    btns.forEach((btn,idx)=>{
+      const panel = document.getElementById(btn.getAttribute('aria-controls'));
+      if(panel) panel.hidden=true;
+      btn.addEventListener('click',e=>{
+        const exp = btn.getAttribute('aria-expanded')==='true';
+        closeAll();
+        if(!exp){
+          btn.setAttribute('aria-expanded','true');
+          if(panel){ panel.hidden=false; const first = panel.querySelector('a,button'); first&&first.focus(); }
+        }
+        e.stopPropagation();
+      });
+      btn.addEventListener('keydown',e=>{
+        if(e.key==='Enter' || e.key===' '){ e.preventDefault(); btn.click(); }
+        else if(e.key==='ArrowRight'){ e.preventDefault(); btns[(idx+1)%btns.length].focus(); }
+        else if(e.key==='ArrowLeft'){ e.preventDefault(); btns[(idx-1+btns.length)%btns.length].focus(); }
+        else if(e.key==='Escape'){ closeAll(); btn.focus(); }
+      });
+      if(panel){
+        panel.addEventListener('keydown',e=>{
+          const list = Array.from(panel.querySelectorAll('a,button'));
+          const i = list.indexOf(document.activeElement);
+          if(e.key==='ArrowDown'){ e.preventDefault(); list[(i+1)%list.length].focus(); }
+          else if(e.key==='ArrowUp'){ e.preventDefault(); list[(i-1+list.length)%list.length].focus(); }
+          else if(e.key==='Escape'){ e.preventDefault(); closeAll(); btn.focus(); }
+        });
+      }
     });
-    document.addEventListener('click', ()=>closeAll(null));
-    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAll(null); });
+    document.addEventListener('click',e=>{ if(!e.target.closest('.has-mega')) closeAll(); });
   }
 
   function currentVersion(){
