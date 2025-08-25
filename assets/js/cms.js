@@ -8,7 +8,6 @@
   const PREFIX = '/assets/nav';
 
   const $ = s => document.querySelector(s);
-  const $$ = s => Array.from(document.querySelectorAll(s));
 
   function esc(s){return String(s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -19,21 +18,15 @@
   function buildHTML(bundle){
     if(!bundle || !Array.isArray(bundle.items)) return '';
     return bundle.items
+      .slice()
       .sort((a,b)=> (a.order||999)-(b.order||999) || String(a.label).localeCompare(String(b.label)))
-      .map(it=>{
+      .map((it,i)=>{
         const label = esc(it.label||'');
         const href  = esc(it.href||'/');
         if(Array.isArray(it.cols) && it.cols.length){
-          const id = "mega-"+slug(label);
-          const colsHTML = it.cols.map(col=>{
-            const lis = (col||[]).map(ch=>`<li><a href="${esc(ch.href||'/')}">${esc(ch.label||'')}</a></li>`).join('');
-            return `<div class="mega-col"><ul>${lis}</ul></div>`;
-          }).join('');
-          return `<li class="has-mega">
-            <button class="mega-toggle" aria-expanded="false" aria-controls="${id}">${label}</button>
-            <div id="${id}" class="mega" role="dialog" aria-label="${label}" aria-modal="false" hidden aria-hidden="true">
-              <div class="mega-grid">${colsHTML}</div>
-            </div>
+          const id = slug(label) || (`m-${i}`);
+          return `<li class="has-mega" data-panel="${id}">
+            <button type="button" aria-expanded="false" aria-controls="panel-${id}">${label}</button>
           </li>`;
         } else {
           return `<li><a href="${href}">${label}</a></li>`;
@@ -41,37 +34,21 @@
       }).join('');
   }
 
-  let docBound = false;
-  function closeAll(except){
-    $$('.mega-toggle').forEach(b=>{
-      if(except && b===except) return;
-      b.setAttribute('aria-expanded','false');
-      const p = document.getElementById(b.getAttribute('aria-controls'));
-      if(p){ p.hidden=true; p.setAttribute('aria-hidden','true'); }
-    });
-  }
-  function bindMega(){
-    $$('.mega-toggle').forEach(btn=>{
-      if(btn.dataset.megaBound) return;
-      btn.dataset.megaBound='1';
-      const panel = document.getElementById(btn.getAttribute('aria-controls'));
-      if(panel){ panel.hidden=true; panel.setAttribute('aria-hidden','true'); }
-      const set = v=>{
-        btn.setAttribute('aria-expanded', v?'true':'false');
-        if(panel){ panel.hidden=!v; panel.setAttribute('aria-hidden', v?'false':'true'); }
-      };
-      btn.addEventListener('click', e=>{
-        e.stopPropagation();
-        const open = btn.getAttribute('aria-expanded') !== 'true';
-        closeAll(btn); set(open);
-      });
-      if (panel) panel.addEventListener('mouseleave', ()=>set(false));
-    });
-    if(!docBound){
-      document.addEventListener('click', ()=>closeAll());
-      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAll(); });
-      docBound = true;
-    }
+  function buildPanels(bundle){
+    if(!bundle || !Array.isArray(bundle.items)) return '';
+    return bundle.items
+      .slice()
+      .sort((a,b)=> (a.order||999)-(b.order||999) || String(a.label).localeCompare(String(b.label)))
+      .filter(it=>Array.isArray(it.cols) && it.cols.length)
+      .map((it,i)=>{
+        const label = esc(it.label||'');
+        const id = slug(label) || (`m-${i}`);
+        const colsHTML = it.cols.map(col=>{
+          const lis = (col||[]).map(ch=>`<li><a href="${esc(ch.href||'/')}">${esc(ch.label||'')}</a></li>`).join('');
+          return `<div><ul>${lis}</ul></div>`;
+        }).join('');
+        return `<section id="panel-${id}" class="mega__section" data-panel="${id}"><div class="mega__grid">${colsHTML}</div></section>`;
+      }).join('');
   }
 
   function currentVersion(){
@@ -102,27 +79,18 @@
       // Podmień tylko gdy SSR jest puste LUB wersja się zmieniła
       if (ul.children.length === 0 || data.version !== currentVersion()){
         const html = buildHTML(data);
+        const panels = buildPanels(data);
         ul.innerHTML = html;
         const mob = document.getElementById('mobileList');
         if (mob) mob.innerHTML = html;
-        bindMega();
+        const panelWrap = document.getElementById('megaPanels');
+        if (panelWrap) panelWrap.innerHTML = panels;
+        if (typeof window.initHeaderSquarespace === 'function') window.initHeaderSquarespace();
         setVersion(data.version);
       }
     }catch(e){ console.warn('[cms] navigation update failed', e); }
   }
-
-  function watchNav(){
-    const ul = document.getElementById(UL_ID);
-    const mob = document.getElementById('mobileList');
-    if(!ul && !mob) return;
-    const mo = new MutationObserver(()=>bindMega());
-    if(ul) mo.observe(ul, {childList:true, subtree:true});
-    if(mob) mo.observe(mob, {childList:true, subtree:true});
-  }
-
   function start(){
-    bindMega();
-    watchNav();
     if ('requestIdleCallback' in window) requestIdleCallback(revalidate);
     else setTimeout(revalidate, 600);
     setInterval(revalidate, 5*60*1000);
