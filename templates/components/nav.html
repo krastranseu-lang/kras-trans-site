@@ -1,0 +1,24 @@
+{% for item in (nav_data.primary or []) %}
+  {% if item.cols %}
+    {% set mid = 'm-' ~ loop.index %}
+    <li class="has-mega">
+      <a href="{{ item.href }}">{{ item.label }}</a>
+      <button class="mega-toggle" aria-expanded="false" aria-controls="mega-{{ mid }}">▾</button>
+      <div id="mega-{{ mid }}" class="mega" hidden aria-hidden="true">
+        <div class="mega-grid">
+          {% for col in item.cols %}
+            <div class="mega-col">
+              <ul>
+                {% for ch in col %}
+                  <li><a href="{{ ch.href }}">{{ ch.label }}</a></li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </li>
+  {% else %}
+    <li><a href="{{ item.href }}">{{ item.label }}</a></li>
+  {% endif %}
+{% endfor %}

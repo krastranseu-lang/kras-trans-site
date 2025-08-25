@@ -144,10 +144,21 @@
     if (!root.__cmsMegaListener) {
       root.addEventListener('click', e => {
         const btn = e.target.closest && e.target.closest('.mega-toggle');
-        if (!btn) return;
-        toggleMega(btn, root);
+        if (btn) {
+          e.preventDefault();
+          toggleMega(btn, root);
+        } else if (!e.target.closest || !e.target.closest('.has-mega')) {
+          closeOthers(null, root);
+        }
       });
       root.__cmsMegaListener = true;
+    }
+
+    if (!root.__cmsMegaKeyListener) {
+      root.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeOthers(null, root);
+      });
+      root.__cmsMegaKeyListener = true;
     }
 
     if (root.querySelectorAll) {
