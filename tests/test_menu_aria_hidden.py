@@ -15,7 +15,7 @@ def test_menu_toggle_updates_visibility_and_a11y():
         browser = p.chromium.launch()
         page = browser.new_page()
         page.set_content(html)
-        page.add_script_tag(path='assets/js/menu.js')
+        page.add_script_tag(path='assets/js/cms.js')
         # open
         page.click("button[aria-controls='mega-a']")
         assert page.get_attribute("button[aria-controls='mega-a']", 'aria-expanded') == 'true'
