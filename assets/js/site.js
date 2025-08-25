@@ -372,7 +372,7 @@
       });
     }
   }
-
+  window.initHeaderSquarespace = initHeaderSquarespace;
 
   document.addEventListener('DOMContentLoaded', () => {
     initProgress();
