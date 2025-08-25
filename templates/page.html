@@ -65,7 +65,7 @@
       <p id="hero-lead" class="hero__lead">{{ pg.lead }}</p>
 
       <div class="cta-row">
-        <a class="btn btn-primary"
+        <a id="cta" class="btn btn-primary"
            href="{{ href_by_slugkey('quote') }}"
            data-bind="href: hero.cta_primary.slugKey|slug, text: hero.cta_primary.label">
           {{ H.cta_primary.label if ssr else STR('cta_quote_primary') }}

@@ -280,6 +280,19 @@ def _flatten_page(P: dict, L: str) -> dict:
     return base
 
 
+def _page_fields(row: dict) -> Dict[str, str]:
+    """Map Pages row to normalized page fields."""
+    row = row or {}
+    return {
+        "lang": row.get("lang", ""),
+        "slug": row.get("slug", ""),
+        "h1": (row.get("h1") or row.get("title") or "").strip(),
+        "title": (row.get("seo_title") or row.get("title") or "").strip(),
+        "lead": (row.get("lead") or "").strip(),
+        "cta_label": (row.get("cta_label") or "").strip(),
+    }
+
+
 def _nav_data_from_rows(rows, fallback):
     out = {}
     rows = rows or []
@@ -1253,6 +1266,29 @@ def build_all():
                 page_raw = {"lang": L, "key": key, "slug": f"/{L}/{rel}/", "title": key, "h1": key, "template": "page.html", "meta": {}}
             page_rec = _flatten_page(page_raw, L)
             assert isinstance(page_rec, dict), f"expected dict page, got {type(page_rec)} for {L}/{key}"
+            page_fields = _page_fields(page_rec)
+            page_rec.update(page_fields)
+
+            ssr: Dict[str, Any] = {
+                "hero": {
+                    "title": page_fields["h1"] or page_fields["title"],
+                    "lead": page_fields["lead"],
+                    "claim": "",
+                    "kpi": [],
+                    "image": {
+                        "src": page_rec.get("hero_image") or page_rec.get("og_image") or "",
+                        "srcset": "",
+                        "alt": page_rec.get("hero_alt") or page_fields["h1"] or page_fields["title"],
+                    },
+                    "cta": {"label": page_fields["cta_label"]},
+                    "cta_primary": {"label": page_fields["cta_label"]},
+                    "cta_secondary": {"label": page_rec.get("cta_secondary", "")},
+                },
+                "services": [],
+                "faq": [],
+                "home": {"section_titles": {}, "section_subtitles": {}},
+                "routes": routes,
+            }
 
             template_rel = resolve_template(page_rec)
 
@@ -1283,6 +1319,7 @@ def build_all():
                 "canonical": canonical,
                 "STR": lambda key, _L=L: STR(_L, key),
                 "strings": strings_local,
+                "ssr": ssr,
             }
             if (page_rec.get("slugKey") or "").lower() == "blog" or (page_rec.get("type") or "").lower() == "blog":
                 ctx["blog_posts"] = posts_by_lang.get(L, [])
