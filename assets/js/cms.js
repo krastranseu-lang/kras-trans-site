@@ -101,7 +101,10 @@
 
       // Podmień tylko gdy SSR jest puste LUB wersja się zmieniła
       if (ul.children.length === 0 || data.version !== currentVersion()){
-        ul.innerHTML = buildHTML(data);
+        const html = buildHTML(data);
+        ul.innerHTML = html;
+        const mob = document.getElementById('mobileList');
+        if (mob) mob.innerHTML = html;
         bindMega();
         setVersion(data.version);
       }
@@ -110,9 +113,11 @@
 
   function watchNav(){
     const ul = document.getElementById(UL_ID);
-    if(!ul) return;
+    const mob = document.getElementById('mobileList');
+    if(!ul && !mob) return;
     const mo = new MutationObserver(()=>bindMega());
-    mo.observe(ul, {childList:true, subtree:true});
+    if(ul) mo.observe(ul, {childList:true, subtree:true});
+    if(mob) mo.observe(mob, {childList:true, subtree:true});
   }
 
   function start(){
