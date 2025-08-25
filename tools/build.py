@@ -60,6 +60,15 @@ except Exception as e:
     print("Brak wymaganych pakietów. Zainstaluj requirements.txt.", file=sys.stderr)
     raise
 
+# --- Helpers -----------------------------------------------------------------
+
+def _norm_route_segment(lang: str, seg: str) -> str:
+    seg = (seg or '').strip().strip('/')
+    # usuń błędny prefiks języka, jeśli wpisany w arkuszu
+    if seg.lower().startswith(f'{lang}/'):
+        seg = seg[len(lang)+1:]
+    return seg
+
 # --- SSR (HOME): składamy sekcje 1:1 z CMS na etapie builda ---------------
 def _routes_map() -> Dict[str, Dict[str, str]]:
     """mapa slugKey -> { lang: '/{lang}/{slug}/' } na podstawie CMS.Routes"""
@@ -69,7 +78,7 @@ def _routes_map() -> Dict[str, Dict[str, str]]:
         for key, per_lang in routes.items():
             out[key] = {}
             for L, rel in (per_lang or {}).items():
-                rel = (rel or "").strip("/")
+                rel = _norm_route_segment(L, rel)
                 out[key][L] = f"/{L}/" if not rel else f"/{L}/{rel}/"
         return out
 
@@ -80,7 +89,8 @@ def _routes_map() -> Dict[str, Dict[str, str]]:
         for L, href in (m or {}).items():
             try:
                 path = "/" + href.split("://", 1)[-1].split("/", 1)[-1]
-                out[key][L] = path if path.endswith("/") else (path + "/")
+                rel = _norm_route_segment(L, path)
+                out[key][L] = f"/{L}/" if not rel else f"/{L}/{rel}/"
             except Exception:
                 pass
 
@@ -92,8 +102,8 @@ def _routes_map() -> Dict[str, Dict[str, str]]:
             if not slugKey:
                 slugKey = "home"
             out.setdefault(slugKey, {})
-            slug = p.get("slug") or ""
-            out[slugKey][lang] = f"/{lang}/{slug + '/' if slug else ''}"
+            slug = _norm_route_segment(lang, p.get("slug") or "")
+            out[slugKey][lang] = f"/{lang}/" if not slug else f"/{lang}/{slug}/"
     return out
 
 def _ssr_home(lang:str) -> Dict[str, Any]:
@@ -232,6 +242,7 @@ def _norm_slug(lang: str, raw: str) -> str:
     return s + ("" if s.endswith("/") or s == "" else "/")
 
 def url_from(lang: str, slug: str) -> str:
+    slug = _norm_route_segment(lang, slug)
     return f"/{lang}/{(slug + '/') if slug else ''}"
 
 def canonical(site_url: str, lang: str, slug: str, canonical_path: Optional[str]=None) -> str:
@@ -998,7 +1009,7 @@ def ensure_head_injections(html: str, page: dict, hreflang_map: dict, *,
     if meta_description:
         upsert_meta(property="og:description", content=meta_description)
     upsert_meta(property="og:url", content=canonical_url)
-    slug_log = (page.get("slug") or page.get("key") or "").strip("/")
+    slug_log = _norm_route_segment(lang, page.get("slug") or page.get("key") or "")
     print(f"[head] injected for {lang}/{slug_log} canonical={canonical_path or canonical_url}")
     return str(soup)
 # --------- LINK GRAPH (pozostawione jak w starym; może być użyte w szabl.) --
@@ -1086,7 +1097,7 @@ def build_all():
         if not _truthy(row.get("publish")):
             continue
         lang_row = (row.get("lang") or dlang).lower()
-        slug_row = (row.get("slug") or "").lstrip("/")
+        slug_row = _norm_route_segment(lang_row, row.get("slug") or "")
         slug_key = f"blog__{slug_row}" if slug_row else "blog_post"
         routes.setdefault(slug_key, {})[lang_row] = f"blog/{slug_row}" if slug_row else "blog"
         posts_by_lang[lang_row].append({
@@ -1128,7 +1139,7 @@ def build_all():
     for key, per_lang in page_routes.items():
         if key in existing:
             continue
-        slug_map = {L: per_lang.get(L, "") for L in languages}
+        slug_map = {L: _norm_route_segment(L, per_lang.get(L, "")) for L in languages}
         row_dl = by_key_lang.get((key, dlang), {}) or {}
         tpl    = (row_dl.get("template") or "page.html").strip()
         parent = row_dl.get("parent_key") or "home"
@@ -1155,7 +1166,7 @@ def build_all():
             for r in pages_rows:
                 lang=r.get("lang")
                 key=r.get("key")
-                slug=r.get("slug") or ""
+                slug=_norm_route_segment(lang, r.get("slug") or "")
                 parent=r.get("parent_key") or ""
                 label=titles.get((lang,key), key)
                 href=f"/{lang}/{slug + '/' if slug else ''}"
@@ -1228,10 +1239,11 @@ def build_all():
     slugs = {}
     for p in page_list:
         sl = p.get("slugs") or {p.get("lang", dlang_check): p.get("slug", "")}
+        sl = {L: _norm_route_segment(L, s) for L, s in (sl or {}).items()}
         slugs[p["key"]] = sl
 
     def path_for(key: str, lang: str) -> str:
-        s = (slugs.get(key, {}).get(lang, "") or "").strip("/")
+        s = _norm_route_segment(lang, slugs.get(key, {}).get(lang, ""))
         return f"/{lang}/" if not s else f"/{lang}/{s}/"
 
     nav_keys = ["home","services","fleet","about","contact"] if "nav_keys" not in locals() else nav_keys
@@ -1260,7 +1272,7 @@ def build_all():
         for L in languages:
             if L not in per_lang:
                 continue
-            rel = (per_lang.get(L) or "").strip("/")
+            rel = _norm_route_segment(L, per_lang.get(L))
             page_raw = pages_idx.get((key, L), {}) or {}
             if not page_raw:
                 page_raw = {"lang": L, "key": key, "slug": f"/{L}/{rel}/", "title": key, "h1": key, "template": "page.html", "meta": {}}
@@ -1294,7 +1306,7 @@ def build_all():
 
             def path_for(kk, LL=None, _routes=routes):
                 LL = LL or L
-                rel2 = (_routes.get(kk, {}) or {}).get(LL, "").strip("/")
+                rel2 = _norm_route_segment(LL, (_routes.get(kk, {}) or {}).get(LL, ""))
                 return f"/{LL}/" if not rel2 else f"/{LL}/{rel2}/"
 
             canonical = _canonical_url(CANONICAL_BASE, L, rel, page_rec.get("canonical_path"))
@@ -1364,7 +1376,7 @@ def build_all():
 
     for L in languages:
         posts = posts_by_lang.get(L, [])
-        blog_rel = (routes.get("blog", {}) or {}).get(L, "blog").strip("/") or "blog"
+        blog_rel = _norm_route_segment(L, (routes.get("blog", {}) or {}).get(L, "blog") or "blog") or "blog"
         routes.setdefault("blog", {})[L] = blog_rel
         meta = _meta_get(L, "blog")
         listing_page = {
@@ -1376,7 +1388,7 @@ def build_all():
 
         def path_for(kk, LL=None, _routes=routes):
             LL = LL or L
-            rel2 = (_routes.get(kk, {}) or {}).get(LL, "").strip("/")
+            rel2 = _norm_route_segment(LL, (_routes.get(kk, {}) or {}).get(LL, ""))
             return f"/{LL}/" if not rel2 else f"/{LL}/{rel2}/"
 
         canonical_list = _canonical_url(CANONICAL_BASE, L, blog_rel, None)
@@ -1415,7 +1427,7 @@ def build_all():
         langs_seen.add(L)
 
         for post in posts:
-            post_rel = (routes.get(post.get("slug_key"), {}) or {}).get(L, f"blog/{post['slug']}").strip("/")
+            post_rel = _norm_route_segment(L, (routes.get(post.get("slug_key"), {}) or {}).get(L, f"blog/{post['slug']}") )
             canonical_post = _canonical_url(CANONICAL_BASE, L, post_rel, None)
             ctx_post = {
                 "lang": L,
