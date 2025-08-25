@@ -112,6 +112,7 @@
   function initHeaderSquarespace() {
     const header = $('#site-header.sq');
     if (!header) return;
+    let lastY = window.scrollY;
 
     const mega = $('#mega');
     const panelsWrap = mega ? $('.mega__panels', mega) : null;
@@ -156,8 +157,12 @@
     // sticky & shrink
     const onScroll = throttle(() => {
       const y = window.scrollY || document.documentElement.scrollTop || 0;
+      const dir = y - lastY;
       header.classList.toggle('is-sticky', y > 0);
       header.classList.toggle('is-shrunk', y > 80);
+      if (dir > 0 && y > 80) header.classList.add('is-hidden');
+      if (dir < 0) header.classList.remove('is-hidden');
+      lastY = y;
     }, 100);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive:true });
@@ -195,6 +200,7 @@
       mega.dataset.state = 'open';
       mega.setAttribute('aria-hidden', 'false');
       header.dataset.mega = 'open';
+      header.classList.remove('is-hidden');
       currentId = id;
       const focusable = panel.querySelector('a,button,input,select,textarea');
       lastFocus = document.activeElement;
@@ -249,6 +255,7 @@
       requestAnimationFrame(() => drawer.setAttribute('data-open','true'));
       toggle.setAttribute('aria-expanded','true');
       document.body.classList.add('nav-open');
+      header.classList.remove('is-hidden');
     }
     function closeDrawer() {
       drawer.removeAttribute('data-open');
