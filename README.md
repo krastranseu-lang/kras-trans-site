@@ -17,6 +17,11 @@ from the location specified by the `CMS_SOURCE` environment variable. The value
 may point to a local file path or an HTTP(S) URL. The downloaded file is cached
 under `data/cms/menu.xlsx` for subsequent runs.
 
+## Navigation menu
+
+Client-side behaviour of the navigation menu is implemented in
+`assets/js/cms.js`. This script is the sole menu handler used by the site.
+
 ## Theme handling
 
 The base template includes a tiny inline script that reads the saved theme from
