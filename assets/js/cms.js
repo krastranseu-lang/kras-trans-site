@@ -103,43 +103,55 @@
   }
 })();
 
-/* --- Mega menu toggle binding --- */
+/* ===== KRAS-TRANS • Mega menu (delegated) ===== */
 (function () {
-  const q = (sel, root=document) => root.querySelector(sel);
-  const qa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  if (typeof window !== 'undefined' && window.__ktMegaBound) return;
+  if (typeof window !== 'undefined') window.__ktMegaBound = true;
 
-  function closeAllExcept(listRoot, exceptId) {
-    qa('.mega-toggle[aria-expanded="true"]', listRoot).forEach(btn => {
+  const d = document;
+  const $  = (sel, root = d) => root.querySelector(sel);
+  const $$ = (sel, root = d) => Array.from(root.querySelectorAll(sel));
+
+  function closeAllExcept(scope, exceptId) {
+    $$('.mega-toggle[aria-expanded="true"]', scope).forEach(btn => {
       const id = btn.getAttribute('aria-controls');
       if (id !== exceptId) {
-        btn.setAttribute('aria-expanded','false');
-        const panel = q('#'+id);
-        if (panel) { panel.hidden = true; panel.setAttribute('aria-hidden','true'); }
+        btn.setAttribute('aria-expanded', 'false');
+        const p = id && d.getElementById(id);
+        if (p) { p.hidden = true; p.setAttribute('aria-hidden', 'true'); }
       }
     });
   }
 
   function toggleMega(btn) {
+    if (!btn) return;
     const id = btn.getAttribute('aria-controls');
     if (!id) return;
-    const panel = document.getElementById(id);
+    const panel = d.getElementById(id);
     if (!panel) return;
 
     const expanded = btn.getAttribute('aria-expanded') === 'true';
     if (expanded) {
-      btn.setAttribute('aria-expanded','false');
+      btn.setAttribute('aria-expanded', 'false');
       panel.hidden = true;
-      panel.setAttribute('aria-hidden','true');
+      panel.setAttribute('aria-hidden', 'true');
     } else {
-      const listRoot = btn.closest('ul') || document;
-      closeAllExcept(listRoot, id);
-      btn.setAttribute('aria-expanded','true');
+      const scope = btn.closest('ul') || d;
+      closeAllExcept(scope, id);
+      btn.setAttribute('aria-expanded', 'true');
       panel.hidden = false;
-      panel.setAttribute('aria-hidden','false');
+      panel.setAttribute('aria-hidden', 'false');
     }
   }
 
-  document.addEventListener('click', (e) => {
+  // Eksport dla testów / debug
+  if (typeof window !== 'undefined') {
+    window.ktNav = window.ktNav || {};
+    window.ktNav.toggleMega = toggleMega;
+  }
+
+  // Delegacja klików — działa dla elementów dodanych dynamicznie
+  d.addEventListener('click', (e) => {
     const el = e.target.closest('.mega-toggle');
     if (!el) return;
 
@@ -150,30 +162,27 @@
       e.preventDefault();
     }
     toggleMega(el);
-  });
+  }, false);
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      qa('.mega-toggle[aria-expanded="true"]').forEach(btn => {
-        btn.setAttribute('aria-expanded','false');
-        const id = btn.getAttribute('aria-controls');
-        const panel = id && document.getElementById(id);
-        if (panel) { panel.hidden = true; panel.setAttribute('aria-hidden','true'); }
-      });
-    }
-  });
-
-  document.addEventListener('click', (e) => {
-    const inNav = e.target.closest('nav, .nav, #main-nav');
-    if (inNav) return;
-    qa('.mega-toggle[aria-expanded="true"]').forEach(btn => {
-      btn.setAttribute('aria-expanded','false');
+  // Escape zamyka wszystkie otwarte megi
+  d.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    $$('.mega-toggle[aria-expanded="true"]').forEach(btn => {
+      btn.setAttribute('aria-expanded', 'false');
       const id = btn.getAttribute('aria-controls');
-      const panel = id && document.getElementById(id);
-      if (panel) { panel.hidden = true; panel.setAttribute('aria-hidden','true'); }
+      const p  = id && d.getElementById(id);
+      if (p) { p.hidden = true; p.setAttribute('aria-hidden', 'true'); }
     });
   });
 
-  window.CMS = window.CMS || {};
-  window.CMS.toggleMega = toggleMega;
+  // Klik poza nawigacją zamyka
+  d.addEventListener('click', (e) => {
+    if (e.target.closest('nav, .nav, #main-nav, #navList, .kt-nav')) return;
+    $$('.mega-toggle[aria-expanded="true"]').forEach(btn => {
+      btn.setAttribute('aria-expanded', 'false');
+      const id = btn.getAttribute('aria-controls');
+      const p  = id && d.getElementById(id);
+      if (p) { p.hidden = true; p.setAttribute('aria-hidden', 'true'); }
+    });
+  }, false);
 })();
