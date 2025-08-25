@@ -105,90 +105,75 @@
 
 /* --- Mega menu toggle binding --- */
 (function () {
-  if (window.__cmsMegaBound) return;
-  window.__cmsMegaBound = true;
+  const q = (sel, root=document) => root.querySelector(sel);
+  const qa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 
-  function closeOthers(current, root) {
-    if (!root.querySelectorAll) return;
-    root.querySelectorAll('.mega-toggle[aria-expanded="true"]').forEach(btn => {
-      if (btn === current) return;
-      btn.setAttribute('aria-expanded', 'false');
+  function closeAllExcept(listRoot, exceptId) {
+    qa('.mega-toggle[aria-expanded="true"]', listRoot).forEach(btn => {
       const id = btn.getAttribute('aria-controls');
-      const panel = root.getElementById ? root.getElementById(id) : document.getElementById(id);
-      if (panel) {
-        panel.hidden = true;
-        panel.setAttribute('aria-hidden', 'true');
+      if (id !== exceptId) {
+        btn.setAttribute('aria-expanded','false');
+        const panel = q('#'+id);
+        if (panel) { panel.hidden = true; panel.setAttribute('aria-hidden','true'); }
       }
     });
   }
 
-  function toggleMega(btn, root = document) {
-    if (!btn) return;
+  function toggleMega(btn) {
     const id = btn.getAttribute('aria-controls');
-    const panel = root.getElementById ? root.getElementById(id) : document.getElementById(id);
+    if (!id) return;
+    const panel = document.getElementById(id);
+    if (!panel) return;
+
     const expanded = btn.getAttribute('aria-expanded') === 'true';
-    const next = !expanded;
-    closeOthers(btn, root);
-    btn.setAttribute('aria-expanded', String(next));
-    if (panel) {
-      panel.hidden = !next;
-      panel.setAttribute('aria-hidden', String(!next));
+    if (expanded) {
+      btn.setAttribute('aria-expanded','false');
+      panel.hidden = true;
+      panel.setAttribute('aria-hidden','true');
+    } else {
+      const listRoot = btn.closest('ul') || document;
+      closeAllExcept(listRoot, id);
+      btn.setAttribute('aria-expanded','true');
+      panel.hidden = false;
+      panel.setAttribute('aria-hidden','false');
     }
   }
 
-  function markBtn(btn) {
-    if (btn && btn.dataset) btn.dataset.megaBound = '1';
-  }
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('.mega-toggle');
+    if (!el) return;
 
-  function bindMegaMenu(root = document) {
-    if (!root.__cmsMegaListener) {
-      root.addEventListener('click', e => {
-        const btn = e.target.closest && e.target.closest('.mega-toggle');
-        if (btn) {
-          e.preventDefault();
-          toggleMega(btn, root);
-        } else if (!e.target.closest || !e.target.closest('.has-mega')) {
-          closeOthers(null, root);
-        }
+    if (el.tagName === 'A') {
+      const href = el.getAttribute('href') || '';
+      if (!href || href === '#') e.preventDefault();
+    } else {
+      e.preventDefault();
+    }
+    toggleMega(el);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      qa('.mega-toggle[aria-expanded="true"]').forEach(btn => {
+        btn.setAttribute('aria-expanded','false');
+        const id = btn.getAttribute('aria-controls');
+        const panel = id && document.getElementById(id);
+        if (panel) { panel.hidden = true; panel.setAttribute('aria-hidden','true'); }
       });
-      root.__cmsMegaListener = true;
     }
+  });
 
-    if (!root.__cmsMegaKeyListener) {
-      root.addEventListener('keydown', e => {
-        if (e.key === 'Escape') closeOthers(null, root);
-      });
-      root.__cmsMegaKeyListener = true;
-    }
-
-    if (root.querySelectorAll) {
-      root.querySelectorAll('.mega-toggle').forEach(markBtn);
-    }
-
-    if (typeof MutationObserver === 'function') {
-      const target = root === document ? document.body : root;
-      if (!target) return;
-      const mo = new MutationObserver(muts => {
-        muts.forEach(m => {
-          m.addedNodes.forEach(node => {
-            if (!(node instanceof Element)) return;
-            if (node.matches && node.matches('.mega-toggle')) markBtn(node);
-            if (node.querySelectorAll) {
-              node.querySelectorAll('.mega-toggle').forEach(markBtn);
-            }
-          });
-        });
-      });
-      mo.observe(target, { childList: true, subtree: true });
-    }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => bindMegaMenu(document));
-  } else {
-    bindMegaMenu(document);
-  }
+  document.addEventListener('click', (e) => {
+    const inNav = e.target.closest('nav, .nav, #main-nav');
+    if (inNav) return;
+    qa('.mega-toggle[aria-expanded="true"]').forEach(btn => {
+      btn.setAttribute('aria-expanded','false');
+      const id = btn.getAttribute('aria-controls');
+      const panel = id && document.getElementById(id);
+      if (panel) { panel.hidden = true; panel.setAttribute('aria-hidden','true'); }
+    });
+  });
 
   window.CMS = window.CMS || {};
-  window.CMS.bindMegaMenu = bindMegaMenu;
+  window.CMS.toggleMega = toggleMega;
 })();
