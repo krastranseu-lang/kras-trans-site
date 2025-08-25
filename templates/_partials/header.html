@@ -144,34 +144,9 @@
       <ul class="nav__list" id="navList">
         {% for item in (nav_data.primary or []) %}
           {% if item.cols %}
-            {% set mid = 'mega-' ~ loop.index %}
-            <li class="has-mega">
-              <button class="mega-toggle" type="button" aria-expanded="false" aria-controls="{{ mid }}">{{ item.label }}</button>
-              <div id="{{ mid }}" class="mega" aria-hidden="true">
-                <div class="mega__grid">
-                  {% for col in (item.cols or []) %}
-                    <div>
-                      {% if col.title %}<h3>{{ col.title }}</h3>{% endif %}
-                      <ul>
-                        {% for ch in (col.items or []) %}
-                          {% if ch.items %}
-                            <li>
-                              <span>{{ ch.label }}</span>
-                              <ul>
-                                {% for sub in (ch.items or []) %}
-                                  <li><a href="{{ sub.href }}">{{ sub.label }}</a></li>
-                                {% endfor %}
-                              </ul>
-                            </li>
-                          {% else %}
-                            <li><a href="{{ ch.href }}">{{ ch.label }}</a></li>
-                          {% endif %}
-                        {% endfor %}
-                      </ul>
-                    </div>
-                  {% endfor %}
-                </div>
-              </div>
+            {% set mid = 'm-' ~ loop.index %}
+            <li class="has-mega" data-panel="{{ mid }}">
+              <button class="mega-toggle" type="button" aria-expanded="false" aria-controls="panel-{{ mid }}">{{ item.label }}</button>
             </li>
           {% elif item.panel %}
             <li data-panel="{{ item.panel }}">
@@ -242,6 +217,36 @@
     <div class="mega__wrap wrap">
       <div class="mega__grid-wrap">
         <div class="mega__panels" id="megaPanels">
+          {% for item in (nav_data.primary or []) %}
+            {% if item.cols %}
+              {% set mid = 'm-' ~ loop.index %}
+              <section id="panel-{{ mid }}" class="mega__section" data-panel="{{ mid }}">
+                <div class="mega__grid">
+                  {% for col in (item.cols or []) %}
+                    <div>
+                      {% if col.title %}<h3>{{ col.title }}</h3>{% endif %}
+                      <ul>
+                        {% for ch in (col.items or []) %}
+                          {% if ch.items %}
+                            <li>
+                              <span>{{ ch.label }}</span>
+                              <ul>
+                                {% for sub in (ch.items or []) %}
+                                  <li><a href="{{ sub.href }}">{{ sub.label }}</a></li>
+                                {% endfor %}
+                              </ul>
+                            </li>
+                          {% else %}
+                            <li><a href="{{ ch.href }}">{{ ch.label }}</a></li>
+                          {% endif %}
+                        {% endfor %}
+                      </ul>
+                    </div>
+                  {% endfor %}
+                </div>
+              </section>
+            {% endif %}
+          {% endfor %}
           {% for pid, panel in (nav_data.mega or {}).items() %}
             <section id="panel-{{ pid }}" class="mega__section" data-panel="{{ pid }}">
               <div class="mega__grid">
