@@ -73,6 +73,12 @@
     .status-pill{margin-left:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);
       font-weight:600;color:var(--ink-weak);background:rgba(14,165,233,.08)}
 
+    @media (max-width:600px){
+      .bar{grid-template-columns:1fr auto}
+      .actions{flex-wrap:wrap}
+      .social,.status-pill{display:none}
+    }
+
     .menu-toggle{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:transparent;position:relative;display:none}
     .menu-toggle::before,.menu-toggle::after{content:"";position:absolute;left:10px;right:10px;height:2px;background:currentColor;transition:.25s var(--ease)}
     .menu-toggle::before{top:14px}.menu-toggle::after{bottom:14px}
