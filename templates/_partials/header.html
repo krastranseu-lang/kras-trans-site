@@ -74,8 +74,11 @@
       font-weight:600;color:var(--ink-weak);background:rgba(14,165,233,.08)}
 
     @media (max-width:600px){
-      .bar{grid-template-columns:1fr auto}
+      .bar{grid-template-columns:auto 1fr}
+      .bar>*{min-width:0}
       .actions{flex-wrap:wrap}
+      .actions>*{flex:1 1 auto;min-width:0}
+      .btn{max-width:100%;box-sizing:border-box;padding:6px 8px;font-size:clamp(.8rem,2.5vw,1rem)}
       .social,.status-pill{display:none}
     }
 
