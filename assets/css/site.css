@@ -100,6 +100,7 @@ body[data-csr="true"] [aria-busy="true"]{ display:none }
 #site-header.site-header.sq--shadow{box-shadow:0 8px 20px rgba(0,0,0,.06)}
 #site-header.site-header.is-sticky{box-shadow:0 8px 20px rgba(0,0,0,.06)}
 #site-header.site-header.is-shrunk .bar{padding-block:6px}
+.site-header.is-hidden{transform:translateY(-100%);transition:transform .25s var(--mega-ease)}
 #site-header .bar{
   display:grid; grid-template-columns:160px 1fr auto; align-items:center; gap:10px;
   padding-block:10px;
