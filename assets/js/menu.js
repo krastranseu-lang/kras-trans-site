@@ -120,6 +120,7 @@
   }
 
   function start(){
+    bindMega();
     if ('requestIdleCallback' in window) requestIdleCallback(revalidate);
     else setTimeout(revalidate, 600);
     setInterval(revalidate, 5*60*1000);
