@@ -376,11 +376,13 @@ def load_all(cms_root: Path) -> Dict[str, Any]:
                         parent_key = parent_key[len(f"/{L}/"):]
                     parent_key = parent_key.strip("/")
 
+                    typ = _cell(row, hdr_lc, "type") or "page"
                     meta = {
                         "h1": _cell(row, hdr_lc, "h1"),
                         "title": _cell(row, hdr_lc, "title"),
                         "seo_title": _cell(row, hdr_lc, "seo_title"),
                         "meta_desc": _cell(row, hdr_lc, "meta_desc"),
+                        "lead": _cell(row, hdr_lc, "lead"),
                         "hero_alt": _cell(row, hdr_lc, "hero_alt"),
                         "hero_image": _cell(row, hdr_lc, "hero_image"),
                         "og_image": _cell(row, hdr_lc, "og_image"),
@@ -404,13 +406,15 @@ def load_all(cms_root: Path) -> Dict[str, Any]:
                             "slug": rel,
                             "parent_key": parent_key,
                             "template": tpl,
+                            "type": typ,
                             "order": int(float(order_v or "999")),
                             "meta": meta_clean,
                         }
                     )
                     routes.setdefault(key, {})[L] = rel
-                    pm = page_meta.setdefault(L, {}).setdefault(key, {})
-                    pm.update(meta_clean)
+                    if (typ or "").strip().lower() in {"page", "home", "service"}:
+                        pm = page_meta.setdefault(L, {}).setdefault(key, {})
+                        pm.update(meta_clean)
                 except IndexError:
                     continue
 
