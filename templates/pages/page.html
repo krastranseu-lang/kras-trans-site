@@ -6,7 +6,11 @@
   <div class="wrap">
     {% if b.title %}<h1>{{ b.title }}</h1>{% endif %}
     {% if b.lead %}<p id="hero-lead">{{ b.lead }}</p>{% endif %}
-    {% if b.body_md %}{{ b.body_md|markdown }}{% endif %}
+    {% if b.body_html %}
+      {{ b.body_html|safe }}
+    {% elif b.body_md %}
+      <pre class="md">{{ b.body_md }}</pre>
+    {% endif %}
     {% if b.cta_label and b.cta_href %}
     <div class="cta-row">
       <a class="btn btn-primary" href="{{ b.cta_href }}">{{ b.cta_label }}</a>
@@ -20,7 +24,11 @@
 <section class="block block-text">
   <div class="wrap">
     {% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
-    {% if b.body_md %}{{ b.body_md|markdown }}{% endif %}
+    {% if b.body_html %}
+      {{ b.body_html|safe }}
+    {% elif b.body_md %}
+      {{ b.body_md|markdown }}
+    {% endif %}
     {% if b.cta_label and b.cta_href %}
     <div class="cta-row">
       <a class="btn btn-primary" href="{{ b.cta_href }}">{{ b.cta_label }}</a>
@@ -34,7 +42,11 @@
 <section class="block block-bullets">
   <div class="wrap">
     {% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
-    {% if b.body_md %}{{ b.body_md|markdown }}{% endif %}
+    {% if b.body_html %}
+      {{ b.body_html|safe }}
+    {% elif b.body_md %}
+      {{ b.body_md|markdown }}
+    {% endif %}
     {% if b.cta_label and b.cta_href %}
     <div class="cta-row">
       <a class="btn btn-primary" href="{{ b.cta_href }}">{{ b.cta_label }}</a>
@@ -48,7 +60,11 @@
 <section class="block block-list">
   <div class="wrap">
     {% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
-    {% if b.body_md %}{{ b.body_md|markdown }}{% endif %}
+    {% if b.body_html %}
+      {{ b.body_html|safe }}
+    {% elif b.body_md %}
+      {{ b.body_md|markdown }}
+    {% endif %}
     {% if b.cta_label and b.cta_href %}
     <div class="cta-row">
       <a class="btn btn-primary" href="{{ b.cta_href }}">{{ b.cta_label }}</a>
@@ -62,7 +78,11 @@
 <section class="block block-cta">
   <div class="wrap">
     {% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
-    {% if b.body_md %}{{ b.body_md|markdown }}{% endif %}
+    {% if b.body_html %}
+      {{ b.body_html|safe }}
+    {% elif b.body_md %}
+      {{ b.body_md|markdown }}
+    {% endif %}
     {% if b.cta_label and b.cta_href %}
     <div class="cta-row">
       <a class="btn btn-primary" href="{{ b.cta_href }}">{{ b.cta_label }}</a>
@@ -76,7 +96,11 @@
 <section class="block block-kpi">
   <div class="wrap">
     {% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
-    {% if b.body_md %}{{ b.body_md|markdown }}{% endif %}
+    {% if b.body_html %}
+      {{ b.body_html|safe }}
+    {% elif b.body_md %}
+      {{ b.body_md|markdown }}
+    {% endif %}
     {% if b.cta_label and b.cta_href %}
     <div class="cta-row">
       <a class="btn btn-primary" href="{{ b.cta_href }}">{{ b.cta_label }}</a>
@@ -87,8 +111,8 @@
 {%- endmacro %}
 
 {% block content %}
-{% if page.blocks %}
-  {% for b in page.blocks %}
+{% if blocks %}
+  {% for b in blocks %}
     {% if b.type == 'hero' %}
       {{ block_hero(b) }}
     {% elif b.type == 'bullets' %}
