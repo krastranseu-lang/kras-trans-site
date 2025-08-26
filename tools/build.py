@@ -1199,16 +1199,23 @@ def build_all():
 
     blocks_all: List[Dict[str, Any]] = []
     for r in blocks_rows_raw:
+        lang = (r.get("lang") or "").strip().lower()
+        page = (r.get("page") or "").strip().lower()
+        order_val = r.get("order")
+        try:
+            order = int(float(order_val)) if order_val not in ("", None) else 9999
+        except Exception:
+            order = 9999
         rec = {
             "block": r.get("block"),
-            "lang": norm(r.get("lang")).lower(),
-            "page": norm(r.get("page")).lower(),
+            "lang": lang,
+            "page": page,
             "title": r.get("title") or "",
             "lead": r.get("lead") or "",
             "body_md": r.get("body_md") or "",
             "cta_label": r.get("cta_label") or "",
             "cta_href": r.get("cta_href") or "",
-            "order": int(r.get("order") or 0),
+            "order": order,
             "enabled": truthy(r.get("enabled", True)),
         }
         if rec["body_md"]:

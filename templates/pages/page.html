@@ -7,11 +7,11 @@
   {% if page.cta_label %}<a id="cta" class="btn" href="{{ page.cta_href or '#' }}">{{ page.cta_label }}</a>{% endif %}
 </section>
 {% if page.body_html %}<article class="content">{{ page.body_html|safe }}</article>{% endif %}
-{% set _slug = page.slugKey or 'home' %}
-{% set _lang = page.lang or site.defaultLang or 'pl' %}
+{% set _slug = (page.slugKey or 'home')|trim|lower %}
+{% set _lang = (page.lang or site.defaultLang or 'pl')|trim|lower %}
 {% set BLOCKS = (
   blocks
-  |selectattr('enabled','ne',False)
+  |selectattr('enabled','equalto',True)
   |selectattr('page','equalto',_slug)
   |selectattr('lang','equalto',_lang)
   |sort(attribute='order')
@@ -27,7 +27,7 @@
 {% endfor %}
 {% set FAQ = (
   faq
-  |selectattr('enabled','ne',False)
+  |selectattr('enabled','equalto',True)
   |selectattr('page','equalto',_slug)
   |selectattr('lang','equalto',_lang)
   |sort(attribute='order')
