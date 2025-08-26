@@ -4,7 +4,7 @@
 <section id="hero">
   <h1>{{ page.h1 }}</h1>
   {% if page.lead %}<p id="hero-lead">{{ page.lead }}</p>{% endif %}
-  {% if page.cta_label %}<a id="cta" class="btn btn-primary" href="{{ page.cta_href or '#' }}">{{ page.cta_label }}</a>{% endif %}
+  {% if page.cta_label %}<a id="cta" class="btn" href="{{ page.cta_href or '#' }}">{{ page.cta_label }}</a>{% endif %}
 </section>
 {% if page.body_html %}<article class="content">{{ page.body_html|safe }}</article>{% endif %}
 {% set _slug = page.slugKey or 'home' %}
@@ -17,13 +17,30 @@
   |sort(attribute='order')
   |list
 ) %}
-{% for blk in BLOCKS %}
-  <section class="section block block--{{ blk.block }}">
-    {% if blk.title %}<h2>{{ blk.title }}</h2>{% endif %}
-    {% if blk.lead %}<p class="lead">{{ blk.lead }}</p>{% endif %}
-    {% if blk.body_html %}<div class="content">{{ blk.body_html|safe }}</div>{% endif %}
-    {% if blk.cta_label and blk.cta_href %}<div class="cta-row"><a class="btn" href="{{ blk.cta_href }}">{{ blk.cta_label }}</a></div>{% endif %}
+{% for b in BLOCKS %}
+  <section class="section block block--{{ b.block }}">
+    {% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
+    {% if b.lead %}<p class="lead">{{ b.lead }}</p>{% endif %}
+    {% if b.body_html %}<div class="content">{{ b.body_html|safe }}</div>{% endif %}
+    {% if b.cta_label and b.cta_href %}<div class="cta-row"><a class="btn" href="{{ b.cta_href }}">{{ b.cta_label }}</a></div>{% endif %}
   </section>
 {% endfor %}
+{% set FAQ = (
+  faq
+  |selectattr('enabled','ne',False)
+  |selectattr('page','equalto',_slug)
+  |selectattr('lang','equalto',_lang)
+  |sort(attribute='order')
+  |list
+) %}
+{% if FAQ %}
+<section id="faq" class="section section--faq">
+  <div class="wrap">
+    {% for f in FAQ %}
+      <details class="qa"><summary>{{ f.q }}</summary><div class="a"><p>{{ f.a }}</p></div></details>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 {% endblock %}
 

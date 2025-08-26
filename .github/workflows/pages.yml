@@ -50,11 +50,17 @@ jobs:
           pip install --upgrade playwright
           python -m playwright install --with-deps chromium
 
-      - name: Provide CMS (repo-only)
+      - name: Provide CMS
         run: |
           set -euo pipefail
-          if [ ! -f data/cms/menu.xlsx ]; then
-            echo "::error file=data/cms/menu.xlsx::Brak pliku CMS w repo. Wgraj data/cms/menu.xlsx i uruchom ponownie."
+          mkdir -p data/cms
+          if [ -n "${CMS_SOURCE:-}" ]; then
+            echo "Downloading CMS from $CMS_SOURCE"
+            curl -fsSL "$CMS_SOURCE" -o data/cms/menu.xlsx
+          elif [ -f data/cms/menu.xlsx ]; then
+            echo "Using repository CMS"
+          else
+            echo "::error file=data/cms/menu.xlsx::Missing CMS sheet"
             exit 1
           fi
           ls -lh data/cms/menu.xlsx
@@ -118,11 +124,11 @@ jobs:
       # run: |
       #   source .venv/bin/activate
       #   pytest -q -k 'not dropdown_keyboard'
-      - name: Upload debug JSON
+      - name: Upload debug
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: page-debug
+          name: debug-json
           path: _debug/*.json
           if-no-files-found: warn
       - name: Export routes diag
