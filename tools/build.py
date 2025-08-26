@@ -41,7 +41,7 @@ from typing import Dict, Any, List, Tuple, Iterable, Optional, Set
 try:
     import yaml
     from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
-    from markdown import markdown
+    from markdown_it import MarkdownIt
     import requests
     import menu_builder  # tools/menu_builder.py
     try:
@@ -56,6 +56,7 @@ try:
 except Exception as e:
     print("Brak wymaganych pakietów. Zainstaluj requirements.txt.", file=sys.stderr)
     raise
+MD = MarkdownIt()
 
 # --- Helpers -----------------------------------------------------------------
 
@@ -424,9 +425,10 @@ def resolve_template(page: Dict[str, Any]) -> str:
             tpl_rel = "pages/generic.html"
     return tpl_rel
 
-def md_to_html(md: str) -> str:
-    if not md: return ""
-    return markdown(md, extensions=["extra","sane_lists","tables","toc"])
+def md_to_html(md_text: str) -> str:
+    if not md_text:
+        return ""
+    return MD.render(md_text)
 
 def soupify(html: str) -> BeautifulSoup:
     return BeautifulSoup(html or "", "lxml")
@@ -509,6 +511,7 @@ env = Environment(
     loader=FileSystemLoader(TEMPLATES),
     autoescape=select_autoescape(["html"])
 )
+env.filters['markdown'] = lambda s: MarkdownIt().render(s or '')
 
 def render_template(name: str, ctx: Dict[str, Any]) -> str:
     return env.get_template(name).render(**ctx)
@@ -1236,12 +1239,13 @@ def build_all():
                 "strings": strings_local,
                 "ssr": ssr,
             }
-            if key == "home" and L == "pl":
-                dbg_dir = Path("_debug")
-                dbg_dir.mkdir(exist_ok=True)
-                (dbg_dir / "page_home_pl.json").write_text(
-                    json.dumps(page_rec, ensure_ascii=False, indent=2), "utf-8"
-                )
+            dbg_dir = Path("_debug")
+            dbg_dir.mkdir(exist_ok=True)
+            slug_dbg = rel or "home"
+            dbg_path = dbg_dir / f"page_{L}_{slug_dbg.replace('/', '_')}.json"
+            dbg_path.write_text(
+                json.dumps(page_rec, ensure_ascii=False, indent=2), "utf-8"
+            )
             if (page_rec.get("slugKey") or "").lower() == "blog" or (page_rec.get("type") or "").lower() == "blog":
                 ctx["blog_posts"] = posts_by_lang.get(L, [])
             html = render_template(template_rel, ctx)

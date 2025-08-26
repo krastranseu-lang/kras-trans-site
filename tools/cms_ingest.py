@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Dict, Any, List
 import re
 import hashlib
+from markdown_it import MarkdownIt
 
 CMS_DIR = Path("data/cms")
 CMS_DIR.mkdir(parents=True, exist_ok=True)
@@ -32,6 +33,8 @@ def normalize_segment(s: str) -> str:
     return re.sub(r"[^a-z0-9\-]+", "-", s.lower())
 
 LANG_RE = re.compile(r"^/([a-z]{2})(?:/([^?#]*))?/?$")
+
+MD = MarkdownIt()
 
 
 def split_slug(slug: str):
@@ -62,6 +65,7 @@ SYN = {
     "description": ["description", "meta_desc", "opis", "desc"],
     "og_image": ["og_image", "og", "image", "obraz", "grafika"],
     "canonical": ["canonical", "kanoniczny", "canonical_url"],
+    "body_md": ["body_md", "body", "markdown", "md", "body_html"],
   },
   # menu nawigacyjne
   "menu": {
@@ -399,6 +403,10 @@ def load_all(cms_root: Path) -> Dict[str, Any]:
                                 f"[warn] missing {fld} for {L}/{key}"
                             )
 
+                    body_md = _cell(row, hdr_lc, "body_md")
+                    body_md = body_md.strip() if body_md else ""
+                    body_html = MD.render(body_md) if body_md else ""
+
                     pages_rows.append(
                         {
                             "lang": L,
@@ -409,6 +417,8 @@ def load_all(cms_root: Path) -> Dict[str, Any]:
                             "type": typ,
                             "order": int(float(order_v or "999")),
                             "meta": meta_clean,
+                            "body_md": body_md,
+                            "body_html": body_html,
                         }
                     )
                     routes.setdefault(key, {})[L] = rel

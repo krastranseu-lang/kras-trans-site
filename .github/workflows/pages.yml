@@ -75,9 +75,10 @@ jobs:
 
       - name: CMS Schema Guard
         run: |
-          set -e
+          set -euo pipefail
           source .venv/bin/activate
-          python tools/cms_guard.py .codex/cms_schema.yml data/cms/menu.xlsx
+          mkdir -p _report
+          python tools/cms_guard.py --strict data/cms/menu.xlsx > _report/cms_guard.txt
 
       - name: Generate CMS contract
         run: |
@@ -101,6 +102,7 @@ jobs:
           path: |
             sheet_report.json
             data/cms/menu.xlsx
+            _report/cms_guard.txt
           if-no-files-found: warn
 
       - name: Build
@@ -120,8 +122,8 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: page-home-debug
-          path: _debug/page_home_pl.json
+          name: page-debug
+          path: _debug/page_*.json
           if-no-files-found: warn
       - name: Export routes diag
         if: ${{ always() }}
