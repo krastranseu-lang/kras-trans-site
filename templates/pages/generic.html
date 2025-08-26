@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 <main class="wrap" aria-busy="false">
-  <h1 class="page__title">{{ pg.h1 or pg.title or title or 'Tytuł strony' }}</h1>
-  {% if pg.lead %}<p id="hero-lead" class="lead">{{ pg.lead }}</p>{% endif %}
+  <h1 class="page__title">{{ page.h1 }}</h1>
+  {% if page.lead %}<p id="hero-lead" class="lead">{{ page.lead }}</p>{% endif %}
+  {% if page.cta_label %}<div class="cta-row"><a id="cta" class="btn btn-primary" href="{{ page.cta_href or '/' ~ (page.lang or site.defaultLang or 'pl') ~ '/quote/' }}">{{ page.cta_label }}</a></div>{% endif %}
   {% if page_html %}<article class="content">{{ page_html|safe }}</article>
-  {% elif pg.body_md %}<article class="content">{{ pg.body_md }}</article>{% endif %}
+  {% elif page.body_md %}<article class="content">{{ page.body_md }}</article>{% endif %}
 </main>
 {% endblock %}
