@@ -323,6 +323,7 @@ def load_cms():
     return cms
 
 CMS = load_cms()
+CMS_SHA = hashlib.sha256(CMS_XLSX.read_bytes()).hexdigest()
 
 UTC  = lambda dt=None: (dt or datetime.now(timezone.utc)).isoformat(timespec="seconds")
 
@@ -1130,7 +1131,7 @@ def build_all():
     routes: Dict[str, Dict[str, str]] = {}
     pages_rows: List[Dict[str, Any]] = []
     pages_by: Dict[Tuple[str, str], Dict[str, Any]] = {}
-    for r in pages_rows_raw:
+    for idx, r in enumerate(pages_rows_raw, start=2):
         lang = norm(r.get("lang")).lower()
         slug_key = norm(r.get("slugKey") or r.get("slug") or "") or "home"
         slug_key = slug_key.strip("/") or "home"
@@ -1158,6 +1159,7 @@ def build_all():
             "og_image": r.get("og_image") or "",
             "canonical_path": r.get("canonical_path") or (f"/{lang}/" if not slug else f"/{lang}/{slug}/"),
             "order": order,
+            "row": idx,
         }
         if rec["body_md"]:
             rec["body_html"] = markdown(rec["body_md"], extensions=["extra", "sane_lists"])
@@ -1431,6 +1433,7 @@ def build_all():
                 if f.get("lang") == L and (f.get("page") or "") == page_key and f.get("enabled", True)
             ]
             page_faq.sort(key=lambda x: x.get("order", 0))
+            slug_dbg = page_rec.get("slugKey") or page_key
             alternates_map = {LL: path_for(key, LL) for LL in routes.get(key, {})}
             ctx = {
                 "lang": L,
@@ -1453,21 +1456,34 @@ def build_all():
                 "strings": strings_local,
                 "ssr": None,
             }
+            blocks_sample = page_blocks[:2]
+            prov = {
+                "sha": CMS_SHA,
+                "sheet": "Pages",
+                "row": page_rec.get("row"),
+                "lang": L,
+                "slugKey": slug_dbg,
+            }
+            if page_blocks:
+                prov["blocks"] = {"count": len(page_blocks), "sample": blocks_sample}
+            ctx["provenance"] = prov
             dbg_dir = Path("_debug")
             dbg_dir.mkdir(exist_ok=True)
-            slug_dbg = page_rec.get("slugKey") or page_key
             dbg = {
+                "sha": CMS_SHA,
                 "lang": L,
+                "slugKey": slug_dbg,
                 "page": {
                     "seo_title": page_rec.get("seo_title"),
                     "h1": page_rec.get("h1"),
                     "title": page_rec.get("title"),
                     "lead": page_rec.get("lead"),
                     "cta_label": page_rec.get("cta_label"),
-                    "has_body_html": bool(page_rec.get("body_html")),
+                    "body_md_len": len(page_rec.get("body_md") or ""),
+                    "body_html_len": len(page_rec.get("body_html") or ""),
                 },
                 "blocks_count": len(page_blocks),
-                "faq_count": len(page_faq),
+                "blocks_sample": blocks_sample,
             }
             dbg_path = dbg_dir / f"page_{L}_{slug_dbg}.json"
             write_text(dbg_path, json.dumps(dbg, ensure_ascii=False, indent=2))
