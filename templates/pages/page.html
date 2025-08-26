@@ -1,132 +1,29 @@
 {% extends "base.html" %}
 
-{# --- Block renderers ---------------------------------------------------- #}
-{% macro block_hero(b) -%}
-<section id="hero" class="block block-hero">
-  <div class="wrap">
-    {% if b.title %}<h1>{{ b.title }}</h1>{% endif %}
-    {% if b.lead %}<p id="hero-lead">{{ b.lead }}</p>{% endif %}
-    {% if b.body_html %}
-      {{ b.body_html|safe }}
-    {% elif b.body_md %}
-      <pre class="md">{{ b.body_md }}</pre>
-    {% endif %}
-    {% if b.cta_label and b.cta_href %}
-    <div class="cta-row">
-      <a class="btn btn-primary" href="{{ b.cta_href }}">{{ b.cta_label }}</a>
-    </div>
-    {% endif %}
-  </div>
-</section>
-{%- endmacro %}
-
-{% macro block_text(b) -%}
-<section class="block block-text">
-  <div class="wrap">
-    {% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
-    {% if b.body_html %}
-      {{ b.body_html|safe }}
-    {% elif b.body_md %}
-      {{ b.body_md|markdown }}
-    {% endif %}
-    {% if b.cta_label and b.cta_href %}
-    <div class="cta-row">
-      <a class="btn btn-primary" href="{{ b.cta_href }}">{{ b.cta_label }}</a>
-    </div>
-    {% endif %}
-  </div>
-</section>
-{%- endmacro %}
-
-{% macro block_bullets(b) -%}
-<section class="block block-bullets">
-  <div class="wrap">
-    {% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
-    {% if b.body_html %}
-      {{ b.body_html|safe }}
-    {% elif b.body_md %}
-      {{ b.body_md|markdown }}
-    {% endif %}
-    {% if b.cta_label and b.cta_href %}
-    <div class="cta-row">
-      <a class="btn btn-primary" href="{{ b.cta_href }}">{{ b.cta_label }}</a>
-    </div>
-    {% endif %}
-  </div>
-</section>
-{%- endmacro %}
-
-{% macro block_list(b) -%}
-<section class="block block-list">
-  <div class="wrap">
-    {% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
-    {% if b.body_html %}
-      {{ b.body_html|safe }}
-    {% elif b.body_md %}
-      {{ b.body_md|markdown }}
-    {% endif %}
-    {% if b.cta_label and b.cta_href %}
-    <div class="cta-row">
-      <a class="btn btn-primary" href="{{ b.cta_href }}">{{ b.cta_label }}</a>
-    </div>
-    {% endif %}
-  </div>
-</section>
-{%- endmacro %}
-
-{% macro block_cta(b) -%}
-<section class="block block-cta">
-  <div class="wrap">
-    {% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
-    {% if b.body_html %}
-      {{ b.body_html|safe }}
-    {% elif b.body_md %}
-      {{ b.body_md|markdown }}
-    {% endif %}
-    {% if b.cta_label and b.cta_href %}
-    <div class="cta-row">
-      <a class="btn btn-primary" href="{{ b.cta_href }}">{{ b.cta_label }}</a>
-    </div>
-    {% endif %}
-  </div>
-</section>
-{%- endmacro %}
-
-{% macro block_kpi(b) -%}
-<section class="block block-kpi">
-  <div class="wrap">
-    {% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
-    {% if b.body_html %}
-      {{ b.body_html|safe }}
-    {% elif b.body_md %}
-      {{ b.body_md|markdown }}
-    {% endif %}
-    {% if b.cta_label and b.cta_href %}
-    <div class="cta-row">
-      <a class="btn btn-primary" href="{{ b.cta_href }}">{{ b.cta_label }}</a>
-    </div>
-    {% endif %}
-  </div>
-</section>
-{%- endmacro %}
-
 {% block content %}
-{% if blocks %}
-  {% for b in blocks %}
-    {% if b.type == 'hero' %}
-      {{ block_hero(b) }}
-    {% elif b.type == 'bullets' %}
-      {{ block_bullets(b) }}
-    {% elif b.type == 'list' %}
-      {{ block_list(b) }}
-    {% elif b.type == 'cta' %}
-      {{ block_cta(b) }}
-    {% elif b.type == 'kpi' %}
-      {{ block_kpi(b) }}
-    {% else %}
-      {{ block_text(b) }}
-    {% endif %}
-  {% endfor %}
-{% endif %}
+<section id="hero">
+  <h1>{{ page.h1 }}</h1>
+  {% if page.lead %}<p id="hero-lead">{{ page.lead }}</p>{% endif %}
+  {% if page.cta_label %}<a id="cta" class="btn btn-primary" href="{{ page.cta_href or '#' }}">{{ page.cta_label }}</a>{% endif %}
+</section>
+{% if page.body_html %}<article class="content">{{ page.body_html|safe }}</article>{% endif %}
+{% set _slug = page.slugKey or 'home' %}
+{% set _lang = page.lang or site.defaultLang or 'pl' %}
+{% set BLOCKS = (
+  blocks
+  |selectattr('enabled','ne',False)
+  |selectattr('page','equalto',_slug)
+  |selectattr('lang','equalto',_lang)
+  |sort(attribute='order')
+  |list
+) %}
+{% for blk in BLOCKS %}
+  <section class="section block block--{{ blk.block }}">
+    {% if blk.title %}<h2>{{ blk.title }}</h2>{% endif %}
+    {% if blk.lead %}<p class="lead">{{ blk.lead }}</p>{% endif %}
+    {% if blk.body_html %}<div class="content">{{ blk.body_html|safe }}</div>{% endif %}
+    {% if blk.cta_label and blk.cta_href %}<div class="cta-row"><a class="btn" href="{{ blk.cta_href }}">{{ blk.cta_label }}</a></div>{% endif %}
+  </section>
+{% endfor %}
 {% endblock %}
 

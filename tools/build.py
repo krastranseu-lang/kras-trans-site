@@ -1104,50 +1104,88 @@ def build_all():
     except Exception:
         wb = None
 
-    pages_rows = load_rows(wb["Pages"]) if wb and "Pages" in wb.sheetnames else []
-    blocks_rows = load_rows(wb["Blocks"]) if wb and "Blocks" in wb.sheetnames else []
+    pages_rows_raw = load_rows(wb["Pages"]) if wb and "Pages" in wb.sheetnames else []
+    blocks_rows_raw = load_rows(wb["Blocks"]) if wb and "Blocks" in wb.sheetnames else []
     faq_rows = load_rows(wb["FAQ"]) if wb and "FAQ" in wb.sheetnames else []
 
     from collections import Counter
-    pages_cnt = Counter(r.get('lang') for r in pages_rows)
-    blocks_cnt = Counter(r.get('lang') for r in blocks_rows)
+    routes: Dict[str, Dict[str, str]] = {}
+    pages_rows: List[Dict[str, Any]] = []
+    for r in pages_rows_raw:
+        lang = (r.get("lang") or "").strip().lower()
+        slug_key = (r.get("slugKey") or r.get("slug") or "").strip().strip("/")
+        if not slug_key:
+            slug_key = "home"
+        slug = (r.get("slug") or "").strip().strip("/")
+        publish = truthy(r.get("publish", True))
+        if not publish:
+            continue
+        order = int(r.get("order") or 0)
+        rec = {
+            "lang": lang,
+            "type": (r.get("type") or "").strip(),
+            "slug": slug,
+            "slugkey": slug_key,
+            "template": r.get("template") or "page.html",
+            "h1": r.get("h1") or "",
+            "title": r.get("title") or "",
+            "seo_title": r.get("seo_title") or "",
+            "meta_desc": r.get("meta_desc") or "",
+            "lead": r.get("lead") or "",
+            "cta_label": r.get("cta_label") or "",
+            "body_md": r.get("body_md") or "",
+            "hero_image": r.get("hero_image") or "",
+            "hero_video": r.get("hero_video") or "",
+            "og_image": r.get("og_image") or "",
+            "canonical_path": (r.get("canonical_path") or (f"/{lang}/" if not slug else f"/{lang}/{slug}/")),
+            "order": order,
+        }
+        if rec["body_md"]:
+            rec["body_html"] = markdown(rec["body_md"], extensions=["extra", "sane_lists"])
+        routes.setdefault(slug_key, {})[lang] = slug
+        pages_rows.append(rec)
+
+    quote_routes = routes.get("quote", {})
+    for p in pages_rows:
+        rel = quote_routes.get(p["lang"])
+        if rel is not None:
+            p["cta_href"] = f"/{p['lang']}/" if not rel else f"/{p['lang']}/{rel}/"
+        else:
+            p["cta_href"] = None
+
+    cms["pages_rows"] = pages_rows
+    CMS["routes"] = routes
+    page_routes = routes
+
+    blocks_rows: List[Dict[str, Any]] = []
+    for r in blocks_rows_raw:
+        rec = {
+            "block": r.get("block"),
+            "lang": (r.get("lang") or "").strip().lower(),
+            "page": (r.get("page") or "").strip().lower(),
+            "title": r.get("title") or "",
+            "lead": r.get("lead") or "",
+            "body_md": r.get("body_md") or "",
+            "desc": r.get("desc") or "",
+            "href": r.get("href") or "",
+            "cta_label": r.get("cta_label") or "",
+            "cta_href": r.get("cta_href") or "",
+            "order": int(r.get("order") or 0),
+            "enabled": truthy(r.get("enabled", True)),
+        }
+        if rec["body_md"]:
+            rec["body_html"] = markdown(rec["body_md"], extensions=["extra", "sane_lists"])
+        blocks_rows.append(rec)
+
+    pages_cnt = Counter(p.get('lang') for p in pages_rows)
+    blocks_cnt = Counter(b.get('lang') for b in blocks_rows)
     print(f"[Pages] rows per lang: {dict(pages_cnt)}")
     print(f"[Blocks] rows per lang: {dict(blocks_cnt)}")
 
-    rows = [r for r in (pages_rows or cms.get("pages_rows") or []) if r.get("slugkey") or r.get("key")]
-    for r in rows:
-        r["body_html"] = md_to_html(r.get("body_md"))
-        if "key" not in r and r.get("slugkey"):
-            r["key"] = r.get("slugkey")
-    cms["pages_rows"] = rows
-    routes = CMS.get("routes") or {}
-    page_routes = routes
-
-    blocks_by_page_lang = {}
-    for L in languages:
-        bs = [
-            dict(b)
-            for b in blocks_rows
-            if (b.get("lang") or "").lower() == L
-            and page_to_slugkey(b.get("page")) == "home"
-            and b.get("enabled", True)
-        ]
-        for blk in bs:
-            blk["body_html"] = md_to_html(blk.get("body_md") or blk.get("desc"))
-        bs.sort(key=lambda x: int(x.get("order") or 0))
-        if bs:
-            blocks_by_page_lang[(L, "home")] = bs
-            dbg_dir = Path("_debug"); dbg_dir.mkdir(exist_ok=True)
-            dbg = {
-                "lang": L,
-                "count": len(bs),
-                "ids": [b.get("block") for b in bs],
-                "orders": [b.get("order") for b in bs],
-                "titles": [b.get("title") for b in bs],
-            }
-            write_text(dbg_dir / f"blocks_home_{L}.json", json.dumps(dbg, ensure_ascii=False, indent=2))
+    cms["blocks_rows"] = blocks_rows
     ssr_by_page_lang = {}
 
+    rows = pages_rows
     faq_by_page_lang = {}
     for row in faq_rows:
         L = (row.get("lang") or dlang).lower()
@@ -1358,6 +1396,7 @@ def build_all():
             assert isinstance(page_rec, dict), f"expected dict page, got {type(page_rec)} for {L}/{key}"
             page_fields = _page_fields(page_rec)
             page_rec.update(page_fields)
+            page_rec.setdefault("slugKey", key)
 
             ssr = None
 
@@ -1370,11 +1409,14 @@ def build_all():
 
             canonical = _canonical_url(CANONICAL_BASE, L, rel, page_rec.get("canonical_path"))
 
-            page_key = key
+            page_key = key.lower()
             meta = page_rec.get("meta") or {}
             strings_local = {k: (v.get(L) or v.get(dlang) or "") for k, v in strings_map.items()}
-            page_blocks = blocks_by_page_lang.get((L, page_key), []) if isinstance(blocks_by_page_lang, dict) else []
-            page_rec["blocks"] = page_blocks
+            page_blocks = [
+                b for b in blocks_rows
+                if b.get("lang") == L and (b.get("page") or "") == page_key and b.get("enabled", True)
+            ]
+            page_blocks.sort(key=lambda x: x.get("order", 0))
             ctx = {
                 "lang": L,
                 "site": SITE,
@@ -1384,10 +1426,10 @@ def build_all():
                 "nav": CFG.get("navigation", {}),
                 "nav_data": {**nav_by_lang.get(L, {}), "routes": routes},
                 "path_for": path_for,
-                "title": page_rec.get("seo_title") or page_rec.get("title") or SITE.get("brand") or SITE.get("title"),
-                "h1": page_rec.get("h1") or page_rec.get("title") or "",
+                "title": page_rec.get("seo_title") or page_rec.get("h1") or page_rec.get("title"),
+                "h1": page_rec.get("h1") or "",
                 "meta_desc": page_rec.get("meta_desc") or "",
-                "blocks": page_blocks,
+                "blocks": blocks_rows,
                 "faq": (faq_by_page_lang.get((L, page_key)) if isinstance(faq_by_page_lang, dict) else []),
                 "canonical": canonical,
                 "STR": lambda key, _L=L: STR(_L, key),
@@ -1396,22 +1438,19 @@ def build_all():
             }
             dbg_dir = Path("_debug")
             dbg_dir.mkdir(exist_ok=True)
-            slug_dbg = rel or "home"
-            dbg_path = dbg_dir / f"page_{L}_{slug_dbg.replace('/', '_')}.json"
-            dbg_path.write_text(
-                json.dumps(page_rec, ensure_ascii=False, indent=2), "utf-8"
-            )
-            if slug_dbg == "home":
-                page_info = {
+            slug_dbg = page_rec.get("slugKey") or page_key
+            dbg = {
+                "lang": L,
+                "page": {
                     "seo_title": page_rec.get("seo_title"),
                     "h1": page_rec.get("h1"),
                     "title": page_rec.get("title"),
                     "lead": page_rec.get("lead"),
                     "cta_label": page_rec.get("cta_label"),
-                    "body_md_len": len(page_rec.get("body_md") or ""),
-                    "body_html_len": len(page_rec.get("body_html") or ""),
-                }
-                blocks_sample = [
+                    "has_body_html": bool(page_rec.get("body_html")),
+                },
+                "blocks_count": len(page_blocks),
+                "blocks_sample": [
                     {
                         "block": b.get("block"),
                         "lang": b.get("lang"),
@@ -1422,17 +1461,12 @@ def build_all():
                         "has_body_html": bool(b.get("body_html")),
                     }
                     for b in page_blocks[:2]
-                ]
-                dbg_home = {
-                    "lang": L,
-                    "page": page_info,
-                    "blocks_count": len(page_blocks),
-                    "blocks_sample": blocks_sample,
-                }
-                dbg_home_path = dbg_dir / f"page_home_{L}.json"
-                dbg_home_path.write_text(
-                    json.dumps(dbg_home, ensure_ascii=False, indent=2), "utf-8"
-                )
+                ],
+            }
+            dbg_path = dbg_dir / f"page_{L}_{slug_dbg}.json"
+            write_text(dbg_path, json.dumps(dbg, ensure_ascii=False, indent=2))
+            if slug_dbg == "home":
+                write_text(dbg_dir / f"page_home_{L}.json", json.dumps(dbg, ensure_ascii=False, indent=2))
             if (page_rec.get("slugKey") or "").lower() == "blog" or (page_rec.get("type") or "").lower() == "blog":
                 ctx["blog_posts"] = posts_by_lang.get(L, [])
             html = render_template(template_rel, ctx)
