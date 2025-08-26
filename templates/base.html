@@ -40,8 +40,8 @@
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0ea5e9" />
   <meta name="theme-color" media="(prefers-color-scheme: dark)"  content="#0b1020" />
 
-  {# bezpieczny tytuł: seo_title → h1 → title → brand #}
-  <title>{{ page.seo_title or page.h1 or page.title or _brand_name }}</title>
+  {# bezpieczny tytuł: preferuj seo_title, potem h1/title, w ostateczności brand #}
+  <title>{{ page.seo_title or page.h1 or page.title or _og_title or _brand_name }}</title>
   <meta name="description" content="{{ page.meta_desc or _meta_desc }}">
   {% if page.noindex %}<meta name="robots" content="noindex,follow" />{% else %}<meta name="robots" content="index,follow" />{% endif %}
   <link rel="canonical" href="{{ page.canonical or canonical }}" />
@@ -68,11 +68,11 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="{{ _brand_name }}" />
   <meta property="og:url" content="{{ page.canonical or canonical }}" />
-  <meta property="og:title" content="{{ page.seo_title or page.h1 or page.title or _brand_name }}">
+  <meta property="og:title" content="{{ page.seo_title or page.title or _og_title or _brand_name }}">
   <meta property="og:description" content="{{ page.meta_desc or _meta_desc }}">
   <meta property="og:image" content="{{ (_site.get('url') or _site.get('base_url') or '') ~ (page.og_image or _og_image or '/assets/media/og-default.webp') }}" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="{{ page.seo_title or page.h1 or page.title or _brand_name }}" />
+  <meta name="twitter:title" content="{{ page.seo_title or page.title or _og_title or _brand_name }}" />
   <meta name="twitter:description" content="{{ page.meta_desc or _meta_desc }}" />
   <meta name="twitter:image" content="{{ (_site.get('url') or _site.get('base_url') or '') ~ (page.og_image or _og_image or '/assets/media/og-default.webp') }}" />
 

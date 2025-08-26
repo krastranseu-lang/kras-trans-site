@@ -989,18 +989,8 @@ def build_all():
     rows = cms.get("pages_rows") or []
     routes = CMS.get("routes") or {}
     page_routes = routes
-    # Blocks: load for each language (page 'home')
-    try:
-        import openpyxl
-        wb_blocks = openpyxl.load_workbook(cms_ingest.XLSX, read_only=True, data_only=True)
-    except Exception:
-        wb_blocks = None
-    blocks_by_page_lang = {}
-    if wb_blocks is not None:
-        for L in languages:
-            bs = cms_ingest.load_blocks_for_lang(wb_blocks, L, routes)
-            if bs:
-                blocks_by_page_lang[(L, "home")] = bs
+
+    blocks_by_page_lang = cms.get("blocks_by_page_lang", {})
     faq_by_page_lang = cms.get("faq_by_page_lang", {})
 
     BLOG = [r for r in CMS.get("blog", []) if (r.get("type") or "").strip().lower() == "blog_post"]
@@ -1230,8 +1220,6 @@ def build_all():
             page_key = key
             meta = page_rec.get("meta") or {}
             strings_local = {k: (v.get(L) or v.get(dlang) or "") for k, v in strings_map.items()}
-            page_blocks = blocks_by_page_lang.get((L, page_key), []) if isinstance(blocks_by_page_lang, dict) else []
-            page_rec["blocks"] = page_blocks
             ctx = {
                 "lang": L,
                 "site": SITE,
@@ -1244,7 +1232,7 @@ def build_all():
                 "title": page_rec.get("seo_title") or page_rec.get("title") or SITE.get("brand") or SITE.get("title"),
                 "h1": page_rec.get("h1") or page_rec.get("title") or "",
                 "meta_desc": page_rec.get("meta_desc") or "",
-                "blocks": page_blocks,
+                "blocks": (blocks_by_page_lang.get((L, page_key)) if isinstance(blocks_by_page_lang, dict) else {}),
                 "faq": (faq_by_page_lang.get((L, page_key)) if isinstance(faq_by_page_lang, dict) else []),
                 "canonical": canonical,
                 "STR": lambda key, _L=L: STR(_L, key),
