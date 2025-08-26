@@ -106,26 +106,22 @@ jobs:
           set -e
           source .venv/bin/activate
           python tools/build.py
-
-      # Fallback: jeśli build nie zapisał _routes.json, zeskanuj dist i utwórz go tu (bez heredoca)
-      - name: Export routes from dist (fallback)
-        run: |
-          set -e
-          python -c "from pathlib import Path; import json; items=[{'out':str(p)} for p in Path('dist').rglob('index.html')]; Path('_routes.json').write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding='utf-8'); print(f'[routes] exported from dist, count={len(items)}')"
-
       - name: Verify build
         run: |
           set -e
           source .venv/bin/activate
           python tools/cms_verify_build.py
-
+      - name: Export routes diag
+        if: ${{ always() }}
+        run: |
+          test -f dist/_routes.json && cp dist/_routes.json _routes.json || true
       - name: Upload routes diag
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: routes-json
           path: _routes.json
-          if-no-files-found: warn    
+          if-no-files-found: warn
       - name: List bundles
         run: |
           echo "--- dist/assets/data/menu ---"; ls -lah dist/assets/data/menu || true
