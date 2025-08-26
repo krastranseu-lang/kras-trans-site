@@ -127,6 +127,16 @@ jobs:
           path: _routes.json
           if-no-files-found: warn
 
+- name: Export routes diag
+  if: always()
+  run: |
+    test -f dist/_routes.json && cp dist/_routes.json _routes.json || true
+- name: Upload routes diag
+  uses: actions/upload-artifact@v4
+  with:
+    name: routes-json
+    path: _routes.json
+    
       - name: List bundles
         run: |
           echo "--- dist/assets/data/menu ---"; ls -lah dist/assets/data/menu || true
