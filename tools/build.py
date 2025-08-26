@@ -32,10 +32,7 @@ import os, json, shutil
 from pathlib import Path
 from collections import defaultdict
 from bs4 import BeautifulSoup
-try:
-    import cms_ingest  # nasz mały moduł do czytania XLSX (pkt 4 poniżej)
-except Exception:
-    cms_ingest = None
+import cms_ingest
 import re, io, csv, math, sys, time, glob, hashlib, unicodedata, pathlib
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Tuple, Iterable, Optional, Set
@@ -187,6 +184,20 @@ DIST = Path("dist")
 DIST.mkdir(parents=True, exist_ok=True)
 DATA = Path("data")
 OUT = DIST
+
+CMS_DIR = DATA / "cms"
+CMS_XLSX = CMS_DIR / "menu.xlsx"
+
+def load_cms():
+    if not CMS_XLSX.exists():
+        raise SystemExit("Missing data/cms/menu.xlsx (repo-only)")
+    cms = cms_ingest.load_all(CMS_DIR)
+    pages = len(cms.get("pages_rows", []))
+    langs = len(cms.get("page_meta", {}))
+    print(f"[cms] pages={pages} langs={langs}")
+    return cms
+
+CMS = load_cms()
 
 UTC  = lambda dt=None: (dt or datetime.now(timezone.utc)).isoformat(timespec="seconds")
 
@@ -516,114 +527,6 @@ env.globals.update({
     "nav": CFG.get("navigation", {}),
     "header_cfg": CFG.get("header", {})
 })
-
-# --------------------------- CMS: load (LOCAL) ------------------------------
-def _cms_local_read() -> Dict[str, Any]:
-    """
-    Czyta CMS z data/cms/cms.json (preferowane), albo data/cms/cms.csv,
-    albo data/cms/cms.xlsx. Zwraca {"ok": True, ...}.
-    """
-    base = pathlib.Path("data") / "cms"
-
-    # JSON
-    p_json = base / "cms.json"
-    if p_json.exists():
-        try:
-            data = json.loads(p_json.read_text("utf-8"))
-            if not data.get("ok"): data["ok"] = True
-            print("[CMS] Lokalnie: data/cms/cms.json")
-            return data
-        except Exception as e:
-            print(f"[CMS] Błąd JSON: {e}", file=sys.stderr)
-
-    # CSV
-    p_csv = base / "cms.csv"
-    if p_csv.exists():
-        try:
-            rows = []
-            raw = p_csv.read_text("utf-8")
-            sep = "\t" if "\t" in raw else ("," if raw.count(",") > raw.count(";") else ";")
-            for r in csv.DictReader(io.StringIO(raw), delimiter=sep):
-                rows.append({(k or "").strip(): (v or "").strip() for k, v in r.items()})
-            return {"ok": True, "rows": rows}
-        except Exception as e:
-            print(f"[CMS] Błąd CSV: {e}", file=sys.stderr)
-
-    # XLSX
-    env_path = os.environ.get("LOCAL_XLSX")
-    p_xlsx = pathlib.Path(env_path) if env_path else (base / "cms.xlsx")
-    if not p_xlsx.exists():
-        p_xlsx = base / "cms.xlsx"
-    if p_xlsx.exists():
-        try:
-            import openpyxl
-            wb = openpyxl.load_workbook(p_xlsx, read_only=True, data_only=True)
-            ws = wb.worksheets[0]
-            headers = [str(c.value).strip() if c.value is not None else "" for c in next(ws.iter_rows(min_row=1, max_row=1))]
-            idx = {h: i for i, h in enumerate(headers)}
-            rows = []
-            for row in ws.iter_rows(min_row=2, values_only=True):
-                d = {h: (row[idx[h]] if h in idx else "") for h in headers}
-                rows.append({(k or "").strip(): (str(v or "").strip()) for k, v in d.items()})
-            print(f"[CMS] Lokalnie: {p_xlsx}")
-            return {"ok": True, "rows": rows}
-        except Exception as e:
-            print(f"[CMS] Błąd XLSX: {e}", file=sys.stderr)
-
-    # Minimalny fallback (strona główna)
-    return {
-        "ok": True,
-        "pages": [{
-            "lang": DEFAULT_LANG,
-            "slugKey": "home",
-            "slug": "",
-            "type": "home",
-            "h1": "Kras-Trans — transport i spedycja",
-            "title": "Kras-Trans — transport i spedycja",
-            "meta_desc": "Transport i spedycja w Polsce i UE.",
-            "body_md": "## Start\n\nTreść domyślna (lokalny CMS nie wykrył pliku).",
-        }],
-        "hreflang": {},
-        "redirects": [],
-        "blocks": [],
-        "faq": [],
-        "routes": {},
-        "strings": [],
-        "blog": [],
-    }
-
-def load_cms() -> Dict[str, Any]:
-    base = pathlib.Path("data") / "cms"
-    if cms_ingest:
-        try:
-            data = cms_ingest.load_all(base)
-            if data:
-                print(data.get("report", ""))
-                blocks_list = []
-                for lang, m in (data.get("blocks") or {}).items():
-                    for path, obj in m.items():
-                        b = {"lang": lang, "path": path}
-                        b.update(obj)
-                        blocks_list.append(b)
-                cms = {
-                    "ok": True,
-                    "pages": data.get("pages_rows", []),
-                    "blocks": blocks_list,
-                    "faq": data.get("faq_rows", []),
-                    "strings": data.get("strings", []),
-                    "props": data.get("props_rows", []),
-                    "hreflang": data.get("page_routes", {}),
-                    "menu_rows": data.get("menu_rows", []),
-                    "page_meta": data.get("page_meta", {}),
-                    "routes": data.get("routes", {}),
-                    "blog": data.get("blog_rows", []),
-                }
-                return cms
-        except Exception as e:
-            print(f"[CMS] cms_ingest error: {e}", file=sys.stderr)
-    return _cms_local_read()
-
-CMS = load_cms()
 
 # ---------------------------- CSV: cities / keywords ------------------------
 def read_csv(path:str, dialect="auto")->List[Dict[str,str]]:
@@ -1071,16 +974,10 @@ def build_all():
         except Exception as e:
             print(f"[nav.yml] read error: {e}", file=sys.stderr)
     nav_by_lang = nav_fallback
-    # === CMS: wczytaj XLSX z katalogu DATA/cms (pobierany automatycznie) ===
-    cms = {"menu_rows": [], "page_meta": {}, "blocks": {}, "report": "[cms] no module"}
-    if cms_ingest:
-        cms = cms_ingest.load_all(DATA / "cms")
-        print(cms.get("report", "[cms] no report"))
-    else:
-        print("[cms] cms_ingest not available")
-    global CMS
-    CMS = cms
-    CMS.setdefault("blog", cms.get("blog_rows", []))
+cms = CMS
+    print(cms.get("report", "[cms] no report"))
+
+CMS.setdefault("blog", cms.get("blog_rows", []))
     CMS.setdefault("routes", cms.get("routes") or cms.get("page_routes") or {})
     CMS.setdefault("strings", cms.get("strings", []))
     nav_rows = cms.get("nav") or cms.get("menu_rows") or []
