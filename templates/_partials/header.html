@@ -1,20 +1,41 @@
-<header class="site-header" data-nav>
-  <div class="wrap nav">
-    <a class="brand" href="/{{ page.lang }}/">
-      <img src="/assets/media/logo-firma-transportowa-kras-trans.png" alt="Kras-Trans" loading="eager" width="156" height="32">
+<header class="site-header" role="banner">
+  <div class="wrap header__bar">
+    {# LOGO #}
+    {% set meta = nav.get('meta', {}) if nav is mapping else {} %}
+    {% set logo_src = meta.get('logo', {}).get('src') %}
+    <a class="brand" href="/{{ page.lang or site.defaultLang or 'pl' }}/">
+        {% if logo_src %}
+          <img src="{{ logo_src }}" alt="{{ meta.get('logo', {}).get('alt','Kras-Trans') }}">
+        {% else %}
+          <span>Kras‑Trans</span>
+        {% endif %}
     </a>
-    <nav class="primary" aria-label="Główna nawigacja">
-      <ul id="navList">
-        {% for item in nav if item.enabled %}
-          <li class="{{ 'has-mega' if item.children }}">
-            <a class="toplink" href="{{ item.href }}">{{ item.label }}</a>
-            {% if item.children %}
-              <button class="mega-toggle" aria-expanded="false" aria-controls="mega-{{ loop.index }}" aria-label="Rozwiń {{ item.label }}">▾</button>
-              <div id="mega-{{ loop.index }}" class="mega" hidden aria-hidden="true">
-                <div class="wrap">
-                  {% for c in item.children %}
-                    <a class="mega-item" href="{{ c.href }}">{{ c.label }}</a>
-                  {% endfor %}
+
+    {# NAVIGATION #}
+    <nav class="main-nav" aria-label="Główne menu">
+      <ul id="navList" class="nav-list" role="menubar">
+        {% set top = nav.get('top') or [] %}
+        {% set children = nav.get('children') or {} %}
+        {% for item in top|sort(attribute='order') %}
+          {% set id = 'mega-' ~ (item.id or loop.index) %}
+          {% set kids = children.get(item.id) or [] %}
+          <li class="{{ 'has-mega' if kids else '' }}" role="none">
+            <a class="top-link" role="menuitem" href="{{ item.href }}">{{ item.label }}</a>
+            {% if kids %}
+              <button class="mega-toggle" type="button"
+                      aria-expanded="false"
+                      aria-controls="{{ id }}"
+                      aria-label="Rozwiń {{ item.label }}"
+                      role="button">
+                ▾
+              </button>
+              <div id="{{ id }}" class="mega" hidden aria-hidden="true">
+                <div class="wrap mega__wrap">
+                  <div class="mega__grid">
+                    {% for c in kids|sort(attribute='order') %}
+                      <a class="mega__link" href="{{ c.href }}">{{ c.label }}</a>
+                    {% endfor %}
+                  </div>
                 </div>
               </div>
             {% endif %}
@@ -22,6 +43,15 @@
         {% endfor %}
       </ul>
     </nav>
-    <a class="btn cta" href="/{{ page.lang }}/quote/">Zamów wycenę</a>
+
+    {# CTA #}
+    {% set cta = meta.get('cta', {}) %}
+    {% if cta.get('label') and cta.get('slugKey') and routes and routes.get(cta.get('slugKey')) %}
+      {% set seg = routes[cta.get('slugKey')][page.lang] %}
+      <a class="btn btn-primary" href="/{{ page.lang }}/{{ seg }}/">{{ cta.get('label') }}</a>
+    {% endif %}
+
+    <button class="nav-toggle" aria-expanded="false" aria-controls="navList" aria-label="Menu">☰</button>
   </div>
 </header>
+
