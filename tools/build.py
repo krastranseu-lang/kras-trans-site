@@ -1296,6 +1296,38 @@ def build_all():
             dbg_path.write_text(
                 json.dumps(page_rec, ensure_ascii=False, indent=2), "utf-8"
             )
+            if slug_dbg == "home":
+                page_info = {
+                    "seo_title": page_rec.get("seo_title"),
+                    "h1": page_rec.get("h1"),
+                    "title": page_rec.get("title"),
+                    "lead": page_rec.get("lead"),
+                    "cta_label": page_rec.get("cta_label"),
+                    "body_md_len": len(page_rec.get("body_md") or ""),
+                    "body_html_len": len(page_rec.get("body_html") or ""),
+                }
+                blocks_sample = [
+                    {
+                        "block": b.get("block"),
+                        "lang": b.get("lang"),
+                        "page": b.get("page"),
+                        "title": b.get("title"),
+                        "order": b.get("order"),
+                        "enabled": b.get("enabled"),
+                        "has_body_html": bool(b.get("body_html")),
+                    }
+                    for b in page_blocks[:2]
+                ]
+                dbg_home = {
+                    "lang": L,
+                    "page": page_info,
+                    "blocks_count": len(page_blocks),
+                    "blocks_sample": blocks_sample,
+                }
+                dbg_home_path = dbg_dir / f"page_home_{L}.json"
+                dbg_home_path.write_text(
+                    json.dumps(dbg_home, ensure_ascii=False, indent=2), "utf-8"
+                )
             if (page_rec.get("slugKey") or "").lower() == "blog" or (page_rec.get("type") or "").lower() == "blog":
                 ctx["blog_posts"] = posts_by_lang.get(L, [])
             html = render_template(template_rel, ctx)
