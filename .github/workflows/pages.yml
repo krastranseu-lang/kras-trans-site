@@ -116,6 +116,13 @@ jobs:
           set -e
           source .venv/bin/activate
           python tools/cms_verify_build.py
+      - name: Upload page debug
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: page-home-debug
+          path: _debug/page_home_pl.json
+          if-no-files-found: warn
       - name: Export routes diag
         if: ${{ always() }}
         run: |

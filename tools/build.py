@@ -1023,7 +1023,7 @@ def build_all():
     for r in rows:
         if not _truthy((r.get("meta") or {}).get("publish", "true")):
             continue
-        if (r.get("type") or "page").strip().lower() not in {"page", "home"}:
+        if (r.get("type") or "page").strip().lower() not in {"page", "home", "service"}:
             continue
         pages_idx[(r.get("key"), r.get("lang"))] = r
 
@@ -1236,6 +1236,12 @@ def build_all():
                 "strings": strings_local,
                 "ssr": ssr,
             }
+            if key == "home" and L == "pl":
+                dbg_dir = Path("_debug")
+                dbg_dir.mkdir(exist_ok=True)
+                (dbg_dir / "page_home_pl.json").write_text(
+                    json.dumps(page_rec, ensure_ascii=False, indent=2), "utf-8"
+                )
             if (page_rec.get("slugKey") or "").lower() == "blog" or (page_rec.get("type") or "").lower() == "blog":
                 ctx["blog_posts"] = posts_by_lang.get(L, [])
             html = render_template(template_rel, ctx)
