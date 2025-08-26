@@ -77,26 +77,40 @@ jobs:
             touch data/cms/menu.xlsx
           fi
           echo "CMS_SHA256: $(shasum -a 256 data/cms/menu.xlsx | awk '{print $1}' || true)"
-          ls -lah data/cms
+            ls -lah data/cms
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
+        - name: Configure Pages
+          uses: actions/configure-pages@v5
 
-      - name: CMS Schema Guard
-        run: |
-          set -e
-          source .venv/bin/activate
-          python tools/cms_guard.py .codex/cms_schema.yml data/cms/menu.xlsx
+        - name: CMS Schema Guard
+          run: |
+            set -e
+            source .venv/bin/activate
+            python tools/cms_guard.py .codex/cms_schema.yml data/cms/menu.xlsx
 
-      - name: Upload CMS sheet report
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: cms-sheets
-          path: |
-            sheet_report.json
-            data/cms/menu.xlsx
-          if-no-files-found: warn
+        - name: Generate CMS contract
+          run: |
+            source .venv/bin/activate
+            python tools/explain_cms.py
+
+        - name: Commit CMS contract (if changed)
+          run: |
+            if ! git diff --quiet -- docs/CMS-CONTRACT.md; then
+              git config user.email "bot@kras-trans.com"
+              git config user.name "KT Bot"
+              git add docs/CMS-CONTRACT.md
+              git commit -m "docs: refresh CMS contract"
+            fi
+
+        - name: Upload CMS sheet report
+          if: ${{ always() }}
+          uses: actions/upload-artifact@v4
+          with:
+            name: cms-sheets
+            path: |
+              sheet_report.json
+              data/cms/menu.xlsx
+            if-no-files-found: warn
 
       - name: Build
         env:
