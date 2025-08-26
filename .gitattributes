@@ -1,0 +1,5 @@
+*.xlsx  binary -text -diff
+*.xls   binary -text -diff
+*.zip   binary -text -diff
+*.pdf   binary -text -diff
+*.woff2 binary -text -diff

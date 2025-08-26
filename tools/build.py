@@ -17,7 +17,7 @@ NAJWAŻNIEJSZE FUNKCJE:
 - Root "/" = redirect do /{defaultLang}/ + GSC meta + canonical
 - City×Service generator + thin/noindex + OG-image (opcjonalnie)
 - Sitemapy z alternates (xhtml:link), news-sitemap (okno godz.), robots.txt
-- Redirect stubs, BingSiteAuth.xml, {INDEXNOW_KEY}.txt, /admin/indexing.html (Apps Script dispatch)
+  - Redirect stubs, BingSiteAuth.xml, {INDEXNOW_KEY}.txt, /admin/indexing.html
 - On-site search index (per lang), RSS/Atom, link-checker, raporty
 
 WYMAGANE PAKIETY:
@@ -516,7 +516,7 @@ def render_template(name: str, ctx: Dict[str, Any]) -> str:
 # Globalne dane dostępne w szablonach
 env.globals.update({
   "site": CFG.get("site", {}),
-  "cms_endpoint": "",  # Apps Script wyłączony
+  "cms_endpoint": "",
   "ga_id": GA_ID,
   "gsc_verification": GSC,
   "assets": CFG.get("assets", {})
@@ -974,10 +974,10 @@ def build_all():
         except Exception as e:
             print(f"[nav.yml] read error: {e}", file=sys.stderr)
     nav_by_lang = nav_fallback
-cms = CMS
+    cms = CMS
     print(cms.get("report", "[cms] no report"))
 
-CMS.setdefault("blog", cms.get("blog_rows", []))
+    CMS.setdefault("blog", cms.get("blog_rows", []))
     CMS.setdefault("routes", cms.get("routes") or cms.get("page_routes") or {})
     CMS.setdefault("strings", cms.get("strings", []))
     nav_rows = cms.get("nav") or cms.get("menu_rows") or []
