@@ -179,6 +179,53 @@ def _ssr_home(lang:str) -> Dict[str, Any]:
         "routes": _routes_map()
     }
 
+def build_ssr(blocks_by_lang_page: Dict[Tuple[str, str], List[Dict[str, Any]]]) -> Dict[Tuple[str, str], Dict[str, Any]]:
+    """Build simplified SSR payload for pages from ``Blocks`` rows.
+
+    Returned mapping uses ``(lang, page)`` as keys and for each entry provides
+    sections listed in the home template. ``hero`` is a single block, all other
+    sections are lists. ``routes`` are always included for slugKey lookups.
+    """
+    sections = [
+        "services",
+        "industries",
+        "coverage",
+        "process",
+        "trust",
+        "testimonials",
+        "partners",
+        "fleet",
+        "pricing",
+        "blog",
+        "faq",
+        "final",
+    ]
+    out: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    routes = _routes_map()
+
+    for (lang, page), blocks in (blocks_by_lang_page or {}).items():
+        ssr_entry: Dict[str, Any] = {
+            "hero": {},
+            "routes": routes,
+        }
+        for name in sections:
+            ssr_entry[name] = []
+
+        for blk in blocks or []:
+            bid = (blk.get("block") or "").strip().lower()
+            typ = (blk.get("type") or "").strip().lower()
+            if bid.endswith(".hero") or typ == "hero":
+                ssr_entry["hero"] = blk
+            else:
+                for name in sections:
+                    if bid.endswith(f".{name}"):
+                        ssr_entry[name].append(blk)
+                        break
+
+        out[(lang, page)] = ssr_entry
+
+    return out
+
 # --------------------------- POMOCNICZE ------------------------------------
 ROOT = Path(".")
 DIST = Path("dist")
@@ -428,6 +475,12 @@ def resolve_template(page: Dict[str, Any]) -> str:
 def md_to_html(md_text: str) -> str:
     if not md_text:
         return ""
+    try:
+        f = env.filters.get("markdown")  # type: ignore[name-defined]
+    except Exception:
+        f = None
+    if callable(f):
+        return f(md_text)
     return MD.render(md_text)
 
 def soupify(html: str) -> BeautifulSoup:
@@ -987,6 +1040,8 @@ def build_all():
     if nav_rows:
         nav_by_lang = _nav_data_from_rows(nav_rows, nav_fallback)
     rows = cms.get("pages_rows") or []
+    for r in rows:
+        r["body_html"] = md_to_html(r.get("body_md", ""))
     routes = CMS.get("routes") or {}
     page_routes = routes
     # Blocks: load for each language (page 'home')
@@ -1001,6 +1056,7 @@ def build_all():
             bs = cms_ingest.load_blocks_for_lang(wb_blocks, L, routes)
             if bs:
                 blocks_by_page_lang[(L, "home")] = bs
+    ssr_by_page_lang = build_ssr(blocks_by_page_lang)
     faq_by_page_lang = cms.get("faq_by_page_lang", {})
 
     BLOG = [r for r in CMS.get("blog", []) if (r.get("type") or "").strip().lower() == "blog_post"]
@@ -1197,26 +1253,8 @@ def build_all():
             page_fields = _page_fields(page_rec)
             page_rec.update(page_fields)
 
-            ssr: Dict[str, Any] = {
-                "hero": {
-                    "title": page_fields["h1"] or page_fields["title"],
-                    "lead": page_fields["lead"],
-                    "claim": "",
-                    "kpi": [],
-                    "image": {
-                        "src": page_rec.get("hero_image") or page_rec.get("og_image") or "",
-                        "srcset": "",
-                        "alt": page_rec.get("hero_alt") or page_fields["h1"] or page_fields["title"],
-                    },
-                    "cta": {"label": page_fields["cta_label"]},
-                    "cta_primary": {"label": page_fields["cta_label"]},
-                    "cta_secondary": {"label": page_rec.get("cta_secondary", "")},
-                },
-                "services": [],
-                "faq": [],
-                "home": {"section_titles": {}, "section_subtitles": {}},
-                "routes": routes,
-            }
+            ssr = ssr_by_page_lang.get((L, key), {})
+            ssr.setdefault("routes", routes)
 
             template_rel = resolve_template(page_rec)
 
