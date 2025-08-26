@@ -61,26 +61,15 @@ jobs:
       #   source .venv/bin/activate
       #   pytest -q -k 'not dropdown_keyboard'
 
-      - name: Provide CMS
-        run: |
-          set -e
-          mkdir -p data/cms
-          SRC="${{ vars.CMS_SOURCE }}"
-          SRC="$(echo "$SRC" | sed 's/[[:space:]\.]*$//')"
-          echo "CMS_SOURCE_PATH: $SRC"
-          if [ -n "$SRC" ]; then
-            if [[ "$SRC" =~ ^https:// ]]; then
-              echo "Downloading CMS from $SRC"
-              curl -fsSL "$SRC" -o data/cms/menu.xlsx
-            else
-              echo "Copying CMS from $SRC"
-              cp "$SRC" data/cms/menu.xlsx
-            fi
-          fi
-          test -f data/cms/menu.xlsx
-          echo "CMS_SHA256: $(shasum -a 256 data/cms/menu.xlsx | awk '{print $1}')"
-          ls -lah data/cms
-
+# .github/workflows/pages.yml
+- name: Provide CMS (repo-only)
+  run: |
+    set -euo pipefail
+    if [ ! -f data/cms/menu.xlsx ]; then
+      echo "::error file=data/cms/menu.xlsx::Brak CMS pliku. Wgraj data/cms/menu.xlsx i uruchom ponownie."
+      exit 1
+    fi
+    ls -lh data/cms/menu.xlsx
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
