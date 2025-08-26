@@ -508,6 +508,32 @@ def _nav_data_from_rows(rows, fallback):
     return out
 
 
+def _build_nav_bundle_for_lang(rows: List[Dict[str, Any]], lang: str, meta: Dict[str, Any]) -> Dict[str, Any]:
+    """Build new navigation bundle for selected language."""
+    arr = [r for r in rows if (r.get("lang") or "pl").lower() == lang]
+    children = defaultdict(list)
+    mains = []
+    for r in arr:
+        parent = (r.get("parent") or "").strip()
+        if parent:
+            children[parent].append(r)
+        else:
+            mains.append(r)
+    def _node(rec: Dict[str, Any]) -> Dict[str, Any]:
+        node = {"label": rec.get("label"), "href": rec.get("href"), "order": rec.get("order", 0)}
+        kids = children.get(rec.get("label"), [])
+        if kids:
+            kids.sort(key=lambda i: (i.get("order", 0), (i.get("label") or "").lower()))
+            node["children"] = [_node(ch) for ch in kids]
+        return node
+    mains.sort(key=lambda i: (i.get("order", 0), (i.get("label") or "").lower()))
+    items = [_node(m) for m in mains]
+    bundle = {"meta": meta or {}, "items": items}
+    h = hashlib.sha256(json.dumps(bundle, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
+    bundle["version"] = f"sha256:{h}"
+    return bundle
+
+
 from pathlib import Path
 
 def _split_lang_rel(slug: str):
@@ -1276,6 +1302,7 @@ def build_all():
 
     # === MENU: jeśli są wiersze z arkusza → buduj bundlery + HTML do SSR ===
     rows = cms.get("menu_rows") or []
+    meta_by_lang = cms.get("nav_meta", {})
     if not rows:
         def _menu_from_pages(pages_rows):
             out=[]
@@ -1298,10 +1325,13 @@ def build_all():
         print("[cms] menu_rows empty → built from pages_rows")
     if rows:
         bundles, html_by_lang = {}, {}
+        meta_default = meta_by_lang.get(site_cfg.get("default_lang", "pl"), {})
         for L in languages:
-            b = menu_builder.build_bundle_for_lang(rows, L)
-            bundles[L] = b
-            html_by_lang[L] = menu_builder.render_nav_html(b)
+            html_bundle = menu_builder.build_bundle_for_lang(rows, L)
+            html_by_lang[L] = menu_builder.render_nav_html(html_bundle)
+            meta = dict(meta_default)
+            meta.update(meta_by_lang.get(L, {}))
+            bundles[L] = _build_nav_bundle_for_lang(rows, L, meta)
         # zapisz bundlery do nowej i legacy ścieżki (żeby nie było 404)
         out_new = DIST / "assets" / "data" / "menu"
         out_old = DIST / "assets" / "nav"

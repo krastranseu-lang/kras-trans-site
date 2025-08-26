@@ -397,6 +397,7 @@ def load_all(cms_root: Path) -> Dict[str, Any]:
     media_rows: List[Dict[str, Any]] = []
     company_rows: List[Dict[str, Any]] = []
     redirect_rows: List[Dict[str, Any]] = []
+    nav_meta: Dict[str, Dict[str, Any]] = {}
 
     for ws in wb.worksheets:
         rows = list(ws.iter_rows(values_only=True))
@@ -566,11 +567,45 @@ def load_all(cms_root: Path) -> Dict[str, Any]:
                         continue
                     label = _cell(row, hdr_lc, "label")
                     href = _cell(row, hdr_lc, "href")
+                    meta_candidate: Dict[str, Any] = {}
+                    logo_src = _cell(row, hdr_lc, "nav.logo.src")
+                    if logo_src:
+                        meta_candidate.setdefault("logo", {})["src"] = logo_src
+                    logo_alt = _cell(row, hdr_lc, "nav.logo.alt")
+                    if logo_alt:
+                        meta_candidate.setdefault("logo", {})["alt"] = logo_alt
+                    cta_label = _cell(row, hdr_lc, "nav.cta.label")
+                    cta_slug = _cell(row, hdr_lc, "nav.cta.slugkey")
+                    if cta_label or cta_slug:
+                        meta_candidate.setdefault("cta", {})
+                        if cta_label:
+                            meta_candidate["cta"]["label"] = cta_label
+                        if cta_slug:
+                            meta_candidate["cta"]["slugKey"] = cta_slug
+                    for k in ("ig", "li", "fb"):
+                        v = _cell(row, hdr_lc, f"nav.social.{k}")
+                        if v:
+                            meta_candidate.setdefault("social", {})[k] = v
+                    if meta_candidate and L not in nav_meta:
+                        nav_meta[L] = meta_candidate
+                    if not label and not href:
+                        continue
                     if not label or not href:
                         continue
                     parent = _cell(row, hdr_lc, "parent") or ""
                     order_v = _cell(row, hdr_lc, "order") or "999"
                     col_v = _cell(row, hdr_lc, "col") or "1"
+                    h = href
+                    if h.startswith('/'):
+                        idx = len(h)
+                        for sep in ('#', '?'):
+                            pos = h.find(sep)
+                            if pos != -1 and pos < idx:
+                                idx = pos
+                        base, suf = h[:idx], h[idx:]
+                        if not base.endswith('/'):
+                            base += '/'
+                        href = base + suf
                     menu_rows.append(
                         {
                             "lang": L,
@@ -774,6 +809,7 @@ def load_all(cms_root: Path) -> Dict[str, Any]:
 
     return {
         "menu_rows": menu_rows,
+        "nav_meta": nav_meta,
         "page_meta": page_meta,
         "blocks": blocks,
         "page_routes": routes,
