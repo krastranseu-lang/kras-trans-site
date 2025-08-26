@@ -60,29 +60,13 @@
         data-api="/home/hero" aria-busy="false">
   <div class="wrap hero__wrap">
     <div class="hero__copy">
-      <p class="hero__claim" data-bind="text: hero.claim">{{ H.claim if ssr and H.claim else pg.lead or STR('hero_claim') }}</p>
-      <h1 id="hero-title" class="hero__title">{{ (H.title if ssr else (pg.h1 or pg.title)) or title }}</h1>
-      <p id="hero-lead" class="hero__lead">{{ pg.lead }}</p>
-
+      <h1 id="hero-title" class="hero__title">{{ page.h1 }}</h1>
+      {% if page.lead %}<p id="hero-lead" class="hero__lead">{{ page.lead }}</p>{% endif %}
+      {% if page.cta_label %}
       <div class="cta-row">
-        <a id="cta" class="btn btn-primary"
-           href="{{ href_by_slugkey('quote') }}"
-           data-bind="href: hero.cta_primary.slugKey|slug, text: hero.cta_primary.label">
-          {{ H.cta_primary.label if ssr else STR('cta_quote_primary') }}
-        </a>
-        <a class="btn btn-ghost"
-           href="{{ href_by_slugkey('contact') }}"
-           data-bind="href: hero.cta_secondary.slugKey|slug, text: hero.cta_secondary.label">
-           {{ H.cta_secondary.label if ssr else STR('cta_quote_secondary') }}
-        </a>
-        {% if company and company[0] and company[0].telephone %}
-          <a class="btn btn-ghost"
-             href="tel:{{ company[0].telephone }}"
-             data-bind="text: hero.cta_phone">
-             {{ company[0].telephone }}
-          </a>
-        {% endif %}
+        <a id="cta" class="btn btn-primary" href="{{ page.cta_href or href_by_slugkey('quote') }}">{{ page.cta_label }}</a>
       </div>
+      {% endif %}
 
         {% set kpi = H.kpi if ssr and H.kpi else [] %}
         <ul class="hero__kpi" role="list"{% if not kpi %} hidden{% endif %}>
@@ -119,16 +103,13 @@
   <div class="divider divider--bottom"></div>
 </section>
 
-{% if pg.body_md or pg.cta_label or pg.cta_secondary or pg.cta_phone or pg.cta_whatsapp %}
+{% if page.body_md or page.cta_label %}
 <section id="page-body" class="section section--content">
   <div class="wrap">
-    {% if pg.body_md %}<article class="content" data-md>{{ pg.body_md }}</article>{% endif %}
-    {% if pg.cta_label or pg.cta_secondary or pg.cta_phone or pg.cta_whatsapp %}
+    {% if page.body_md %}<article class="content" data-md>{{ page.body_md }}</article>{% endif %}
+    {% if page.cta_label %}
     <div class="cta-row">
-      {% if pg.cta_label %}<a class="btn btn-primary" href="{{ pg.cta_href or '#' }}">{{ pg.cta_label }}</a>{% endif %}
-      {% if pg.cta_secondary %}<a class="btn btn-ghost" href="{{ href_by_slugkey('contact') }}">{{ pg.cta_secondary }}</a>{% endif %}
-      {% if pg.cta_phone %}<a class="btn btn-ghost" href="tel:{{ pg.cta_phone }}">{{ pg.cta_phone }}</a>{% endif %}
-      {% if pg.cta_whatsapp %}<a class="btn btn-ghost" href="https://wa.me/{{ pg.cta_whatsapp }}">WhatsApp</a>{% endif %}
+      <a class="btn btn-primary" href="{{ page.cta_href or '#' }}">{{ page.cta_label }}</a>
     </div>
     {% endif %}
   </div>
