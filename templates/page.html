@@ -1,84 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
+{# bezpieczny alias na rekord strony #}
+{% set pg = pg or page or {} %}
+{% set _slug = pg.slugKey or pg.slug or page.slugKey or page.slug or '' %}
+{% set _lang = pg.lang or page.lang or site.defaultLang or 'pl' %}
+{% set BLOCKS = (
+  blocks|selectattr('enabled','ne',False)
+        |selectattr('page','equalto',_slug)
+        |selectattr('lang','equalto',_lang)
+        |sort(attribute='order')
+        |list
+) if blocks is defined else [] %}
+{# =========================
+   KRAS-TRANS • HOME (SSR+CSR)
+   - Zero widocznych tekstów „na sztywno”
+   - SSR: korzysta z `ssr` (przekazany z build.py)
+   - CSR: data-api + data-bind (wypełni cms.js)
+   - Layout: nowoczesny, sekcje o różnych tłach, poziome „reel” na mobile
+   - A11y: aria-labelledby, aria-busy, role, details/summary, h1 single
+   ========================= #}
 
-{# ====== Alias i kontekst ====== #}
-{% set pg   = pg or page or {} %}
-{% set _slug = (pg.slugKey or pg.slug or page.slugKey or page.slug or 'home') %}
-{% set _lang = (pg.lang or page.lang or site.defaultLang or 'pl') %}
-
-{# ====== Pobierz bloki dla tej strony i języka (z fallbackiem do defaultLang) ====== #}
-{% set _blocks_lang = (blocks
-  |selectattr('lang','equalto',_lang)
-  |list) if blocks is defined else [] %}
-{% if _blocks_lang|length == 0 and site and site.defaultLang %}
-  {% set _blocks_lang = (blocks
-    |selectattr('lang','equalto',site.defaultLang)
-    |list) if blocks is defined else [] %}
-{% endif %}
-{% set BLOCKS = (_blocks_lang
-  |selectattr('enabled','ne',False)
-  |selectattr('page','equalto',_slug)
-  |sort(attribute='order')
-  |list) %}
-
-{# ====== Prostutki „parser” Markdown (H2/H3, listy, akapity, usuwanie **) ====== #}
-{% macro _clean(s) -%}
-  {{ (s or '')|replace('**','')|replace('\r','') }}
-{%- endmacro %}
-
-{% macro md_bullets(txt) -%}
-  {% if txt %}
-    {% set lines = txt.splitlines() %}
-    {% set ns = namespace(inlist=False) %}
-    <div class="content">
-      {% for raw in lines %}
-        {% set s = raw.strip() %}
-        {% if s.startswith('- ') %}
-          {% if not ns.inlist %}<ul>{% set ns.inlist=True %}{% endif %}
-          <li>{{ _clean(s[2:]) }}</li>
-        {% else %}
-          {% if ns.inlist %}</ul>{% set ns.inlist=False %}{% endif %}
-          {% if s %}
-            <p>{{ _clean(s) }}</p>
-          {% endif %}
-        {% endif %}
-      {% endfor %}
-      {% if ns.inlist %}</ul>{% endif %}
-    </div>
-  {% endif %}
-{%- endmacro %}
-
-{% macro md_lite(txt) -%}
-  {% if txt %}
-    {% set lines = txt.splitlines() %}
-    {% set ns = namespace(inlist=False) %}
-    <div class="content">
-      {% for raw in lines %}
-        {% set s = raw.strip() %}
-        {% if s.startswith('### ') %}
-          {% if ns.inlist %}</ul>{% set ns.inlist=False %}{% endif %}
-          <h3>{{ _clean(s[4:]) }}</h3>
-        {% elif s.startswith('## ') %}
-          {% if ns.inlist %}</ul>{% set ns.inlist=False %}{% endif %}
-          <h2>{{ _clean(s[3:]) }}</h2>
-        {% elif s.startswith('- ') %}
-          {% if not ns.inlist %}<ul>{% set ns.inlist=True %}{% endif %}
-          <li>{{ _clean(s[2:]) }}</li>
-        {% elif s == '' %}
-          {# pusta linia = separator akapitu #}
-        {% else %}
-          {% if ns.inlist %}</ul>{% set ns.inlist=False %}{% endif %}
-          <p>{{ _clean(s) }}</p>
-        {% endif %}
-      {% endfor %}
-      {% if ns.inlist %}</ul>{% endif %}
-    </div>
-  {% endif %}
-{%- endmacro %}
-
-{# ====== Helper: href po slugKey z SSR/routes ====== #}
+{# ---------- Pomocnicze: href po slugKey z SSR + fallback --------- #}
 {% macro href_by_slugkey(key) -%}
-  {%- set L = _lang -%}
+  {%- set L = page.lang or site.defaultLang or 'pl' -%}
   {%- if ssr and ssr.routes and ssr.routes.get(key) and ssr.routes[key].get(L) -%}
     {{ ssr.routes[key][L] }}
   {%- else -%}
@@ -86,46 +30,72 @@
   {%- endif -%}
 {%- endmacro %}
 
-{# ====== Wybór bloku typu „hero” jeśli jest, inaczej korzystamy z Pages ====== #}
-{% set hero_blk = (BLOCKS|selectattr('type','equalto','hero')|first) %}
-{% set H = ssr.hero if ssr else {} %}
 
-<section id="hero" class="section section--hero theme-glass" aria-labelledby="hero-title">
+{# ---------- Progress bar (wypełnia się wraz ze scrollem) ---------- #}
+<aside id="scroll-progress" class="progress" aria-hidden="true" data-component="scroll-progress">
+  <div class="progress__bar" style="transform: scaleX(0)"></div>
+  <ul class="progress__dots" role="list" aria-hidden="true">
+    {# nawigacja sekcyjna do podświetlenia w JS (bez tekstów) #}
+    <li data-target="#hero"></li>
+    <li data-target="#services"></li>
+    <li data-target="#industries"></li>
+    <li data-target="#coverage"></li>
+    <li data-target="#process"></li>
+    <li data-target="#trust"></li>
+    <li data-target="#testimonials"></li>
+    <li data-target="#partners"></li>
+    <li data-target="#fleet"></li>
+    <li data-target="#pricing"></li>
+    <li data-target="#insights"></li>
+    <li data-target="#faq"></li>
+    <li data-target="#final-cta"></li>
+  </ul>
+</aside>
+
+{# ================================================================
+   0) HERO — LCP obraz + KPI + CTA
+   ================================================================ #}
+{% set H = ssr.hero if ssr else {} %}
+<section id="hero" class="section section--hero theme-glass" aria-labelledby="hero-title"
+        data-api="/home/hero" aria-busy="false">
   <div class="wrap hero__wrap">
     <div class="hero__copy">
-      <h1 id="hero-title" class="hero__title">
-        {{ (hero_blk.title if hero_blk and hero_blk.title else page.h1) }}
-      </h1>
-
-      {% set _lead = hero_blk.lead if hero_blk and hero_blk.lead else page.lead %}
-      {% if _lead %}<p class="hero__lead">{{ _lead }}</p>{% endif %}
-
+      <h1 id="hero-title" class="hero__title">{{ page.h1 }}</h1>
+      {% if page.lead %}<p id="hero-lead" class="hero__lead">{{ page.lead }}</p>{% endif %}
       {% if page.cta_label %}
-        <div class="cta-row">
-          <a class="btn btn-primary"
-             href="{{ page.cta_href or href_by_slugkey('quote') }}">{{ page.cta_label }}</a>
-        </div>
+      <div class="cta-row">
+        <a id="cta" class="btn btn-primary" href="{{ page.cta_href or href_by_slugkey('quote') }}">{{ page.cta_label }}</a>
+      </div>
       {% endif %}
 
-      {# Bullets w HERO – jeśli body_md w bloku hero zawiera listę #}
-      {% if hero_blk and hero_blk.body_md %}
-        {{ md_bullets(hero_blk.body_md) }}
-      {% endif %}
+        {% set kpi = H.kpi if ssr and H.kpi else [] %}
+        <ul class="hero__kpi" role="list"{% if not kpi %} hidden{% endif %}>
+          {% for k in kpi %}
+            <li role="listitem"><strong data-counter="{{ k.value }}">{{ k.value }}</strong><span>{{ k.label }}</span></li>
+          {% endfor %}
+        </ul>
     </div>
 
     <div class="hero__media">
       <picture>
+        {# Możesz mieć srcset w JSON; JS podmieni, a builder doda preload #}
         <img id="heroLCP" width="1280" height="720" decoding="async" loading="eager" fetchpriority="high"
-             src="{{ H.image.src if ssr and H.image else '/assets/img/hero-fallback.jpg' }}"
-             srcset="{{ H.image.srcset if ssr and H.image else '' }}"
-             alt="{{ H.image.alt if ssr and H.image else (page.hero_alt or 'Hero') }}">
+             src="{{ H.image.src if ssr else 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=' }}"
+             srcset="{{ H.image.srcset if ssr else '' }}"
+             alt="{{ H.image.alt if ssr else 'Obraz' }}"
+             data-bind="attr: { src: hero.image.src, srcset: hero.image.srcset, alt: hero.image.alt }">
       </picture>
-      <div class="hero__backdrop" aria-hidden="true">
-        <svg viewBox="0 0 600 600" class="orbs">
-          <defs><radialGradient id="g1" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="var(--brand)" stop-opacity=".25"/><stop offset="100%" stop-color="transparent"/>
-          </radialGradient></defs>
-          <circle cx="140" cy="160" r="140" fill="url(#g1)"/><circle cx="420" cy="360" r="180" fill="url(#g1)"/>
+      <div class="hero__backdrop">
+        {# dekoracyjna siatka/gradient — czysto wizualne #}
+        <svg viewBox="0 0 600 600" aria-hidden="true" class="orbs">
+          <defs>
+            <radialGradient id="g1" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="var(--brand)" stop-opacity=".25"></stop>
+              <stop offset="100%" stop-color="transparent"></stop>
+            </radialGradient>
+          </defs>
+          <circle cx="140" cy="160" r="140" fill="url(#g1)"></circle>
+          <circle cx="420" cy="360" r="180" fill="url(#g1)"></circle>
         </svg>
       </div>
     </div>
@@ -133,59 +103,344 @@
   <div class="divider divider--bottom"></div>
 </section>
 
-{# ====== Główny „body_md” strony (Pages) – czytelny HTML bez ##/** #}
-{% if page.body_md %}
+{% if page.body_md or page.cta_label %}
 <section id="page-body" class="section section--content">
   <div class="wrap">
-    {{ md_lite(page.body_md) }}
+    {% if page.body_md %}<article class="content" data-md>{{ page.body_md }}</article>{% endif %}
+    {% if page.cta_label %}
+    <div class="cta-row">
+      <a class="btn btn-primary" href="{{ page.cta_href or '#' }}">{{ page.cta_label }}</a>
+    </div>
+    {% endif %}
   </div>
 </section>
 {% endif %}
 
-{# ====== Uniwersalny renderer bloków z arkusza „Blocks” ======
-   type:  hero | bullets | list | text | cta
-   - bullets: listy z wierszy "- ..."
-   - list:    kafelki budowane z linii body_md (po "- ...")
-   - text:    markdown-lite
-   - cta:     przycisk/link (cta_label/cta_href)
-#}
-{% macro render_block(blk, idx) -%}
-  {% set t = (blk.type or 'text') %}
-  <section class="section block block--{{ (blk.block or t)|replace('.','-') }}" id="block-{{ idx }}">
-    <div class="wrap">
-      {% if blk.title %}<h2 class="section__title">{{ blk.title }}</h2>{% endif %}
-      {% if blk.lead  %}<p class="section__sub">{{ blk.lead }}</p>{% endif %}
-
-      {% if t == 'bullets' %}
-        {{ md_bullets(blk.body_md) }}
-
-      {% elif t == 'list' %}
-        {% set items = (blk.body_md or '') .splitlines() |select('trim') |select('startswith','- ') |list %}
-        <div class="grid grid--cards">
-          {% for it in items %}
-            <article class="card card--ghost">
-              <h3 class="card__title">{{ _clean(it[2:]) }}</h3>
-            </article>
-          {% endfor %}
-        </div>
-
-      {% elif t == 'cta' %}
-        {% if blk.cta_label and (blk.cta_href or blk.href) %}
-          <div class="cta-row">
-            <a class="btn btn-primary" href="{{ blk.cta_href or blk.href }}">{{ blk.cta_label }}</a>
-          </div>
-        {% endif %}
-
-      {% else %}
-        {{ md_lite(blk.body_md) }}
-      {% endif %}
-    </div>
-  </section>
-{%- endmacro %}
-
-{# ====== Renderuj wszystkie bloki tej strony w kolejności „order” ====== #}
 {% for blk in BLOCKS %}
-  {{ render_block(blk, loop.index) }}
+<section class="section block block--{{ blk.block }}" id="block-{{ loop.index }}" aria-labelledby="block-{{ loop.index }}-title">
+  <div class="wrap">
+    {% if blk.title %}<h2 id="block-{{ loop.index }}-title">{{ blk.title }}</h2>{% endif %}
+    {% if blk.lead %}<p class="lead">{{ blk.lead }}</p>{% endif %}
+    {% if blk.body_md %}<div class="content" data-md>{{ blk.body_md }}</div>{% endif %}
+    {% if blk.cta_label and blk.cta_href %}
+      <div class="cta-row"><a class="btn btn-primary" href="{{ blk.cta_href }}">{{ blk.cta_label }}</a></div>
+    {% endif %}
+  </div>
+</section>
 {% endfor %}
+
+{# ================================================================
+   1) SERVICES — kafle, reel na mobile
+   ================================================================ #}
+{% set services = ssr.services if ssr and ssr.services else [] %}
+{% if services %}
+<section id="services" class="section section--altA" aria-labelledby="services-title"
+        data-api="/home/services" aria-busy="false">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="services-title">
+        {{ ssr.home.section_titles.services if ssr else '' }}
+      </h2>
+      <p class="section__sub">
+        {{ ssr.home.section_subtitles.services if ssr else '' }}
+      </p>
+    </header>
+
+    <div class="reel services__reel" role="list" aria-label="Usługi" data-bind="aria: { label: home.aria_services }">
+        {% for s in services %}
+          {% set href = ssr.routes[s.slugKey][page.lang] if ssr.routes.get(s.slugKey) else '/' ~ (page.lang or 'pl') ~ '/' ~ s.slugKey ~ '/' %}
+          <article class="card card--service" role="listitem" itemscope itemtype="https://schema.org/Service">
+            <div class="card__icon" aria-hidden="true">{{ s.icon|safe }}</div>
+            <h3 class="card__title" itemprop="name">{{ s.title }}</h3>
+            <p class="card__desc" itemprop="description">{{ s.desc }}</p>
+            <a class="card__link" href="{{ href }}">{{ s.cta.label }}</a>
+          </article>
+        {% endfor %}
+    </div>
+  </div>
+  <div class="divider divider--wave"></div>
+</section>
+{% endif %}
+
+{# ================================================================
+   2) INDUSTRIES — siatka 3/4 kolumny
+   ================================================================ #}
+{% set industries = ssr.industries if ssr and ssr.industries else [] %}
+{% if industries %}
+<section id="industries" class="section section--altB" aria-labelledby="ind-title"
+        data-api="/home/industries" aria-busy="false">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="ind-title">{{ ssr.home.section_titles.industries if ssr and ssr.home.section_titles.industries else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.industries if ssr and ssr.home.section_subtitles.industries else '' }}</p>
+    </header>
+    <div class="grid grid--auto" role="list">
+      {% for it in industries %}
+        <article class="tile3d" role="listitem">
+          <h3>{{ it.title }}</h3>
+          <p>{{ it.desc }}</p>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# ================================================================
+   3) COVERAGE — korytarze, mini map-widget (dekor)
+   ================================================================ #}
+{% set coverage = ssr.coverage if ssr and ssr.coverage else [] %}
+{% if coverage %}
+<section id="coverage" class="section section--altC" aria-labelledby="cov-title"
+        data-api="/home/coverage" aria-busy="false">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="cov-title">{{ ssr.home.section_titles.coverage if ssr and ssr.home.section_titles.coverage else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.coverage if ssr and ssr.home.section_subtitles.coverage else '' }}</p>
+    </header>
+    <div class="grid grid--auto" role="list">
+      {% for it in coverage %}
+        <article class="card card--ghost" role="listitem">
+          <h3 class="card__title">{{ it.title }}</h3>
+          <p class="card__desc">{{ it.desc }}</p>
+        </article>
+      {% endfor %}
+    </div>
+    <div class="map-decor" aria-hidden="true">
+      <svg viewBox="0 0 800 120" preserveAspectRatio="none"><path d="M0,80 Q200,10 400,80 T800,80 L800,120 L0,120 Z" fill="currentColor" opacity=".06"/></svg>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# ================================================================
+   4) PROCESS — timeline (ol > li)
+   ================================================================ #}
+{% set process = ssr.process if ssr and ssr.process else [] %}
+{% if process %}
+<section id="process" class="section section--timeline" aria-labelledby="proc-title"
+        data-api="/home/process" aria-busy="false">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="proc-title">{{ ssr.home.section_titles.process if ssr and ssr.home.section_titles.process else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.process if ssr and ssr.home.section_subtitles.process else '' }}</p>
+    </header>
+    <ol class="steps" role="list">
+      {% for it in process %}
+        <li class="step" role="listitem"><h3>{{ it.title }}</h3><p>{{ it.desc }}</p></li>
+      {% endfor %}
+    </ol>
+  </div>
+</section>
+{% endif %}
+
+{# ================================================================
+   5) TRUST — KPI kafle
+   ================================================================ #}
+{% set trust = ssr.trust if ssr and ssr.trust else [] %}
+{% if trust %}
+<section id="trust" class="section section--altD" aria-labelledby="trust-title"
+        data-api="/home/trust" aria-busy="false">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="trust-title">{{ ssr.home.section_titles.trust if ssr and ssr.home.section_titles.trust else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.trust if ssr and ssr.home.section_subtitles.trust else '' }}</p>
+    </header>
+    <div class="grid grid--kpi" role="list">
+      {% for it in trust %}
+        <article class="kpi" role="listitem">
+          <div class="kpi__value" data-counter="{{ it.value }}">{{ it.value }}</div>
+          <div class="kpi__label">{{ it.label }}</div>
+          <p class="kpi__desc">{{ it.desc }}</p>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# ================================================================
+   6) TESTIMONIALS — karuzela „reel”
+   ================================================================ #}
+{% set testimonials = ssr.testimonials if ssr and ssr.testimonials else [] %}
+{% if testimonials %}
+<section id="testimonials" class="section section--altE" aria-labelledby="testi-title"
+        data-api="/home/testimonials" aria-busy="false">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="testi-title">{{ ssr.home.section_titles.testimonials if ssr and ssr.home.section_titles.testimonials else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.testimonials if ssr and ssr.home.section_subtitles.testimonials else '' }}</p>
+    </header>
+    <div class="reel testimonials__reel" role="list">
+      {% for t in testimonials %}
+        <figure class="quote card card--quote" role="listitem" itemprop="review" itemscope itemtype="https://schema.org/Review">
+          <blockquote class="quote__text" itemprop="reviewBody">“{{ t.quote }}”</blockquote>
+          <figcaption class="quote__meta">
+            <span class="quote__author" itemprop="author">{{ t.author }}</span>
+            <span class="quote__role">{{ t.role }}</span>
+          </figcaption>
+        </figure>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# ================================================================
+   7) PARTNERS — paski logo
+   ================================================================ #}
+{% set partners = ssr.partners if ssr and ssr.partners else [] %}
+{% if partners %}
+<section id="partners" class="section section--altF" aria-labelledby="partners-title"
+        data-api="/home/partners" aria-busy="false">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="partners-title">{{ ssr.home.section_titles.partners if ssr and ssr.home.section_titles.partners else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.partners if ssr and ssr.home.section_subtitles.partners else '' }}</p>
+    </header>
+    <ul class="logos" role="list">
+      {% for p in partners %}
+        <li role="listitem">
+          <img loading="lazy" decoding="async"
+               src="{{ p.src }}" alt="{{ p.alt }}">
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+
+{# ================================================================
+   8) FLEET — kafle
+   ================================================================ #}
+{% set fleet = ssr.fleet if ssr and ssr.fleet else [] %}
+{% if fleet %}
+<section id="fleet" class="section section--altG" aria-labelledby="fleet-title"
+        data-api="/home/fleet" aria-busy="false">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="fleet-title">{{ ssr.home.section_titles.fleet if ssr and ssr.home.section_titles.fleet else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.fleet if ssr and ssr.home.section_subtitles.fleet else '' }}</p>
+    </header>
+    <div class="grid grid--cards" role="list">
+      {% for f in fleet %}
+        <article class="card card--fleet" role="listitem">
+          <h3 class="card__title">{{ f.title }}</h3>
+          <p class="card__desc">{{ f.desc }}</p>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# ================================================================
+   9) PRICING / QUOTE — kafle linkujące
+   ================================================================ #}
+{% set pricing = ssr.pricing if ssr and ssr.pricing else [] %}
+{% if pricing %}
+<section id="pricing" class="section section--altH" aria-labelledby="pricing-title"
+        data-api="/home/pricing" aria-busy="false">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="pricing-title">{{ ssr.home.section_titles.pricing if ssr and ssr.home.section_titles.pricing else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.pricing if ssr and ssr.home.section_subtitles.pricing else '' }}</p>
+    </header>
+    <div class="grid grid--cards" role="list">
+      {% for pr in pricing %}
+        <article class="card card--pricing" role="listitem">
+          <h3 class="card__title">{{ pr.title }}</h3>
+          <p class="card__desc">{{ pr.desc }}</p>
+          {% set k = pr.slugKey %}
+          <a class="card__link" href="{{ href_by_slugkey(k) }}">{{ pr.cta.label if pr.cta and pr.cta.label else '' }}</a>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# ================================================================
+   10) INSIGHTS — blog/cases (reel)
+   ================================================================ #}
+{% set blog = ssr.blog if ssr and ssr.blog else [] %}
+{% if blog %}
+<section id="insights" class="section section--altI" aria-labelledby="ins-title"
+        data-api="/blog/latest" aria-busy="false">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="ins-title">{{ ssr.home.section_titles.insights if ssr and ssr.home.section_titles.insights else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.insights if ssr and ssr.home.section_subtitles.insights else '' }}</p>
+    </header>
+    <div class="reel insights__reel" role="list">
+      {% for b in blog %}
+        <article class="card card--post" role="listitem" itemscope itemtype="https://schema.org/BlogPosting">
+          <h3 class="card__title" itemprop="headline">{{ b.title }}</h3>
+          <p class="card__desc" itemprop="description">{{ b.lead }}</p>
+          <a class="card__link" href="{{ b.canonical_path }}">{{ b.cta.label if b.cta and b.cta.label else '' }}</a>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# ================================================================
+   11) FAQ — details/summary
+   ================================================================ #}
+{% set faq = ssr.faq if ssr and ssr.faq else [] %}
+{% if faq %}
+<section id="faq" class="section section--faq" aria-labelledby="faq-title"
+        data-api="/faq/list" aria-busy="false">
+  <div class="wrap">
+    <header class="section__head">
+      <h2 id="faq-title">{{ ssr.home.section_titles.faq if ssr and ssr.home.section_titles.faq else '' }}</h2>
+      <p class="section__sub">{{ ssr.home.section_subtitles.faq if ssr and ssr.home.section_subtitles.faq else '' }}</p>
+    </header>
+    <div class="faq-list" role="list">
+      {% for f in faq %}
+        <details class="qa" role="listitem">
+          <summary>{{ f.q }}</summary>
+          <div class="a"><p>{{ f.a }}</p></div>
+        </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# ================================================================
+   12) FINAL CTA — przyciski
+   ================================================================ #}
+{% set final = ssr.final if ssr and ssr.final else {} %}
+{% if final %}
+<section id="final-cta" class="section section--final" data-api="/home/final"
+        aria-labelledby="final-cta-title" aria-busy="false">
+  <div class="wrap">
+    {% if final.title %}<h2 id="final-cta-title">{{ final.title }}</h2>{% endif %}
+    {% if final.desc %}<p class="final__desc">{{ final.desc }}</p>{% endif %}
+    <div class="cta-row">
+      <a class="btn btn-primary"
+         href="{{ href_by_slugkey('quote') }}"
+         data-bind="href: final.cta_primary.slugKey|slug, text: final.cta_primary.label">
+        {{ final.cta_primary.label if final and final.cta_primary else STR('cta_quote_primary') }}
+      </a>
+      <a class="btn btn-ghost"
+         href="{{ href_by_slugkey('contact') }}"
+         data-bind="href: final.cta_secondary.slugKey|slug, text: final.cta_secondary.label">
+        {{ final.cta_secondary.label if final and final.cta_secondary else STR('cta_quote_secondary') }}
+      </a>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# ================================================================
+   Dodatkowe UI: przełącznik motywu (light/dark) — bez tekstów
+   ================================================================ #}
+<button class="theme-toggle" type="button" data-action="theme-toggle" aria-label="Zmień motyw" data-bind="attr:{'aria-label': home.theme_toggle_aria}">
+  <svg width="24" height="24" aria-hidden="true" class="sun"><circle cx="12" cy="12" r="5"/></svg>
+  <svg width="24" height="24" aria-hidden="true" class="moon"><path d="M13 2a9 9 0 1 0 9 9A7 7 0 0 1 13 2z"/></svg>
+</button>
 
 {% endblock %}
