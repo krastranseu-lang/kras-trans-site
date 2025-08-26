@@ -448,22 +448,41 @@ def _page_fields(row: dict) -> Dict[str, str]:
 
 
 def _nav_data_from_rows(rows, fallback):
-    out = {}
+    """Return navigation data grouped by language.
+
+    Structure per language:
+    {
+        "meta": {"logo": {"src": str, "alt": str}, "cta": {"label": str, "slugKey": str}},
+        "top": [{"label": str, "href": str, "order": int, "col": int|None, "id": str}, ...],
+        "children": {parent_id: [{"label": str, "href": str, "group": str, "order": int}, ...]}
+    }
+    """
+    out: Dict[str, Any] = {}
     rows = rows or []
-    by_lang = defaultdict(list)
+    by_lang: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for r in rows:
-        L = (r.get("lang") or "pl").lower()
+        L = (r.get("lang") or "pl").strip().lower()
         if not _truthy(r.get("enabled", True)):
             continue
         by_lang[L].append(r)
+
     for L, arr in by_lang.items():
-        prim = []
-        mega = {}
-        children = defaultdict(list)
-        for r in arr:
-            parent = (r.get("parent") or "").strip()
-            if parent:
-                children[parent].append(r)
+        if not arr:
+            continue
+        first = arr[0]
+        meta = {
+            "logo": {
+                "src": first.get("nav.logo.src") or "",
+                "alt": first.get("nav.logo.alt") or "",
+            },
+            "cta": {
+                "label": first.get("nav.cta.label") or "",
+                "slugKey": first.get("nav.cta.slugKey") or "",
+            },
+        }
+
+        top: List[Dict[str, Any]] = []
+        id_map: Dict[str, str] = {}
         for r in arr:
             parent = (r.get("parent") or "").strip()
             if parent:
@@ -471,40 +490,37 @@ def _nav_data_from_rows(rows, fallback):
             label = (r.get("label") or "").strip()
             href = (r.get("href") or "").strip()
             order = int(r.get("order") or 0)
-            slug = norm_slug(label)
-            kids = children.get(label) or children.get(slug) or []
-            item = {"label": label, "href": href, "order": order}
-            if kids:
-                item["panel"] = slug
-                m = mega.setdefault(slug, {"columns": []})
-                for ch in kids:
-                    col = int(ch.get("col") or 1)
-                    while len(m["columns"]) < col:
-                        m["columns"].append({"title": "", "items": []})
-                    m["columns"][col - 1]["items"].append({
-                        "label": (ch.get("label") or "").strip(),
-                        "href": (ch.get("href") or "").strip(),
-                        "order": int(ch.get("order") or 0),
-                    })
-            prim.append(item)
-        prim.sort(key=lambda i: (i.get("order", 0), i.get("label", "")))
-        for m in mega.values():
-            for col in m["columns"]:
-                col["items"].sort(key=lambda i: (i.get("order", 0), i.get("label", "")))
-                for it in col["items"]:
-                    it.pop("order", None)
-        for it in prim:
-            it.pop("order", None)
-        data = {"primary": prim}
-        if mega:
-            data["mega"] = mega
-        base = fallback.get(L, {})
-        for k in ("langs", "cta", "logo", "social"):
-            if k in base:
-                data.setdefault(k, base[k])
-        out[L] = data
-    for L, base in fallback.items():
-        out.setdefault(L, base)
+            col_val = r.get("col")
+            try:
+                col = int(float(col_val)) if col_val not in (None, "") else None
+            except Exception:
+                col = None
+            ident = norm_slug(label)
+            id_map[label] = ident
+            top.append({"label": label, "href": href, "order": order, "col": col, "id": ident})
+
+        top.sort(key=lambda i: (i.get("order", 0), (i.get("label") or "").lower()))
+
+        children: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        for r in arr:
+            parent = (r.get("parent") or "").strip()
+            if not parent:
+                continue
+            label = (r.get("label") or "").strip()
+            href = (r.get("href") or "").strip()
+            order = int(r.get("order") or 0)
+            group = (r.get("group") or "").strip()
+            pid = id_map.get(parent) or norm_slug(parent)
+            children[pid].append({"label": label, "href": href, "group": group, "order": order})
+
+        for arr in children.values():
+            arr.sort(key=lambda i: (i.get("order", 0), (i.get("label") or "").lower()))
+
+        out[L] = {"meta": meta, "top": top, "children": dict(children)}
+
+    if fallback:
+        for L, base in fallback.items():
+            out.setdefault(L, base)
     return out
 
 
@@ -1431,17 +1447,6 @@ def build_all():
                 continue
             rel = _norm_route_segment(L, per_lang.get(L))
             page_rec = pages_by.get((L, key), {})
-            if not page_rec:
-                page_rec = {
-                    "lang": L,
-                    "slugKey": key,
-                    "slug": rel,
-                    "template": "page.html",
-                    "title": key,
-                    "h1": key,
-                    "lead": "",
-                    "cta_label": "",
-                }
             page_rec = dict(page_rec)
             page_rec.setdefault("slug", rel)
             page_rec.setdefault("slugKey", key)
@@ -1465,6 +1470,7 @@ def build_all():
                 if b.get("lang") == L and (b.get("page") or "") == page_key and b.get("enabled", True)
             ]
             page_blocks.sort(key=lambda x: x.get("order", 0))
+            blocks_lang = [b for b in blocks_all if b.get("lang") == L and b.get("enabled", True)]
             page_faq = [
                 f for f in faq_all
                 if f.get("lang") == L and (f.get("page") or "") == page_key and f.get("enabled", True)
@@ -1479,13 +1485,13 @@ def build_all():
                 "page": page_rec,
                 "pg": page_rec,
                 "meta": meta,
-                "nav": CFG.get("navigation", {}),
-                "nav_data": {**nav_by_lang.get(L, {}), "routes": routes},
+                "nav": nav_by_lang.get(L, {}),
+                "routes": routes,
                 "path_for": path_for,
                 "title": page_rec.get("seo_title") or page_rec.get("h1") or page_rec.get("title"),
                 "h1": page_rec.get("h1") or "",
                 "meta_desc": page_rec.get("meta_desc") or "",
-                "blocks": blocks_all,
+                "blocks": blocks_lang,
                 "faq": faq_all,
                 "alternates": alternates_map,
                 "canonical": canonical,
@@ -1578,6 +1584,8 @@ def build_all():
             "lang": L,
             "meta_desc": meta.get("meta_desc") or STR(L, "blog_meta_desc") or "",
         }
+        page_row = pages_by.get((L, "blog"), {})
+        blocks_lang = [b for b in blocks_all if b.get("lang") == L and b.get("enabled", True)]
 
         def path_for(kk, LL=None, _routes=routes):
             LL = LL or L
@@ -1589,16 +1597,17 @@ def build_all():
             "lang": L,
             "site": SITE,
             "posts": posts,
-            "page": listing_page,
-            "pg": listing_page,
+            "page": page_row,
+            "pg": page_row,
             "meta": {},
-            "nav": CFG.get("navigation", {}),
-            "nav_data": {**nav_by_lang.get(L, {}), "routes": routes},
+            "nav": nav_by_lang.get(L, {}),
+            "routes": routes,
             "path_for": path_for,
             "title": listing_page["title"],
             "h1": listing_page["h1"],
             "meta_desc": listing_page["meta_desc"],
             "canonical": canonical_list,
+            "blocks": blocks_lang,
         }
         html = render_template(blog_list_tpl_rel, ctx_list)
         html = ensure_head_injections(
@@ -1629,13 +1638,14 @@ def build_all():
                 "page": post,
                 "pg": post,
                 "meta": {},
-                "nav": CFG.get("navigation", {}),
-                "nav_data": {**nav_by_lang.get(L, {}), "routes": routes},
+                "nav": nav_by_lang.get(L, {}),
+                "routes": routes,
                 "path_for": path_for,
                 "title": post.get("seo_title") or post.get("title") or "Blog",
                 "h1": post.get("h1") or post.get("title") or "",
                 "meta_desc": post.get("meta_desc") or "",
                 "canonical": canonical_post,
+                "blocks": blocks_lang,
             }
             html = render_template(blog_post_tpl_rel, ctx_post)
             html = ensure_head_injections(
