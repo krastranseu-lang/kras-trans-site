@@ -50,17 +50,6 @@ jobs:
           pip install --upgrade playwright
           python -m playwright install --with-deps chromium
 
-      - name: Run tests
-        if: ${{ hashFiles('tests/**') != '' }}
-        run: |
-          source .venv/bin/activate
-          pytest -q
-
-      # Jeśli chcesz tymczasowo ominąć test z Playwright:
-      # run: |
-      #   source .venv/bin/activate
-      #   pytest -q -k 'not dropdown_keyboard'
-
       - name: Provide CMS (repo-only)
         run: |
           set -euo pipefail
@@ -118,6 +107,17 @@ jobs:
           set -e
           source .venv/bin/activate
           python tools/cms_verify_build.py
+
+      - name: Run tests
+        if: ${{ hashFiles('tests/**') != '' }}
+        run: |
+          source .venv/bin/activate
+          pytest -q
+
+      # Jeśli chcesz tymczasowo ominąć test z Playwright:
+      # run: |
+      #   source .venv/bin/activate
+      #   pytest -q -k 'not dropdown_keyboard'
       - name: Upload debug JSON
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
