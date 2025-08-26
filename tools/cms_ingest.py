@@ -50,6 +50,133 @@ def split_slug(slug: str):
     rel = (m.group(2) or "").strip("/")
     return lang, rel
 
+
+def truthy(v: Any) -> bool:
+    """Return True for common "truthy" string values."""
+    return str(v or "").strip().lower() in {
+        "1",
+        "true",
+        "tak",
+        "yes",
+        "on",
+        "prawda",
+    }
+
+
+def looks_like_slugkey(val: str) -> bool:
+    """Heuristic check whether ``val`` resembles a slugKey.
+
+    SlugKeys are short alphanumeric identifiers without slashes or schemes.
+    """
+    s = (val or "").strip()
+    if not s:
+        return False
+    if any(ch in s for ch in "/:#?"):
+        return False
+    return re.fullmatch(r"[A-Za-z0-9_-]+", s) is not None
+
+
+def map_href(lang: str, href_or_slugkey: str, routes: Dict[str, Dict[str, str]]) -> str:
+    """Map ``href_or_slugkey`` to final href for language ``lang``.
+
+    If value resembles a slugKey it will be resolved through ``routes`` to
+    ``/{lang}/{rel}/``; otherwise raw href is returned.
+    """
+    raw = (href_or_slugkey or "").strip()
+    if not raw:
+        return ""
+    if looks_like_slugkey(raw):
+        rel = (routes.get(raw, {}) or {}).get(lang)
+        if rel is None:
+            rel = raw if raw != "home" else ""
+        rel = str(rel or "").strip("/")
+        return f"/{lang}/" if not rel else f"/{lang}/{rel}/"
+    return raw
+
+
+def load_blocks_for_lang(wb, lang: str, routes: Dict[str, Dict[str, str]]) -> List[Dict[str, Any]]:
+    """Load Blocks for selected language.
+
+    Only enabled blocks for page ``home`` are returned. Supported block types:
+    hero, text, bullets, list, cta and kpi. Both ``body_md`` and ``body_md_1``
+    columns are accepted. Links are resolved with :func:`map_href`.
+    """
+    ws = None
+    for name in wb.sheetnames:
+        if str(name).strip().lower() == "blocks":
+            ws = wb[name]
+            break
+    if ws is None:
+        return []
+
+    rows = list(ws.iter_rows(values_only=True))
+    if not rows:
+        return []
+    header = [str(h or "").strip().lower() for h in rows[0]]
+    idx = {h: i for i, h in enumerate(header)}
+
+    allowed = {"hero", "text", "bullets", "list", "cta", "kpi"}
+    out: List[Dict[str, Any]] = []
+    L = (lang or "").lower()
+
+    for row in rows[1:]:
+        if not row:
+            continue
+        row_lang = str(row[idx.get("lang", 0)] or "").strip().lower()
+        if row_lang != L:
+            continue
+        page = str(row[idx.get("page", 0)] or "").strip().lower()
+        if page != "home":
+            continue
+        if "enabled" in idx and not truthy(row[idx.get("enabled")]):
+            continue
+        typ = str(row[idx.get("type", 0)] or "text").strip().lower()
+        if typ not in allowed:
+            continue
+
+        blk: Dict[str, Any] = {"type": typ}
+        order_val = row[idx.get("order")] if idx.get("order") is not None else 0
+        try:
+            blk["order"] = float(order_val) if order_val is not None else 0
+        except Exception:
+            blk["order"] = 0
+
+        body_md = ""
+        if "body_md" in idx:
+            val = row[idx["body_md"]]
+            body_md = "" if val is None else str(val).strip()
+        if not body_md and "body_md.1" in idx:
+            val = row[idx["body_md.1"]]
+            body_md = "" if val is None else str(val).strip()
+        if body_md:
+            blk["body_md"] = body_md
+
+        for fld in ("block", "title", "lead", "desc"):
+            i = idx.get(fld)
+            if i is not None and i < len(row):
+                v = row[i]
+                if v is not None and str(v).strip():
+                    blk[fld] = str(v).strip()
+
+        if "href" in idx:
+            href_raw = row[idx["href"]]
+            if href_raw:
+                blk["href"] = map_href(L, str(href_raw).strip(), routes)
+
+        if "cta_label" in idx:
+            lbl = row[idx["cta_label"]]
+            if lbl:
+                blk["cta_label"] = str(lbl).strip()
+        if "cta_href" in idx:
+            h = row[idx["cta_href"]]
+            if h:
+                blk["cta_href"] = map_href(L, str(h).strip(), routes)
+
+        out.append(blk)
+
+    out.sort(key=lambda b: b.get("order", 0))
+    return out
+
 SYN = {
   # kolumny dla arkuszy z definicjami stron
   "pages": {
