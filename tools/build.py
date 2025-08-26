@@ -60,6 +60,51 @@ MD = MarkdownIt()
 
 # --- Helpers -----------------------------------------------------------------
 
+from markdown import markdown
+
+def normalize(h):
+    return str(h or '').strip().lower().replace(' ', '_').replace('.', '_')
+
+def truthy(v):
+    return str(v or '').strip().lower() in {'true','1','yes','y','tak','t','x'}
+
+def md_to_html(s):
+    return markdown(s or '')
+
+def load_rows(sheet):
+    if sheet is None:
+        return []
+    it = sheet.iter_rows(values_only=True)
+    try:
+        header = [normalize(h) for h in next(it)]
+    except StopIteration:
+        return []
+    out = []
+    for row in it:
+        if row is None:
+            continue
+        rec = {}
+        for idx, h in enumerate(header):
+            val = row[idx] if idx < len(row) else None
+            val = '' if val is None else str(val).strip()
+            key = h
+            if key in {'body_md_1','body','body_md','body.md','body_md.1'}:
+                key = 'body_md'
+            elif key == 'cta':
+                key = 'cta_label'
+            rec[key] = val
+        if 'enabled' in rec:
+            rec['enabled'] = truthy(rec['enabled'])
+        if 'publish' in rec:
+            rec['publish'] = truthy(rec['publish'])
+        if 'order' in rec:
+            try:
+                rec['order'] = int(float(rec['order']))
+            except Exception:
+                rec['order'] = 0
+        out.append(rec)
+    return out
+
 def _normalize_segment(seg: str) -> str:
     seg = (seg or '').strip().strip('/')
     return re.sub(r"[^a-z0-9\-]+", "-", seg.lower())
@@ -471,17 +516,6 @@ def resolve_template(page: Dict[str, Any]) -> str:
         else:
             tpl_rel = "pages/generic.html"
     return tpl_rel
-
-def md_to_html(md_text: str) -> str:
-    if not md_text:
-        return ""
-    try:
-        f = env.filters.get("markdown")  # type: ignore[name-defined]
-    except Exception:
-        f = None
-    if callable(f):
-        return f(md_text)
-    return MD.render(md_text)
 
 def soupify(html: str) -> BeautifulSoup:
     return BeautifulSoup(html or "", "lxml")
@@ -1039,25 +1073,63 @@ def build_all():
     nav_rows = cms.get("nav") or cms.get("menu_rows") or []
     if nav_rows:
         nav_by_lang = _nav_data_from_rows(nav_rows, nav_fallback)
-    rows = cms.get("pages_rows") or []
-    for r in rows:
-        r["body_html"] = md_to_html(r.get("body_md", ""))
-    routes = CMS.get("routes") or {}
-    page_routes = routes
-    # Blocks: load for each language (page 'home')
+
     try:
         import openpyxl
-        wb_blocks = openpyxl.load_workbook(cms_ingest.XLSX, read_only=True, data_only=True)
+        wb = openpyxl.load_workbook(cms_ingest.XLSX, read_only=True, data_only=True)
     except Exception:
-        wb_blocks = None
+        wb = None
+
+    pages_rows = load_rows(wb["Pages"]) if wb and "Pages" in wb.sheetnames else []
+    blocks_rows = load_rows(wb["Blocks"]) if wb and "Blocks" in wb.sheetnames else []
+    faq_rows = load_rows(wb["FAQ"]) if wb and "FAQ" in wb.sheetnames else []
+
+    rows = [r for r in (pages_rows or cms.get("pages_rows") or []) if r.get("slugkey") or r.get("key")]
+    for r in rows:
+        r["body_html"] = md_to_html(r.get("body_md"))
+        if "key" not in r and r.get("slugkey"):
+            r["key"] = r.get("slugkey")
+    cms["pages_rows"] = rows
+    routes = CMS.get("routes") or {}
+    page_routes = routes
+
     blocks_by_page_lang = {}
-    if wb_blocks is not None:
-        for L in languages:
-            bs = cms_ingest.load_blocks_for_lang(wb_blocks, L, routes)
-            if bs:
-                blocks_by_page_lang[(L, "home")] = bs
-    ssr_by_page_lang = build_ssr(blocks_by_page_lang)
-    faq_by_page_lang = cms.get("faq_by_page_lang", {})
+    for L in languages:
+        bs = [
+            dict(b)
+            for b in blocks_rows
+            if (b.get("lang") or "").lower() == L
+            and (b.get("page") or "").lower() == "home"
+            and truthy(b.get("enabled", True))
+        ]
+        for blk in bs:
+            blk["body_html"] = md_to_html(blk.get("body_md") or blk.get("desc"))
+        bs.sort(key=lambda x: int(x.get("order") or 0))
+        if bs:
+            blocks_by_page_lang[(L, "home")] = bs
+            dbg_dir = Path("_debug"); dbg_dir.mkdir(exist_ok=True)
+            dbg = {
+                "lang": L,
+                "count": len(bs),
+                "ids": [b.get("block") for b in bs],
+                "orders": [b.get("order") for b in bs],
+                "titles": [b.get("title") for b in bs],
+            }
+            write_text(dbg_dir / f"blocks_home_{L}.json", json.dumps(dbg, ensure_ascii=False, indent=2))
+    ssr_by_page_lang = {}
+
+    faq_by_page_lang = {}
+    for row in faq_rows:
+        L = (row.get("lang") or dlang).lower()
+        if not truthy(row.get("enabled", True)):
+            continue
+        pg = (row.get("page_slug") or row.get("page") or "").lower()
+        if pg not in ("", "home"):
+            continue
+        rec = {"q": row.get("q"), "a": row.get("a"), "order": int(row.get("order") or 0)}
+        faq_by_page_lang.setdefault((L, "home"), []).append(rec)
+    for k in faq_by_page_lang:
+        faq_by_page_lang[k].sort(key=lambda x: x.get("order", 0))
 
     BLOG = [r for r in CMS.get("blog", []) if (r.get("type") or "").strip().lower() == "blog_post"]
     strings_map = {(s.get("key") or "").strip(): s for s in CMS.get("strings", [])}
@@ -1090,16 +1162,17 @@ def build_all():
 
     pages_idx = {}
     for r in rows:
-        if not _truthy((r.get("meta") or {}).get("publish", "true")):
+        if not truthy(r.get("publish", True)):
             continue
         if (r.get("type") or "page").strip().lower() not in {"page", "home", "service"}:
             continue
-        pages_idx[(r.get("key"), r.get("lang"))] = r
+        key = r.get("slugkey") or r.get("key")
+        pages_idx.setdefault((key, r.get("lang")), r)
 
     langs_from_cms = sorted({r.get("lang", "pl") for r in rows})
     languages = sorted(set(languages) | set(langs_from_cms))
     site_cfg["languages"] = languages
-    by_key_lang = {(r.get("key"), r.get("lang")): r for r in rows}
+    by_key_lang = {(r.get("slugkey") or r.get("key"), r.get("lang")): r for r in rows}
 
     def _meta_get(L, K):
         return (cms.get("page_meta", {}).get(L, {}).get(K, {})) or {}
@@ -1169,7 +1242,7 @@ def build_all():
     else:
         bundles, html_by_lang = {}, {}
         print("[cms] menu_rows empty → pozostaje dotychczasowe menu (jeśli jest)")
-    CMS["pages"] = page_defs + CMS.get("pages", [])
+    CMS["pages"] = page_defs + rows
     # === Wstrzyknięcie bloków (SSR) do elementów z data-api ===
     def _inject_blocks(html, lang):
         bl = cms.get("blocks", {}).get(lang, {})
@@ -1212,7 +1285,10 @@ def build_all():
     for p in page_list:
         sl = p.get("slugs") or {p.get("lang", dlang_check): p.get("slug", "")}
         sl = {L: _norm_route_segment(L, s) for L, s in (sl or {}).items()}
-        slugs[p["key"]] = sl
+        key = p.get("key")
+        if not key:
+            continue
+        slugs[key] = sl
 
     def path_for(key: str, lang: str) -> str:
         s = _norm_route_segment(lang, slugs.get(key, {}).get(lang, ""))
@@ -1253,8 +1329,7 @@ def build_all():
             page_fields = _page_fields(page_rec)
             page_rec.update(page_fields)
 
-            ssr = ssr_by_page_lang.get((L, key), {})
-            ssr.setdefault("routes", routes)
+            ssr = None
 
             template_rel = resolve_template(page_rec)
 
@@ -1287,7 +1362,7 @@ def build_all():
                 "canonical": canonical,
                 "STR": lambda key, _L=L: STR(_L, key),
                 "strings": strings_local,
-                "ssr": ssr,
+                "ssr": None,
             }
             dbg_dir = Path("_debug")
             dbg_dir.mkdir(exist_ok=True)
