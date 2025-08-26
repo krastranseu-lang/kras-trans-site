@@ -140,6 +140,35 @@ def test_home_has_blocks():
     assert blocks and len(blocks) > 0
 
 
+def test_home_blocks_rendered():
+    ws = load_sheet('Blocks')
+    rows = list(ws.iter_rows(values_only=True))
+    header = [str(h or '').strip().lower() for h in rows[0]]
+    idx = {h: i for i, h in enumerate(header)}
+    if {'lang', 'page', 'block', 'title'}.difference(idx):
+        pytest.skip('unsupported blocks sheet')
+    titles = []
+    target_lang = 'pl'
+    for r in rows[1:]:
+        if not r:
+            continue
+        lang = cell_str(r[idx['lang']]).lower()
+        page = cell_str(r[idx['page']]).lower()
+        block = cell_str(r[idx['block']]).lower()
+        enabled = truthy(r[idx.get('enabled')]) if 'enabled' in idx else True
+        if lang == target_lang and page == 'home' and block == 'home.industries' and enabled:
+            t = cell_str(r[idx.get('title')])
+            if t:
+                titles.append(t)
+    if not titles:
+        pytest.skip('no home.industries blocks')
+    path = DIST / target_lang / 'index.html'
+    assert path.exists(), f'missing {path}'
+    html = path.read_text(encoding='utf-8')
+    for t in titles:
+        assert t in html
+
+
 def test_nav_menu_matches_cms():
     ws = load_sheet('Nav')
     rows = list(ws.iter_rows(values_only=True))
