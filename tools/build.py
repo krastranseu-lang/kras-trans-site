@@ -88,20 +88,34 @@ def load_rows(sheet):
             val = row[idx] if idx < len(row) else None
             val = '' if val is None else str(val).strip()
             key = h
-            if key in {'body_md_1','body','body_md','body.md','body_md.1'}:
-                key = 'body_md'
-            elif key == 'cta':
-                key = 'cta_label'
+            # aliased headers
+            key = {
+                'body_md_1': 'body_md',
+                'body': 'body_md',
+                'body_md': 'body_md',
+                'body_markdown': 'body_md',
+                'body-markdown': 'body_md',
+                'cta': 'cta_label',
+                'cta_text': 'cta_label',
+                'enabled': 'enabled',
+                'publish': 'enabled',
+            }.get(key, key)
+            # keep first non-empty value on duplicates
+            if key in rec and rec[key] and not val:
+                continue
             rec[key] = val
+        # conversions
         if 'enabled' in rec:
             rec['enabled'] = truthy(rec['enabled'])
-        if 'publish' in rec:
-            rec['publish'] = truthy(rec['publish'])
-        if 'order' in rec:
-            try:
-                rec['order'] = int(float(rec['order']))
-            except Exception:
-                rec['order'] = 0
+        else:
+            rec['enabled'] = True
+        try:
+            rec['order'] = int(float(rec.get('order') or 0))
+        except Exception:
+            rec['order'] = 0
+        for k in ('lang', 'page', 'block'):
+            if k in rec:
+                rec[k] = (rec.get(k) or '').strip().lower()
         out.append(rec)
     return out
 
@@ -158,10 +172,10 @@ def _routes_map() -> Dict[str, Dict[str, str]]:
 def _ssr_home(lang:str) -> Dict[str, Any]:
     """Zwraca gotowe sekcje HOME (hero/services/faq) do wstrzyknięcia w HTML."""
     L = (lang or DEFAULT_LANG).lower()
-    pages = [dict(p) for p in CMS.get("pages", []) if (p.get("lang") or DEFAULT_LANG).lower()==L and p.get("publish", True)]
+    pages = [dict(p) for p in CMS.get("pages", []) if (p.get("lang") or DEFAULT_LANG).lower()==L and p.get("enabled", p.get("publish", True))]
     if not pages:
         # fallback do defaultLang, jeśli dla danego języka jeszcze nie ma danych
-        pages = [dict(p) for p in CMS.get("pages", []) if (p.get("lang") or DEFAULT_LANG).lower()==DEFAULT_LANG and p.get("publish", True)]
+        pages = [dict(p) for p in CMS.get("pages", []) if (p.get("lang") or DEFAULT_LANG).lower()==DEFAULT_LANG and p.get("enabled", p.get("publish", True))]
     strings = { (s.get("key") or s.get("Key") or "").strip(): s for s in CMS.get("strings", []) }
     STR = lambda key: (strings.get(key, {}).get(L) or strings.get(key, {}).get("pl") or "").strip()
     # HERO: rekord home
@@ -587,6 +601,16 @@ DEFAULT_LANG = CFG.get("site",{}).get("defaultLang","pl")
 LOCALES      = list((CFG.get("site",{}).get("locales") or {}).keys()) or ["pl"]
 LANGS = {"pl","en","de","fr","it","ru","ua"}
 
+def page_to_slugkey(val: str) -> str:
+    v = (val or '').strip().lower()
+    v = re.sub(r'^https?://[^/]+', '', v)
+    v = v.strip('/')
+    for L in LOCALES:
+        if v == L or v.startswith(f"{L}/"):
+            v = v[len(L):].lstrip('/')
+            break
+    return v or 'home'
+
 # --------------------------- KOPIOWANIE ASSETS ------------------------------
 ASSETS_DIR = pathlib.Path("assets")
 if ASSETS_DIR.exists():
@@ -730,7 +754,7 @@ def generate_city_service()->List[Dict[str,Any]]:
     per_lang = cfg.get("limits",{}).get("perLang", 0)
     max_total= cfg.get("limits",{}).get("maxPages", 0)
     langs    = cfg.get("langs", LOCALES)
-    services=[p for p in CMS.get("pages",[]) if (p.get("type")=="service" and p.get("publish",True))]
+    services=[p for p in CMS.get("pages",[]) if (p.get("type")=="service" and p.get("enabled", p.get("publish",True)))]
     places=merge_places()
     out=[]; total=0
     for L in langs:
@@ -749,7 +773,7 @@ def generate_city_service()->List[Dict[str,Any]]:
                 row={
                     "lang":L,"type":"city_service","slugKey":f"{svc.get('slugKey','service')}__{city_slug}",
                     "slug":slug,"template":choose_template({"type":"city_service","slug":slug}),
-                    "publish":True,"h1":h1,"title":h1,"seo_title":f"{h1} | Kras-Trans","meta_desc":meta,
+                    "publish":True,"enabled":True,"h1":h1,"title":h1,"seo_title":f"{h1} | Kras-Trans","meta_desc":meta,
                     "hero_alt":h1,"lead":svc.get("lead") or svc.get("title") or "",
                     "og_image":svc.get("og_image") or CFG.get("seo",{}).get("open_graph",{}).get("default_image"),
                     "canonical_path":f"/{L}/{slug}/",
@@ -1084,6 +1108,12 @@ def build_all():
     blocks_rows = load_rows(wb["Blocks"]) if wb and "Blocks" in wb.sheetnames else []
     faq_rows = load_rows(wb["FAQ"]) if wb and "FAQ" in wb.sheetnames else []
 
+    from collections import Counter
+    pages_cnt = Counter(r.get('lang') for r in pages_rows)
+    blocks_cnt = Counter(r.get('lang') for r in blocks_rows)
+    print(f"[Pages] rows per lang: {dict(pages_cnt)}")
+    print(f"[Blocks] rows per lang: {dict(blocks_cnt)}")
+
     rows = [r for r in (pages_rows or cms.get("pages_rows") or []) if r.get("slugkey") or r.get("key")]
     for r in rows:
         r["body_html"] = md_to_html(r.get("body_md"))
@@ -1099,8 +1129,8 @@ def build_all():
             dict(b)
             for b in blocks_rows
             if (b.get("lang") or "").lower() == L
-            and (b.get("page") or "").lower() == "home"
-            and truthy(b.get("enabled", True))
+            and page_to_slugkey(b.get("page")) == "home"
+            and b.get("enabled", True)
         ]
         for blk in bs:
             blk["body_html"] = md_to_html(blk.get("body_md") or blk.get("desc"))
@@ -1138,7 +1168,7 @@ def build_all():
         return (rec.get(L) or rec.get(dlang) or "").strip()
     posts_by_lang: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for row in BLOG:
-        if not _truthy(row.get("publish")):
+        if not _truthy(row.get("enabled", row.get("publish"))):
             continue
         lang_row = (row.get("lang") or dlang).lower()
         slug_row = _norm_route_segment(lang_row, row.get("slug") or "")
@@ -1162,7 +1192,7 @@ def build_all():
 
     pages_idx = {}
     for r in rows:
-        if not truthy(r.get("publish", True)):
+        if not truthy(r.get("enabled", r.get("publish", True))):
             continue
         if (r.get("type") or "page").strip().lower() not in {"page", "home", "service"}:
             continue
