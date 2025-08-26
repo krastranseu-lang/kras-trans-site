@@ -17,12 +17,12 @@
   |sort(attribute='order')
   |list
 ) %}
-{% for b in BLOCKS %}
-  <section class="section block block--{{ b.block }}">
-    {% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
-    {% if b.lead %}<p class="lead">{{ b.lead }}</p>{% endif %}
-    {% if b.body_html %}<div class="content">{{ b.body_html|safe }}</div>{% endif %}
-    {% if b.cta_label and b.cta_href %}<div class="cta-row"><a class="btn" href="{{ b.cta_href }}">{{ b.cta_label }}</a></div>{% endif %}
+{% for blk in BLOCKS %}
+  <section class="section block block--{{ blk.block }}">
+    {% if blk.title %}<h2>{{ blk.title }}</h2>{% endif %}
+    {% if blk.lead %}<p class="lead">{{ blk.lead }}</p>{% endif %}
+    {% if blk.body_html %}<div class="content">{{ blk.body_html|safe }}</div>{% endif %}
+    {% if blk.cta_label and blk.cta_href %}<div class="cta-row"><a class="btn" href="{{ blk.cta_href }}">{{ blk.cta_label }}</a></div>{% endif %}
   </section>
 {% endfor %}
 {% set FAQ = (

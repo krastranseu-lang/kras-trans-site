@@ -74,7 +74,7 @@ def truthy(v):
     return s in {'true','1','yes','y','tak','t','x'}
 
 def md_to_html(s):
-    return markdown(s or '')
+    return markdown(s or '', extensions=["extra", "sane_lists"])
 
 def load_rows(sheet):
     if sheet is None:
