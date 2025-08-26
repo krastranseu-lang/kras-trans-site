@@ -12,10 +12,16 @@ CMS data and writes the generated site to the `dist/` directory.
 Menu labels must be unique within each language. During the build process,
 duplicate labels trigger a warning and the later entries are ignored.
 
-If `data/cms/menu.xlsx` is missing, the build script tries to fetch the sheet
-from the location specified by the `CMS_SOURCE` environment variable. The value
-may point to a local file path or an HTTP(S) URL. The downloaded file is cached
-under `data/cms/menu.xlsx` for subsequent runs.
+If `data/cms/menu.xlsx` is missing, the build script looks for the sheet at the
+location specified by the `CMS_SOURCE` environment variable. The value may point
+to a local file path or an HTTPS URL. The file is saved as
+`data/cms/menu.xlsx` before the build proceeds.
+
+## Skąd brać CMS
+
+1. **A:** commit deterministic `data/cms/menu.xlsx` into the repo.
+2. **B:** set `vars.CMS_SOURCE=https://…/CMS.xlsx` so the workflow fetches it via `curl`.
+3. **C:** (optional) obtain the sheet from a GitHub Release asset via the API.
 
 ## Navigation menu
 
