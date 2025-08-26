@@ -62,12 +62,18 @@ except Exception as e:
 
 # --- Helpers -----------------------------------------------------------------
 
+def _normalize_segment(seg: str) -> str:
+    seg = (seg or '').strip().strip('/')
+    return re.sub(r"[^a-z0-9\-]+", "-", seg.lower())
+
+
 def _norm_route_segment(lang: str, seg: str) -> str:
     seg = (seg or '').strip().strip('/')
-    # usuń błędny prefiks języka, jeśli wpisany w arkuszu
-    if seg.lower().startswith(f'{lang}/'):
+    while seg.lower().startswith(f'{lang}/'):
         seg = seg[len(lang)+1:]
-    return seg
+    if not seg:
+        return ''
+    return "/".join(_normalize_segment(p) for p in seg.split('/'))
 
 # --- SSR (HOME): składamy sekcje 1:1 z CMS na etapie builda ---------------
 def _routes_map() -> Dict[str, Dict[str, str]]:
@@ -235,9 +241,9 @@ def _norm_slug(lang: str, raw: str) -> str:
     for ch in ("#", "?"):
         if ch in s:
             cut = min(cut, s.index(ch))
-    s = s[:cut]
-    if s.startswith(f"/{lang}/"):
-        s = s[len(f"/{lang}/"):]
+    s = s[:cut].lstrip("/")
+    while s.lower().startswith(f"{lang}/"):
+        s = s[len(lang) + 1 :]
     s = "/".join([p.strip() for p in s.split("/") if p.strip()])
     return s + ("" if s.endswith("/") or s == "" else "/")
 
@@ -1472,7 +1478,8 @@ def build_all():
             writes += 1
             langs_seen.add(L)
 
-    Path("_routes.json").write_text(json.dumps(generated, ensure_ascii=False, indent=2), "utf-8")
+    routes_out = DIST / "_routes.json"
+    routes_out.write_text(json.dumps(generated, ensure_ascii=False, indent=2), "utf-8")
     print(f"[routes] exported by build count={len(generated)}")
     print(f"[pages] writes={writes}")
     if writes == 0:

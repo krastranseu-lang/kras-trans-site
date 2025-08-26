@@ -7,7 +7,7 @@ import cms_ingest
 OK = "✅ Verify:"; ERR = "❌ Verify:"
 
 def main():
-    routes_file = Path("_routes.json")
+    routes_file = Path("dist/_routes.json")
     required = []
 
     if routes_file.exists() and routes_file.stat().st_size > 2:

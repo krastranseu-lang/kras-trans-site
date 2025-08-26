@@ -5,11 +5,50 @@ from typing import Dict, Any, List, Optional
 import os
 import re
 import shutil
+import hashlib
 
 try:
     import requests
 except Exception:  # pragma: no cover - requests may be missing in minimal envs
     requests = None
+
+DATA = Path("data/cms")
+DATA.mkdir(parents=True, exist_ok=True)
+CACHE_XLSX = DATA / "menu.xlsx"
+SHA_FILE = DATA / ".cms_sha"
+
+
+def _sha256(p: Path) -> str:
+    h = hashlib.sha256()
+    h.update(p.read_bytes())
+    return h.hexdigest()
+
+
+def fetch_xlsx() -> tuple[Path, str]:
+    """Fetch CMS XLSX (URL or local path) and cache it."""
+    src = os.getenv("CMS_SOURCE") or str(CACHE_XLSX)
+    p = CACHE_XLSX
+    if re.match(r"https?://", src):
+        if not requests:
+            raise RuntimeError("requests not available")
+        r = requests.get(src, timeout=30)
+        r.raise_for_status()
+        p.write_bytes(r.content)
+    else:
+        p_src = Path(src)
+        if not p_src.exists():
+            raise FileNotFoundError(f"CMS not found: {src}")
+        if p_src.resolve() != p.resolve():
+            p.write_bytes(p_src.read_bytes())
+    sha = _sha256(p)
+    SHA_FILE.write_text(sha)
+    print(f"[cms] source={src} -> {p} sha={sha}")
+    return p, sha
+
+
+def normalize_segment(s: str) -> str:
+    s = (s or "").strip().strip("/")
+    return re.sub(r"[^a-z0-9\-]+", "-", s.lower())
 
 LANG_RE = re.compile(r"^/([a-z]{2})(?:/([^?#]*))?/?$")
 
@@ -133,9 +172,9 @@ def _norm_slug(lang: str, raw: str) -> str:
     for ch in ("#", "?"):
         if ch in s:
             cut = min(cut, s.index(ch))
-    s = s[:cut]
-    if s.startswith(f"/{lang}/"):
-        s = s[len(f"/{lang}/"):]
+    s = s[:cut].lstrip("/")
+    while s.lower().startswith(f"{lang}/"):
+        s = s[len(lang) + 1 :]
     s = "/".join([p.strip() for p in s.split("/") if p.strip()])
     return s + ("" if s.endswith("/") or s == "" else "/")
 def _map_headers(headers: List[str], syn: Dict[str,List[str]]) -> Dict[str,int]:
@@ -187,34 +226,18 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
     report: List[str] = []
 
     # wybór źródła
-    cache = cms_root / "menu.xlsx"
-    src: Optional[Path] = None
-    if explicit_src and explicit_src.exists():
-        src = explicit_src
-    elif cache.exists():
-        src = cache
-    else:
-        cms_source = os.getenv("CMS_SOURCE")
-        if cms_source:
-            report.append(f"[cms_ingest] fetch: {cms_source}")
-            try:
-                if cms_source.startswith("http://") or cms_source.startswith("https://"):
-                    if not requests:
-                        raise RuntimeError("requests not available")
-                    resp = requests.get(cms_source, timeout=15)
-                    resp.raise_for_status()
-                    cms_root.mkdir(parents=True, exist_ok=True)
-                    cache.write_bytes(resp.content)
-                    src = cache
-                else:
-                    p = Path(cms_source)
-                    if p.exists():
-                        cms_root.mkdir(parents=True, exist_ok=True)
-                        shutil.copy2(p, cache)
-                        src = cache
-            except Exception as e:
-                report.append(f"[cms_ingest] warn: fetch failed: {e}")
-    if not src:
+    try:
+        if explicit_src and explicit_src.exists():
+            cms_root.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(explicit_src, CACHE_XLSX)
+            src = CACHE_XLSX
+            sha = _sha256(src)
+            SHA_FILE.write_text(sha)
+            print(f"[cms] source={explicit_src} -> {src} sha={sha}")
+        else:
+            src, sha = fetch_xlsx()
+    except Exception as e:
+        report.append(f"[cms_ingest] warn: fetch failed: {e}")
         return {
             "pages_rows": [],
             "page_routes": {},
@@ -232,6 +255,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
         }
 
     report.append(f"[cms_ingest] source: {src}")
+    report.append(f"[cms_ingest] sha: {sha}")
 
     import openpyxl
 
