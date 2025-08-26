@@ -7,6 +7,9 @@ from urllib.parse import urlsplit
 import openpyxl
 import pytest
 from bs4 import BeautifulSoup
+import sys
+sys.path.append('tools')
+import cms_ingest
 
 XLSX_PATH = Path('data/cms/menu.xlsx')
 DIST = Path('dist')
@@ -104,6 +107,37 @@ def test_pages_content_matches_cms():
                     )
                 else:
                     assert act == exp, f"{field} mismatch for {path}: {act!r} != {exp!r}"
+
+
+def test_home_has_blocks():
+    ws = load_sheet('Blocks')
+    rows = list(ws.iter_rows(values_only=True))
+    if not rows:
+        pytest.skip('no block rows')
+    header = [str(h or '').strip().lower() for h in rows[0]]
+    idx = {h: i for i, h in enumerate(header)}
+    if 'lang' not in idx or 'page' not in idx:
+        pytest.skip('unsupported blocks sheet')
+    target_lang = 'pl'
+    found = False
+    for r in rows[1:]:
+        if not r:
+            continue
+        lang = cell_str(r[idx['lang']]).lower()
+        page = cell_str(r[idx['page']]).lower()
+        enabled = truthy(r[idx.get('enabled')]) if 'enabled' in idx else True
+        if lang == target_lang and page == 'home' and enabled:
+            found = True
+            break
+    if not found:
+        pytest.skip('no enabled home blocks for lang')
+
+    import openpyxl as ox
+    wb = ox.load_workbook(XLSX_PATH, read_only=True, data_only=True)
+    cms = cms_ingest.load_all(Path('data')/ 'cms')
+    routes = cms.get('routes', {})
+    blocks = cms_ingest.load_blocks_for_lang(wb, target_lang, routes)
+    assert blocks and len(blocks) > 0
 
 
 def test_nav_menu_matches_cms():
