@@ -4,7 +4,7 @@
   <h1 class="page__title">{{ page.h1 }}</h1>
   {% if page.lead %}<p id="hero-lead" class="lead">{{ page.lead }}</p>{% endif %}
   {% if page.cta_label %}<div class="cta-row"><a id="cta" class="btn btn-primary" href="{{ page.cta_href or '/' ~ (page.lang or site.defaultLang or 'pl') ~ '/quote/' }}">{{ page.cta_label }}</a></div>{% endif %}
-  {% if page_html %}<article class="content">{{ page_html|safe }}</article>
-  {% elif page.body_md %}<article class="content">{{ page.body_md }}</article>{% endif %}
+  {% if page.body_html %}<article class="content">{{ page.body_html|safe }}</article>
+  {% elif page.body_md %}<article class="content">{{ page.body_md|markdown }}</article>{% endif %}
 </main>
 {% endblock %}
