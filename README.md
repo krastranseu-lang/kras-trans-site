@@ -17,7 +17,7 @@ and exits with an error if the file is missing.
 
 ## Skąd brać CMS
 
-Commit deterministic `data/cms/menu.xlsx` into the repo.
+Źródło CMS: jedynie `data/cms/menu.xlsx` w repo. Aktualizacje arkusza wgrywa użytkownik ręcznie (upload) lub commit. PR nie zawiera `menu.xlsx`.
 
 ## Navigation menu
 

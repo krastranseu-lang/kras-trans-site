@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate snapshot report for CMS XLSX file."""
 import json
-import os
 import sys
+from pathlib import Path
 from collections import Counter
 from typing import Any, Dict, List, Optional
 
@@ -21,12 +21,12 @@ def _truthy(value: Any) -> bool:
     return False
 
 def main(path: Optional[str] = None) -> None:
-    # Resolve path from argument or environment variable
     if path is None:
-        path = os.environ.get("CMS_SOURCE")
-    if not path:
-        print("Usage: python tools/cms_snapshot.py <xlsx_path>", file=sys.stderr)
-        sys.exit(1)
+        path = Path('data/cms/menu.xlsx')
+    else:
+        path = Path(path)
+    if not path.exists():
+        raise SystemExit("Missing data/cms/menu.xlsx (repo-only)")
 
     wb = load_workbook(path, read_only=True, data_only=True)
 

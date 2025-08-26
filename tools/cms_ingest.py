@@ -1,21 +1,14 @@
 # tools/cms_ingest.py
 from __future__ import annotations
 from pathlib import Path
-from typing import Dict, Any, List, Optional
-import os
+from typing import Dict, Any, List
 import re
-import shutil
 import hashlib
 
-try:
-    import requests
-except Exception:  # pragma: no cover - requests may be missing in minimal envs
-    requests = None
-
-DATA = Path("data/cms")
-DATA.mkdir(parents=True, exist_ok=True)
-CACHE_XLSX = DATA / "menu.xlsx"
-SHA_FILE = DATA / ".cms_sha"
+CMS_DIR = Path("data/cms")
+CMS_DIR.mkdir(parents=True, exist_ok=True)
+XLSX = CMS_DIR / "menu.xlsx"
+SHA_FILE = CMS_DIR / ".cms_sha"
 
 
 def _sha256(p: Path) -> str:
@@ -24,26 +17,14 @@ def _sha256(p: Path) -> str:
     return h.hexdigest()
 
 
-def fetch_xlsx() -> tuple[Path, str]:
-    """Fetch CMS XLSX (URL or local path) and cache it."""
-    src = os.getenv("CMS_SOURCE") or str(CACHE_XLSX)
-    p = CACHE_XLSX
-    if re.match(r"https?://", src):
-        if not requests:
-            raise RuntimeError("requests not available")
-        r = requests.get(src, timeout=30)
-        r.raise_for_status()
-        p.write_bytes(r.content)
-    else:
-        p_src = Path(src)
-        if not p_src.exists():
-            raise FileNotFoundError(f"CMS not found: {src}")
-        if p_src.resolve() != p.resolve():
-            p.write_bytes(p_src.read_bytes())
-    sha = _sha256(p)
+def ensure_xlsx() -> tuple[Path, str]:
+    """Return repo-provided CMS XLSX and its SHA."""
+    if not XLSX.exists():
+        raise SystemExit("Missing data/cms/menu.xlsx (repo-only)")
+    sha = _sha256(XLSX)
     SHA_FILE.write_text(sha)
-    print(f"[cms] source={src} -> {p} sha={sha}")
-    return p, sha
+    print(f"[cms] source=repo -> {XLSX} sha={sha}")
+    return XLSX, sha
 
 
 def normalize_segment(s: str) -> str:
@@ -215,7 +196,7 @@ def _find_sheet(sheets, group):
             pass
     return best if best_score >= 3 else None
 
-def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, Any]:
+def load_all(cms_root: Path) -> Dict[str, Any]:
     """Wczytuje wszystkie arkusze XLSX i klasyfikuje je podobnie jak ``cms_guard``.
 
     Wynik łączy dane z wielu arkuszy (union) i zwraca słownik zawierający
@@ -225,35 +206,7 @@ def load_all(cms_root: Path, explicit_src: Optional[Path] = None) -> Dict[str, A
     cms_root = _log_path(cms_root)
     report: List[str] = []
 
-    # wybór źródła
-    try:
-        if explicit_src and explicit_src.exists():
-            cms_root.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(explicit_src, CACHE_XLSX)
-            src = CACHE_XLSX
-            sha = _sha256(src)
-            SHA_FILE.write_text(sha)
-            print(f"[cms] source={explicit_src} -> {src} sha={sha}")
-        else:
-            src, sha = fetch_xlsx()
-    except Exception as e:
-        report.append(f"[cms_ingest] warn: fetch failed: {e}")
-        return {
-            "pages_rows": [],
-            "page_routes": {},
-            "routes": {},
-            "menu_rows": [],
-            "page_meta": {},
-            "blocks": {},
-            "blog_rows": [],
-            "strings": [],
-            "media": [],
-            "company": [],
-            "redirects": [],
-            "collections": {},
-            "report": "[cms] no source",
-        }
-
+    src, sha = ensure_xlsx()
     report.append(f"[cms_ingest] source: {src}")
     report.append(f"[cms_ingest] sha: {sha}")
 
