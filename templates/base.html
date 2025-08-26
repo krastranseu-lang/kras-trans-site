@@ -137,8 +137,7 @@
     .skip-link{position:absolute;left:-999px;top:auto;width:1px;height:1px;overflow:hidden}
     .skip-link:focus{left:12px;top:8px;width:auto;height:auto;background:#111;color:#fff;padding:8px 12px;border-radius:12px;z-index:100}
     :focus-visible{outline:3px solid var(--focus);outline-offset:2px}
-    .site-header{position:sticky;top:0;z-index:50;backdrop-filter:saturate(180%) blur(12px);background:rgba(255,255,255,.72);border-bottom:1px solid rgba(0,0,0,.06)}
-    @media (prefers-color-scheme: dark){body{background:#0b1020;color:#e5e7eb}.site-header{background:rgba(15,23,42,.62);border-color:rgba(255,255,255,.08)}}
+    @media (prefers-color-scheme: dark){body{background:#0b1020;color:#e5e7eb}}
   </style>
 
   <script>document.documentElement.classList.remove('no-js');</script>
@@ -159,6 +158,8 @@
 
   {# --- JSON-LD (builder wstrzykuje gotowy <script type="application/ld+json">) --- #}
   {% if jsonld %}{{ jsonld|safe }}{% endif %}
+
+  <script defer src="/assets/js/menu.js"></script>
 
   {# --- JS (defer) z pages.yml / buildera --- #}
   {% if assets.js %}
