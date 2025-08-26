@@ -1,0 +1,27 @@
+<header class="site-header" data-nav>
+  <div class="wrap nav">
+    <a class="brand" href="/{{ page.lang }}/">
+      <img src="/assets/media/logo-firma-transportowa-kras-trans.png" alt="Kras-Trans" loading="eager" width="156" height="32">
+    </a>
+    <nav class="primary" aria-label="Główna nawigacja">
+      <ul id="navList">
+        {% for item in nav if item.enabled %}
+          <li class="{{ 'has-mega' if item.children }}">
+            <a class="toplink" href="{{ item.href }}">{{ item.label }}</a>
+            {% if item.children %}
+              <button class="mega-toggle" aria-expanded="false" aria-controls="mega-{{ loop.index }}" aria-label="Rozwiń {{ item.label }}">▾</button>
+              <div id="mega-{{ loop.index }}" class="mega" hidden aria-hidden="true">
+                <div class="wrap">
+                  {% for c in item.children %}
+                    <a class="mega-item" href="{{ c.href }}">{{ c.label }}</a>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </nav>
+    <a class="btn cta" href="/{{ page.lang }}/quote/">Zamów wycenę</a>
+  </div>
+</header>
