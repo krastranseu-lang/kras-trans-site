@@ -1,0 +1,237 @@
+[cms_ingest] loading data/cms
+[cms] source=repo -> data/cms/menu.xlsx sha=63fcb4e9f281fc960b482105027b035083b1897ac4b4db80e008b0594df72372
+[cms] pages=72 langs=7
+[cms_ingest] source: data/cms/menu.xlsx
+[cms_ingest] sha: 63fcb4e9f281fc960b482105027b035083b1897ac4b4db80e008b0594df72372
+[sheet] _lists: ['name', 'vals']
+[detect] company-like: _lists
+[sheet] Pages: ['lang', 'type', 'slug', 'slugKey', 'parentSlug', 'template', 'publish', 'order', 'h1', 'title', 'seo_title', 'meta_desc', 'hero_alt', 'hero_image', 'og_image', 'canonical_path', 'cta_label', 'cta_secondary', 'cta_phone', 'cta_whatsapp', 'lead', 'body_md', 'min_outlinks', 'max_outlinks', 'structured_data', 'links_suggest', 'city', 'service', 'hero_video', 'tags', 'service_languages', 'secondary_keywords', 'anchor_text_suggestions', 'structured_data_types']
+[detect] pages-like: Pages
+[warn] slug normalized: 'transport-drogowy' -> '/pl/transport-drogowy/'
+[warn] slug normalized: 'transport-ekspresowy' -> '/pl/transport-ekspresowy/'
+[warn] slug normalized: 'road-transport' -> '/en/road-transport/'
+[warn] slug normalized: 'express-shipping' -> '/en/express-shipping/'
+[warn] slug normalized: 'blog' -> '/pl/blog/'
+[warn] slug normalized: 'blog' -> '/en/blog/'
+[warn] slug normalized: 'quote' -> '/en/quote/'
+[warn] slug normalized: 'quote' -> '/en/quote/'
+[warn] slug normalized: 'blog' -> '/de/blog/'
+[warn] slug normalized: 'blog' -> '/fr/blog/'
+[warn] slug normalized: 'blog' -> '/it/blog/'
+[warn] slug normalized: 'blog' -> '/ru/blog/'
+[warn] slug normalized: 'blog' -> '/ua/blog/'
+[detect] meta-like: Pages
+[detect] blocks-like: Pages
+[detect] blog-like: Pages
+[warn] blog slug normalized: 'transport-drogowy' -> '/pl/transport-drogowy/'
+[warn] blog slug normalized: 'transport-ekspresowy' -> '/pl/transport-ekspresowy/'
+[warn] blog slug normalized: 'road-transport' -> '/en/road-transport/'
+[warn] blog slug normalized: 'express-shipping' -> '/en/express-shipping/'
+[warn] blog slug normalized: 'blog' -> '/pl/blog/'
+[warn] blog slug normalized: 'blog' -> '/en/blog/'
+[warn] blog slug normalized: 'quote' -> '/en/quote/'
+[warn] blog slug normalized: 'quote' -> '/en/quote/'
+[warn] blog slug normalized: 'blog' -> '/de/blog/'
+[warn] blog slug normalized: 'blog' -> '/fr/blog/'
+[warn] blog slug normalized: 'blog' -> '/it/blog/'
+[warn] blog slug normalized: 'blog' -> '/ru/blog/'
+[warn] blog slug normalized: 'blog' -> '/ua/blog/'
+[detect] routes-like: Pages
+[detect] media-like: Pages
+[detect] company-like: Pages
+[sheet] Blocks: ['block', 'lang', 'page', 'type', 'title', 'body_md', 'desc', 'href', 'order', 'lead', 'body_md.1', 'cta_label', 'cta_href', 'enabled']
+[detect] meta-like: Blocks
+[detect] blocks-like: Blocks
+[detect] blog-like: Blocks
+[detect] media-like: Blocks
+[sheet] Nav: ['lang', 'label', 'href', 'parent', 'order', 'col', 'enabled', 'nav.logo.src', 'nav.logo.alt', 'nav.cta.label', 'nav.cta.slugKey', 'nav.status.label', 'nav.status.href', 'nav.social.ig', 'nav.social.li', 'nav.social.fb']
+[detect] menu-like: Nav
+[sheet] props: ['key', 'lang', 'value']
+[detect] meta-like: props
+[detect] routes-like: props
+[sheet] Routes: ['slugKey', 'pl', 'en', 'de', 'fr', 'it', 'ru', 'ua']
+[detect] routes-like: Routes
+[sheet] Strings: ['key', 'pl', 'en', 'de', 'fr', 'it', 'ru', 'ua', 'uk']
+[detect] routes-like: Strings
+[detect] strings-like: Strings
+[sheet] FAQ: ['lang', 'q', 'a', 'page_slug', 'order', 'enabled', 'Kolumna nr 7', 'Kolumna nr 8', 'Kolumna nr 9', 'Kolumna nr 10']
+[sheet] Blog: ['block', 'lang', 'page', 'type', 'title', 'desc', 'order', 'enabled', 'publish', 'slug', 'slugKey', 'h1', 'lead', 'body_md', 'meta_desc', 'author', 'hero_image', 'authorSlug', 'categories', 'tags', 'published_at', 'updated_at', 'template']
+[detect] pages-like: Blog
+[warn] slug normalized: 'transport-ekspresowy-35t-kiedy-sie-oplaca' -> '/pl/transport-ekspresowy-35t-kiedy-sie-oplaca/'
+[warn] missing seo_title for pl/transport-ekspresowy-35t-kiedy-sie-oplaca
+[warn] slug normalized: 'jak-przygotowac-ladunek-na-busa-35t' -> '/pl/jak-przygotowac-ladunek-na-busa-35t/'
+[warn] missing seo_title for pl/jak-przygotowac-ladunek-na-busa-35t
+[warn] slug normalized: 'cmr-najczestsze-bledy' -> '/pl/cmr-najczestsze-bledy/'
+[warn] missing seo_title for pl/cmr-najczestsze-bledy
+[warn] slug normalized: 'express-van-35t-when-to-use' -> '/en/express-van-35t-when-to-use/'
+[warn] missing seo_title for en/express-van-35t-when-to-use
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] slug normalized: '|' -> '/pl/|/'
+[warn] missing h1 for pl/|
+[warn] missing seo_title for pl/|
+[warn] missing meta_desc for pl/|
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[warn] missing h1 for pl/home
+[warn] missing seo_title for pl/home
+[warn] missing meta_desc for pl/home
+[detect] meta-like: Blog
+[detect] blocks-like: Blog
+[detect] blog-like: Blog
+[warn] blog slug normalized: 'transport-ekspresowy-35t-kiedy-sie-oplaca' -> '/pl/transport-ekspresowy-35t-kiedy-sie-oplaca/'
+[warn] blog slug normalized: 'jak-przygotowac-ladunek-na-busa-35t' -> '/pl/jak-przygotowac-ladunek-na-busa-35t/'
+[warn] blog slug normalized: 'cmr-najczestsze-bledy' -> '/pl/cmr-najczestsze-bledy/'
+[warn] blog slug normalized: 'express-van-35t-when-to-use' -> '/en/express-van-35t-when-to-use/'
+[warn] blog slug normalized: '|' -> '/pl/|/'
+[detect] routes-like: Blog
+[detect] media-like: Blog
+[sheet] _report: ['sheet', 'lang', 'rowA', 'rowB', 'field', 'sim', 'valueA', 'valueB']
+[sheet] Media: ['slug', 'src', 'alt', 'title', 'caption', 'type', 'width', 'height', 'lang']
+[detect] meta-like: Media
+[detect] blog-like: Media
+[warn] blog slug normalized: 'hero-home' -> '/pl/hero-home/'
+[warn] blog slug normalized: 'team-father-son' -> '/pl/team-father-son/'
+[warn] blog slug normalized: 'loading-van' -> '/pl/loading-van/'
+[detect] routes-like: Media
+[detect] media-like: Media
+[sheet] Company: ['name', 'legal_name', 'telephone', 'phone', 'address', 'country', 'email', 'website', 'nip', 'instagram', 'linkedin', 'facebook']
+[detect] company-like: Company
+[sheet] Leady: ['created_at', 'name', 'phone', 'email', 'message', 'source', 'utm_source', 'utm_medium', 'utm_campaign']
+[detect] company-like: Leady
+[sheet] Templates: ['name', 'description']
+[detect] media-like: Templates
+[detect] company-like: Templates
+[sheet] Places: ['slug', 'type', 'name', 'lang', 'title', 'h1', 'lead', 'meta_desc']
+[detect] meta-like: Places
+[detect] blog-like: Places
+[warn] blog slug normalized: 'lodz' -> '/pl/lodz/'
+[warn] blog slug normalized: 'polska' -> '/pl/polska/'
+[warn] blog slug normalized: 'niemcy' -> '/pl/niemcy/'
+[detect] routes-like: Places
+[detect] media-like: Places
+[detect] company-like: Places
+[sheet] Reviews: ['source', 'author', 'rating', 'text', 'date', 'url', 'lang']
+[detect] blog-like: Reviews
+[detect] media-like: Reviews
+[sheet] CaseStudies: ['lang', 'slug', 'title', 'lead', 'meta_desc', 'body_md', 'category', 'date']
+[detect] meta-like: CaseStudies
+[detect] blocks-like: CaseStudies
+[detect] blog-like: CaseStudies
+[warn] blog slug normalized: 'lodz-berlin-express' -> '/pl/lodz-berlin-express/'
+[warn] blog slug normalized: 'poznan-milano-ftl' -> '/pl/poznan-milano-ftl/'
+[warn] blog slug normalized: 'lodz-berlin-express' -> '/en/lodz-berlin-express/'
+[warn] blog slug normalized: 'poznan-milano-ftl' -> '/en/poznan-milano-ftl/'
+[warn] blog slug normalized: 'lodz-berlin-express' -> '/de/lodz-berlin-express/'
+[warn] blog slug normalized: 'poznan-milano-ftl' -> '/de/poznan-milano-ftl/'
+[warn] blog slug normalized: 'lodz-berlin-express' -> '/fr/lodz-berlin-express/'
+[warn] blog slug normalized: 'poznan-milano-ftl' -> '/fr/poznan-milano-ftl/'
+[warn] blog slug normalized: 'lodz-berlin-express' -> '/it/lodz-berlin-express/'
+[warn] blog slug normalized: 'poznan-milano-ftl' -> '/it/poznan-milano-ftl/'
+[warn] blog slug normalized: 'lodz-berlin-express' -> '/ru/lodz-berlin-express/'
+[warn] blog slug normalized: 'poznan-milano-ftl' -> '/ru/poznan-milano-ftl/'
+[warn] blog slug normalized: 'lodz-berlin-express' -> '/ua/lodz-berlin-express/'
+[warn] blog slug normalized: 'poznan-milano-ftl' -> '/ua/poznan-milano-ftl/'
+[detect] routes-like: CaseStudies
+[detect] media-like: CaseStudies
+[sheet] Locations: ['lang', 'slug', 'city', 'street', 'postal', 'country', 'phone', 'opening_hours', 'body_md']
+[detect] meta-like: Locations
+[detect] blocks-like: Locations
+[detect] blog-like: Locations
+[warn] blog slug normalized: 'lodz-hq' -> '/pl/lodz-hq/'
+[detect] routes-like: Locations
+[detect] company-like: Locations
+[sheet] Jobs: ['publish', 'lang', 'slug', 'title', 'location', 'type', 'salary', 'body_md', 'active']
+[detect] meta-like: Jobs
+[detect] blocks-like: Jobs
+[detect] blog-like: Jobs
+[warn] blog slug normalized: 'kierowca-busa-35t' -> '/pl/kierowca-busa-35t/'
+[warn] blog slug normalized: 'van-driver-35t' -> '/en/van-driver-35t/'
+[detect] routes-like: Jobs
+[detect] media-like: Jobs
+[sheet] AutoLinks: ['lang', 'from_type', 'match', 'target_href', 'anchor', 'max_per_page', 'nofollow', 'priority']
+[sheet] Redirects: ['from', 'to', 'code']
+[detect] redirects-like: Redirects
+[sheet] SEO_Stats: ['url', 'lighthouse_desktop', 'lighthouse_mobile', 'cls', 'lcp', 'inp', 'timestamp']
+[detect] media-like: SEO_Stats
+[sheet] README: ['Kras-Trans CMS PRO (xlsx) — instrukcja']
+[sheet] Categories: ['slug', 'name', 'description', 'lang', 'parent']
+[detect] meta-like: Categories
+[detect] blog-like: Categories
+[warn] blog slug normalized: 'poradnik' -> '/pl/poradnik/'
+[warn] blog slug normalized: 'poradnik' -> '/en/poradnik/'
+[warn] blog slug normalized: 'case-study' -> '/pl/case-study/'
+[warn] blog slug normalized: 'case-study' -> '/en/case-study/'
+[warn] blog slug normalized: 'firma' -> '/pl/firma/'
+[warn] blog slug normalized: 'firma' -> '/en/firma/'
+[warn] blog slug normalized: 'dokumenty' -> '/pl/dokumenty/'
+[warn] blog slug normalized: 'dokumenty' -> '/en/dokumenty/'
+[detect] routes-like: Categories
+[detect] media-like: Categories
+[detect] company-like: Categories
+[sheet] Authors: ['slug', 'name', 'job_title', 'bio_md', 'avatar', 'website', 'twitter', 'linkedin']
+[detect] routes-like: Authors
+[detect] company-like: Authors
+[rows] pages_rows=72, menu_rows=463
+[result] meta_langs=7, blocks_langs=0
+[Pages] rows per lang: {'pl': 8, 'en': 12, 'de': 6, 'fr': 8, 'it': 6, 'ru': 6, 'ua': 6, '': 5}
+[Blocks] rows per lang: {'pl': 5, 'en': 5, 'de': 5, 'fr': 5, 'it': 5, 'ru': 5, 'ua': 5, '': 964}
+[cms] pages autogen: keys=35; langs=8
+Traceback (most recent call last):
+  File "/Users/illia/Desktop/CursorRepoGitHub/kras-trans-site/tools/build.py", line 1963, in <module>
+    build_all()
+  File "/Users/illia/Desktop/CursorRepoGitHub/kras-trans-site/tools/build.py", line 1558, in build_all
+    html = render_template(template_rel, ctx)
+  File "/Users/illia/Desktop/CursorRepoGitHub/kras-trans-site/tools/build.py", line 695, in render_template
+    return env.get_template(name).render(**ctx)
+  File "/Users/illia/.pyenv/versions/3.10.6/lib/python3.10/site-packages/jinja2/environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "/Users/illia/.pyenv/versions/3.10.6/lib/python3.10/site-packages/jinja2/environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "templates/pages/page.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "templates/base.html", line 149, in top-level template code
+    {% include "_partials/header.html" %}
+  File "templates/_partials/header.html", line 5, in top-level template code
+    {# LOGO #} {% set meta = (nav.meta if nav is mapping else {}) %} {% set
+  File "/Users/illia/.pyenv/versions/3.10.6/lib/python3.10/site-packages/jinja2/environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'dict object' has no attribute 'meta'

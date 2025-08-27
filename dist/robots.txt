@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://kras-trans.com/sitemap.xml

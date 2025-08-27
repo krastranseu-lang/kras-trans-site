@@ -1,0 +1,42 @@
+{
+  "sha": "63fcb4e9f281fc960b482105027b035083b1897ac4b4db80e008b0594df72372",
+  "lang": "pl",
+  "slugKey": "home",
+  "page": {
+    "seo_title": "Transport ekspresowy: busy 3,5 t i TIR — Polska & UE | Łódź",
+    "h1": "Firma transportowa Łódź — ekspresowy transport busami 3,5 t i TIR w Polsce i UE",
+    "title": "Firma transportowa Łódź | Transport krajowy i międzynarodowy 24/7",
+    "lead": "Rodzinna firma transportowa z Łodzi",
+    "cta_label": "Zamów wycenę",
+    "body_md_len": 7891,
+    "body_html_len": 9071
+  },
+  "blocks_count": 5,
+  "blocks_sample": [
+    {
+      "block": "home.hero",
+      "lang": "pl",
+      "page": "home",
+      "title": "Kras‑Trans — firma transportowa • Polska & UE",
+      "lead": "Ekspresowe dostawy busami 3,5 t i TIR. Wycena w 15 minut, 24/7, monitoring GPS.",
+      "body_md": "",
+      "cta_label": "Zamów wycenę",
+      "cta_href": "/pl/kontakt/",
+      "order": 10,
+      "enabled": true
+    },
+    {
+      "block": "home.usp",
+      "lang": "pl",
+      "page": "home",
+      "title": "Dlaczego my",
+      "lead": "",
+      "body_md": "- Ekspres door‑to‑door\n- Busy 3,5 t + TIR\n- Opiekun zlecenia i GPS\n- Ubezpieczenie ładunku\n- Jasne warunki, bez dopłat",
+      "cta_label": "",
+      "cta_href": "",
+      "order": 20,
+      "enabled": true,
+      "body_html": "<ul>\n<li>Ekspres door‑to‑door</li>\n<li>Busy 3,5 t + TIR</li>\n<li>Opiekun zlecenia i GPS</li>\n<li>Ubezpieczenie ładunku</li>\n<li>Jasne warunki, bez dopłat</li>\n</ul>"
+    }
+  ]
+}

@@ -1,0 +1,296 @@
+[
+  {
+    "lang": "",
+    "key": "home",
+    "rel": "",
+    "out": "dist/index.html"
+  },
+  {
+    "lang": "de",
+    "key": "home",
+    "rel": "",
+    "out": "dist/de/index.html"
+  },
+  {
+    "lang": "en",
+    "key": "home",
+    "rel": "",
+    "out": "dist/en/index.html"
+  },
+  {
+    "lang": "fr",
+    "key": "home",
+    "rel": "",
+    "out": "dist/fr/index.html"
+  },
+  {
+    "lang": "it",
+    "key": "home",
+    "rel": "",
+    "out": "dist/it/index.html"
+  },
+  {
+    "lang": "pl",
+    "key": "home",
+    "rel": "",
+    "out": "dist/pl/index.html"
+  },
+  {
+    "lang": "ru",
+    "key": "home",
+    "rel": "",
+    "out": "dist/ru/index.html"
+  },
+  {
+    "lang": "ua",
+    "key": "home",
+    "rel": "",
+    "out": "dist/ua/index.html"
+  },
+  {
+    "lang": "pl",
+    "key": "transport-drogowy",
+    "rel": "transport-drogowy",
+    "out": "dist/pl/transport-drogowy/index.html"
+  },
+  {
+    "lang": "pl",
+    "key": "transport-ekspresowy",
+    "rel": "transport-ekspresowy",
+    "out": "dist/pl/transport-ekspresowy/index.html"
+  },
+  {
+    "lang": "en",
+    "key": "road-transport",
+    "rel": "road-transport",
+    "out": "dist/en/road-transport/index.html"
+  },
+  {
+    "lang": "en",
+    "key": "express-shipping",
+    "rel": "express-shipping",
+    "out": "dist/en/express-shipping/index.html"
+  },
+  {
+    "lang": "pl",
+    "key": "pl/cennik",
+    "rel": "cennik",
+    "out": "dist/pl/cennik/index.html"
+  },
+  {
+    "lang": "pl",
+    "key": "pl/uslugi",
+    "rel": "uslugi",
+    "out": "dist/pl/uslugi/index.html"
+  },
+  {
+    "lang": "pl",
+    "key": "pl/kontakt",
+    "rel": "kontakt",
+    "out": "dist/pl/kontakt/index.html"
+  },
+  {
+    "lang": "en",
+    "key": "en/services",
+    "rel": "services",
+    "out": "dist/en/services/index.html"
+  },
+  {
+    "lang": "en",
+    "key": "en/company",
+    "rel": "company",
+    "out": "dist/en/company/index.html"
+  },
+  {
+    "lang": "en",
+    "key": "en/contact",
+    "rel": "contact",
+    "out": "dist/en/contact/index.html"
+  },
+  {
+    "lang": "en",
+    "key": "en/pricing",
+    "rel": "pricing",
+    "out": "dist/en/pricing/index.html"
+  },
+  {
+    "lang": "en",
+    "key": "quote",
+    "rel": "quote",
+    "out": "dist/en/quote/index.html"
+  },
+  {
+    "lang": "de",
+    "key": "de/preise",
+    "rel": "preise",
+    "out": "dist/de/preise/index.html"
+  },
+  {
+    "lang": "de",
+    "key": "de/leistungen",
+    "rel": "leistungen",
+    "out": "dist/de/leistungen/index.html"
+  },
+  {
+    "lang": "de",
+    "key": "de/unternehmen",
+    "rel": "unternehmen",
+    "out": "dist/de/unternehmen/index.html"
+  },
+  {
+    "lang": "de",
+    "key": "de/kontakt",
+    "rel": "kontakt",
+    "out": "dist/de/kontakt/index.html"
+  },
+  {
+    "lang": "fr",
+    "key": "fr/tarifs",
+    "rel": "tarifs",
+    "out": "dist/fr/tarifs/index.html"
+  },
+  {
+    "lang": "fr",
+    "key": "fr/services",
+    "rel": "services",
+    "out": "dist/fr/services/index.html"
+  },
+  {
+    "lang": "fr",
+    "key": "fr/entreprise",
+    "rel": "entreprise",
+    "out": "dist/fr/entreprise/index.html"
+  },
+  {
+    "lang": "fr",
+    "key": "fr/contact",
+    "rel": "contact",
+    "out": "dist/fr/contact/index.html"
+  },
+  {
+    "lang": "it",
+    "key": "it/prezzi",
+    "rel": "prezzi",
+    "out": "dist/it/prezzi/index.html"
+  },
+  {
+    "lang": "it",
+    "key": "it/servizi",
+    "rel": "servizi",
+    "out": "dist/it/servizi/index.html"
+  },
+  {
+    "lang": "it",
+    "key": "it/azienda",
+    "rel": "azienda",
+    "out": "dist/it/azienda/index.html"
+  },
+  {
+    "lang": "it",
+    "key": "it/contatti",
+    "rel": "contatti",
+    "out": "dist/it/contatti/index.html"
+  },
+  {
+    "lang": "ru",
+    "key": "ru/tseny",
+    "rel": "tseny",
+    "out": "dist/ru/tseny/index.html"
+  },
+  {
+    "lang": "ru",
+    "key": "ru/uslugi",
+    "rel": "uslugi",
+    "out": "dist/ru/uslugi/index.html"
+  },
+  {
+    "lang": "ru",
+    "key": "ru/kontakty",
+    "rel": "kontakty",
+    "out": "dist/ru/kontakty/index.html"
+  },
+  {
+    "lang": "ua",
+    "key": "ua/poslugy",
+    "rel": "poslugy",
+    "out": "dist/ua/poslugy/index.html"
+  },
+  {
+    "lang": "ua",
+    "key": "ua/kontakty",
+    "rel": "kontakty",
+    "out": "dist/ua/kontakty/index.html"
+  },
+  {
+    "lang": "pl",
+    "key": "pl/o-firmie",
+    "rel": "o-firmie",
+    "out": "dist/pl/o-firmie/index.html"
+  },
+  {
+    "lang": "ru",
+    "key": "ru/kompanyia",
+    "rel": "kompanyia",
+    "out": "dist/ru/kompanyia/index.html"
+  },
+  {
+    "lang": "ua",
+    "key": "ua/kompaniia",
+    "rel": "kompaniia",
+    "out": "dist/ua/kompaniia/index.html"
+  },
+  {
+    "lang": "ua",
+    "key": "ua/tsiny",
+    "rel": "tsiny",
+    "out": "dist/ua/tsiny/index.html"
+  },
+  {
+    "lang": "",
+    "key": "blog_list",
+    "rel": "blog",
+    "out": "dist/blog/index.html"
+  },
+  {
+    "lang": "de",
+    "key": "blog_list",
+    "rel": "blog",
+    "out": "dist/de/blog/index.html"
+  },
+  {
+    "lang": "en",
+    "key": "blog_list",
+    "rel": "blog",
+    "out": "dist/en/blog/index.html"
+  },
+  {
+    "lang": "fr",
+    "key": "blog_list",
+    "rel": "blog",
+    "out": "dist/fr/blog/index.html"
+  },
+  {
+    "lang": "it",
+    "key": "blog_list",
+    "rel": "blog",
+    "out": "dist/it/blog/index.html"
+  },
+  {
+    "lang": "pl",
+    "key": "blog_list",
+    "rel": "blog",
+    "out": "dist/pl/blog/index.html"
+  },
+  {
+    "lang": "ru",
+    "key": "blog_list",
+    "rel": "blog",
+    "out": "dist/ru/blog/index.html"
+  },
+  {
+    "lang": "ua",
+    "key": "blog_list",
+    "rel": "blog",
+    "out": "dist/ua/blog/index.html"
+  }
+]

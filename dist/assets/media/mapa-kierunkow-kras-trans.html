@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>mapa europa</title>
+  
+
+</head>
+<body>
+<!-- partial:index.partial.html -->
+<!-- KRAS-TRANS • EUROPA 2D — zoom x16 + nazwy krajów (black/bold) + pinezki (stolice + miasta ≥100k) -->
+<div id="eu-wrap" style="
+  position:relative;max-width:1400px;margin:0 auto;aspect-ratio:1200/720;
+  border-radius:22px;overflow:hidden;
+  box-shadow:0 30px 60px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.05);
+  background: radial-gradient(80% 80% at 58% 32%, #0c1b33 0%, #0b1a31 60%, #081327 100%);
+">
+  <svg id="eu-map" viewBox="0 0 1200 720" style="width:100%;height:100%;display:block;"></svg>
+
+  <!-- LOGO -->
+  <a class="eu-logo" href="/" aria-label="Kras-Trans" style="position:absolute;left:16px;top:16px;z-index:5;display:inline-flex;align-items:center;">
+    <img src="https://kras-trans.eu/wp-content/uploads/2025/08/logo-kras-trans-your-logistic-partners.webp"
+         alt="Kras-Trans"
+         style="height:46px;width:auto;display:block;filter:drop-shadow(0 2px 8px rgba(0,0,0,.35))">
+  </a>
+
+  <!-- ZOOM -->
+  <div class="eu-zoom" style="position:absolute;right:16px;top:16px;z-index:5;display:flex;gap:8px">
+    <button id="eu-zoom-out" aria-label="Pomniejsz"
+            style="background:#0e3a8a;color:#fff;border:0;border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.25)">−</button>
+    <button id="eu-zoom-in"  aria-label="Powiększ"
+            style="background:#0e3a8a;color:#fff;border:0;border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.25)">+</button>
+  </div>
+</div>
+
+<style>
+  :root{
+    --stroke:#8aa0b8; --border:#6a85ad; --fill1:#eaf1fb; --fill2:#d9e5f8; --accent:#FF5A00;
+  }
+  @keyframes draw { from{stroke-dashoffset:800} to{stroke-dashoffset:0} }
+  #eu-map{ cursor:grab; touch-action:none; }
+  #eu-map.dragging{ cursor:grabbing; }
+  .country{transition:filter .15s ease; vector-effect:non-scaling-stroke}
+  .country:hover{filter:drop-shadow(0 0 10px rgba(111,179,255,.55))}
+  .border{pointer-events:none; vector-effect:non-scaling-stroke}
+  .hit{fill:none;stroke:transparent;stroke-width:16px;pointer-events:stroke}
+  .hover-stroke{fill:none;stroke:var(--accent);stroke-width:2.8px;pointer-events:none;
+                filter:drop-shadow(0 0 6px rgba(255,90,0,.45)); vector-effect:non-scaling-stroke}
+
+  /* Etykiety krajów: czarne, pogrubione, z białą obwódką (czytelność jak w Google) */
+  .kt-country-label{
+    font-family: "Inter",system-ui,Arial,sans-serif;
+    font-weight: 800;
+    fill:#0b0b0b;
+    paint-order: stroke;
+    stroke:#ffffff; stroke-width:2px;  /* delikatna poświata pod tekst */
+    letter-spacing:.2px;
+    pointer-events:none;
+  }
+
+  /* Pinezki */
+  .kt-pin{ cursor:pointer; }
+  .kt-pin .pin-body{ fill:#ff6a1a; }
+  .kt-pin .pin-glow{ fill:#ff6a1a; opacity:.25; filter: blur(3px); }
+  .kt-pin.capital .pin-body{ fill:#ff2e00; } /* stolice wyróżnione */
+  .kt-pin:hover .pin-body{ filter: drop-shadow(0 0 8px rgba(255,90,0,.55)); }
+  @keyframes ktPulse { 0%{r:0; opacity:.35} 70%{opacity:.12} 100%{r:28; opacity:0} }
+
+  @media (min-width:900px){ .eu-logo img{height:54px!important} }
+</style>
+
+<script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+
+<script>
+/* ===================== RDZEŃ MAPY ===================== */
+(async function(){
+  const VBW=1200, VBH=720;
+  const REGION = { minLon:-15, maxLon:42, minLat:34, maxLat:72 };
+
+  const svg=d3.select("#eu-map");
+  const gRoot = svg.append("g");
+  const gLand = gRoot.append("g");
+  const gMesh = gRoot.append("g");
+  const gHover= gRoot.append("g");
+
+  const topo=await fetch("https://unpkg.com/world-atlas@2/countries-50m.json").then(r=>r.json());
+  const world=topojson.feature(topo, topo.objects.countries);
+
+  const overlaps=f=>{
+    const [[ax0,ay0],[ax1,ay1]]=d3.geoBounds(f);
+    const {minLon,maxLon,minLat,maxLat}=REGION;
+    return !(ax1<minLon||ax0>maxLon||ay1<minLat||ay0>maxLat);
+  };
+  const features = world.features.filter(overlaps);
+  const regionFc={type:"FeatureCollection",features};
+
+  const projection=d3.geoMercator().fitExtent([[8,8],[VBW-8,VBH-8]], regionFc);
+  const baseScale = projection.scale();
+  const baseTranslate = projection.translate();
+  const path=d3.geoPath(projection);
+
+  const gC = gLand.selectAll("g.ctry").data(features).join("g").attr("class","ctry");
+
+  const fillPaths = gC.append("path")
+    .attr("class","country")
+    .attr("fill",(d,i)=> i%2 ? "var(--fill1)" : "var(--fill2)")
+    .attr("stroke","var(--stroke)").attr("stroke-width",1.2)
+    .attr("vector-effect","non-scaling-stroke");
+
+  const hitPaths = gC.append("path")
+    .attr("class","hit")
+    .attr("fill","transparent")
+    .attr("stroke","transparent")
+    .attr("stroke-width",22)
+    .style("pointer-events","all");
+
+  const mesh=topojson.mesh(topo, topo.objects.countries, (a,b)=> a!==b &&
+    overlaps(topojson.feature(topo,a)) && overlaps(topojson.feature(topo,b)));
+  const meshPath = gMesh.append("path").attr("fill","none")
+    .attr("stroke","var(--border)").attr("stroke-width",1)
+    .attr("stroke-dasharray","800").attr("stroke-dashoffset","800")
+    .style("animation","draw 1.0s ease forwards")
+    .attr("vector-effect","non-scaling-stroke");
+
+  function highlightCountry(d){
+    gHover.selectAll("*").remove();
+    gHover.append("path")
+      .attr("class","hover-stroke")
+      .attr("d", path(d))
+      .attr("fill","none")
+      .attr("stroke","var(--accent)")
+      .attr("stroke-width",2.8)
+      .attr("stroke-linejoin","round")
+      .attr("stroke-linecap","round")
+      .attr("vector-effect","non-scaling-stroke");
+  }
+  function clearHighlight(){ gHover.selectAll("*").remove(); }
+  hitPaths.on("mouseenter", (e,d)=> highlightCountry(d))
+          .on("mouseleave", clearHighlight);
+
+  function render(){
+    fillPaths.attr("d", path);
+    hitPaths.attr("d", path);
+    meshPath .attr("d", path(mesh));
+    clearHighlight();
+  }
+
+  /* ===== ZOOM/PAN — zwiększony MAX i bliższy start ===== */
+  const STEP=0.28, MIN_K=1.2, MAX_K=16.0;
+  const START_DESKTOP = 5.2, START_MOBILE = 6.0;
+
+  let panX = -350, panY = -250;
+  let scaleK = matchMedia("(max-width: 768px)").matches ? START_MOBILE : START_DESKTOP;
+
+  function centerTranslateForScale(k){
+    projection.translate(baseTranslate).scale(baseScale*k);
+    const b = path.bounds(regionFc);
+    const cx = (b[0][0]+b[1][0])/2, cy = (b[0][1]+b[1][1])/2;
+    projection.translate([ baseTranslate[0] + (VBW/2 - cx) + panX,
+                           baseTranslate[1] + (VBH/2 - cy) + panY ]);
+  }
+  function apply(k=scaleK){
+    scaleK = Math.max(MIN_K, Math.min(MAX_K, k));
+    centerTranslateForScale(scaleK);
+    render();
+    window.dispatchEvent(new CustomEvent("ktmap:render"));
+  }
+
+  const svgNode = document.getElementById("eu-map");
+  function css2vb(dx, dy){
+    const rect = svgNode.getBoundingClientRect();
+    return [ dx * (VBW/rect.width), dy * (VBH/rect.height) ];
+  }
+  function clientToVB(clientX, clientY){
+    const rect = svgNode.getBoundingClientRect();
+    return [ (clientX - rect.left) * (VBW/rect.width),
+             (clientY - rect.top ) * (VBH/rect.height) ];
+  }
+  function zoomAt(newK, anchorClientX, anchorClientY){
+    newK = Math.max(MIN_K, Math.min(MAX_K, newK));
+    const [ax, ay] = clientToVB(anchorClientX, anchorClientY);
+    const lonlat = projection.invert([ax, ay]);
+    if(!lonlat){ apply(newK); return; }
+    const prevPanX = panX, prevPanY = panY;
+    scaleK = newK;
+    centerTranslateForScale(scaleK);
+    const [nx, ny] = projection(lonlat);
+    panX = prevPanX + (ax - nx);
+    panY = prevPanY + (ay - ny);
+    apply(scaleK);
+  }
+
+  apply(scaleK);
+
+  document.getElementById("eu-zoom-in") .addEventListener("click", ()=>{
+    const r = svgNode.getBoundingClientRect();
+    zoomAt(scaleK+STEP, r.left+r.width/2, r.top+r.height/2);
+  });
+  document.getElementById("eu-zoom-out").addEventListener("click", ()=>{
+    const r = svgNode.getBoundingClientRect();
+    zoomAt(scaleK-STEP, r.left+r.width/2, r.top+r.height/2);
+  });
+
+  let dragging=false, sx=0, sy=0, startPanX=0, startPanY=0;
+  svg.on("pointerdown", (ev)=>{
+    dragging=true; svgNode.classList.add("dragging");
+    sx=ev.clientX; sy=ev.clientY; startPanX=panX; startPanY=panY;
+    svgNode.setPointerCapture(ev.pointerId);
+  });
+  svg.on("pointermove", (ev)=>{
+    if(!dragging) return;
+    const [dx,dy] = css2vb(ev.clientX - sx, ev.clientY - sy);
+    panX = startPanX + dx; panY = startPanY + dy;
+    apply();
+  });
+  svg.on("pointerup pointercancel", (ev)=>{
+    dragging=false; svgNode.classList.remove("dragging");
+    try{ svgNode.releasePointerCapture(ev.pointerId); }catch(_){}
+  });
+
+  const pointers = new Map();
+  const pinch = { active:false, startDist:0, startK:0, anchor:[VBW/2,VBH/2] };
+  const dist=(a,b)=>Math.hypot(a.x-b.x, a.y-b.y);
+  const midpoint=(a,b)=>({ x:(a.x+b.x)/2, y:(a.y+b.y)/2 });
+
+  svgNode.addEventListener("pointerdown", (e)=>{
+    pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if(pointers.size===2){
+      const [p1,p2]=[...pointers.values()];
+      pinch.active=true; pinch.startDist=dist(p1,p2); pinch.startK=scaleK;
+      const mid=midpoint(p1,p2);
+      pinch.anchor = clientToVB(mid.x, mid.y);
+    }
+  }, {passive:true});
+  svgNode.addEventListener("pointermove", (e)=>{
+    if(!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if(pinch.active && pointers.size>=2){
+      const [p1,p2]=[...pointers.values()];
+      const ratio = Math.max(0.2, Math.min(10, dist(p1,p2)/pinch.startDist));
+      const r = svgNode.getBoundingClientRect();
+      zoomAt(Math.max(MIN_K, Math.min(MAX_K, pinch.startK*ratio)),
+             r.left + (pinch.anchor[0]/VBW)*r.width,
+             r.top  + (pinch.anchor[1]/VBH)*r.height);
+    }
+  }, {passive:true});
+  function endPointer(e){ pointers.delete(e.pointerId); if(pointers.size<2) pinch.active=false; }
+  svgNode.addEventListener("pointerup", endPointer, {passive:true});
+  svgNode.addEventListener("pointercancel", endPointer, {passive:true});
+  svgNode.addEventListener("lostpointercapture", endPointer, {passive:true});
+
+  svgNode.addEventListener("wheel", (e)=>{
+    e.preventDefault();
+    const factor = Math.exp(-e.deltaY * 0.0015);
+    zoomAt(Math.max(MIN_K, Math.min(MAX_K, scaleK*factor)), e.clientX, e.clientY);
+  }, {passive:false});
+
+  let resizeTO=null;
+  window.addEventListener("resize", ()=>{
+    clearTimeout(resizeTO);
+    resizeTO = setTimeout(()=> apply(scaleK), 120);
+  });
+  matchMedia("(max-width:768px)").addEventListener("change", ()=> apply(scaleK));
+
+  window.KTMap = {
+    svg, projection, path, baseScale,
+    layers:{ root:gRoot, land:gLand, mesh:gMesh, hover:gHover },
+    viewBox:{ w:VBW, h:VBH },
+    getScale:()=> projection.scale()/baseScale
+  };
+  window.dispatchEvent(new Event("ktmap:ready"));
+})();
+</script>
+
+<script>
+/* ===================== ADD-ON: Etykiety krajów (PL; black/bold, center) ===================== */
+(function(){
+  function start(){
+    const { path, layers, getScale } = window.KTMap;
+    const gLabels = layers.root.append("g").attr("class","kt-country-labels");
+
+const PL_NAMES = {
+    "Poland":"Polska","Germany":"Niemcy","Czechia":"Czechy","Slovakia":"Słowacja",
+    "Austria":"Austria","Italy":"Włochy","France":"Francja","Spain":"Hiszpania",
+    "Portugal":"Portugalia","Netherlands":"Holandia","Belgium":"Belgia","Denmark":"Dania",
+    "Sweden":"Szwecja","Finland":"Finlandia","Norway":"Norwegia","Lithuania":"Litwa",
+    "Latvia":"Łotwa","Estonia":"Estonia","Ireland":"Irlandia","United Kingdom":"Wielka Brytania",
+    "Romania":"Rumunia","Bulgaria":"Bułgaria","Hungary":"Węgry","Slovenia":"Słowenia",
+    "Croatia":"Chorwacja","Greece":"Grecja","Switzerland":"Szwajcaria","Luxembourg":"Luksemburg",
+    "Liechtenstein":"Liechtenstein","Andorra":"Andora","Monaco":"Monako","San Marino":"San Marino",
+    "Malta":"Malta","Cyprus":"Cypr","Serbia":"Serbia","Montenegro":"Czarnogóra",
+    "Bosnia and Herz.":"Bośnia i Hercegowina","North Macedonia":"Macedonia Płn.",
+    "Albania":"Albania","Moldova":"Mołdawia","Belarus":"Białoruś","Ukraine":"Ukraina",
+    "Iceland":"Islandia","Turkey":"Turcja","Norwegian":"Norwegia","Cypr":"Cypr"
+  };
+    function build(){
+      const arr=[];
+      layers.land.selectAll("g.ctry").each(function(d){
+        const en = d?.properties?.name || d?.properties?.NAME || d?.id;
+        if(!en) return;
+        const name = PL_NAMES[en] || en;
+        const [x,y] = path.centroid(d);
+        const b = path.bounds(d); const w=b[1][0]-b[0][0], h=b[1][1]-b[0][1];
+        arr.push({name,x,y,w,h});
+      });
+      return arr;
+    }
+
+    let data = build();
+    let labels = gLabels.selectAll("text")
+      .data(data, d=>d.name)
+      .join("text")
+      .attr("class","kt-country-label")
+      .attr("text-anchor","middle")
+      .text(d=>d.name);
+
+    function renderLabels(){
+      data = build();
+      labels = gLabels.selectAll("text")
+        .data(data, d=>d.name)
+        .join(
+          e=>e.append("text").attr("class","kt-country-label").attr("text-anchor","middle").text(d=>d.name),
+          u=>u,
+          x=>x.remove()
+        );
+      const k = getScale();
+      // rozmiar: zależny od rozmiaru kraju i zoomu
+      labels
+        .attr("x", d=>d.x)
+        .attr("y", d=>d.y)
+        .style("font-size", d=>{
+          const area = Math.max(1, d.w*d.h);
+          const base = Math.min(30, Math.max(10, Math.sqrt(area)/6));
+          return (base/Math.sqrt(k)).toFixed(2)+"px";
+        })
+        .style("display", d => ((d.w < 18 || d.h < 12) && k < 3) ? "none" : null);
+    }
+    renderLabels();
+    window.addEventListener("ktmap:render", renderLabels);
+  }
+  if (window.KTMap) start(); else window.addEventListener("ktmap:ready", start, { once:true });
+})();
+</script>
+
+<script>
+/* ===================== ADD-ON: Pinezki (stolice + miasta ≥100k) ===================== */
+(function(){
+  function start(){
+    const { svg, projection, layers, getScale, viewBox } = window.KTMap;
+    const gPins = layers.root.append("g").attr("class","kt-pins");
+
+    // 1) Podmień ten URL na swój plik JSON (format: [{name,lon,lat,pop,isCapital,country},...])
+    const CITIES_URL = "https://kras-trans.eu/wp-content/uploads/eu-cities-100k.min.json";
+
+    // 2) Fallback DEMO, gdy plik jeszcze nie istnieje (kilka pozycji żeby zobaczyć działanie)
+    const DEMO = [
+      {name:"Łódź", country:"Polska", lon:19.4560, lat:51.7592, pop:682000, isCapital:false},
+{name:"Gdańsk", country:"Polska", lon:18.6466, lat:54.3520, pop:486000, isCapital:false},
+{name:"Szczecin", country:"Polska", lon:14.5528, lat:53.4285, pop:400000, isCapital:false},
+{name:"Poznań", country:"Polska", lon:16.9252, lat:52.4064, pop:535000, isCapital:false},
+{name:"Wrocław", country:"Polska", lon:17.0385, lat:51.1079, pop:640000, isCapital:false},
+{name:"Katowice", country:"Polska", lon:19.0275, lat:50.2649, pop:292000, isCapital:false},
+{name:"Kraków", country:"Polska", lon:19.9450, lat:50.0647, pop:780000, isCapital:false},
+{name:"Lublin", country:"Polska", lon:22.5667, lat:51.2500, pop:340000, isCapital:false},
+{name:"Białystok", country:"Polska",lon:23.1643, lat:53.1325, pop:295000, isCapital:false},
+{name:"Warszawa", country:"Polska", lon:21.0122, lat:52.2297, pop:1790000, isCapital:true},
+
+{name:"Płock", country:"Polska", lon:19.7000, lat:52.5460, pop:120000, isCapital:false},
+{name:"Dąbrowa Górnicza", country:"Polska", lon:19.2044, lat:50.3216, pop:120000, isCapital:false},
+{name:"Tychy", country:"Polska", lon:19.0199, lat:50.1372, pop:126000, isCapital:false},
+{name:"Bełchatów", country:"Polska", lon:19.3564, lat:51.3688, pop:57000, isCapital:false},
+{name:"Kędzierzyn-Koźle", country:"Polska", lon:18.2261, lat:50.3490, pop:58000, isCapital:false},
+{name:"Police", country:"Polska", lon:14.5718, lat:53.5521, pop:34000, isCapital:false},
+{name:"Puławy", country:"Polska", lon:22.0414, lat:51.4169, pop:47000, isCapital:false},
+{name:"Starachowice", country:"Polska", lon:21.0625, lat:51.0373, pop:48000, isCapital:false},
+{name:"Tarnów", country:"Polska", lon:20.9876, lat:50.0121, pop:110000, isCapital:false},
+{name:"Ostrołęka", country:"Polska", lon:21.5756, lat:53.0868, pop:52000, isCapital:false},
+{name:"Gorzów Wielkopolski", country:"Polska", lon:15.2380, lat:52.7368, pop:122000, isCapital:false},
+{name:"Lubin", country:"Polska", lon:16.2019, lat:51.4009, pop:72000, isCapital:false},
+{name:"Głogów", country:"Polska", lon:16.0845, lat:51.6637, pop:67000, isCapital:false},
+{name:"Jaworzno", country:"Polska", lon:19.2740, lat:50.2050, pop:91000, isCapital:false},
+{name:"Świnoujście", country:"Polska", lon:14.2471, lat:53.9105, pop:41000, isCapital:false},
+
+{name:"Monachium", country:"Niemcy", lon:11.5820, lat:48.1351, pop:1488000, isCapital:false},
+{name:"Augsburg", country:"Niemcy", lon:10.8985, lat:48.3705, pop:295000, isCapital:false},
+{name:"Norymberga", country:"Niemcy", lon:11.0767, lat:49.4521, pop:518000, isCapital:false},
+{name:"Wolfsburg", country:"Niemcy", lon:10.7815, lat:52.4227, pop:124000, isCapital:false},
+{name:"Frankfurt nad Menem", country:"Niemcy", lon:8.6821, lat:50.1109, pop:753000, isCapital:false},
+{name:"Ludwigshafen am Rhein", country:"Niemcy", lon:8.4464, lat:49.4774, pop:172000, isCapital:false},
+{name:"Düsseldorf", country:"Niemcy", lon:6.7735, lat:51.2277, pop:619000, isCapital:false},
+{name:"Kolonia", country:"Niemcy", lon:6.9603, lat:50.9375, pop:1086000, isCapital:false},
+{name:"Bremen", country:"Niemcy", lon:8.8017, lat:53.0793, pop:567000, isCapital:false},
+{name:"Hamburg", country:"Niemcy", lon:9.9937, lat:53.5511, pop:1841000, isCapital:false},
+{name:"Berlin", country:"Niemcy", lon:13.4050, lat:52.5200, pop:3769000, isCapital:true},
+{name:"Leipzig", country:"Niemcy", lon:12.3731, lat:51.3397, pop:597000, isCapital:false},
+{name:"Stuttgart", country:"Niemcy", lon:9.1829, lat:48.7758, pop:635000, isCapital:false},
+{name:"Ingolstadt", country:"Niemcy", lon:11.4257, lat:48.7656, pop:137000, isCapital:false},
+{name:"Essen", country:"Niemcy", lon:7.0123, lat:51.4556, pop:582000, isCapital:false},
+{name:"Dortmund", country:"Niemcy", lon:7.4653, lat:51.5136, pop:587000, isCapital:false},
+{name:"Bonn", country:"Niemcy", lon:7.0982, lat:50.7374, pop:329000, isCapital:false},
+{name:"Mannheim", country:"Niemcy", lon:8.4790, lat:49.4875, pop:310000, isCapital:false},
+{name:"Karlsruhe", country:"Niemcy", lon:8.4037, lat:49.0069, pop:308000, isCapital:false},
+{name:"Hannover", country:"Niemcy", lon:9.7332, lat:52.3705, pop:535000, isCapital:false},
+,
+
+// Czechy
+{name:"Praga", country:"Czechy", lon:14.4208, lat:50.0880, pop:1300000, isCapital:true},
+{name:"Brno", country:"Czechy", lon:16.6068, lat:49.1951, pop:382000, isCapital:false},
+{name:"Ostrawa", country:"Czechy", lon:18.2926, lat:49.8209, pop:288000, isCapital:false},
+{name:"Pilzno", country:"Czechy", lon:13.3776, lat:49.7384, pop:175000, isCapital:false},
+{name:"Liberec", country:"Czechy", lon:15.0543, lat:50.7671, pop:104000, isCapital:false},
+{name:"Olomouc", country:"Czechy", lon:17.2518, lat:49.5938, pop:101000, isCapital:false},
+{name:"České Budějovice", country:"Czechy", lon:14.4725, lat:48.9747, pop:94000, isCapital:false},
+{name:"Hradec Králové", country:"Czechy", lon:15.8319, lat:50.2092, pop:93000, isCapital:false},
+{name:"Ústí nad Labem", country:"Czechy", lon:14.0400, lat:50.6600, pop:92000, isCapital:false},
+{name:"Pardubice", country:"Czechy", lon:15.7700, lat:50.0343, pop:91000, isCapital:false},
+
+// Austria
+{name:"Wiedeń", country:"Austria", lon:16.3725, lat:48.2092, pop:1900000, isCapital:true},
+{name:"Graz", country:"Austria", lon:15.4395, lat:47.0707, pop:291000, isCapital:false},
+{name:"Linz", country:"Austria", lon:14.2858, lat:48.3069, pop:206000, isCapital:false},
+{name:"Salzburg", country:"Austria", lon:13.0416, lat:47.8095, pop:155000, isCapital:false},
+{name:"Innsbruck", country:"Austria", lon:11.4041, lat:47.2692, pop:132000, isCapital:false},
+{name:"Klagenfurt", country:"Austria", lon:14.3064, lat:46.6365, pop:101000, isCapital:false},
+{name:"Villach", country:"Austria", lon:13.8506, lat:46.6103, pop:61000, isCapital:false},
+{name:"Wels", country:"Austria", lon:14.0200, lat:48.1667, pop:62000, isCapital:false},
+{name:"Sankt Pölten", country:"Austria", lon:15.6231, lat:48.2047, pop:55000, isCapital:false},
+{name:"Steyr", country:"Austria", lon:14.4213, lat:48.0427, pop:38000, isCapital:false},
+
+// Francja — duże i strategiczne miasta (~50 wpisów)
+{name:"Paryż", country:"Francja", lon:2.3522, lat:48.8566, pop:2148000, isCapital:true},
+{name:"Marsylia", country:"Francja", lon:5.3698, lat:43.2965, pop:861000, isCapital:false},
+{name:"Lyon", country:"Francja", lon:4.8357, lat:45.7640, pop:516000, isCapital:false},
+{name:"Tuluza", country:"Francja", lon:1.4442, lat:43.6047, pop:479000, isCapital:false},
+{name:"Nicea", country:"Francja", lon:7.2620, lat:43.7102, pop:342000, isCapital:false},
+{name:"Nantes", country:"Francja", lon:-1.5536, lat:47.2184, pop:309000, isCapital:false},
+{name:"Strasburg", country:"Francja", lon:7.7521, lat:48.5734, pop:287000, isCapital:false},
+{name:"Montpellier", country:"Francja", lon:3.8767, lat:43.6119, pop:285000, isCapital:false},
+{name:"Bordeaux", country:"Francja", lon:-0.5792, lat:44.8378, pop:257000, isCapital:false},
+{name:"Lille", country:"Francja", lon:3.0573, lat:50.6292, pop:234000, isCapital:false},
+{name:"Rennes", country:"Francja", lon:-1.6778, lat:48.1173, pop:221000, isCapital:false},
+{name:"Reims", country:"Francja", lon:4.0317, lat:49.2583, pop:182000, isCapital:false},
+{name:"Saint-Étienne", country:"Francja", lon:4.3903, lat:45.4397, pop:172000, isCapital:false},
+{name:"Tuluza-Blagnac", country:"Francja", lon:1.3939, lat:43.6306, pop:170000, isCapital:false},
+{name:"Le Havre", country:"Francja", lon:0.1079, lat:49.4938, pop:169000, isCapital:false},
+{name:"Toulon", country:"Francja", lon:5.9280, lat:43.1242, pop:167000, isCapital:false},
+{name:"Grenoble", country:"Francja", lon:5.7245, lat:45.1885, pop:158000, isCapital:false},
+{name:"Dijon", country:"Francja", lon:5.0415, lat:47.3220, pop:156000, isCapital:false},
+{name:"Angers", country:"Francja", lon:-0.5560, lat:47.4784, pop:154000, isCapital:false},
+{name:"Nîmes", country:"Francja", lon:4.3601, lat:43.8367, pop:151000, isCapital:false},
+{name:"Saint-Denis", country:"Francja", lon:2.3574, lat:48.9362, pop:147000, isCapital:false},
+{name:"Clermont-Ferrand", country:"Francja", lon:3.0870, lat:45.7772, pop:146000, isCapital:false},
+{name:"Aix-en-Provence", country:"Francja", lon:5.4474, lat:43.5297, pop:143000, isCapital:false},
+{name:"Brest", country:"Francja", lon:-4.4861, lat:48.3904, pop:139000, isCapital:false},
+{name:"Limoges", country:"Francja", lon:1.2611, lat:45.8336, pop:132000, isCapital:false},
+{name:"Tours", country:"Francja", lon:0.6940, lat:47.3941, pop:136000, isCapital:false},
+{name:"Amiens", country:"Francja", lon:2.2950, lat:49.8950, pop:133000, isCapital:false},
+{name:"Metz", country:"Francja", lon:6.1757, lat:49.1193, pop:118000, isCapital:false},
+{name:"Perpignan", country:"Francja", lon:2.8954, lat:42.6887, pop:119000, isCapital:false},
+{name:"Besançon", country:"Francja", lon:6.0226, lat:47.2378, pop:116000, isCapital:false},
+{name:"Orléans", country:"Francja", lon:1.9093, lat:47.9025, pop:114000, isCapital:false},
+{name:"Mulhouse", country:"Francja", lon:7.3370, lat:47.7508, pop:109000, isCapital:false},
+{name:"Caen", country:"Francja", lon:-0.3700, lat:49.1829, pop:106000, isCapital:false},
+{name:"Boulogne-Billancourt", country:"Francja", lon:2.2413, lat:48.8352, pop:121000, isCapital:false},
+{name:"Argenteuil", country:"Francja", lon:2.2474, lat:48.9472, pop:111000, isCapital:false},
+
+// strategiczne porty i przemysł
+{name:"Dunkerque", country:"Francja", lon:2.3768, lat:51.0344, pop:87000, isCapital:false},
+{name:"Calais", country:"Francja", lon:1.8587, lat:50.9513, pop:75000, isCapital:false},
+{name:"Lorient", country:"Francja", lon:-3.3702, lat:47.7482, pop:57000, isCapital:false},
+{name:"Saint-Nazaire", country:"Francja", lon:-2.2060, lat:47.2735, pop:70000, isCapital:false},
+{name:"Cherbourg-en-Cotentin", country:"Francja", lon:-1.6237, lat:49.6337, pop:79000, isCapital:false},
+{name:"La Rochelle", country:"Francja", lon:-1.1511, lat:46.1603, pop:77000, isCapital:false},
+{name:"Bayonne", country:"Francja", lon:-1.4748, lat:43.4929, pop:52000, isCapital:false},
+{name:"Béziers", country:"Francja", lon:3.2158, lat:43.3442, pop:77000, isCapital:false},
+{name:"Le Mans", country:"Francja", lon:0.1996, lat:48.0061, pop:143000, isCapital:false},
+{name:"Poitiers", country:"Francja", lon:0.3404, lat:46.5802, pop:88000, isCapital:false},
+
+// Hiszpania — duże i strategiczne miasta (~50 wpisów)
+{name:"Madryt", country:"Hiszpania", lon:-3.7038, lat:40.4168, pop:3223000, isCapital:true},
+{name:"Barcelona", country:"Hiszpania", lon:2.1734, lat:41.3851, pop:1620000, isCapital:false},
+{name:"Walencja", country:"Hiszpania", lon:-0.3763, lat:39.4699, pop:791000, isCapital:false},
+{name:"Sewilla", country:"Hiszpania", lon:-5.9845, lat:37.3891, pop:689000, isCapital:false},
+{name:"Saragossa", country:"Hiszpania", lon:-0.8870, lat:41.6488, pop:675000, isCapital:false},
+{name:"Málaga", country:"Hiszpania", lon:-4.4213, lat:36.7213, pop:578000, isCapital:false},
+{name:"Murcja", country:"Hiszpania", lon:-1.1307, lat:37.9922, pop:460000, isCapital:false},
+{name:"Palma", country:"Hiszpania", lon:2.6502, lat:39.5696, pop:420000, isCapital:false},
+{name:"Las Palmas de Gran Canaria", country:"Hiszpania", lon:-15.4314, lat:28.1235, pop:380000, isCapital:false},
+{name:"Bilbao", country:"Hiszpania", lon:-2.9350, lat:43.2630, pop:345000, isCapital:false},
+{name:"Alicante", country:"Hiszpania", lon:-0.4907, lat:38.3452, pop:337000, isCapital:false},
+{name:"Córdoba", country:"Hiszpania", lon:-4.7794, lat:37.8882, pop:326000, isCapital:false},
+{name:"Valladolid", country:"Hiszpania", lon:-4.7286, lat:41.6523, pop:298000, isCapital:false},
+{name:"Vigo", country:"Hiszpania", lon:-8.7226, lat:42.2406, pop:295000, isCapital:false},
+{name:"Gijón", country:"Hiszpania", lon:-5.6615, lat:43.5322, pop:270000, isCapital:false},
+{name:"L'Hospitalet de Llobregat", country:"Hiszpania", lon:2.1164, lat:41.3662, pop:270000, isCapital:false},
+{name:"Vitoria-Gasteiz", country:"Hiszpania", lon:-2.6727, lat:42.8467, pop:253000, isCapital:false},
+{name:"A Coruña", country:"Hiszpania", lon:-8.4041, lat:43.3623, pop:245000, isCapital:false},
+{name:"Granada", country:"Hiszpania", lon:-3.5986, lat:37.1773, pop:233000, isCapital:false},
+{name:"Elche", country:"Hiszpania", lon:-0.7031, lat:38.2699, pop:234000, isCapital:false},
+{name:"Oviedo", country:"Hiszpania", lon:-5.8494, lat:43.3619, pop:220000, isCapital:false},
+{name:"Santa Cruz de Tenerife", country:"Hiszpania", lon:-16.2518, lat:28.4636, pop:207000, isCapital:false},
+{name:"Badalona", country:"Hiszpania", lon:2.2474, lat:41.4500, pop:223000, isCapital:false},
+{name:"Cartagena", country:"Hiszpania", lon:-0.9817, lat:37.6257, pop:216000, isCapital:false},
+{name:"Terrassa", country:"Hiszpania", lon:2.0089, lat:41.5632, pop:223000, isCapital:false},
+{name:"Jerez de la Frontera", country:"Hiszpania", lon:-6.1371, lat:36.6850, pop:213000, isCapital:false},
+{name:"Sabadell", country:"Hiszpania", lon:2.1086, lat:41.5463, pop:213000, isCapital:false},
+{name:"Móstoles", country:"Hiszpania", lon:-3.8640, lat:40.3223, pop:209000, isCapital:false},
+{name:"Alcalá de Henares", country:"Hiszpania", lon:-3.3635, lat:40.4810, pop:197000, isCapital:false},
+{name:"Pamplona", country:"Hiszpania", lon:-1.6432, lat:42.8125, pop:201000, isCapital:false},
+{name:"Fuenlabrada", country:"Hiszpania", lon:-3.7903, lat:40.2902, pop:193000, isCapital:false},
+{name:"Almería", country:"Hiszpania", lon:-2.4597, lat:36.8340, pop:199000, isCapital:false},
+{name:"San Sebastián", country:"Hiszpania", lon:-1.9812, lat:43.3183, pop:188000, isCapital:false},
+{name:"Leganés", country:"Hiszpania", lon:-3.7630, lat:40.3319, pop:188000, isCapital:false},
+{name:"Santander", country:"Hiszpania", lon:-3.8079, lat:43.4623, pop:173000, isCapital:false},
+{name:"Castellón de la Plana", country:"Hiszpania", lon:-0.0576, lat:39.9864, pop:174000, isCapital:false},
+{name:"Burgos", country:"Hiszpania", lon:-3.7003, lat:42.3439, pop:176000, isCapital:false},
+{name:"Albacete", country:"Hiszpania", lon:-1.8559, lat:38.9943, pop:173000, isCapital:false},
+{name:"Getafe", country:"Hiszpania", lon:-3.7327, lat:40.3083, pop:183000, isCapital:false},
+{name:"Salamanka", country:"Hiszpania", lon:-5.6635, lat:40.9701, pop:144000, isCapital:false},
+{name:"Huelva", country:"Hiszpania", lon:-6.9447, lat:37.2614, pop:143000, isCapital:false},
+{name:"Logroño", country:"Hiszpania", lon:-2.4449, lat:42.4627, pop:152000, isCapital:false},
+{name:"Badajoz", country:"Hiszpania", lon:-6.9706, lat:38.8795, pop:150000, isCapital:false},
+{name:"Tarragona", country:"Hiszpania", lon:1.2542, lat:41.1189, pop:136000, isCapital:false},
+{name:"León", country:"Hiszpania", lon:-5.5703, lat:42.5987, pop:124000, isCapital:false},
+{name:"Cádiz", country:"Hiszpania", lon:-6.2886, lat:36.5271, pop:116000, isCapital:false},
+{name:"Lleida", country:"Hiszpania", lon:0.6219, lat:41.6176, pop:139000, isCapital:false},
+{name:"Marbella", country:"Hiszpania", lon:-4.8890, lat:36.5101, pop:150000, isCapital:false},
+{name:"Jaén", country:"Hiszpania", lon:-3.7890, lat:37.7796, pop:112000, isCapital:false},
+{name:"Ourense", country:"Hiszpania", lon:-7.8641, lat:42.3350, pop:105000, isCapital:false},
+{name:"Girona", country:"Hiszpania", lon:2.8214, lat:41.9794, pop:103000, isCapital:false},
+
+// strategiczne porty i przemysł
+{name:"Algeciras", country:"Hiszpania", lon:-5.4537, lat:36.1333, pop:122000, isCapital:false},
+{name:"Ferrol", country:"Hiszpania", lon:-8.2354, lat:43.4832, pop:66000, isCapital:false},
+{name:"Avilés", country:"Hiszpania", lon:-5.9231, lat:43.5560, pop:77000, isCapital:false},
+{name:"Puertollano", country:"Hiszpania", lon:-4.1073, lat:38.6880, pop:47000, isCapital:false},
+{name:"Sagunto", country:"Hiszpania", lon:-0.2120, lat:39.6830, pop:65000, isCapital:false},
+{name:"Vila-real", country:"Hiszpania", lon:-0.1020, lat:39.9380, pop:51000, isCapital:false},
+{name:"Reus", country:"Hiszpania", lon:1.1069, lat:41.1564, pop:106000, isCapital:false},
+{name:"Parla", country:"Hiszpania", lon:-3.7690, lat:40.2360, pop:130000, isCapital:false},
+{name:"Torrejón de Ardoz", country:"Hiszpania", lon:-3.4810, lat:40.4550, pop:132000, isCapital:false},
+// Portugalia — duże i strategiczne miasta (~50 wpisów)
+{name:"Lizbona", country:"Portugalia", lon:-9.1390, lat:38.7169, pop:545000, isCapital:true},
+{name:"Porto", country:"Portugalia", lon:-8.6110, lat:41.1496, pop:231000, isCapital:false},
+{name:"Vila Nova de Gaia", country:"Portugalia", lon:-8.6291, lat:41.1336, pop:302000, isCapital:false},
+{name:"Amadora", country:"Portugalia", lon:-9.2308, lat:38.7597, pop:175000, isCapital:false},
+{name:"Braga", country:"Portugalia", lon:-8.4214, lat:41.5454, pop:193000, isCapital:false},
+{name:"Coimbra", country:"Portugalia", lon:-8.4292, lat:40.2111, pop:143000, isCapital:false},
+{name:"Funchal", country:"Portugalia", lon:-16.9220, lat:32.6669, pop:105000, isCapital:false},
+{name:"Setúbal", country:"Portugalia", lon:-8.8970, lat:38.5244, pop:123000, isCapital:false},
+{name:"Queluz", country:"Portugalia", lon:-9.2546, lat:38.7561, pop:103000, isCapital:false},
+{name:"Almada", country:"Portugalia", lon:-9.1569, lat:38.6803, pop:101000, isCapital:false},
+{name:"Aveiro", country:"Portugalia", lon:-8.6455, lat:40.6405, pop:78000, isCapital:false},
+{name:"Viseu", country:"Portugalia", lon:-7.9135, lat:40.6610, pop:99000, isCapital:false},
+{name:"Guimarães", country:"Portugalia", lon:-8.2906, lat:41.4444, pop:158000, isCapital:false},
+{name:"Barreiro", country:"Portugalia", lon:-9.0724, lat:38.6631, pop:79000, isCapital:false},
+{name:"Évora", country:"Portugalia", lon:-7.9070, lat:38.5667, pop:56000, isCapital:false},
+{name:"Beja", country:"Portugalia", lon:-7.8632, lat:38.0151, pop:35000, isCapital:false},
+{name:"Ponta Delgada", country:"Portugalia", lon:-25.6667, lat:37.7333, pop:68000, isCapital:false},
+{name:"Cascais", country:"Portugalia", lon:-9.4200, lat:38.6968, pop:214000, isCapital:false},
+{name:"Matosinhos", country:"Portugalia", lon:-8.6891, lat:41.1821, pop:175000, isCapital:false},
+{name:"Loures", country:"Portugalia", lon:-9.1680, lat:38.8309, pop:205000, isCapital:false},
+
+// strategiczne porty i przemysł
+{name:"Sines", country:"Portugalia", lon:-8.8690, lat:37.9560, pop:14000, isCapital:false},
+{name:"Leixões", country:"Portugalia", lon:-8.7060, lat:41.1860, pop:50000, isCapital:false},
+{name:"Faro", country:"Portugalia", lon:-7.9351, lat:37.0194, pop:61000, isCapital:false},
+{name:"Portimão", country:"Portugalia", lon:-8.5377, lat:37.1386, pop:55600, isCapital:false},
+{name:"Viana do Castelo", country:"Portugalia", lon:-8.8273, lat:41.6932, pop:88400, isCapital:false},
+{name:"Seixal", country:"Portugalia", lon:-9.1016, lat:38.6403, pop:184000, isCapital:false},
+{name:"Oeiras", country:"Portugalia", lon:-9.3000, lat:38.6971, pop:172000, isCapital:false},
+{name:"Maia", country:"Portugalia", lon:-8.6200, lat:41.2357, pop:135000, isCapital:false},
+{name:"Amarante", country:"Portugalia", lon:-8.0828, lat:41.2727, pop:56000, isCapital:false},
+{name:"Torres Vedras", country:"Portugalia", lon:-9.2586, lat:39.0911, pop:83300, isCapital:false},
+{name:"Santa Maria da Feira", country:"Portugalia", lon:-8.5505, lat:40.9261, pop:140000, isCapital:false},
+{name:"Oliveira de Azeméis", country:"Portugalia", lon:-8.4751, lat:40.8419, pop:70000, isCapital:false},
+
+// Włochy — duże i strategiczne miasta (~50 wpisów)
+{name:"Rzym", country:"Włochy", lon:12.4964, lat:41.9028, pop:2873000, isCapital:true},
+{name:"Mediolan", country:"Włochy", lon:9.1900, lat:45.4642, pop:1366000, isCapital:false},
+{name:"Neapol", country:"Włochy", lon:14.2681, lat:40.8518, pop:962000, isCapital:false},
+{name:"Turyn", country:"Włochy", lon:7.6869, lat:45.0703, pop:870000, isCapital:false},
+{name:"Palermo", country:"Włochy", lon:13.3615, lat:38.1157, pop:657000, isCapital:false},
+{name:"Genua", country:"Włochy", lon:8.9463, lat:44.4056, pop:583000, isCapital:false},
+{name:"Bologna", country:"Włochy", lon:11.3426, lat:44.4949, pop:394000, isCapital:false},
+{name:"Florencja", country:"Włochy", lon:11.2558, lat:43.7699, pop:382000, isCapital:false},
+{name:"Bari", country:"Włochy", lon:16.8698, lat:41.1253, pop:323000, isCapital:false},
+{name:"Catania", country:"Włochy", lon:15.0873, lat:37.5027, pop:311000, isCapital:false},
+{name:"Verona", country:"Włochy", lon:10.9916, lat:45.4384, pop:257000, isCapital:false},
+{name:"Venezia", country:"Włochy", lon:12.3155, lat:45.4408, pop:261000, isCapital:false},
+{name:"Messina", country:"Włochy", lon:15.5557, lat:38.1938, pop:231000, isCapital:false},
+{name:"Padwa", country:"Włochy", lon:11.8768, lat:45.4064, pop:210000, isCapital:false},
+{name:"Triest", country:"Włochy", lon:13.7768, lat:45.6495, pop:203000, isCapital:false},
+{name:"Brescia", country:"Włochy", lon:10.2118, lat:45.5416, pop:198000, isCapital:false},
+{name:"Tarent", country:"Włochy", lon:17.2470, lat:40.4644, pop:195000, isCapital:false},
+{name:"Prato", country:"Włochy", lon:11.1022, lat:43.8808, pop:194000, isCapital:false},
+{name:"Parma", country:"Włochy", lon:10.3279, lat:44.8015, pop:196000, isCapital:false},
+{name:"Modena", country:"Włochy", lon:10.9252, lat:44.6471, pop:184000, isCapital:false},
+{name:"Reggio di Calabria", country:"Włochy", lon:15.6519, lat:38.1112, pop:182000, isCapital:false},
+{name:"Reggio nell'Emilia", country:"Włochy", lon:10.6300, lat:44.6983, pop:171000, isCapital:false},
+{name:"Perugia", country:"Włochy", lon:12.3888, lat:43.1107, pop:166000, isCapital:false},
+{name:"Livorno", country:"Włochy", lon:10.3160, lat:43.5485, pop:158000, isCapital:false},
+{name:"Ravenna", country:"Włochy", lon:12.2035, lat:44.4184, pop:158000, isCapital:false},
+{name:"Cagliari", country:"Włochy", lon:9.1106, lat:39.2238, pop:154000, isCapital:false},
+{name:"Foggia", country:"Włochy", lon:15.5430, lat:41.4622, pop:151000, isCapital:false},
+{name:"Rimini", country:"Włochy", lon:12.5683, lat:44.0678, pop:149000, isCapital:false},
+{name:"Salerno", country:"Włochy", lon:14.7681, lat:40.6824, pop:133000, isCapital:false},
+{name:"Ferrara", country:"Włochy", lon:11.6198, lat:44.8355, pop:132000, isCapital:false},
+{name:"Sassari", country:"Włochy", lon:8.5550, lat:40.7266, pop:126000, isCapital:false},
+{name:"Latina", country:"Włochy", lon:12.9037, lat:41.4676, pop:126000, isCapital:false},
+{name:"Giugliano in Campania", country:"Włochy", lon:14.2013, lat:40.9284, pop:123000, isCapital:false},
+{name:"Monza", country:"Włochy", lon:9.2744, lat:45.5845, pop:122000, isCapital:false},
+{name:"Siracusa", country:"Włochy", lon:15.2843, lat:37.0755, pop:121000, isCapital:false},
+{name:"Pescara", country:"Włochy", lon:14.2148, lat:42.4645, pop:119000, isCapital:false},
+{name:"Bergamo", country:"Włochy", lon:9.6773, lat:45.6983, pop:121000, isCapital:false},
+{name:"Forlì", country:"Włochy", lon:12.0414, lat:44.2226, pop:118000, isCapital:false},
+{name:"Trento", country:"Włochy", lon:11.1217, lat:46.0669, pop:118000, isCapital:false},
+
+// strategiczne porty i przemysł
+{name:"La Spezia", country:"Włochy", lon:9.8236, lat:44.1024, pop:93000, isCapital:false},
+{name:"Brindisi", country:"Włochy", lon:17.9461, lat:40.6320, pop:87000, isCapital:false},
+{name:"Piombino", country:"Włochy", lon:10.5280, lat:42.9339, pop:34000, isCapital:false},
+{name:"Gioia Tauro", country:"Włochy", lon:15.8996, lat:38.4262, pop:19000, isCapital:false},
+{name:"Civitavecchia", country:"Włochy", lon:11.7944, lat:42.0924, pop:53000, isCapital:false},
+{name:"Ankona", country:"Włochy", lon:13.5036, lat:43.6158, pop:100000, isCapital:false},
+{name:"Taranto-Arsenale", country:"Włochy", lon:17.2470, lat:40.4644, pop:195000, isCapital:false},
+{name:"Porto Torres", country:"Włochy", lon:8.4031, lat:40.8340, pop:23000, isCapital:false},
+
+// Holandia
+{name:"Amsterdam", country:"Holandia", lon:4.9041, lat:52.3676, pop:872000, isCapital:true},
+{name:"Rotterdam", country:"Holandia", lon:4.4777, lat:51.9244, pop:651000, isCapital:false},
+{name:"Haga", country:"Holandia", lon:4.3007, lat:52.0705, pop:546000, isCapital:false},
+{name:"Utrecht", country:"Holandia", lon:5.1214, lat:52.0907, pop:362000, isCapital:false},
+{name:"Eindhoven", country:"Holandia", lon:5.4790, lat:51.4416, pop:236000, isCapital:false},
+{name:"Tilburg", country:"Holandia", lon:5.0919, lat:51.5555, pop:219000, isCapital:false},
+{name:"Groningen", country:"Holandia", lon:6.5665, lat:53.2194, pop:232000, isCapital:false},
+{name:"Breda", country:"Holandia", lon:4.7759, lat:51.5719, pop:184000, isCapital:false},
+{name:"Nijmegen", country:"Holandia", lon:5.8520, lat:51.8426, pop:178000, isCapital:false},
+{name:"Apeldoorn", country:"Holandia", lon:5.9699, lat:52.2112, pop:165000, isCapital:false},
+
+// Belgia
+{name:"Bruksela", country:"Belgia", lon:4.3517, lat:50.8503, pop:1210000, isCapital:true},
+{name:"Antwerpia", country:"Belgia", lon:4.4025, lat:51.2194, pop:529000, isCapital:false},
+{name:"Gandawa", country:"Belgia", lon:3.7210, lat:51.0543, pop:262000, isCapital:false},
+{name:"Charleroi", country:"Belgia", lon:4.4447, lat:50.4108, pop:202000, isCapital:false},
+{name:"Liège", country:"Belgia", lon:5.5797, lat:50.6326, pop:197000, isCapital:false},
+{name:"Brugia", country:"Belgia", lon:3.2247, lat:51.2093, pop:118000, isCapital:false},
+{name:"Namur", country:"Belgia", lon:4.8674, lat:50.4674, pop:110000, isCapital:false},
+{name:"Leuven", country:"Belgia", lon:4.7074, lat:50.8798, pop:101000, isCapital:false},
+{name:"Mons", country:"Belgia", lon:3.9523, lat:50.4542, pop:96000, isCapital:false},
+{name:"Tournai", country:"Belgia", lon:3.3876, lat:50.6050, pop:69000, isCapital:false},
+
+// Luksemburg
+{name:"Luksemburg", country:"Luksemburg", lon:6.1319, lat:49.6117, pop:132000, isCapital:true},
+{name:"Esch-sur-Alzette", country:"Luksemburg", lon:5.9806, lat:49.4958, pop:36000, isCapital:false},
+{name:"Differdange", country:"Luksemburg", lon:5.8914, lat:49.5242, pop:26000, isCapital:false},
+// Słowenia — duże i strategiczne miasta
+{name:"Lublana", country:"Słowenia", lon:14.5058, lat:46.0569, pop:295000, isCapital:true},
+{name:"Maribor", country:"Słowenia", lon:15.6467, lat:46.5547, pop:97000, isCapital:false},
+{name:"Celje", country:"Słowenia", lon:15.2675, lat:46.2309, pop:38000, isCapital:false},
+{name:"Kranj", country:"Słowenia", lon:14.3556, lat:46.2389, pop:37000, isCapital:false},
+{name:"Velenje", country:"Słowenia", lon:15.1103, lat:46.3625, pop:25000, isCapital:false},
+{name:"Koper", country:"Słowenia", lon:13.7294, lat:45.5469, pop:25000, isCapital:false}, // port
+{name:"Novo Mesto", country:"Słowenia", lon:15.1689, lat:45.8031, pop:24000, isCapital:false},
+{name:"Ptuj", country:"Słowenia", lon:15.8700, lat:46.4200, pop:18000, isCapital:false}, // przemysł
+{name:"Jesenice", country:"Słowenia", lon:14.0667, lat:46.4333, pop:13000, isCapital:false}, // stal
+{name:"Izola", country:"Słowenia", lon:13.6667, lat:45.5333, pop:16000, isCapital:false}, // stocznia
+
+// Chorwacja — duże i strategiczne miasta
+{name:"Zagrzeb", country:"Chorwacja", lon:15.9819, lat:45.8150, pop:806000, isCapital:true},
+{name:"Split", country:"Chorwacja", lon:16.4402, lat:43.5081, pop:178000, isCapital:false},
+{name:"Rijeka", country:"Chorwacja", lon:14.4422, lat:45.3271, pop:108000, isCapital:false}, // port
+{name:"Osijek", country:"Chorwacja", lon:18.6955, lat:45.5511, pop:108000, isCapital:false},
+{name:"Zadar", country:"Chorwacja", lon:15.2314, lat:44.1194, pop:75000, isCapital:false}, // port
+{name:"Velika Gorica", country:"Chorwacja", lon:16.0756, lat:45.7125, pop:63000, isCapital:false},
+{name:"Pula", country:"Chorwacja", lon:13.8481, lat:44.8683, pop:57000, isCapital:false}, // stocznia
+{name:"Slavonski Brod", country:"Chorwacja", lon:18.0161, lat:45.1603, pop:59000, isCapital:false}, // przemysł
+{name:"Karlovac", country:"Chorwacja", lon:15.5478, lat:45.4925, pop:55000, isCapital:false},
+{name:"Šibenik", country:"Chorwacja", lon:15.8942, lat:43.7272, pop:42000, isCapital:false}, // port
+
+// Słowacja — duże i strategiczne miasta
+{name:"Bratysława", country:"Słowacja", lon:17.1077, lat:48.1486, pop:432000, isCapital:true},
+{name:"Koszyce", country:"Słowacja", lon:21.2611, lat:48.7164, pop:238000, isCapital:false},
+{name:"Preszów", country:"Słowacja", lon:21.2394, lat:48.9984, pop:89000, isCapital:false},
+{name:"Żylina", country:"Słowacja", lon:18.7406, lat:49.2239, pop:83000, isCapital:false},
+{name:"Nitra", country:"Słowacja", lon:18.0864, lat:48.3064, pop:78000, isCapital:false},
+{name:"Banská Bystrica", country:"Słowacja", lon:19.1462, lat:48.7395, pop:78000, isCapital:false},
+{name:"Trnawa", country:"Słowacja", lon:17.5975, lat:48.3774, pop:66000, isCapital:false},
+{name:"Martin", country:"Słowacja", lon:18.9231, lat:49.0645, pop:55000, isCapital:false},
+{name:"Trenczyn", country:"Słowacja", lon:18.0400, lat:48.8944, pop:55000, isCapital:false},
+{name:"Poprad", country:"Słowacja", lon:20.3025, lat:49.0594, pop:52000, isCapital:false},
+// Węgry — duże i strategiczne miasta
+{name:"Budapeszt", country:"Węgry", lon:19.0402, lat:47.4979, pop:1756000, isCapital:true},
+{name:"Debreczyn", country:"Węgry", lon:21.6392, lat:47.5316, pop:201000, isCapital:false},
+{name:"Segedyn", country:"Węgry", lon:20.1482, lat:46.2530, pop:160000, isCapital:false},
+{name:"Miszkolc", country:"Węgry", lon:20.7803, lat:48.1031, pop:155000, isCapital:false},
+{name:"Pecz", country:"Węgry", lon:18.2286, lat:46.0727, pop:144000, isCapital:false},
+{name:"Győr", country:"Węgry", lon:17.6344, lat:47.6875, pop:133000, isCapital:false},
+{name:"Nyíregyháza", country:"Węgry", lon:21.7170, lat:47.9554, pop:118000, isCapital:false},
+{name:"Kecskemét", country:"Węgry", lon:19.6897, lat:46.9062, pop:110000, isCapital:false},
+{name:"Székesfehérvár", country:"Węgry", lon:18.4100, lat:47.1949, pop:97000, isCapital:false},
+{name:"Szombathely", country:"Węgry", lon:16.6218, lat:47.2307, pop:79000, isCapital:false},
+
+// Rumunia — duże i strategiczne miasta
+{name:"Bukareszt", country:"Rumunia", lon:26.1025, lat:44.4268, pop:1883000, isCapital:true},
+{name:"Kluż-Napoka", country:"Rumunia", lon:23.5940, lat:46.7712, pop:324000, isCapital:false},
+{name:"Timișoara", country:"Rumunia", lon:21.2292, lat:45.7489, pop:319000, isCapital:false},
+{name:"Jassy", country:"Rumunia", lon:27.5903, lat:47.1585, pop:318000, isCapital:false},
+{name:"Konstanca", country:"Rumunia", lon:28.6348, lat:44.1741, pop:283000, isCapital:false}, // port
+{name:"Craiova", country:"Rumunia", lon:23.7949, lat:44.3302, pop:269000, isCapital:false},
+{name:"Braszów", country:"Rumunia", lon:25.6012, lat:45.6433, pop:253000, isCapital:false},
+{name:"Galați", country:"Rumunia", lon:28.0497, lat:45.4369, pop:249000, isCapital:false}, // port rzeczny
+{name:"Ploeszti", country:"Rumunia", lon:26.0225, lat:44.9441, pop:209000, isCapital:false}, // rafinerie
+{name:"Oradea", country:"Rumunia", lon:21.9333, lat:47.0722, pop:183000, isCapital:false},
+
+// Bułgaria — duże i strategiczne miasta
+{name:"Sofia", country:"Bułgaria", lon:23.3219, lat:42.6977, pop:1246000, isCapital:true},
+{name:"Płowdiw", country:"Bułgaria", lon:24.7453, lat:42.1354, pop:346000, isCapital:false},
+{name:"Warna", country:"Bułgaria", lon:27.9147, lat:43.2141, pop:335000, isCapital:false}, // port
+{name:"Burgas", country:"Bułgaria", lon:27.4678, lat:42.5048, pop:202000, isCapital:false}, // port
+{name:"Ruse", country:"Bułgaria", lon:25.9699, lat:43.8487, pop:143000, isCapital:false}, // port rzeczny
+{name:"Stara Zagora", country:"Bułgaria", lon:25.6240, lat:42.4258, pop:138000, isCapital:false},
+{name:"Plewen", country:"Bułgaria", lon:24.6167, lat:43.4167, pop:106000, isCapital:false},
+{name:"Sliwen", country:"Bułgaria", lon:26.3292, lat:42.6858, pop:91000, isCapital:false},
+{name:"Dobricz", country:"Bułgaria", lon:27.8333, lat:43.5667, pop:88000, isCapital:false},
+{name:"Szumen", country:"Bułgaria", lon:27.0000, lat:43.2833, pop:80000, isCapital:false},
+// Cypr — główne miasta i porty
+{name:"Nikozja", country:"Cypr", lon:33.3823, lat:35.1856, pop:276000, isCapital:true},
+{name:"Limassol", country:"Cypr", lon:33.0460, lat:34.6841, pop:154000, isCapital:false}, // port
+{name:"Larnaka", country:"Cypr", lon:33.6292, lat:34.9167, pop:72000, isCapital:false}, // port i lotnisko
+{name:"Famagusta", country:"Cypr", lon:33.9500, lat:35.1250, pop:50000, isCapital:false}, // port
+{name:"Pafos", country:"Cypr", lon:32.4245, lat:34.7768, pop:36000, isCapital:false},
+
+// Wielka Brytania — duże i strategiczne miasta
+{name:"Londyn", country:"Wielka Brytania", lon:-0.1276, lat:51.5072, pop:8982000, isCapital:true},
+{name:"Birmingham", country:"Wielka Brytania", lon:-1.8936, lat:52.4831, pop:1141000, isCapital:false},
+{name:"Manchester", country:"Wielka Brytania", lon:-2.2446, lat:53.4808, pop:553000, isCapital:false},
+{name:"Leeds", country:"Wielka Brytania", lon:-1.5491, lat:53.8008, pop:789000, isCapital:false},
+{name:"Glasgow", country:"Wielka Brytania", lon:-4.2518, lat:55.8642, pop:635000, isCapital:false},
+{name:"Liverpool", country:"Wielka Brytania", lon:-2.9779, lat:53.4084, pop:498000, isCapital:false}, // port
+{name:"Newcastle upon Tyne", country:"Wielka Brytania", lon:-1.6174, lat:54.9784, pop:300000, isCapital:false},
+{name:"Sheffield", country:"Wielka Brytania", lon:-1.4670, lat:53.3836, pop:556000, isCapital:false},
+{name:"Bristol", country:"Wielka Brytania", lon:-2.5879, lat:51.4545, pop:467000, isCapital:false}, // port
+{name:"Nottingham", country:"Wielka Brytania", lon:-1.1505, lat:52.9536, pop:331000, isCapital:false},
+{name:"Southampton", country:"Wielka Brytania", lon:-1.4043, lat:50.9097, pop:253000, isCapital:false}, // port
+{name:"Portsmouth", country:"Wielka Brytania", lon:-1.0912, lat:50.8058, pop:215000, isCapital:false}, // port
+{name:"Aberdeen", country:"Wielka Brytania", lon:-2.0943, lat:57.1497, pop:198000, isCapital:false}, // nafta
+{name:"Hull", country:"Wielka Brytania", lon:-0.3367, lat:53.7457, pop:260000, isCapital:false}, // port
+{name:"Cardiff", country:"Wielka Brytania", lon:-3.1791, lat:51.4816, pop:362000, isCapital:false},
+{name:"Edynburg", country:"Wielka Brytania", lon:-3.1883, lat:55.9533, pop:488000, isCapital:false},
+{name:"Belfast", country:"Wielka Brytania", lon:-5.9301, lat:54.5973, pop:343000, isCapital:false}, // port
+{name:"Plymouth", country:"Wielka Brytania", lon:-4.1427, lat:50.3755, pop:262000, isCapital:false}, // port wojskowy
+{name:"Leicester", country:"Wielka Brytania", lon:-1.1336, lat:52.6369, pop:354000, isCapital:false},
+{name:"Coventry", country:"Wielka Brytania", lon:-1.5106, lat:52.4068, pop:345000, isCapital:false},
+
+// Irlandia — duże i strategiczne miasta
+{name:"Dublin", country:"Irlandia", lon:-6.2603, lat:53.3498, pop:554000, isCapital:true},
+{name:"Cork", country:"Irlandia", lon:-8.4863, lat:51.8985, pop:210000, isCapital:false}, // port
+{name:"Limerick", country:"Irlandia", lon:-8.6231, lat:52.6647, pop:94000, isCapital:false},
+{name:"Galway", country:"Irlandia", lon:-9.0504, lat:53.2707, pop:80000, isCapital:false}, // port
+{name:"Waterford", country:"Irlandia", lon:-7.1119, lat:52.2593, pop:54000, isCapital:false}, // port
+{name:"Drogheda", country:"Irlandia", lon:-6.3478, lat:53.7189, pop:41000, isCapital:false},
+{name:"Dundalk", country:"Irlandia", lon:-6.4006, lat:54.0000, pop:39000, isCapital:false},
+{name:"Sligo", country:"Irlandia", lon:-8.4601, lat:54.2697, pop:20000, isCapital:false},
+{name:"Wexford", country:"Irlandia", lon:-6.4633, lat:52.3369, pop:20000, isCapital:false},
+{name:"Shannon", country:"Irlandia", lon:-8.8683, lat:52.7036, pop:9500, isCapital:false},
+
+// Litwa — duże i strategiczne miasta
+{name:"Wilno", country:"Litwa", lon:25.2796, lat:54.6872, pop:588000, isCapital:true},
+{name:"Kowno", country:"Litwa", lon:23.8813, lat:54.8972, pop:295000, isCapital:false},
+{name:"Kłajpeda", country:"Litwa", lon:21.1175, lat:55.7033, pop:149000, isCapital:false}, // port
+{name:"Szawle", country:"Litwa", lon:23.3167, lat:55.9333, pop:101000, isCapital:false},
+{name:"Poniewież", country:"Litwa", lon:24.3500, lat:55.7333, pop:97000, isCapital:false},
+{name:"Olita", country:"Litwa", lon:24.5653, lat:54.3964, pop:54000, isCapital:false},
+{name:"Mariampol", country:"Litwa", lon:23.3500, lat:54.5667, pop:35000, isCapital:false},
+{name:"Utena", country:"Litwa", lon:25.6000, lat:55.5000, pop:28000, isCapital:false},
+{name:"Telsze", country:"Litwa", lon:22.2500, lat:55.9833, pop:28000, isCapital:false},
+{name:"Kiejdany", country:"Litwa", lon:23.9667, lat:55.2833, pop:24000, isCapital:false},
+
+// Łotwa — duże i strategiczne miasta
+{name:"Ryga", country:"Łotwa", lon:24.1052, lat:56.9496, pop:632000, isCapital:true},
+{name:"Dyneburg", country:"Łotwa", lon:26.5281, lat:55.8750, pop:82000, isCapital:false},
+{name:"Lipawa", country:"Łotwa", lon:21.0167, lat:56.5167, pop:69000, isCapital:false}, // port
+{name:"Jelgava", country:"Łotwa", lon:23.7128, lat:56.6511, pop:55000, isCapital:false},
+{name:"Jurmala", country:"Łotwa", lon:23.7991, lat:56.9710, pop:50000, isCapital:false}, // turystyka
+{name:"Rezekne", country:"Łotwa", lon:27.3167, lat:56.5167, pop:28000, isCapital:false},
+{name:"Valmiera", country:"Łotwa", lon:25.4167, lat:57.5333, pop:24000, isCapital:false},
+{name:"Ventspils", country:"Łotwa", lon:21.5619, lat:57.3894, pop:34000, isCapital:false}, // port
+{name:"Ogre", country:"Łotwa", lon:24.6000, lat:56.8167, pop:26000, isCapital:false},
+{name:"Salaspils", country:"Łotwa", lon:24.3011, lat:56.8619, pop:23000, isCapital:false},
+
+// Estonia — duże i strategiczne miasta
+{name:"Tallinn", country:"Estonia", lon:24.7536, lat:59.4370, pop:437000, isCapital:true},
+{name:"Tartu", country:"Estonia", lon:26.7225, lat:58.3780, pop:97000, isCapital:false},
+{name:"Narwa", country:"Estonia", lon:28.2028, lat:59.3772, pop:57000, isCapital:false}, // przemysł
+{name:"Parnawa", country:"Estonia", lon:24.5000, lat:58.3833, pop:39000, isCapital:false}, // port
+{name:"Kohtla-Järve", country:"Estonia", lon:27.2733, lat:59.3986, pop:35000, isCapital:false}, // przemysł
+{name:"Viljandi", country:"Estonia", lon:25.5906, lat:58.3639, pop:17000, isCapital:false},
+{name:"Rakvere", country:"Estonia", lon:26.3558, lat:59.3464, pop:15000, isCapital:false},
+{name:"Sillamäe", country:"Estonia", lon:27.7500, lat:59.4000, pop:14000, isCapital:false}, // port i chemia
+{name:"Kuressaare", country:"Estonia", lon:22.5000, lat:58.2500, pop:13000, isCapital:false}, // turystyka
+{name:"Haapsalu", country:"Estonia", lon:23.5408, lat:58.9431, pop:10000, isCapital:false},
+
+// Finlandia — duże i strategiczne miasta
+{name:"Helsinki", country:"Finlandia", lon:24.9384, lat:60.1699, pop:658000, isCapital:true},
+{name:"Espoo", country:"Finlandia", lon:24.6559, lat:60.2055, pop:303000, isCapital:false},
+{name:"Tampere", country:"Finlandia", lon:23.7610, lat:61.4978, pop:238000, isCapital:false},
+{name:"Vantaa", country:"Finlandia", lon:25.0378, lat:60.2941, pop:238000, isCapital:false}, // lotnisko
+{name:"Oulu", country:"Finlandia", lon:25.4651, lat:65.0121, pop:209000, isCapital:false},
+{name:"Turku", country:"Finlandia", lon:22.2666, lat:60.4518, pop:194000, isCapital:false}, // port
+{name:"Jyväskylä", country:"Finlandia", lon:25.7470, lat:62.2415, pop:144000, isCapital:false},
+{name:"Lahti", country:"Finlandia", lon:25.6615, lat:60.9827, pop:120000, isCapital:false},
+{name:"Kuopio", country:"Finlandia", lon:27.6770, lat:62.8924, pop:119000, isCapital:false},
+{name:"Pori", country:"Finlandia", lon:21.7970, lat:61.4850, pop:84000, isCapital:false}, // port
+
+// Norwegia — duże i strategiczne miasta
+{name:"Oslo", country:"Norwegia", lon:10.7522, lat:59.9139, pop:709000, isCapital:true},
+{name:"Bergen", country:"Norwegia", lon:5.3221, lat:60.39299, pop:285000, isCapital:false}, // port
+{name:"Stavanger", country:"Norwegia", lon:5.7331, lat:58.969975, pop:144000, isCapital:false}, // nafta
+{name:"Trondheim", country:"Norwegia", lon:10.3951, lat:63.4305, pop:205000, isCapital:false},
+{name:"Drammen", country:"Norwegia", lon:10.2045, lat:59.7439, pop:103000, isCapital:false},
+{name:"Fredrikstad", country:"Norwegia", lon:10.9407, lat:59.2181, pop:84000, isCapital:false},
+{name:"Kristiansand", country:"Norwegia", lon:7.9960, lat:58.1467, pop:113000, isCapital:false}, // port
+{name:"Tromsø", country:"Norwegia", lon:18.9553, lat:69.6496, pop:77000, isCapital:false},
+{name:"Sandnes", country:"Norwegia", lon:5.7352, lat:58.8524, pop:82000, isCapital:false},
+{name:"Ålesund", country:"Norwegia", lon:6.1495, lat:62.4722, pop:67000, isCapital:false}, // port
+
+// Szwecja — duże i strategiczne miasta
+{name:"Sztokholm", country:"Szwecja", lon:18.0686, lat:59.3293, pop:975000, isCapital:true},
+{name:"Göteborg", country:"Szwecja", lon:11.9746, lat:57.7089, pop:580000, isCapital:false}, // port
+{name:"Malmö", country:"Szwecja", lon:13.0038, lat:55.6050, pop:347000, isCapital:false},
+{name:"Uppsala", country:"Szwecja", lon:17.6389, lat:59.8586, pop:177000, isCapital:false},
+{name:"Västerås", country:"Szwecja", lon:16.5448, lat:59.6099, pop:128000, isCapital:false},
+{name:"Örebro", country:"Szwecja", lon:15.2066, lat:59.2741, pop:126000, isCapital:false},
+{name:"Linköping", country:"Szwecja", lon:15.6250, lat:58.4109, pop:165000, isCapital:false},
+{name:"Helsingborg", country:"Szwecja", lon:12.6944, lat:56.0465, pop:112000, isCapital:false}, // port
+{name:"Jönköping", country:"Szwecja", lon:14.1618, lat:57.7815, pop:99000, isCapital:false},
+{name:"Norrköping", country:"Szwecja", lon:16.1784, lat:58.5877, pop:97000, isCapital:false},
+// Dania — duże i strategiczne miasta
+{name:"Kopenhaga", country:"Dania", lon:12.5683, lat:55.6761, pop:815000, isCapital:true},
+{name:"Aarhus", country:"Dania", lon:10.2039, lat:56.1629, pop:280000, isCapital:false}, // port
+{name:"Odense", country:"Dania", lon:10.3883, lat:55.4038, pop:180000, isCapital:false},
+{name:"Aalborg", country:"Dania", lon:9.9217, lat:57.0488, pop:118000, isCapital:false}, // port
+{name:"Esbjerg", country:"Dania", lon:8.4519, lat:55.4765, pop:72000, isCapital:false}, // port naftowy
+{name:"Randers", country:"Dania", lon:10.0500, lat:56.4667, pop:63000, isCapital:false},
+{name:"Kolding", country:"Dania", lon:9.4696, lat:55.4904, pop:61000, isCapital:false}, // logistyczne
+{name:"Horsens", country:"Dania", lon:9.8370, lat:55.8607, pop:59000, isCapital:false},
+{name:"Vejle", country:"Dania", lon:9.5357, lat:55.7093, pop:57000, isCapital:false},
+{name:"Roskilde", country:"Dania", lon:12.0803, lat:55.6415, pop:52000, isCapital:false}
+
+
+
+    ];
+
+    let cities = [];
+
+    function pinPath(){ return "M0,-6 C2.8,-6 5,-3.8 5,-1.0 C5,1.8 2.4,4.6 0,8 C-2.4,4.6 -5,1.8 -5,-1.0 C-5,-3.8 -2.8,-6 0,-6 Z"; }
+
+    function drawPins(){
+      const k = getScale();
+      const base = 1/Math.sqrt(k);
+      const sizeCity = 1.30 * base;
+      const sizeCap  = 1.60 * base;
+
+      const sel = gPins.selectAll("g.kt-pin").data(cities, d=>d.name+"|"+d.lon+"|"+d.lat);
+      const enter = sel.enter().append("g").attr("class", d=>"kt-pin"+(d.isCapital?" capital":""));
+
+      enter.append("path").attr("class","pin-body").attr("d", pinPath());
+      enter.append("circle").attr("class","pin-glow").attr("r",7);
+      enter.append("circle").attr("class","pin-pulse")
+           .attr("fill","none").attr("stroke","#ff6a1a").attr("stroke-width","2")
+           .style("opacity",".35").style("animation","ktPulse 1.8s ease-out infinite");
+
+      sel.merge(enter).attr("transform", d=>{
+        const [x,y] = projection([d.lon, d.lat]);
+        const s = d.isCapital ? sizeCap : sizeCity;
+        return `translate(${x},${y}) scale(${s})`;
+      });
+    }
+
+    function loadAndInit(list){
+      // Filtr ≥100k lub stolice
+      cities = list.filter(c => c.isCapital || (c.pop && c.pop >= 100000));
+      drawPins();
+      window.addEventListener("ktmap:render", drawPins);
+    }
+
+    fetch(CITIES_URL, {cache:"no-store"})
+      .then(r => r.ok ? r.json() : DEMO)
+      .then(json => Array.isArray(json) ? json : DEMO)
+      .catch(()=>DEMO)
+      .then(loadAndInit);
+  }
+
+  if (window.KTMap) start(); else window.addEventListener("ktmap:ready", start, { once:true });
+})();
+</script>
+<!-- partial -->
+  
+</body>
+</html>

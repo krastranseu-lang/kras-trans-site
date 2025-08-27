@@ -1,0 +1,42 @@
+{
+  "sha": "63fcb4e9f281fc960b482105027b035083b1897ac4b4db80e008b0594df72372",
+  "lang": "ru",
+  "slugKey": "home",
+  "page": {
+    "seo_title": "Экспресс‑транспорт: фургоны 3,5 т и грузовики — Польша и ЕС",
+    "h1": "Транспортная компания в Лодзи — экспресс‑доставка фургонами 3,5 т и фурами по Польше и ЕС",
+    "title": "Автоперевозки из Лодзи | Экспресс‑доставки 24/7 по Польше и ЕС",
+    "lead": "Семейный перевозчик из Лодзи. Доставка door‑to‑door по Польше и ЕС — фургоны 3,5 т и грузовики, GPS‑трек, застрахованный груз.",
+    "cta_label": "",
+    "body_md_len": 1211,
+    "body_html_len": 1419
+  },
+  "blocks_count": 5,
+  "blocks_sample": [
+    {
+      "block": "home.hero",
+      "lang": "ru",
+      "page": "home",
+      "title": "Kras‑Trans — road transport • Poland & EU",
+      "lead": "Express deliveries with 3.5 t vans & trucks. 15‑minute quotes, 24/7, GPS tracking.",
+      "body_md": "",
+      "cta_label": "Запросить расчёт",
+      "cta_href": "/ru/contact/",
+      "order": 10,
+      "enabled": true
+    },
+    {
+      "block": "home.usp",
+      "lang": "ru",
+      "page": "home",
+      "title": "Why work with us",
+      "lead": "",
+      "body_md": "- Express door‑to‑door\n- 3.5 t vans + trucks\n- Dispatcher & live GPS\n- Cargo insurance\n- Clear pricing, no extras",
+      "cta_label": "",
+      "cta_href": "",
+      "order": 20,
+      "enabled": true,
+      "body_html": "<ul>\n<li>Express door‑to‑door</li>\n<li>3.5 t vans + trucks</li>\n<li>Dispatcher &amp; live GPS</li>\n<li>Cargo insurance</li>\n<li>Clear pricing, no extras</li>\n</ul>"
+    }
+  ]
+}
