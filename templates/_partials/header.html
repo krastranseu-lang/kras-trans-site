@@ -37,8 +37,8 @@
 
         <nav class="site-nav__panel" aria-label="Main">
           <ul class="site-nav__list">
-            {# oczekujemy struktury nav.items: [{label, url, children?}] #} {%
-            for item in (nav.items or []) %}
+            {# oczekujemy struktury nav["items"]: [{label, url, children?}] #} {%
+            for item in (nav.get("items") if nav.get("items") is sequence else []) %}
             <li class="site-nav__item">
               <a
                 class="site-nav__link"
