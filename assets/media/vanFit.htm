@@ -1,0 +1,3241 @@
+<!-- @format -->
+
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Van Pack – widget demo v8</title>
+    <style>
+      /* ===================== THEME TOKENS ===================== */
+      .vp {
+        --bg: #0f1117;
+        --ink: #e8eef9;
+        --muted: #9fb0ca;
+        --accent: #ff5a00;
+        --accent-ink: #fff;
+        --ok: #1fcf6d;
+        --bad: #ff4d4f;
+        --line: #223047;
+        --card: #121a2b;
+        --soft: #1a2236;
+        --rad: 14px;
+        --gap: 12px;
+        --grid: 5;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial,
+          sans-serif;
+        color: var(--ink);
+      }
+      @media (prefers-color-scheme: light) {
+        .vp:not([data-theme="dark"]) {
+          --bg: #f5f7fb;
+          --ink: #141a2a;
+          --muted: #5b6a85;
+          --accent: #ef5a00;
+          --accent-ink: #fff;
+          --ok: #0f9b5f;
+          --bad: #d43030;
+          --line: #d5dcef;
+          --card: #ffffff;
+          --soft: #f0f3fa;
+        }
+      }
+      .vp[data-theme="light"] {
+        --bg: #f5f7fb;
+        --ink: #141a2a;
+        --muted: #5b6a85;
+        --accent: #ef5a00;
+        --accent-ink: #fff;
+        --ok: #0f9b5f;
+        --bad: #d43030;
+        --line: #d5dcef;
+        --card: #ffffff;
+        --soft: #f0f3fa;
+      }
+
+      /* ===================== BASE ===================== */
+      .vp * {
+        box-sizing: border-box;
+      }
+      .vp a {
+        color: var(--accent);
+      }
+      .vp .vp-wrap {
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: var(--rad);
+        padding: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+      .vp .topbar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+      .vp .title {
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+      .vp .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 10px;
+      }
+      .vp select,
+      .vp input[type="number"],
+      .vp input[type="text"],
+      .vp input[type="date"],
+      .vp input[type="time"],
+      .vp textarea {
+        background: #0c1322;
+        color: var(--ink);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+      }
+      .vp[data-theme="light"] select,
+      .vp[data-theme="light"] input,
+      .vp[data-theme="light"] textarea {
+        background: #fff;
+      }
+      .vp label {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .vp .chip {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      /* Theme toggle */
+      .vp .theme {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .vp .toggle {
+        width: 62px;
+        height: 28px;
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: var(--soft);
+        position: relative;
+        cursor: pointer;
+      }
+      .vp .knob {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #ffd166;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s ease;
+      }
+      .vp[data-theme="light"] .knob {
+        transform: translateX(34px);
+        background: #ffe08a;
+      }
+      .vp[data-theme="dark"] .knob {
+        transform: translateX(0);
+      }
+      /* Grid */
+      .vp .grid {
+        display: grid;
+        grid-template-columns: minmax(240px, 1fr) 400px;
+        gap: 16px;
+      }
+      @media (max-width: 1120px) {
+        .vp .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Stage */
+      .vp .stage-card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--rad);
+        padding: 10px;
+        position: relative;
+      }
+      .vp .stage-wrap {
+        position: relative;
+        width: 100%;
+        height: 560px;
+      }
+      @media (min-width: 1400px) {
+        .vp .stage-wrap {
+          height: 640px;
+        }
+      }
+      .vp svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+        background: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.02),
+            rgba(255, 255, 255, 0) 30%
+          ),
+          var(--soft);
+        border-radius: 10px;
+      }
+      .vp .board {
+        outline: 1px solid #2b3958;
+      }
+      .vp .gridline {
+        stroke: #26334e;
+        stroke-width: 0.2;
+      }
+      .vp[data-theme="light"] .gridline {
+        stroke: #e8eef9;
+      }
+      .vp .hull {
+        fill: #0e1526;
+        stroke: #3a4d77;
+        stroke-width: 0.8;
+      }
+      .vp[data-theme="light"] .hull {
+        fill: #f2f5fb;
+        stroke: #d5dcef;
+      }
+      /* HUD overlay for readable labels */
+      .vp .hud-layer {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .vp .hud {
+        position: absolute;
+        padding: 2px 4px;
+        border-radius: 6px;
+        font-size: 12px;
+        line-height: 1;
+        color: var(--ink);
+        background: rgba(0, 0, 0, 0.25);
+      }
+      .vp[data-theme="light"] .hud {
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+      }
+
+      .vp .item {
+        fill: #2a3b60;
+        stroke: #83a1ff;
+        stroke-width: 0.7;
+        cursor: grab;
+      }
+      .vp[data-theme="light"] .item {
+        fill: #cdd7f7;
+        stroke: #4a77ff;
+      }
+      .vp .dragging .item.selected {
+        cursor: grabbing;
+      }
+      .vp .item.collide {
+        stroke: var(--bad);
+      }
+      .vp .item.selected {
+        filter: drop-shadow(0 0 10px rgba(90, 163, 255, 0.6));
+      }
+      .vp .label {
+        font-size: 3.2px;
+        fill: #d7e3ff;
+        paint-order: stroke;
+        stroke: #0b1020;
+        stroke-width: 0.6;
+      }
+      .vp .rotBtn {
+        fill: #0c1322;
+        stroke: #83a1ff;
+        stroke-width: 0.5;
+        cursor: pointer;
+      }
+      .vp .rotHit {
+        fill: transparent;
+        pointer-events: all;
+        cursor: pointer;
+      }
+
+      /* Underbar */
+      .vp .underbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-top: 10px;
+        border-top: 1px dashed #2b3958;
+        margin-top: 10px;
+      }
+      .vp .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: var(--accent);
+        color: var(--accent-ink);
+        border: none;
+        border-radius: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+      }
+      .vp .btn.secondary {
+        background: var(--soft);
+        color: var(--ink);
+        border: 1px solid var(--line);
+      }
+      .vp .btn.ghost {
+        background: transparent;
+        border: 1px dashed var(--line);
+      }
+
+      /* Side */
+      .vp .side {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--rad);
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        position: relative;
+      }
+      .vp .side h4 {
+        margin: 0;
+        font-size: 1rem;
+        color: #d7e3ff;
+      }
+      .vp[data-theme="light"] .side h4 {
+        color: #1a2233;
+      }
+      .vp .preset-list {
+        display: grid;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .vp .preset {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: var(--soft);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+      }
+      .vp .preset small {
+        color: var(--muted);
+      }
+      .vp .qty {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .vp .qty input {
+        width: 64px;
+      }
+
+      /* Bulk */
+      .vp .bulk {
+        background: var(--soft);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+      }
+      .vp .bulk .out {
+        background: #0c1322;
+        border: 1px dashed #33425f;
+        border-radius: 8px;
+        padding: 8px;
+        min-height: 40px;
+        color: #c9d6f0;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        white-space: pre-wrap;
+      }
+      .vp[data-theme="light"] .bulk .out {
+        background: #fff;
+        color: #2b3b55;
+        border-color: #cfd8ef;
+      }
+      .vp .note {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      /* Custom small form */
+      .vp .custom {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+      .vp .custom .row {
+        display: flex;
+        flex-direction: column;
+      }
+      .vp .custom .wide {
+        grid-column: 1 / -1;
+      }
+
+      /* Add vehicle */
+      .vp .vehbox {
+        background: var(--soft);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+      }
+      .vp .vehgrid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+      }
+      @media (max-width: 560px) {
+        .vp .vehgrid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      .vp .meters {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .vp .meters .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+      }
+      progress {
+        width: 100%;
+        height: 10px;
+      }
+      progress::-webkit-progress-value {
+        background: var(--accent);
+      }
+      progress::-webkit-progress-bar {
+        background: #23314d;
+      }
+      .vp[data-theme="light"] progress::-webkit-progress-bar {
+        background: #e8eef9;
+      }
+
+      .vp .status {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .vp .badge {
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-weight: 600;
+      }
+      .vp .badge.ok {
+        background: rgba(31, 207, 109, 0.12);
+        color: #0be481;
+        border: 1px solid #1fcf6d;
+      }
+      .vp .badge.bad {
+        background: rgba(255, 77, 79, 0.12);
+        color: #ff4d4f;
+        border: 1px solid #ff4d4f;
+      }
+
+      .vp .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .vp details {
+        background: var(--soft);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+      }
+
+      /* Selected item panel */
+      .vp .selected-panel {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+        display: none;
+      }
+      .vp .selected-panel.active {
+        display: block;
+      }
+      .vp .selected-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      /* Modal */
+      .vp .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(5, 8, 15, 0.66);
+        display: none;
+        align-items: center;
+        justify-content: center;
+      }
+      .vp .modal[open] {
+        display: flex;
+      }
+      .vp .modal .box {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px;
+        width: min(900px, 96vw);
+      }
+      .vp .modal h3 {
+        margin-top: 0;
+      }
+      .vp .modal .two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .vp .modal input,
+      .vp .modal textarea {
+        width: 100%;
+        background: #0c1322;
+        color: var(--ink);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px;
+      }
+      .vp[data-theme="light"] .modal input,
+      .vp[data-theme="light"] .modal textarea {
+        background: #fff;
+        color: #111;
+      }
+      .vp .modal .foot {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      /* Focus & a11y */
+      .vp [tabindex]:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      /* Error box */
+      .vp .error {
+        background: #2b1111;
+        color: #ffd7d7;
+        border: 1px solid #7a2b2b;
+        border-radius: 10px;
+        padding: 10px;
+        display: none;
+      }
+      .vp .error[aria-hidden="false"] {
+        display: block;
+      }
+
+      /* Fancy checkbox (stackable) */
+      .vp .chk {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--soft);
+        cursor: pointer;
+        user-select: none;
+      }
+      .vp .chk input {
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border: 1px solid #41527a;
+        border-radius: 4px;
+        display: inline-block;
+        background: #0c1322;
+        position: relative;
+      }
+      .vp .chk input:checked {
+        background: #0d2418;
+        border-color: #2a9d6f;
+      }
+      .vp .chk input:checked::after {
+        content: "";
+        position: absolute;
+        inset: 2px;
+        background: #2dd07a;
+        border-radius: 2px;
+      }
+      .vp .chk span {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="van-pack" class="vp" data-lang="pl">
+      <noscript
+        ><div
+          style="
+            color: #fff;
+            background: #c00;
+            padding: 10px;
+            border-radius: 8px;
+          "
+        >
+          Ta aplikacja wymaga JavaScript.
+        </div></noscript
+      >
+    </div>
+
+    <script>
+      (() => {
+        try {
+          // ===================== CONFIG & I18N =====================
+          const VEHICLES = [
+            // Busy  EP
+            {
+              id: "bus_5ep",
+              group: "Bus 3,5 t",
+              name_pl: "Bus 3,6x1,6x1,8 m",
+              inner_cm: { L: 360, W: 160, H: 180 },
+              payload_kg: 1350,
+              europallets: 5,
+              grid_cm: 5,
+            },
+            {
+              id: "bus_8ep",
+              group: "Bus 3,5 t",
+              name_pl: "Bus 4,2x2,2x2,6 m",
+              inner_cm: { L: 420, W: 220, H: 260 },
+              payload_kg: 1100,
+              europallets: 8,
+              grid_cm: 5,
+            },
+            {
+              id: "solo_10ep_4_2m",
+              group: "Bus 3,5 t",
+              name_pl: "Bus 4,2×2,2×2,6 m",
+              inner_cm: { L: 420, W: 220, H: 240 },
+              payload_kg: 1000,
+              europallets: 10,
+              grid_cm: 5,
+            },
+            {
+              id: "solo_10ep_4_2m",
+              group: "Bus 3,5 t",
+              name_pl: "Bus 4,2×2,25×2,6 m",
+              inner_cm: { L: 420, W: 220, H: 240 },
+              payload_kg: 1000,
+              europallets: 10,
+              grid_cm: 5,
+            },
+            {
+              id: "solo_10ep_4_8m",
+              group: "Bus 3,5 t",
+              name_pl: "Bus 4,8×2,2×2,6 m",
+              inner_cm: { L: 480, W: 220, H: 260 },
+              payload_kg: 1000,
+              europallets: 10,
+              grid_cm: 5,
+            },
+
+            // Solówki — realne wymiary
+            {
+              id: "solo_6m_low",
+              group: "Solówka",
+              name_pl: "Solówka 6,0×2,45×2,2 m",
+              inner_cm: { L: 600, W: 245, H: 220 },
+              payload_kg: 2500,
+              europallets: 14,
+              grid_cm: 5,
+            },
+            {
+              id: "solo_7_2m",
+              group: "Solówka",
+              name_pl: "Solówka 7,2×2,45×2,5 m",
+              inner_cm: { L: 720, W: 245, H: 250 },
+              payload_kg: 5000,
+              europallets: 18,
+              grid_cm: 5,
+            },
+            {
+              id: "solo_8_2m",
+              group: "Solówka",
+              name_pl: "Solówka 8,2×2,45×2,7 m",
+              inner_cm: { L: 820, W: 245, H: 270 },
+              payload_kg: 9000,
+              europallets: 20,
+              grid_cm: 5,
+            },
+            {
+              id: "solo_8_9m_high",
+              group: "Solówka",
+              name_pl: "Solówka 8,9×2,48×3,0 m",
+              inner_cm: { L: 890, W: 248, H: 300 },
+              payload_kg: 12000,
+              europallets: 22,
+              grid_cm: 5,
+            },
+
+            // Naczepy — realne wymiary
+            {
+              id: "trailer_13_6",
+              group: "Naczepa 13,6 m",
+              name_pl: "Naczepa 13,6×2,45×2,65 m",
+              inner_cm: { L: 1360, W: 245, H: 265 },
+              payload_kg: 24000,
+              europallets: 33,
+              grid_cm: 5,
+            },
+            {
+              id: "trailer_13_6_h3",
+              group: "TIR firanka/sztywka",
+              name_pl: "TIR 13,6×2,45×2,8 m",
+              inner_cm: { L: 1360, W: 245, H: 280 },
+              payload_kg: 24000,
+              europallets: 33,
+              grid_cm: 5,
+            },
+            {
+              id: "trailer_mega",
+              group: "Naczepa Mega",
+              name_pl: "Mega 13,6×2,48×3,0 m",
+              inner_cm: { L: 1360, W: 248, H: 300 },
+              payload_kg: 24000,
+              europallets: 33,
+              grid_cm: 5,
+            },
+            {
+              id: "trailer_chlodnia",
+              group: "Naczepa chłodnia",
+              name_pl: "Chłodnia 13,3×2,45×2,6 m",
+              inner_cm: { L: 1330, W: 245, H: 260 },
+              payload_kg: 22000,
+              europallets: 33,
+              grid_cm: 5,
+            },
+          ];
+
+          const I18N = {
+            pl: {
+              heading:
+                "Ułóż ładunek. Sprawdzamy D/S/W i wagę – bez objętościowego czarowania.",
+              sub: "Planowanie wymiarowe + reguły piętrowania. LDM tylko jako wskaźnik.",
+              vehicle: "Pojazd",
+              dims: "Wymiary (cm)",
+              weight: "Waga (kg)",
+              presets: "Szybkie presety",
+              custom: "Własny element",
+              rotate: "Obróć 90°",
+              rotateL: "↶ 90°",
+              rotateR: "↷ 90°",
+              autopack: "Ułóż automatycznie",
+              altpack: "Ułóż inaczej",
+              reset: "Reset",
+              save: "Zapisz",
+              share: "Udostępnij",
+              deleteSel: "Usuń zaznaczone",
+              stackAll: "Spiętruj wszystko",
+              volume_used: "Zajętość (m³)",
+              weight_used: "Waga (kg)",
+              fits_yes: "Mieści się",
+              fits_no: "Nie mieści się",
+              exceeds_payload: "Przekroczono ładowność o {kg} kg",
+              quote: "Wycena transportu w 60 s",
+              leftover: "Zapas L/W: {L} cm / {W} cm",
+              undo: "Cofnij",
+              redo: "Ponów",
+              add: "Dodaj",
+              stack: "×",
+              remove: "Usuń",
+              items: "Przedmioty",
+              lang: "Język",
+              lwh: "D×S×W",
+              payload: "Ładowność",
+              volume: "Objętość",
+              pallets: "EUR palet",
+              ldm: "LDM (szac.)",
+              modal_title: "Szybka wycena (60 s)",
+              route_from: "Skąd",
+              route_to: "Dokąd",
+              load: "Załadunek",
+              unload: "Rozładunek",
+              date: "Data",
+              from: "od (godz)",
+              to: "do (godz)",
+              notes: "Uwagi",
+              send: "Wyślij",
+              cancel: "Anuluj",
+              warn_big: "Wymiary przekraczają wymiary przestrzeni ładunkowej.",
+              selected: "Wybrany element",
+              qty: "Ilość",
+              stack_ui: "Piętrowanie",
+              suggestions: "Sugestie (co zdjąć / warianty)",
+              invalid: "Uzupełnij wymagane pola",
+              help_title: "Zasady prawidłowego załadunku (skrót)",
+              variants: "Wariant",
+              prev: "Poprzedni",
+              next: "Następny",
+              bulk_title: "Wklej opis ładunku (rozpoznamy liczby i wymiary)",
+              bulk_btn: "Analizuj i dodaj",
+              bulk_hint:
+                "Przykłady: \n1pal 120x80x150/100kg \n4pal 120x100x170/250kg.       \n3 box 40x40x40/20kg \nSłowa kluczowe: pal/ep/eur, szt/colli.",
+              stackable: "stackable",
+              theme: "Motyw",
+              add_vehicle: "Własny pojazd",
+              create_vehicle: "Utwórz i wybierz",
+            },
+          };
+
+          const PRESETS = [
+            {
+              id: "eur_pallet",
+              label: "Paleta EURO",
+              dims: { L: 120, W: 80, H: 150 },
+              weight: 350,
+              stackable: true,
+            },
+            {
+              id: "Pal_Przemyslowa",
+              label: "Pal Przemyslowa",
+              dims: { L: 120, W: 100, H: 150 },
+              weight: 350,
+              stackable: true,
+            },
+          ];
+
+          // ===================== STATE =====================
+          const mount = document.getElementById("van-pack");
+          let lang = "pl";
+          // Theme init
+          let theme =
+            localStorage.getItem("vp_theme") ||
+            (matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark");
+          mount.setAttribute("data-theme", theme);
+
+          const state = {
+            vehicleIndex: 0,
+            items: [], // {id,type,L,W,H,weight,stackable,stackCount,x,y,rot}
+            selectedId: null,
+            history: [],
+            future: [],
+            suggestions: [],
+            clipboard: null,
+            variants: { plans: [], index: 0 },
+          };
+
+          function t(key, vars = {}) {
+            const str =
+              key.split(".").reduce((o, k) => o && o[k], I18N[lang]) || key;
+            return str.replace(
+              /\{(\w+)\}/g,
+              (_, k) => vars[k] ?? "{" + k + "}"
+            );
+          }
+          function vehicle() {
+            return VEHICLES[state.vehicleIndex];
+          }
+
+          // ===================== DOM BUILD =====================
+          mount.innerHTML = `
+        <div class="vp-wrap" role="region" aria-label="Van Pack">
+          <div class="topbar">
+            <div>
+              <div class="title">${t("heading")}</div>
+              <div class="muted" style="color:var(--muted); font-size:.95rem">${t(
+                "sub"
+              )}</div>
+            </div>
+            <div class="theme" aria-label="${t("theme")}">
+              <div style="color:var(--muted)">Motyw</div>
+              <div class="toggle" id="themeToggle" role="button" aria-pressed="${
+                theme === "light"
+              }" tabindex="0" title="Przełącz motyw">
+                <div class="knob" id="themeKnob">${
+                  theme === "light" ? "☀" : "☾"
+                }</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row" id="vehRow">
+            <label for="vehSel">${t("vehicle")}</label>
+            <select id="vehSel"></select>
+            <div class="chip" id="vehDims"></div>
+            <div class="chip" id="vehPayload"></div>
+            <div class="chip" id="vehPallets"></div>
+            <div class="chip" id="vehLDM"></div>
+          </div>
+
+          <details class="vehbox">
+            <summary>➕ ${t("add_vehicle")}</summary>
+            <div class="vehgrid" style="margin-top:8px">
+              <div class="row"><label>D (cm)</label><input type="number" id="vL" min="50" value="500"></div>
+              <div class="row"><label>S (cm)</label><input type="number" id="vW" min="50" value="220"></div>
+              <div class="row"><label>W (cm)</label><input type="number" id="vH" min="50" value="240"></div>
+              <div class="row"><label>${t(
+                "payload"
+              )}</label><input type="number" id="vKg" min="0" value="3000"></div>
+              <div class="row"><label>EP</label><input type="number" id="vEP" min="0" value="10"></div>
+              <div class="row"><label>Grid (cm)</label><input type="number" id="vGrid" min="1" value="5"></div>
+              <div class="row" style="grid-column:1/-1"><button class="btn" id="vCreate">${t(
+                "create_vehicle"
+              )}</button></div>
+            </div>
+          </details>
+
+          <div class="grid">
+            <div class="stage-card">
+              <div class="stage-wrap">
+                <svg class="board" tabindex="0" aria-label="Board"></svg>
+                <div class="hud-layer" id="hudLayer"></div>
+              </div>
+              <div id="errBox" class="error" aria-hidden="true"></div>
+
+              <!-- UNDERBAR just under cargo area -->
+              <div class="underbar">
+                <button class="btn secondary" data-act="undo">⟲ ${t(
+                  "undo"
+                )}</button>
+                <button class="btn secondary" data-act="redo">⟳ ${t(
+                  "redo"
+                )}</button>
+                <button class="btn secondary" data-act="rotL">${
+                  t("rotateL") || "↶ 90°"
+                }</button>
+                <button class="btn secondary" data-act="rotR">${
+                  t("rotateR") || "↷ 90°"
+                }</button>
+                <button class="btn secondary" data-act="autopack">🤖 ${t(
+                  "autopack"
+                )}</button>
+                <button class="btn secondary" data-act="altpack">🎲 ${t(
+                  "altpack"
+                )}</button>
+                <button class="btn secondary" data-act="stackAll">🧱 ${t(
+                  "stackAll"
+                )}</button>
+                <button class="btn secondary" data-act="prevVar">⬅ ${t(
+                  "prev"
+                )}</button>
+                <span id="varLabel" class="chip">${t("variants")} 0/0</span>
+                <button class="btn secondary" data-act="nextVar">${t(
+                  "next"
+                )} ➡</button>
+                <button class="btn ghost" data-act="delete">${t(
+                  "deleteSel"
+                )}</button>
+                <button class="btn" data-act="quote">📦 ${t("quote")}</button>
+              </div>
+            </div>
+
+            <aside class="side">
+              <h4>${t("bulk_title")}</h4>
+              <div class="bulk">
+                <textarea id="bulkText" rows="4" placeholder="${t(
+                  "bulk_hint"
+                )}"></textarea>
+                <div class="row" style="margin-top:8px">
+                  <button class="btn" id="bulkAdd">${t("bulk_btn")}</button>
+                  <span class="note">Zrozumiemy: “6 pal 120x80”, “3 szt 180x20x20”, “6 eur palet 1600 kg”.</span>
+                </div>
+                <div id="bulkOut" class="out" aria-live="polite"></div>
+              </div>
+
+              <h4>${t("presets")}</h4>
+              <div class="preset-list"></div>
+
+              <h4>${t("custom")}</h4>
+              <div class="custom">
+                <div class="row"><label>D</label><input type="number" min="1" id="cL" value="120"></div>
+                <div class="row"><label>S</label><input type="number" min="1" id="cW" value="80"></div>
+                <div class="row"><label>W</label><input type="number" min="1" id="cH" value="180"></div>
+                <div class="row"><label>${t(
+                  "weight"
+                )}</label><input type="number" min="0" id="cKg" value="350"></div>
+                <div class="row"><label>${t(
+                  "qty"
+                )}</label><input type="number" min="1" id="cQty" value="1"></div>
+                <div class="row wide"><label class="chk"><input type="checkbox" id="cStack" checked><span>${t(
+                  "stackable"
+                )}</span></label></div>
+                <div class="row wide"><button class="btn" id="cAdd">➕ ${t(
+                  "add"
+                )}</button></div>
+              </div>
+
+              <div class="selected-panel" id="selPanel">
+                <h4>${t("selected")}</h4>
+                <div class="selected-grid">
+                  <button class="btn secondary" data-act="stack-+">${t(
+                    "stack_ui"
+                  )} +</button>
+                  <button class="btn secondary" data-act="stack--">${t(
+                    "stack_ui"
+                  )} −</button>
+                  <button class="btn secondary" data-act="delete">${t(
+                    "remove"
+                  )}</button>
+                </div>
+              </div>
+
+              <div class="meters">
+                <div class="card">
+                  <div style="display:flex;justify-content:space-between"><span>${t(
+                    "volume_used"
+                  )}</span><span id="volText"></span></div>
+                  <progress id="volBar" value="0" max="100"></progress>
+                </div>
+                <div class="card">
+                  <div style="display:flex;justify-content:space-between"><span>${t(
+                    "weight_used"
+                  )}</span><span id="kgText"></span></div>
+                  <progress id="kgBar" value="0" max="100"></progress>
+                </div>
+              </div>
+
+              <div class="status">
+                <span class="badge ok" id="fitBadge">${t("fits_yes")}</span>
+                <span class="badge" id="leftBadge"></span>
+              </div>
+
+              <details>
+                <summary>${t("help_title")}</summary>
+                <ul style="margin:8px 0 0 18px; color:var(--muted)">
+                  <li>Ciężkie sztuki bliżej środka (40–60% długości) i osi szerokości.</li>
+                  <li>Unikaj przekroczeń szerokości i wysokości – to twarde ograniczenia.</li>
+                  <li>Piętrowanie tylko gdy stabilne i nośność dolnej warstwy nie jest przekroczona.</li>
+                  <li>Wysokie/wąskie elementy – nie przy samej burcie; dociśnij je innymi lub pasami.</li>
+                  <li>LDM traktuj jako wskaźnik długości zajętej względem szerokości naczepy.</li>
+                </ul>
+              </details>
+
+              <div class="actions">
+                <button class="btn secondary" data-act="reset">${t(
+                  "reset"
+                )}</button>
+                <button class="btn secondary" data-act="save">💾 ${t(
+                  "save"
+                )}</button>
+                <button class="btn secondary" data-act="share">🔗 ${t(
+                  "share"
+                )}</button>
+              </div>
+            </aside>
+          </div>
+        </div>
+
+        <div class="modal" id="vpModal" role="dialog" aria-modal="true" aria-labelledby="vpModalTitle">
+          <div class="box">
+            <h3 id="vpModalTitle">${t("modal_title")}</h3>
+            <div id="summary" style="font-size:.95rem; color:var(--muted); margin-bottom:10px"></div>
+            <div class="two">
+              <input id="mFrom" placeholder="${t("route_from")} *">
+              <input id="mTo" placeholder="${t("route_to")} *">
+              <div>
+                <div style="font-weight:600">${t("load")}</div>
+                <div class="row" style="margin:6px 0 0 0">
+                  <input type="date" id="ldate"> <input type="time" id="lfrom" placeholder="${t(
+                    "from"
+                  )}"> <input type="time" id="lto" placeholder="${t("to")}">
+                </div>
+              </div>
+              <div>
+                <div style="font-weight:600">${t("unload")}</div>
+                <div class="row" style="margin:6px 0 0 0">
+                  <input type="date" id="udate"> <input type="time" id="ufrom" placeholder="${t(
+                    "from"
+                  )}"> <input type="time" id="uto" placeholder="${t("to")}">
+                </div>
+              </div>
+              <textarea id="mNotes" class="wide" rows="3" placeholder="${t(
+                "notes"
+              )}"></textarea>
+            </div>
+            <div class="foot">
+              <button class="btn secondary" data-act="modal-cancel">${t(
+                "cancel"
+              )}</button>
+              <button class="btn" data-act="modal-send">${t("send")}</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+          // Theme toggle
+          const themeToggle = mount.querySelector("#themeToggle");
+          const themeKnob = mount.querySelector("#themeKnob");
+          function setTheme(th) {
+            mount.setAttribute("data-theme", th);
+            localStorage.setItem("vp_theme", th);
+            themeKnob.textContent = th === "light" ? "☀" : "☾";
+          }
+          themeToggle.addEventListener("click", () =>
+            setTheme(
+              mount.getAttribute("data-theme") === "light" ? "dark" : "light"
+            )
+          );
+          themeToggle.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              themeToggle.click();
+            }
+          });
+
+          // Cache DOM
+          const board = mount.querySelector("svg.board");
+          const hudLayer = mount.querySelector("#hudLayer");
+          const vehSel = mount.querySelector("#vehSel");
+          const specsDims = mount.querySelector("#vehDims");
+          const specsPayload = mount.querySelector("#vehPayload");
+          const specsPallets = mount.querySelector("#vehPallets");
+          const specsLDM = mount.querySelector("#vehLDM");
+          const presetList = mount.querySelector(".preset-list");
+          const volBar = mount.querySelector("#volBar");
+          const kgBar = mount.querySelector("#kgBar");
+          const volText = mount.querySelector("#volText");
+          const kgText = mount.querySelector("#kgText");
+          const fitBadge = mount.querySelector("#fitBadge");
+          const leftBadge = mount.querySelector("#leftBadge");
+          const modal = mount.querySelector("#vpModal");
+          const selPanel = mount.querySelector("#selPanel");
+          const errBox = mount.querySelector("#errBox");
+          const varLabel = mount.querySelector("#varLabel");
+
+          // Bulk parser elements
+          const bulkText = mount.querySelector("#bulkText");
+          const bulkAdd = mount.querySelector("#bulkAdd");
+          const bulkOut = mount.querySelector("#bulkOut");
+
+          // Add vehicle form element
+          const vCreate = mount.querySelector("#vCreate");
+
+          // ===================== UTIL =====================
+          const uid = () => "it" + Math.random().toString(36).slice(2, 8);
+          const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+
+          function cm3ToM3(c) {
+            return c / 1_000_000;
+          }
+          function volItem(it) {
+            return cm3ToM3(it.L * it.W * it.H) * it.stackCount;
+          }
+          function weightItem(it) {
+            return (it.weight || 0) * it.stackCount;
+          }
+          function dims2D(it) {
+            const rotated = it.rot % 2 !== 0;
+            return rotated ? { l: it.W, w: it.L } : { l: it.L, w: it.W };
+          }
+          function within(it, veh) {
+            const { l, w } = dims2D(it);
+            return (
+              it.x >= 0 &&
+              it.y >= 0 &&
+              it.x + l <= veh.inner_cm.L &&
+              it.y + w <= veh.inner_cm.W
+            );
+          }
+          function overlap(a, b) {
+            const A = dims2D(a),
+              B = dims2D(b);
+            return (
+              a.x < b.x + B.l &&
+              a.x + A.l > b.x &&
+              a.y < b.y + B.w &&
+              a.y + A.w > b.y
+            );
+          }
+          function anyCollision(it, exceptId) {
+            return state.items.some((x) => x.id !== exceptId && overlap(it, x));
+          }
+          function snap(v) {
+            const g = vehicle().grid_cm;
+            return Math.round(v / g) * g;
+          }
+          function meters(cm) {
+            return cm / 100;
+          }
+          function ldmOf(it, veh) {
+            const { l, w } = dims2D(it);
+            return (
+              meters(l) * (meters(w) / meters(veh.inner_cm.W)) * it.stackCount
+            );
+          }
+
+          function pushHistory() {
+            state.history.push(
+              deepClone({
+                items: state.items,
+                vehicleIndex: state.vehicleIndex,
+              })
+            );
+            if (state.history.length > 50) state.history.shift();
+            state.future.length = 0;
+          }
+          function undo() {
+            const last = state.history.pop();
+            if (!last) return;
+            state.future.push(
+              deepClone({
+                items: state.items,
+                vehicleIndex: state.vehicleIndex,
+              })
+            );
+            state.items = deepClone(last.items);
+            state.vehicleIndex = last.vehicleIndex;
+            state.selectedId = null;
+            renderAll();
+          }
+          function redo() {
+            const next = state.future.pop();
+            if (!next) return;
+            pushHistory();
+            state.items = deepClone(next.items);
+            state.vehicleIndex = next.vehicleIndex;
+            state.selectedId = null;
+            renderAll();
+          }
+
+          function saveLocal() {
+            localStorage.setItem(
+              "vanpack_state",
+              JSON.stringify({
+                v: state.vehicleIndex,
+                items: state.items,
+                lang,
+              })
+            );
+            alert("Zapisano w przeglądarce.");
+          }
+          function loadLocal() {
+            try {
+              const s = JSON.parse(localStorage.getItem("vanpack_state"));
+              if (s) {
+                state.vehicleIndex = s.v || 0;
+                state.items = s.items || [];
+                lang = s.lang || lang;
+                const th = s.theme || theme;
+                if (th) setTheme(th);
+              }
+            } catch {}
+          }
+          function shareLink() {
+            const data = btoa(
+              unescape(
+                encodeURIComponent(
+                  JSON.stringify({
+                    v: state.vehicleIndex,
+                    items: state.items,
+                    lang,
+                    theme: mount.getAttribute("data-theme"),
+                  })
+                )
+              )
+            );
+            const url = location.origin + location.pathname + "#vp=" + data;
+            navigator.clipboard?.writeText(url);
+            alert("Link skopiowany do schowka.");
+          }
+          function loadFromHash() {
+            const m = location.hash.match(/#vp=([^&]+)/);
+            if (!m) return false;
+            try {
+              const obj = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+              state.vehicleIndex = obj.v || 0;
+              state.items = obj.items || [];
+              lang = obj.lang || lang;
+              if (obj.theme) setTheme(obj.theme);
+              return true;
+            } catch {
+              return false;
+            }
+          }
+          function toSvgPoint(evt) {
+            const pt = board.createSVGPoint();
+            pt.x = evt.clientX;
+            pt.y = evt.clientY;
+            const sp = pt.matrixTransform(board.getScreenCTM().inverse());
+            return { x: sp.x, y: sp.y };
+          }
+          function showError(msg) {
+            errBox.textContent = msg;
+            errBox.setAttribute("aria-hidden", "false");
+            setTimeout(() => errBox.setAttribute("aria-hidden", "true"), 4000);
+          }
+
+          // ===================== VEHICLE UI =====================
+          function renderVehSelect() {
+            const groups = [
+              ...new Set(VEHICLES.map((v) => v.group || "Pojazd")),
+            ];
+            vehSel.innerHTML = "";
+            groups.forEach((g) => {
+              const og = document.createElement("optgroup");
+              og.label = g;
+              VEHICLES.filter((v) => (v.group || "Pojazd") === g).forEach(
+                (v) => {
+                  const opt = document.createElement("option");
+                  opt.value = String(VEHICLES.indexOf(v));
+                  opt.textContent =
+                    v.name_pl + (v.europallets ? ` • ${v.europallets} EP` : "");
+                  og.appendChild(opt);
+                }
+              );
+              vehSel.appendChild(og);
+            });
+            vehSel.value = String(state.vehicleIndex);
+            vehSel.onchange = () => {
+              if (
+                state.items.length &&
+                !confirm(
+                  "Zmiana pojazdu zresetuje ułożone elementy. Kontynuować?"
+                )
+              ) {
+                vehSel.value = String(state.vehicleIndex);
+                return;
+              }
+              pushHistory();
+              state.vehicleIndex = +vehSel.value;
+              state.items = [];
+              state.selectedId = null;
+              state.variants = { plans: [], index: 0 };
+              renderAll();
+            };
+          }
+
+          vCreate.addEventListener("click", () => {
+            const L = +mount.querySelector("#vL").value || 0;
+            const W = +mount.querySelector("#vW").value || 0;
+            const H = +mount.querySelector("#vH").value || 0;
+            const Kg = +mount.querySelector("#vKg").value || 0;
+            const EP = +mount.querySelector("#vEP").value || 0;
+            const Grid = +mount.querySelector("#vGrid").value || 5;
+            const id = "custom_" + Date.now();
+            const name = `Custom ${L / 100}×${W / 100}×${H / 100} m`;
+            VEHICLES.push({
+              id,
+              group: "Custom",
+              name_pl: name,
+              inner_cm: { L, W, H },
+              payload_kg: Kg,
+              europallets: EP,
+              grid_cm: Grid,
+            });
+            state.vehicleIndex = VEHICLES.length - 1;
+            state.items = [];
+            state.selectedId = null;
+            renderAll();
+          });
+
+          function renderSpecs() {
+            const v = vehicle();
+            const capVol =
+              (v.inner_cm.L * v.inner_cm.W * v.inner_cm.H) / 1_000_000;
+            specsDims.textContent = `${t("lwh")}: ${v.inner_cm.L}×${
+              v.inner_cm.W
+            }×${v.inner_cm.H} cm`;
+            specsPayload.textContent = `${t("payload")}: ${v.payload_kg} kg`;
+            specsPallets.textContent = `${t("pallets")}: ${v.europallets}`;
+            specsLDM.textContent = `${t("ldm")}: ~${(
+              v.inner_cm.L / 100
+            ).toFixed(1)} (max) • ${capVol.toFixed(1)} m³`;
+          }
+
+          // ===================== PRESETS =====================
+          function renderPresets() {
+            presetList.innerHTML = "";
+            PRESETS.forEach((p) => {
+              const row = document.createElement("div");
+              row.className = "preset";
+              const left = document.createElement("div");
+              left.innerHTML = `<div style="font-weight:600">${p.label}</div><small>${p.dims.L}×${p.dims.W}×${p.dims.H} • ${p.weight} kg</small>`;
+              const right = document.createElement("div");
+              right.className = "qty";
+              right.innerHTML = `<label>Ilość</label><input type="number" min="1" value="1"> <button class="btn secondary">Dodaj</button>`;
+              right.querySelector("button").addEventListener("click", () => {
+                const n = Math.max(1, +right.querySelector("input").value || 1);
+                pushHistory();
+                for (let i = 0; i < n; i++) {
+                  addItemFromPreset(p, { autoPlace: true });
+                }
+                renderAll();
+              });
+              row.appendChild(left);
+              row.appendChild(right);
+              presetList.appendChild(row);
+            });
+          }
+
+          // ===================== SVG =====================
+          function buildSVG() {
+            const v = vehicle();
+            board.setAttribute(
+              "viewBox",
+              `0 0 ${v.inner_cm.L} ${v.inner_cm.W}`
+            );
+            board.innerHTML = "";
+            hudLayer.innerHTML = "";
+            const gGrid = document.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "g"
+            );
+            const step = v.grid_cm;
+            for (let x = 0; x <= v.inner_cm.L; x += step) {
+              const line = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "line"
+              );
+              line.setAttribute("x1", x);
+              line.setAttribute("y1", 0);
+              line.setAttribute("x2", x);
+              line.setAttribute("y2", v.inner_cm.W);
+              line.setAttribute("class", "gridline");
+              gGrid.appendChild(line);
+            }
+            for (let y = 0; y <= v.inner_cm.W; y += step) {
+              const line = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "line"
+              );
+              line.setAttribute("x1", 0);
+              line.setAttribute("y1", y);
+              line.setAttribute("x2", v.inner_cm.L);
+              line.setAttribute("y2", y);
+              line.setAttribute("class", "gridline");
+              gGrid.appendChild(line);
+            }
+            board.appendChild(gGrid);
+            const hull = document.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "rect"
+            );
+            hull.setAttribute("x", 0);
+            hull.setAttribute("y", 0);
+            hull.setAttribute("width", v.inner_cm.L);
+            hull.setAttribute("height", v.inner_cm.W);
+            hull.setAttribute("rx", 3);
+            hull.setAttribute("class", "hull");
+            board.appendChild(hull);
+            const gItems = document.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "g"
+            );
+            gItems.setAttribute("id", "gItems");
+            board.appendChild(gItems);
+          }
+
+          function renderItems() {
+            const g = board.querySelector("#gItems");
+            g.innerHTML = "";
+            hudLayer.innerHTML = "";
+            const rect = board.getBoundingClientRect();
+            const v = vehicle();
+            const sx = rect.width / v.inner_cm.L,
+              sy = rect.height / v.inner_cm.W;
+            state.items.forEach((it) => {
+              const { l, w } = dims2D(it);
+              const r = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "rect"
+              );
+              r.setAttribute("x", it.x);
+              r.setAttribute("y", it.y);
+              r.setAttribute("width", l);
+              r.setAttribute("height", w);
+              r.setAttribute("rx", 1.5);
+              r.setAttribute(
+                "class",
+                "item" + (state.selectedId === it.id ? " selected" : "")
+              );
+              r.setAttribute("data-id", it.id);
+              r.setAttribute("tabindex", "0");
+
+              const label = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "text"
+              );
+              label.setAttribute("x", it.x + 2.5);
+              label.setAttribute("y", it.y + 5.5);
+              label.setAttribute("class", "label dimLabel");
+              label.textContent = `${it.L}×${it.W}${
+                it.stackCount > 1 ? " ×" + it.stackCount : ""
+              }`;
+
+              const bx = it.x + l - 3.5,
+                by = it.y + 3.5;
+              const rbHit = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle"
+              );
+              rbHit.setAttribute("cx", bx);
+              rbHit.setAttribute("cy", by);
+              rbHit.setAttribute("r", 7);
+              rbHit.setAttribute("class", "rotHit");
+              rbHit.setAttribute("data-rot", it.id);
+              const rb = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle"
+              );
+              rb.setAttribute("cx", bx);
+              rb.setAttribute("cy", by);
+              rb.setAttribute("r", 3.2);
+              rb.setAttribute("class", "rotBtn");
+              rb.setAttribute("data-rot", it.id);
+              const rbIcon = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "text"
+              );
+              rbIcon.setAttribute("x", bx - 1.6);
+              rbIcon.setAttribute("y", by + 1.3);
+              rbIcon.setAttribute("class", "label");
+              rbIcon.textContent = "↻";
+
+              g.appendChild(r);
+              g.appendChild(label);
+              g.appendChild(rbHit);
+              g.appendChild(rb);
+              g.appendChild(rbIcon);
+            });
+            selPanel.classList.toggle("active", !!state.selectedId);
+          }
+
+          function recalc() {
+            const v = vehicle();
+            let vol = 0,
+              kg = 0,
+              ldm = 0;
+            state.items.forEach((it) => {
+              vol += volItem(it);
+              kg += weightItem(it);
+              ldm += ldmOf(it, v);
+            });
+            const capVol =
+              (v.inner_cm.L * v.inner_cm.W * v.inner_cm.H) / 1_000_000;
+            volBar.max = 100;
+            volBar.value = Math.min(100, (vol / capVol) * 100);
+            kgBar.max = 100;
+            kgBar.value = Math.min(100, (kg / v.payload_kg) * 100);
+            volText.textContent = `${vol.toFixed(2)} / ${capVol.toFixed(1)} m³`;
+            kgText.textContent = `${Math.round(kg)} / ${
+              v.payload_kg
+            } kg • LDM ~ ${ldm.toFixed(2)}`;
+
+            const overload = kg - v.payload_kg;
+            fitBadge.className = "badge " + (overload > 0 ? "bad" : "ok");
+            fitBadge.textContent =
+              overload > 0
+                ? `Przekroczono ładowność o ${Math.abs(
+                    Math.round(overload)
+                  )} kg`
+                : t("fits_yes");
+
+            let maxX = 0,
+              usedWidth = 0;
+            const rows = buildShelvesSnapshot();
+            rows.forEach((row) => {
+              maxX = Math.max(maxX, row.x);
+              usedWidth += row.h;
+            });
+            leftBadge.textContent = t("leftover", {
+              L: Math.max(0, v.inner_cm.L - Math.round(maxX)),
+              W: Math.max(0, v.inner_cm.W - Math.round(usedWidth)),
+            });
+          }
+
+          function buildShelvesSnapshot() {
+            const v = vehicle();
+            const items = state.items.map((it) => ({ ...it, ...dims2D(it) }));
+            items.sort((a, b) => b.w - a.w);
+            const shelves = [];
+            let y = 0;
+            items.forEach((it) => {
+              let placed = false;
+              for (const sh of shelves) {
+                if (
+                  it.w <= v.inner_cm.W - sh.y &&
+                  sh.x + it.l <= v.inner_cm.L
+                ) {
+                  sh.x += it.l;
+                  sh.h = Math.max(sh.h, it.w);
+                  placed = true;
+                  break;
+                }
+              }
+              if (!placed) {
+                if (y + it.w <= v.inner_cm.W) {
+                  shelves.push({ x: it.l, h: it.w, y });
+                  y += it.w;
+                }
+              }
+            });
+            return shelves;
+          }
+
+          function renderAll() {
+            renderVehSelect();
+            renderSpecs();
+            buildSVG();
+            renderItems();
+            recalc();
+            bindItemEvents();
+            updateVariantLabel();
+          }
+
+          // ===================== ITEMS API =====================
+          function addItemFromPreset(p, opts = {}) {
+            const it = {
+              id: uid(),
+              type: p.id,
+              ...p.dims,
+              weight: p.weight,
+              stackable: p.stackable !== false,
+              stackCount: 1,
+              x: 0,
+              y: 0,
+              rot: 0,
+            };
+            if (opts.autoPlace) placeNewItem(it);
+            state.items.push(it);
+            state.selectedId = it.id;
+          }
+
+          function addCustom() {
+            const L = +mount.querySelector("#cL").value || 0,
+              W = +mount.querySelector("#cW").value || 0,
+              H = +mount.querySelector("#cH").value || 0,
+              Kg = +mount.querySelector("#cKg").value || 0,
+              Q = +mount.querySelector("#cQty").value || 1,
+              St = mount.querySelector("#cStack").checked;
+            pushHistory();
+            for (let i = 0; i < Math.max(1, Q); i++) {
+              const it = {
+                id: uid(),
+                type: "custom",
+                L,
+                W,
+                H,
+                weight: Kg,
+                stackable: St,
+                stackCount: 1,
+                x: 0,
+                y: 0,
+                rot: 0,
+              };
+              placeNewItem(it);
+              state.items.push(it);
+            }
+            renderAll();
+          }
+
+          function rotateSelected(dir) {
+            const it = state.items.find((x) => x.id === state.selectedId);
+            if (!it) return;
+            pushHistory();
+            it.rot = ((it.rot || 0) + (dir || 1) + 4) % 4;
+            const v = vehicle();
+            const { l, w } = dims2D(it);
+            if (it.x + l > v.inner_cm.L) it.x = v.inner_cm.L - l;
+            if (it.y + w > v.inner_cm.W) it.y = v.inner_cm.W - w;
+            renderAll();
+          }
+          function deleteSelected() {
+            const i = state.items.findIndex((x) => x.id === state.selectedId);
+            if (i > -1) {
+              pushHistory();
+              state.items.splice(i, 1);
+              state.selectedId = null;
+              renderAll();
+            }
+          }
+          function changeStack(delta) {
+            const it = state.items.find((x) => x.id === state.selectedId);
+            if (!it || !it.stackable) return;
+            const v = vehicle();
+            const max = Math.max(1, Math.floor(v.inner_cm.H / it.H));
+            it.stackCount = Math.min(max, Math.max(1, it.stackCount + delta));
+            renderAll();
+          }
+
+          function stackAll() {
+            pushHistory();
+            const v = vehicle();
+            const groups = new Map();
+            for (const it of state.items) {
+              const key = [
+                it.type,
+                it.L,
+                it.W,
+                it.H,
+                it.weight,
+                it.stackable ? "1" : "0",
+              ].join("|");
+              const arr = groups.get(key) || [];
+              arr.push(it);
+              groups.set(key, arr);
+            }
+            const next = [];
+            for (const [key, arr] of groups.entries()) {
+              const a = arr[0];
+              if (!a.stackable) {
+                next.push(...arr);
+                continue;
+              }
+              const cap = Math.max(1, Math.floor(v.inner_cm.H / a.H));
+              let total = arr.reduce((s, x) => s + x.stackCount, 0);
+              while (total > 0) {
+                const cnt = Math.min(cap, total);
+                next.push({
+                  ...deepClone(a),
+                  id: uid(),
+                  x: 0,
+                  y: 0,
+                  stackCount: cnt,
+                });
+                total -= cnt;
+              }
+            }
+            state.items = next;
+            renderAll();
+          }
+
+          // Copy/Paste
+          function copySelected() {
+            const it = state.items.find((x) => x.id === state.selectedId);
+            if (!it) return;
+            state.clipboard = deepClone(it);
+            showError("Skopiowano wybrany element");
+          }
+          function pasteClipboard() {
+            if (!state.clipboard) {
+              showError("Schowek pusty");
+              return;
+            }
+            pushHistory();
+            const base = deepClone(state.clipboard);
+            base.id = uid();
+            const sel = state.items.find((x) => x.id === state.selectedId);
+            if (sel) {
+              const sD = dims2D(sel);
+              const cand = [
+                { x: snap(sel.x + sD.l + vehicle().grid_cm), y: sel.y },
+                { x: sel.x, y: snap(sel.y + sD.w + vehicle().grid_cm) },
+              ];
+              for (const c of cand) {
+                base.x = c.x;
+                base.y = c.y;
+                if (
+                  within({ ...base }, vehicle()) &&
+                  !anyCollision({ ...base }, null)
+                ) {
+                  state.items.push(base);
+                  state.selectedId = base.id;
+                  renderAll();
+                  return;
+                }
+              }
+            }
+            placeNewItem(base);
+            state.items.push(base);
+            state.selectedId = base.id;
+            renderAll();
+          }
+
+          // ===================== AUTOPACK / VARIANTS =====================
+          function computePlan(items, v, seed) {
+            for (const it of items) {
+              if (
+                Math.min(it.W, it.L) > v.inner_cm.W &&
+                Math.max(it.W, it.L) > v.inner_cm.W
+              )
+                return {
+                  placed: [],
+                  unplaced: items,
+                  free: [{ x: 0, y: 0, w: v.inner_cm.L, h: v.inner_cm.W }],
+                };
+              if (it.H > v.inner_cm.H)
+                return {
+                  placed: [],
+                  unplaced: items,
+                  free: [{ x: 0, y: 0, w: v.inner_cm.L, h: v.inner_cm.W }],
+                };
+            }
+            let free = [{ x: 0, y: 0, w: v.inner_cm.L, h: v.inner_cm.W }],
+              placed = [],
+              unplaced = [];
+            items.sort((a, b) =>
+              seed % 3 === 0
+                ? Math.max(b.W, b.L) - Math.max(a.W, a.L) ||
+                  Math.min(b.W, b.L) - Math.min(a.W, a.L)
+                : Math.max(b.L, b.W) - Math.max(a.L, a.W) || b.W - a.W
+            );
+            for (const it of items) {
+              let best = null;
+              let chosenRot = 0;
+              for (const o of seed % 2 ? [1, 0] : [0, 1]) {
+                const tmp = { ...it, rot: o };
+                const { l, w } = dims2D(tmp);
+                const spot = bestFreeRect(free, l, w);
+                if (spot) {
+                  const waste = spot.w * spot.h - l * w;
+                  if (!best || waste < best.waste) {
+                    best = { rect: spot, waste, l, w };
+                    chosenRot = o;
+                  }
+                }
+              }
+              if (!best) {
+                unplaced.push(it);
+                continue;
+              }
+              it.rot = chosenRot;
+              it.x = best.rect.x;
+              it.y = best.rect.y;
+              placed.push(it);
+              free = guillotineSplitAndNormalize(free, best.rect, {
+                l: best.l,
+                w: best.w,
+              });
+            }
+            if (unplaced.length) {
+              const out = shelfPack(unplaced, v, placed, free);
+              placed = out.placed;
+              unplaced = out.unplaced;
+              free = out.free;
+            }
+            return { placed, unplaced, free };
+          }
+
+          function autopackUltra(seed = 0, allowAutoStack = true) {
+            pushHistory();
+            const v = vehicle();
+            const items = state.items.map((it) => ({ ...it }));
+            const totalKg = items.reduce((s, it) => s + weightItem(it), 0);
+            if (totalKg > v.payload_kg) {
+              showError(`Za ciężko o ${Math.round(totalKg - v.payload_kg)} kg`);
+            }
+
+            const seeds = [0, 1, 2, 3, 4].map((s) => (s + seed) % 7);
+            const plans = seeds.map((s) => computePlan(deepClone(items), v, s));
+            const scored = plans
+              .map((p, i) => ({
+                i,
+                un: p.unplaced.length,
+                waste: p.free.reduce((a, r) => a + r.w * r.h, 0),
+              }))
+              .sort((a, b) => a.un - b.un || a.waste - b.waste);
+            state.variants = {
+              plans: plans.map((p) => p.placed.concat(p.unplaced)),
+              index: scored[0].i,
+            };
+            applyVariant(scored[0].i, { noHistory: true });
+            const bestPlan = plans[scored[0].i];
+            if (bestPlan.unplaced.length && allowAutoStack) {
+              stackAll();
+              autopackUltra(seed + 1, false);
+            }
+          }
+
+          function applyVariant(idx, opts = {}) {
+            if (!state.variants.plans.length) return;
+            if (!opts.noHistory) pushHistory();
+            state.variants.index = Math.max(
+              0,
+              Math.min(state.variants.plans.length - 1, idx)
+            );
+            state.items = deepClone(state.variants.plans[state.variants.index]);
+            renderAll();
+          }
+
+          function updateVariantLabel() {
+            varLabel.textContent = `${t("variants")} ${
+              state.variants.plans.length ? state.variants.index + 1 : 0
+            }/${state.variants.plans.length || 0}`;
+          }
+
+          function bestFreeRect(free, l, w) {
+            let best = null;
+            for (const r of free) {
+              if (l <= r.w && w <= r.h) {
+                const areaWaste = r.w * r.h - l * w;
+                const shortSide = Math.min(r.w - l, r.h - w);
+                const score = areaWaste * 1e6 + shortSide;
+                if (!best || score < best.score) {
+                  best = { rect: r, score };
+                }
+              }
+            }
+            return best ? best.rect : null;
+          }
+
+          function guillotineSplitAndNormalize(free, usedRect, box) {
+            const out = [];
+            for (const r of free) {
+              if (r !== usedRect) {
+                out.push(r);
+                continue;
+              }
+              const r1 = { x: r.x + box.l, y: r.y, w: r.w - box.l, h: box.w };
+              const r2 = { x: r.x, y: r.y + box.w, w: r.w, h: r.h - box.w };
+              if (r1.w > 0 && r1.h > 0) out.push(r1);
+              if (r2.w > 0 && r2.h > 0) out.push(r2);
+            }
+            return normalizeFree(out);
+          }
+
+          function normalizeFree(list) {
+            list = list.filter(
+              (a, i) =>
+                !list.some(
+                  (b, j) =>
+                    j !== i &&
+                    a.x >= b.x &&
+                    a.y >= b.y &&
+                    a.x + a.w <= b.x + b.w &&
+                    a.y + a.h <= b.y + b.h
+                )
+            );
+            list = list.map((r) => ({
+              x: snap(r.x),
+              y: snap(r.y),
+              w: snap(r.w),
+              h: snap(r.h),
+            }));
+            return list;
+          }
+
+          function shelfPack(unplaced, v, placed, free) {
+            let y = 0,
+              shelfH = 0,
+              x = 0;
+            unplaced.sort((a, b) => Math.max(b.W, b.L) - Math.max(a.W, a.L));
+            const rest = [];
+            for (const it of unplaced) {
+              const { l, w } = dims2D(it);
+              if (w > v.inner_cm.W || l > v.inner_cm.L) {
+                rest.push(it);
+                continue;
+              }
+              if (x + l <= v.inner_cm.L) {
+                it.x = x;
+                it.y = y;
+                x += l;
+                shelfH = Math.max(shelfH, w);
+                placed.push(it);
+              } else if (y + shelfH + w <= v.inner_cm.W) {
+                y += shelfH;
+                x = 0;
+                shelfH = 0;
+                it.x = 0;
+                it.y = y;
+                x = l;
+                shelfH = Math.max(shelfH, w);
+                placed.push(it);
+              } else {
+                rest.push(it);
+              }
+            }
+            free = [
+              { x: x, y: y, w: v.inner_cm.L - x, h: shelfH },
+              {
+                x: 0,
+                y: y + shelfH,
+                w: v.inner_cm.L,
+                h: v.inner_cm.W - (y + shelfH),
+              },
+            ].filter((r) => r.w > 0 && r.h > 0);
+            return { placed, unplaced: rest, free };
+          }
+
+          function placeNewItem(it) {
+            const v = vehicle();
+            const free = computeFreeRectsFromPlaced(v, state.items);
+            for (const rot of [0, 1]) {
+              const { l, w } = dims2D({ ...it, rot });
+              const spot = bestFreeRect(free, l, w);
+              if (spot) {
+                it.rot = rot;
+                it.x = snap(spot.x);
+                it.y = snap(spot.y);
+                return true;
+              }
+            }
+            it.x = 0;
+            it.y = 0;
+            it.rot = 0;
+            return false;
+          }
+
+          function computeFreeRectsFromPlaced(v, items) {
+            let free = [{ x: 0, y: 0, w: v.inner_cm.L, h: v.inner_cm.W }];
+            const placed = items.map((it) => ({
+              x: it.x,
+              y: it.y,
+              w: dims2D(it).l,
+              h: dims2D(it).w,
+            }));
+            for (const p of placed) {
+              const next = [];
+              for (const r of free) {
+                if (
+                  !(
+                    p.x >= r.x + r.w ||
+                    p.x + p.w <= r.x ||
+                    p.y >= r.y + r.h ||
+                    p.y + p.h <= r.y
+                  )
+                ) {
+                  const left = { x: r.x, y: r.y, w: p.x - r.x, h: r.h };
+                  const right = {
+                    x: p.x + p.w,
+                    y: r.y,
+                    w: r.x + r.w - (p.x + p.w),
+                    h: r.h,
+                  };
+                  const top = { x: r.x, y: r.y, w: r.w, h: p.y - r.y };
+                  const bottom = {
+                    x: r.x,
+                    y: p.y + p.h,
+                    w: r.w,
+                    h: r.y + r.h - (p.y + p.h),
+                  };
+                  [left, right, top, bottom].forEach((q) => {
+                    if (q.w > 0 && q.h > 0) next.push(q);
+                  });
+                } else next.push(r);
+              }
+              free = normalizeFree(next);
+            }
+            return free;
+          }
+
+          // ===================== DRAG / KEYBOARD + DOCKING =====================
+          let drag = null; // {id, offXcm, offYcm, pre:{x,y}}
+          const DOCK = 5; // cm
+
+          function bindItemEvents() {
+            board.querySelectorAll("[data-rot]").forEach((c) => {
+              c.addEventListener("pointerdown", (e) => {
+                e.stopPropagation();
+                const id = c.getAttribute("data-rot");
+                state.selectedId = id;
+                rotateSelected(+1);
+              });
+            });
+
+            board.querySelectorAll("rect.item").forEach((r) => {
+              r.addEventListener("pointerdown", (e) => {
+                const id = r.getAttribute("data-id");
+                state.selectedId = id;
+                renderItems();
+                const it = state.items.find((x) => x.id === id);
+                const p = toSvgPoint(e);
+                drag = {
+                  id,
+                  offXcm: p.x - it.x,
+                  offYcm: p.y - it.y,
+                  pre: { x: it.x, y: it.y },
+                };
+                r.setPointerCapture(e.pointerId);
+                mount.classList.add("dragging");
+              });
+              r.addEventListener("keydown", (e) => {
+                const step = vehicle().grid_cm;
+                const it = state.items.find(
+                  (x) => x.id === r.getAttribute("data-id")
+                );
+                if (!it) return;
+                if (
+                  [
+                    "ArrowUp",
+                    "ArrowDown",
+                    "ArrowLeft",
+                    "ArrowRight",
+                    "Delete",
+                    "Backspace",
+                    "r",
+                    "R",
+                    "+",
+                    "-",
+                  ].includes(e.key)
+                ) {
+                  e.preventDefault();
+                }
+                if (e.key === "ArrowLeft") {
+                  pushHistory();
+                  it.x = Math.max(0, it.x - step);
+                }
+                if (e.key === "ArrowRight") {
+                  pushHistory();
+                  const { l } = dims2D(it);
+                  it.x = Math.min(vehicle().inner_cm.L - l, it.x + step);
+                }
+                if (e.key === "ArrowUp") {
+                  pushHistory();
+                  it.y = Math.max(0, it.y - step);
+                }
+                if (e.key === "ArrowDown") {
+                  pushHistory();
+                  const { w } = dims2D(it);
+                  it.y = Math.min(vehicle().inner_cm.W - w, it.y + step);
+                }
+                if (e.key === "Delete" || e.key === "Backspace") {
+                  deleteSelected();
+                }
+                if (e.key === "r" || e.key === "R") {
+                  rotateSelected(+1);
+                }
+                if (e.key === "+") {
+                  changeStack(+1);
+                }
+                if (e.key === "-") {
+                  changeStack(-1);
+                }
+                renderAll();
+              });
+            });
+          }
+
+          board.addEventListener("pointermove", (e) => {
+            if (!drag) return;
+            const id = state.selectedId;
+            const it = state.items.find((x) => x.id === id);
+            if (!it) return;
+            const v = vehicle();
+            const p = toSvgPoint(e);
+            let nx = snap(p.x - drag.offXcm);
+            let ny = snap(p.y - drag.offYcm);
+            const { l, w } = dims2D(it);
+            nx = Math.max(0, Math.min(v.inner_cm.L - l, nx));
+            ny = Math.max(0, Math.min(v.inner_cm.W - w, ny));
+            if (Math.abs(nx - 0) <= DOCK) nx = 0;
+            if (Math.abs(nx + l - v.inner_cm.L) <= DOCK) nx = v.inner_cm.L - l;
+            if (Math.abs(ny - 0) <= DOCK) ny = 0;
+            if (Math.abs(ny + w - v.inner_cm.W) <= DOCK) ny = v.inner_cm.W - w;
+            for (const other of state.items) {
+              if (other.id === id) continue;
+              const d = dims2D(other);
+              if (
+                Math.abs(nx - (other.x + d.l)) <= DOCK &&
+                !(ny + w <= other.y || ny >= other.y + d.w)
+              )
+                nx = other.x + d.l;
+              if (
+                Math.abs(nx + l - other.x) <= DOCK &&
+                !(ny + w <= other.y || ny >= other.y + d.w)
+              )
+                nx = other.x - l;
+              if (
+                Math.abs(ny - (other.y + d.w)) <= DOCK &&
+                !(nx + l <= other.x || nx >= other.x + d.l)
+              )
+                ny = other.y + d.w;
+              if (
+                Math.abs(ny + w - other.y) <= DOCK &&
+                !(nx + l <= other.x || nx >= other.x + d.l)
+              )
+                ny = other.y - w;
+            }
+            it.x = nx;
+            it.y = ny;
+            board
+              .querySelectorAll("rect.item")
+              .forEach((n) => n.classList.remove("collide"));
+            if (anyCollision(it, id))
+              board
+                .querySelector(`rect.item[data-id="${id}"]`)
+                ?.classList.add("collide");
+            renderItems();
+          });
+
+          board.addEventListener("pointerup", (e) => {
+            if (!drag) return;
+            const id = drag.id;
+            const it = state.items.find((x) => x.id === id);
+            const invalid = !within(it, vehicle()) || anyCollision(it, id);
+            if (invalid) {
+              it.x = drag.pre.x;
+              it.y = drag.pre.y;
+            }
+            pushHistory();
+            drag = null;
+            mount.classList.remove("dragging");
+            renderAll();
+          });
+
+          // ===================== BULK PARSER — ULTRA v8 (dims+qty+kg, table+inline mix, RU/UA) =====================
+          // Wspiera: pal/plt/pallet/palette/euro/epal/eur/ep oraz skrót **p** (kontekstowo).
+          // Tryb tabelowy + wiersze inline: "1 400x150x150 862kg" oraz "1p 120x21x33" w tym samym polu.
+          // Usuwa nadmiarowe spacje/entery wizualnie (nie psuje treści).
+
+          // ——— USTAWIENIA ———
+          const H_POLICY_DEFAULT = "hybrid"; // 'strict'|'zero'|'default'|'by_type'|'infer_layers'|'hybrid'
+          const H_DEFAULT_CM = 160;
+          const PALLET_ADD_HEIGHT_CM = 14.4;
+          const MIN_DIM_MM = 30,
+            MAX_DIM_MM = 5000;
+          const CONF_LOW = 0.7;
+
+          // ——— POMOCE ———
+          function normDec(s) {
+            return parseFloat(String(s).replace(/\s+/g, "").replace(",", "."));
+          }
+          function toCm(v, u) {
+            if (!u) return v;
+            const x = u.toLowerCase();
+            if (x === "cm") return v;
+            if (x === "mm") return v / 10;
+            if (x === "m") return v * 100;
+            if (x === "in" || x === '"' || x === "″") return v * 2.54;
+            if (
+              x === "ft" ||
+              x === "'" ||
+              x === "′" ||
+              x === "фт" ||
+              x === "фут"
+            )
+              return v * 30.48;
+            return v;
+          }
+          function clampMm(vmm) {
+            return vmm < MIN_DIM_MM || vmm > MAX_DIM_MM ? null : vmm;
+          }
+          function mmFromCm(cm) {
+            return Math.round(cm * 10);
+          }
+          function within(v, min, max) {
+            return v >= min && v <= max;
+          }
+          function isEURDims(L, W) {
+            const a = [L, W].sort((x, y) => y - x);
+            return within(a[0], 119, 121) && within(a[1], 79, 81);
+          }
+
+          // ——— PRE‑NORMALIZACJA ———
+          function preNormalize(text) {
+            let s = String(text || "");
+            s = s
+              .replace(/[хХ]/g, "x")
+              .replace(/\bмм\b/gi, "mm")
+              .replace(/\bсм\b/gi, "cm")
+              .replace(/\bм\b/gi, "m");
+            s = s.replace(/(\d)\s*(?:na|на|by|per|auf)\s*(\d)/gi, "$1x$2"); // 50na30
+            s = s.replace(/(\d)(mm|cm|m|in|("|″)|ft|('|′))/gi, "$1 $2"); // 80cm → 80 cm
+            s = s.replace(/(\d)(?=[A-Za-z\u00C0-\u024F\u0400-\u04FF])/g, "$1 "); // 4ep→4 ep, 10p→10 p
+            s = s.replace(/(\d)\s+(?=\d{3}\b)/g, "$1"); // 12 000 → 12000
+            return s;
+          }
+          function tidyWhitespaceVisual(v) {
+            return String(v)
+              .replace(/[ \t]{2,}/g, " ")
+              .replace(/(\r?\n){2,}/g, "\n");
+          }
+          function sanitizeForLogistics(text) {
+            return preNormalize(text)
+              .replace(
+                /\b\d[\d\s.,]*\s*(?:zł|pln|eur|€|\$|usd|uah|₴|rub|₽)\b/gi,
+                " "
+              )
+              .replace(/\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b/g, " ")
+              .replace(/\b\d{4}[./-]\d{1,2}[./-]\d{1,2}\b/g, " ")
+              .replace(/\b\d{1,2}:\d{2}\b/g, " ")
+              .replace(/\b(?:\+?\d[\d\-.\s()]{6,})\b/g, " ")
+              .replace(/(?:#|nr\.?\s*)\d[\d/.-]*/gi, " ");
+          }
+
+          // ——— SŁOWNIKI ———
+          const UNIT_ANY = "(?:mm|cm|m|in|\"|″|ft|'|′)";
+          const XSEP = "(?:x|×|\\*|·|/)";
+          const NUM = "\\d+(?:[.,]\\d+)?";
+          const HEIGHT_KEYS =
+            "(?:h|ht|hgt|wys\\.?|выс\\.?|вис\\.?|высота|висота|вис)";
+
+          const TYPE_TOKEN = {
+            pallet:
+              /\b(?:pal(?:et|ety|eta)?|plt|pallet|palette|euro|epal|eur|ep|поддон|палет|палета|паллета|піддон|європалета|європіддон|европоддон)\b/i,
+            box: /\b(?:box|karton|ctn|case|colli|короб|коробка|ящик|ящ\.)\b/i,
+            roll: /\b(?:roll|rolka|rolki|рулон)\b/i,
+            bag: /\b(?:bag|worek|мешок|мішок)\b/i,
+            drum: /\b(?:drum|beczka|barrel|бочка)\b/i,
+            ibc: /\b(?:ibc|paletopojemnik|еврокуб|єврокуб)\b/i,
+          };
+          // „p” rozpoznajemy kontekstowo (blisko liczby i wymiarów) w typeNear().
+
+          // ——— BAZY PALET ———
+          function palletBaseFromSeg(seg) {
+            const s = seg.toLowerCase();
+            const half =
+              /(pół|pol|half|полу|пів|1\/2|eur6|d[üu]sseldorf|dus)\b/i.test(s);
+            const quart = /(ćwier|quarter|четверть|1\/4|чверть)\b/i.test(s);
+            if (half) return { code: "EUR6", Lcm: 80, Wcm: 60 };
+            if (quart) return { code: "QEUR", Lcm: 60, Wcm: 40 };
+            if (/\b(eur2|przem|industrial|uk|fin)\b/i.test(s))
+              return { code: "EUR2", Lcm: 120, Wcm: 100 };
+            if (/\b(eur|epal|euro|ep)\b/i.test(s))
+              return { code: "EUR1", Lcm: 120, Wcm: 80 };
+            if (/\b(chep)\b/i.test(s) && /\buk\b/i.test(s))
+              return { code: "CHEP-1200x1000", Lcm: 120, Wcm: 100 };
+            if (/\b(chep)\b/i.test(s))
+              return { code: "CHEP-1200x800", Lcm: 120, Wcm: 80 };
+            if (/\b(48\s*x\s*40|40\s*x\s*48|gma|usa|сша)\b/i.test(s))
+              return { code: "US-48x40", Lcm: 121.9, Wcm: 101.6 };
+            if (/\b(iso|1100\s*x\s*1100|asia|азиат)\b/i.test(s))
+              return { code: "ISO-1100x1100", Lcm: 110, Wcm: 110 };
+            return { code: "", Lcm: null, Wcm: null };
+          }
+          function palletDimsByCode(code) {
+            switch ((code || "").toUpperCase()) {
+              case "EUR1":
+                return { Lcm: 120, Wcm: 80 };
+              case "EUR2":
+                return { Lcm: 120, Wcm: 100 };
+              case "EUR3":
+                return { Lcm: 120, Wcm: 100 };
+              case "EUR6":
+                return { Lcm: 80, Wcm: 60 };
+              case "QEUR":
+                return { Lcm: 60, Wcm: 40 };
+              case "CHEP-1200X800":
+                return { Lcm: 120, Wcm: 80 };
+              case "CHEP-1200X1000":
+                return { Lcm: 120, Wcm: 100 };
+              case "US-48X40":
+                return { Lcm: 121.9, Wcm: 101.6 };
+              case "ISO-1100X1100":
+                return { Lcm: 110, Wcm: 110 };
+              case "FIN":
+                return { Lcm: 120, Wcm: 100 };
+              default:
+                return { Lcm: null, Wcm: null };
+            }
+          }
+          function defaultHByType(code) {
+            if (code === "EUR6") return 90;
+            if (code === "QEUR") return 60;
+            return 160;
+          }
+
+          // ——— WYMIARY (globalne z indeksami) ———
+          const TRIPLE_ANY_G = new RegExp(
+            String.raw`(?<a>${NUM})\s*(?<ua>${UNIT_ANY})?\s*${XSEP}\s*(?<b>${NUM})\s*(?<ub>${UNIT_ANY})?\s*${XSEP}\s*(?<c>${NUM})\s*(?<uc>${UNIT_ANY})?`,
+            "ig"
+          );
+          const SPACE_TRIPLE_G = new RegExp(
+            String.raw`(?<a>${NUM})\s+(?<b>${NUM})\s+(?<c>${NUM})(?:\s*(?<u>${UNIT_ANY}))?`,
+            "ig"
+          );
+          const LABELED_G = new RegExp(
+            String.raw`(?:l|len|dł|dl|д|довжина)\s*[:=]?\s*(?<a>${NUM})\s*(?<ua>${UNIT_ANY})?.{0,12}(?:w|szer|b|breite|ш|ширина)\s*[:=]?\s*(?<b>${NUM})\s*(?<ub>${UNIT_ANY})?.{0,12}(?:h|wys|höhe|в|высота|висота)\s*[:=]?\s*(?<c>${NUM})\s*(?<uc>${UNIT_ANY})?`,
+            "ig"
+          );
+          const DOUBLE_ANY_G = new RegExp(
+            String.raw`(?<a>${NUM})\s*(?<ua>${UNIT_ANY})?\s*${XSEP}\s*(?<b>${NUM})\s*(?<ub>${UNIT_ANY})?`,
+            "ig"
+          );
+          const DIAM_G = new RegExp(
+            String.raw`(?:ø|⌀|phi|diam(?:eter)?|диаметр|діаметр)\s*(?<d>${NUM})\s*(?<ud>${UNIT_ANY})?\s*(?:${XSEP}|x)\s*(?<l>${NUM})\s*(?<ul>${UNIT_ANY})?`,
+            "ig"
+          );
+          const HEIGHT_ONLY = new RegExp(
+            String.raw`(?:^|[^\w])(?:${HEIGHT_KEYS})\s*[:=]?\s*(?<h>${NUM})\s*(?<uh>${UNIT_ANY})?(?:\b|$)`,
+            "i"
+          );
+
+          // ——— ILOŚĆ ———
+          function qtyNear(seg, idxStart) {
+            const L = Math.max(0, idxStart - 60);
+            const ctx = seg.slice(L, idxStart + 1);
+            let m = ctx.match(
+              /\b(\d+)\s*(?:warstw|warstwy|сло[йя]|уровн\w+|шар(?:и)?|рівн\w+)\b.*?\bpo\s*(\d+)\b/i
+            );
+            if (m) return parseInt(m[1], 10) * parseInt(m[2], 10);
+            m = ctx.match(
+              /\b(\d+)\s*x\s*(?:pal(?:et|ety|eta)?|plt|pallet|palette|euro|epal|eur|ep|p|szt|pcs|шт|ctn|box)\b/i
+            );
+            if (m) return parseInt(m[1], 10);
+            m = ctx.match(
+              /\b(\d+)\s*(?:pal(?:et|ety|eta)?|plt|pallet|palette|euro|epal|eur|ep|p|szt|pcs|шт|ctn|box)\b/i
+            );
+            if (m) return parseInt(m[1], 10);
+            return 1;
+          }
+
+          // ——— TYP (z 'p' kontekstowo) ———
+          function typeNear(seg, idxStart) {
+            const L = Math.max(0, idxStart - 60);
+            const ctx = seg.slice(L, idxStart + 1);
+            let unit_type = null;
+            for (const [kind, rx] of Object.entries(TYPE_TOKEN)) {
+              if (rx.test(ctx)) {
+                unit_type = kind;
+                break;
+              }
+            }
+            if (!unit_type && /\b\d+\s*p\b/i.test(ctx)) unit_type = "pallet";
+            let code = "";
+            if (unit_type === "pallet") code = palletBaseFromSeg(ctx).code;
+            return { unit_type, code };
+          }
+
+          // ——— WYSOKOŚĆ ———
+          function parseHeightAround(seg, idxStart) {
+            const R = Math.min(seg.length, idxStart + 60);
+            const right = seg.slice(idxStart, R);
+            let m = right.match(HEIGHT_ONLY);
+            if (!m) {
+              const L = Math.max(0, idxStart - 60);
+              const left = seg.slice(L, idxStart);
+              m = left.match(HEIGHT_ONLY);
+            }
+            if (!m) return null;
+            const h = toCm(normDec(m.groups.h), m.groups.uh || null);
+            return clampMm(mmFromCm(h)) == null ? null : h;
+          }
+
+          // ——— WAGA ———
+          function weightNear(seg, idxStart, qty) {
+            const L = Math.max(0, idxStart - 60);
+            const R = Math.min(seg.length, idxStart + 80);
+            const ctx = seg.slice(L, R);
+            let m = ctx.match(
+              new RegExp(
+                String.raw`(?:po|per|na)\s*(${NUM})\s*(?:kg|кг)\b`,
+                "i"
+              )
+            );
+            if (m) return { unit_w: normDec(m[1]), total_w: null };
+            m = ctx.match(new RegExp(String.raw`(${NUM})\s*(?:kg|кг)\b`, "i"));
+            if (m) {
+              const v = normDec(m[1]);
+              return qty <= 1
+                ? { unit_w: v, total_w: null }
+                : { unit_w: null, total_w: v };
+            }
+            m = ctx.match(new RegExp(String.raw`(?:kg|кг)\s*(${NUM})\b`, "i"));
+            if (m) {
+              const v = normDec(m[1]);
+              return qty <= 1
+                ? { unit_w: v, total_w: null }
+                : { unit_w: null, total_w: v };
+            }
+            m = ctx.match(
+              new RegExp(
+                String.raw`(${NUM})\s*(?:kg|кг)\s*/\s*(?:pal(?:et|ety|eta)?|plt|pallet|pcs?|szt|шт|p)\b`,
+                "i"
+              )
+            );
+            if (m) return { unit_w: normDec(m[1]), total_w: null };
+            m = ctx.match(
+              new RegExp(
+                String.raw`(?:total|gross|brutto|netto)\s*(${NUM})\s*(?:kg|кг|t)\b`,
+                "i"
+              )
+            );
+            if (m) {
+              let v = normDec(m[1]);
+              if (/t\b/i.test(m[0])) v *= 1000;
+              return { unit_w: null, total_w: v };
+            }
+            return { unit_w: null, total_w: null };
+          }
+
+          // ——— WYMIARY: znajdź wszystkie wystąpienia ———
+          function findAllDims(seg) {
+            const found = [];
+            function pushTriple(m, idx) {
+              let a = normDec(m.groups.a),
+                b = normDec(m.groups.b),
+                c = normDec(m.groups.c);
+              const ua = m.groups.ua,
+                ub = m.groups.ub,
+                uc = m.groups.uc;
+              let L = toCm(a, ua || uc || null),
+                W = toCm(b, ub || uc || null),
+                H = toCm(c, uc || null);
+              if (!ua && !ub && !uc && [L, W, H].every((v) => v >= 300))
+                [L, W, H] = [L / 10, W / 10, H / 10];
+              if ([L, W, H].every((v) => clampMm(mmFromCm(v)) != null))
+                found.push({
+                  start: idx,
+                  end: idx + m[0].length,
+                  L: Math.max(L, W),
+                  W: Math.min(L, W),
+                  H,
+                  conf: 0.9,
+                });
+            }
+            function pushSpaceTriple(m, idx) {
+              let a = normDec(m.groups.a),
+                b = normDec(m.groups.b),
+                c = normDec(m.groups.c);
+              const u = m.groups.u || null;
+              if (u) {
+                a = toCm(a, u);
+                b = toCm(b, u);
+                c = toCm(c, u);
+              } else if ([a, b, c].every((v) => v >= 300)) {
+                a /= 10;
+                b /= 10;
+                c /= 10;
+              }
+              if ([a, b, c].every((v) => clampMm(mmFromCm(v)) != null))
+                found.push({
+                  start: idx,
+                  end: idx + m[0].length,
+                  L: Math.max(a, b),
+                  W: Math.min(a, b),
+                  H: c,
+                  conf: 0.8,
+                });
+            }
+            function pushDouble(m, idx) {
+              let a = normDec(m.groups.a),
+                b = normDec(m.groups.b);
+              const ua = m.groups.ua,
+                ub = m.groups.ub;
+              let L = toCm(a, ua || ub || null),
+                W = toCm(b, ub || ua || null);
+              if ([L, W].every((v) => clampMm(mmFromCm(v)) != null))
+                found.push({
+                  start: idx,
+                  end: idx + m[0].length,
+                  L: Math.max(L, W),
+                  W: Math.min(L, W),
+                  H: null,
+                  conf: 0.65,
+                });
+            }
+            function pushLabeled(m, idx) {
+              const a = toCm(normDec(m.groups.a), m.groups.ua),
+                b = toCm(normDec(m.groups.b), m.groups.ub),
+                c = toCm(normDec(m.groups.c), m.groups.uc);
+              if ([a, b, c].every((v) => clampMm(mmFromCm(v)) != null))
+                found.push({
+                  start: idx,
+                  end: idx + m[0].length,
+                  L: Math.max(a, b),
+                  W: Math.min(a, b),
+                  H: c,
+                  conf: 0.95,
+                });
+            }
+            function pushDiam(m, idx) {
+              const d = toCm(normDec(m.groups.d), m.groups.ud),
+                l = toCm(normDec(m.groups.l), m.groups.ul);
+              if ([d, l].every((v) => clampMm(mmFromCm(v)) != null))
+                found.push({
+                  start: idx,
+                  end: idx + m[0].length,
+                  L: Math.max(d, l),
+                  W: Math.min(d, l),
+                  H: null,
+                  dia: d,
+                  conf: 0.8,
+                });
+            }
+            for (const m of seg.matchAll(TRIPLE_ANY_G)) pushTriple(m, m.index);
+            for (const m of seg.matchAll(LABELED_G)) pushLabeled(m, m.index);
+            for (const m of seg.matchAll(DIAM_G)) pushDiam(m, m.index);
+            for (const m of seg.matchAll(SPACE_TRIPLE_G))
+              pushSpaceTriple(m, m.index);
+            for (const m of seg.matchAll(DOUBLE_ANY_G)) pushDouble(m, m.index);
+
+            found.sort((a, b) => a.start - b.start || b.conf - a.conf);
+            const dedup = [];
+            for (const f of found) {
+              if (dedup.some((d) => !(f.end <= d.start || f.start >= d.end)))
+                continue;
+              dedup.push(f);
+            }
+            return dedup;
+          }
+
+          // ——— TRYB TABELA (również inline) ———
+          const TABLE_HDR_RX =
+            /\b(pallets?|palety|поддоны|піддони)\b|\b(length|width|height|weight|waga|длина|ширина|высота|довжина|висота|höhe|breite|länge)\b/i;
+          function guessTableUnit(raw) {
+            if (/\bmm\)/i.test(raw) || /\bmm\b/i.test(raw)) return "mm";
+            if (/\bcm\)/i.test(raw) || /\bcm\b/i.test(raw)) return "cm";
+            if (
+              /\bm\)/i.test(raw) &&
+              !/\bmm\b/i.test(raw) &&
+              !/\bcm\b/i.test(raw)
+            )
+              return "m";
+            return "cm";
+          }
+          function headerSuggestsUnitWeight(raw) {
+            return /\b(per\s*(?:pallet|piece|pcs?)|kg\/(?:pal|plt|pcs?|szt)|waga\s*szt|weight\s*per)\b/i.test(
+              raw
+            );
+          }
+          function extractTableSegments(raw) {
+            if (!TABLE_HDR_RX.test(raw)) return [];
+            const unit = guessTableUnit(raw);
+            const unitIsPer = headerSuggestsUnitWeight(raw);
+            const used = [];
+            const segs = [];
+            const NUMR = `${NUM}`;
+            function isFree(i, len) {
+              return !used.some((r) => !(i + len <= r[0] || i >= r[1]));
+            }
+            function mark(i, len) {
+              used.push([i, i + len]);
+            }
+
+            // qty + L + W + H (+ kg) — pionowo lub spacjami
+            const RE_Q_LWH = new RegExp(
+              String.raw`\b(?<qty>\d{1,4})\s*[\r\n\t ]+\s*(?<L>${NUMR})\s*[\r\n\t ]+\s*(?<W>${NUMR})\s*[\r\n\t ]+\s*(?<H>${NUMR})(?:\s*[\r\n\t ]+(?<kg>(?:${NUMR})))?`,
+              "g"
+            );
+            for (const m of raw.matchAll(RE_Q_LWH)) {
+              const idx = m.index,
+                len = m[0].length;
+              if (!isFree(idx, len)) continue;
+              let q = parseInt(m.groups.qty, 10);
+              let L = toCm(normDec(m.groups.L), unit),
+                W = toCm(normDec(m.groups.W), unit),
+                H = toCm(normDec(m.groups.H), unit);
+              if ([L, W, H].some((v) => clampMm(mmFromCm(v)) == null)) continue;
+              const kg = m.groups.kg ? Math.round(normDec(m.groups.kg)) : null;
+              const kgStr = kg != null ? ` kg ${kg}` : "";
+              segs.push(
+                `${q} p ${Math.round(L)}x${Math.round(W)}x${Math.round(
+                  H
+                )} ${unit}${kgStr}${unitIsPer ? " /p" : ""}`
+              );
+              mark(idx, len);
+            }
+
+            // L + W + H (+ kg) → domyślnie qty=1
+            const RE_LWH = new RegExp(
+              String.raw`\b(?<L>${NUMR})\s*[\r\n\t ]+\s*(?<W>${NUMR})\s*[\r\n\t ]+\s*(?<H>${NUMR})(?:\s*[\r\n\t ]+(?<kg>(?:${NUMR})))?`,
+              "g"
+            );
+            for (const m of raw.matchAll(RE_LWH)) {
+              const idx = m.index,
+                len = m[0].length;
+              if (!isFree(idx, len)) continue;
+              let L = toCm(normDec(m.groups.L), unit),
+                W = toCm(normDec(m.groups.W), unit),
+                H = toCm(normDec(m.groups.H), unit);
+              if ([L, W, H].some((v) => clampMm(mmFromCm(v)) == null)) continue;
+              const kg = m.groups.kg ? Math.round(normDec(m.groups.kg)) : null;
+              const kgStr = kg != null ? ` kg ${kg}` : "";
+              segs.push(
+                `1 p ${Math.round(L)}x${Math.round(W)}x${Math.round(
+                  H
+                )} ${unit}${kgStr}${unitIsPer ? " /p" : ""}`
+              );
+              mark(idx, len);
+            }
+
+            // **NOWE**: wiersz inline "1 400x150x150 862kg" lub "1 400x150x150 kg 862"
+            const RE_INLINE = new RegExp(
+              String.raw`\b(?<qty>\d{1,4})\s+(?<L>${NUMR})\s*(?:x|×|\*|\/)\s*(?<W>${NUMR})\s*(?:x|×|\*|\/)\s*(?<H>${NUMR})(?:\s*(?:kg|кг)\s*(?<kg1>${NUMR})|\s*(?<kg2>${NUMR})\s*(?:kg|кг))?`,
+              "gi"
+            );
+            for (const m of raw.matchAll(RE_INLINE)) {
+              const idx = m.index,
+                len = m[0].length;
+              if (!isFree(idx, len)) continue;
+              const q = parseInt(m.groups.qty, 10);
+              let L = toCm(normDec(m.groups.L), unit),
+                W = toCm(normDec(m.groups.W), unit),
+                H = toCm(normDec(m.groups.H), unit);
+              if ([L, W, H].some((v) => clampMm(mmFromCm(v)) == null)) continue;
+              const kg = m.groups.kg1
+                ? Math.round(normDec(m.groups.kg1))
+                : m.groups.kg2
+                ? Math.round(normDec(m.groups.kg2))
+                : null;
+              const kgStr = kg != null ? ` kg ${kg}` : "";
+              segs.push(
+                `${q} p ${Math.round(L)}x${Math.round(W)}x${Math.round(
+                  H
+                )} ${unit}${kgStr}${unitIsPer ? " /p" : ""}`
+              );
+              mark(idx, len);
+            }
+
+            return segs;
+          }
+
+          // ——— FLAGI ———
+          const STACK_POS =
+            /\b(?:piętrow|pietrow|stack(?:able)?|stack all|stacking allowed|штабел|stackuj)\b/i;
+          const STACK_NEG =
+            /\b(?:nie\s*piętrow|nie\s*pietrow|non-?stack|no stack|не\s*штаб)\b/i;
+          function detectStackFlags(seg) {
+            return { pos: STACK_POS.test(seg), neg: STACK_NEG.test(seg) };
+          }
+          function hasNoPallet(seg) {
+            return /\b(?:bez palety|bez\s*poddona|без\s*поддона|без\s*палеты|без\s*палети|без\s*піддона)\b/i.test(
+              seg
+            );
+          }
+
+          // ——— GŁÓWNA FUNKCJA ———
+          function extractLogistics(raw) {
+            const original = String(raw || "");
+            const text = sanitizeForLogistics(original);
+            const low = text.toLowerCase();
+
+            // segmenty klasyczne + pseudo‑segmenty z tabel (także inline)
+            const segA = low
+              .split(/[\n;•]+|(?<!\d)[,.](?!\d)/g)
+              .map((s) => s.trim())
+              .filter(Boolean);
+            const tableSegs = extractTableSegments(original);
+            const segments = segA.concat(tableSegs);
+
+            const items = [];
+            const orderKeys = [];
+
+            for (const seg of segments) {
+              const dimsList = findAllDims(seg);
+              if (!dimsList.length) continue;
+
+              const stack = detectStackFlags(seg);
+              const addPal = hasNoPallet(seg);
+
+              for (const d of dimsList) {
+                let { unit_type: ut, code } = typeNear(seg, d.start);
+                // jeśli mamy nagłówki tabeli w całym tekście i brak typu → załóż paletę
+                if (!ut && tableSegs.length) {
+                  ut = "pallet";
+                  code = code || palletBaseFromSeg(seg).code;
+                }
+
+                if (
+                  !ut &&
+                  !/(?:wymiary|rozmiar|dimension|größe|размер|розмір)/i.test(
+                    seg
+                  )
+                )
+                  continue;
+
+                const qty = qtyNear(seg, d.start);
+                let L = d.L,
+                  W = d.W,
+                  H = d.H;
+                const diameter = d.dia || null;
+
+                const w = weightNear(seg, d.start, qty);
+
+                // paleta → baza
+                let pallet_code = code;
+                if (ut === "pallet" && (L == null || W == null)) {
+                  const b = palletBaseFromSeg(seg);
+                  pallet_code = b.code || code;
+                  if (b.Lcm && b.Wcm) {
+                    L = b.Lcm;
+                    W = b.Wcm;
+                  }
+                }
+
+                // H polityka
+                if (H == null) {
+                  if (ut === "pallet") {
+                    if (H_POLICY_DEFAULT === "by_type")
+                      H = defaultHByType(pallet_code);
+                    else if (H_POLICY_DEFAULT === "default") H = H_DEFAULT_CM;
+                    else if (H_POLICY_DEFAULT === "hybrid")
+                      H = defaultHByType(pallet_code) ?? H_DEFAULT_CM;
+                    else if (H_POLICY_DEFAULT === "zero") H = 0;
+                    else {
+                      const hLocal = parseHeightAround(seg, d.start);
+                      if (hLocal != null) H = hLocal;
+                    }
+                  } else {
+                    const hLocal = parseHeightAround(seg, d.start);
+                    H =
+                      hLocal != null
+                        ? hLocal
+                        : H_POLICY_DEFAULT === "zero"
+                        ? 0
+                        : null;
+                  }
+                }
+
+                if (addPal && H != null) H += PALLET_ADD_HEIGHT_CM;
+
+                const plausible =
+                  (L == null || clampMm(mmFromCm(L)) != null) &&
+                  (W == null || clampMm(mmFromCm(W)) != null) &&
+                  (H == null || clampMm(mmFromCm(H)) != null);
+                const conf = d.conf || 0.7;
+                const needs_review = !plausible || conf < CONF_LOW ? 1 : 0;
+
+                const item = {
+                  idx: d.start,
+                  type: ut || "other",
+                  subtype:
+                    ut === "pallet" ? pallet_code || "unknown" : "unknown",
+                  qty,
+                  length_cm: L != null ? Math.round(L) : null,
+                  width_cm:
+                    W != null
+                      ? Math.round(W)
+                      : diameter != null
+                      ? Math.round(diameter)
+                      : null,
+                  height_cm: H != null ? Math.round(H) : null,
+                  diameter_cm: diameter != null ? Math.round(diameter) : null,
+                  unit_weight_kg:
+                    w.unit_w != null ? Math.round(w.unit_w) : null,
+                  total_weight_kg:
+                    w.total_w != null ? Math.round(w.total_w) : null,
+                  stackable: stack.neg ? false : stack.pos ? true : null,
+                  notes: addPal ? "bez palety +14.4 cm" : "",
+                  lang: /[а-яёіїєґ]/i.test(seg) ? "ru/uk" : "pl/en/de",
+                  confidence: Math.max(0, Math.min(1, conf)),
+                  needs_review,
+                };
+
+                items.push(item);
+                orderKeys.push({
+                  key: `${item.type}|${item.subtype}|${item.length_cm}|${
+                    item.width_cm
+                  }|${item.height_cm || 0}`,
+                  idx: item.idx,
+                });
+              }
+            }
+
+            // AGREGACJA z zachowaniem kolejności
+            const order = [];
+            const seen = new Set();
+            for (const g of orderKeys) {
+              if (!seen.has(g.key)) {
+                seen.add(g.key);
+                order.push(g.key);
+              }
+            }
+            const grouped = new Map();
+            for (const it of items) {
+              const k = `${it.type}|${it.subtype}|${it.length_cm}|${
+                it.width_cm
+              }|${it.height_cm || 0}`;
+              if (grouped.has(k)) {
+                const x = grouped.get(k);
+                x.qty += it.qty;
+                x.needs_review |= it.needs_review;
+                x.confidence = Math.min(x.confidence, it.confidence);
+                if (
+                  x.unit_weight_kg != null &&
+                  it.unit_weight_kg != null &&
+                  x.unit_weight_kg !== it.unit_weight_kg
+                )
+                  x.needs_review = 1;
+                if (it.total_weight_kg != null)
+                  x.total_weight_kg =
+                    (x.total_weight_kg || 0) + it.total_weight_kg;
+              } else grouped.set(k, { ...it });
+            }
+            const aggregated = order
+              .map((k) => {
+                for (const [gk, val] of grouped.entries()) {
+                  if (gk.endsWith(k.split("|").slice(2).join("|"))) return val;
+                }
+                return null;
+              })
+              .filter(Boolean);
+
+            return { items: aggregated, warnings: [] };
+          }
+
+          // ——— PODGLĄD ———
+          function prettyExtractPreview(res) {
+            if (!res.items.length) return "— nic nie wykryto —";
+            return res.items
+              .map((it) => {
+                const qty = it.qty || 1;
+                const dims = it.diameter_cm
+                  ? `${it.diameter_cm}Ø×${it.length_cm || 0}`
+                  : `${it.length_cm || 0}x${it.width_cm || 0}x${
+                      it.height_cm || 0
+                    }`;
+                const kind =
+                  it.type === "pallet"
+                    ? it.subtype === "EUR6"
+                      ? "półpaleta"
+                      : it.subtype === "QEUR"
+                      ? "ćwierćpaleta"
+                      : "paleta"
+                    : it.type;
+                const w =
+                  it.unit_weight_kg != null
+                    ? ` • ${it.unit_weight_kg} kg/szt`
+                    : it.total_weight_kg != null
+                    ? ` • ${it.total_weight_kg} kg (total)`
+                    : "";
+                const flag = it.needs_review ? " • △ sprawdź" : "";
+                return `${qty} ${kind} ${dims}${w}${flag}`;
+              })
+              .join("\n");
+          }
+
+          // ——— SPINANIE Z UI ———
+          bulkText.addEventListener("input", () => {
+            const res = extractLogistics(bulkText.value || "");
+            bulkOut.textContent = prettyExtractPreview(res);
+          });
+          bulkText.addEventListener("paste", () =>
+            setTimeout(() => {
+              bulkText.value = tidyWhitespaceVisual(bulkText.value);
+            }, 0)
+          );
+          bulkText.addEventListener("blur", () => {
+            bulkText.value = tidyWhitespaceVisual(bulkText.value);
+          });
+
+          bulkAdd.addEventListener("click", () => {
+            const res = extractLogistics(bulkText.value || "");
+            if (!res.items.length) {
+              showError("Nie wykryto żadnych pozycji");
+              return;
+            }
+            pushHistory();
+            for (const it of res.items) {
+              const qty = Math.max(1, it.qty || 1);
+
+              let L = it.length_cm,
+                W = it.width_cm,
+                H = it.height_cm;
+              if ((L == null || W == null) && it.type === "pallet") {
+                const base = palletDimsByCode(it.subtype || "");
+                if (!L && base.Lcm != null) L = base.Lcm;
+                if (!W && base.Wcm != null) W = base.Wcm;
+              }
+              if (H == null) {
+                if (it.type === "pallet")
+                  H =
+                    defaultHByType((it.subtype || "").toString()) ??
+                    H_DEFAULT_CM;
+                else H = 0;
+              }
+
+              const perKg =
+                it.unit_weight_kg != null
+                  ? it.unit_weight_kg
+                  : it.total_weight_kg != null && qty > 0
+                  ? Math.round(it.total_weight_kg / qty)
+                  : 0;
+
+              let nodeType = "custom";
+              if (
+                it.type === "pallet" &&
+                (/eur|epal|ep/i.test(it.subtype || "") || isEURDims(L, W))
+              )
+                nodeType = "eur_pallet";
+
+              L = Math.round(L ?? 120);
+              W = Math.round(W ?? (it.diameter_cm || 80));
+              H = Math.round(H ?? (it.diameter_cm || 80));
+
+              for (let i = 0; i < qty; i++) {
+                const node = {
+                  id: uid(),
+                  type: nodeType,
+                  L,
+                  W,
+                  H,
+                  weight: Math.round(perKg || 0),
+                  stackable: it.stackable == null ? true : !!it.stackable,
+                  stackCount: 1,
+                  x: 0,
+                  y: 0,
+                  rot: 0,
+                };
+                placeNewItem(node);
+                state.items.push(node);
+              }
+            }
+            renderAll();
+          });
+          // ===================== /BULK PARSER — ULTRA v8 =====================
+          mount.querySelector("#cAdd").addEventListener("click", addCustom);
+          mount
+            .querySelector('[data-act="undo"]')
+            .addEventListener("click", undo);
+          mount
+            .querySelector('[data-act="redo"]')
+            .addEventListener("click", redo);
+          mount
+            .querySelector('[data-act="autopack"]')
+            .addEventListener("click", () => autopackUltra(0, true));
+          mount
+            .querySelector('[data-act="altpack"]')
+            .addEventListener("click", () =>
+              autopackUltra((Math.random() * 100) | 0, true)
+            );
+          mount
+            .querySelector('[data-act="stackAll"]')
+            .addEventListener("click", stackAll);
+          mount
+            .querySelector('[data-act="prevVar"]')
+            .addEventListener("click", () =>
+              applyVariant(state.variants.index - 1)
+            );
+          mount
+            .querySelector('[data-act="nextVar"]')
+            .addEventListener("click", () =>
+              applyVariant(state.variants.index + 1)
+            );
+          mount
+            .querySelector('[data-act="reset"]')
+            .addEventListener("click", () => {
+              if (confirm("Wyczyścić wszystkie elementy?")) {
+                pushHistory();
+                state.items = [];
+                state.selectedId = null;
+                state.variants = { plans: [], index: 0 };
+                renderAll();
+              }
+            });
+          mount
+            .querySelector('[data-act="save"]')
+            .addEventListener("click", saveLocal);
+          mount
+            .querySelector('[data-act="share"]')
+            .addEventListener("click", shareLink);
+          mount
+            .querySelector('[data-act="rotL"]')
+            .addEventListener("click", () => rotateSelected(-1));
+          mount
+            .querySelector('[data-act="rotR"]')
+            .addEventListener("click", () => rotateSelected(+1));
+          mount
+            .querySelectorAll('[data-act="delete"]')
+            .forEach((b) => b.addEventListener("click", deleteSelected));
+
+          // Modal
+          mount
+            .querySelector('[data-act="quote"]')
+            .addEventListener("click", () => {
+              const v = vehicle();
+              const out = summarize();
+              const lines = listItems()
+                .map(
+                  (x) =>
+                    `• ${x.qty}× ${x.name} ${x.dims} • ${x.weight_each} kg/szt`
+                )
+                .join("<br>");
+              mount.querySelector("#summary").innerHTML = `Pojazd: <b>${
+                v.name_pl
+              }</b> • ${out.items} szt. • ${out.volume_m3.toFixed(
+                2
+              )} m³ • ${Math.round(out.weight_kg)} kg<br>${lines}`;
+              modal.setAttribute("open", "");
+            });
+          modal.addEventListener("click", (e) => {
+            if (e.target === modal) modal.removeAttribute("open");
+          });
+          modal
+            .querySelector('[data-act="modal-cancel"]')
+            .addEventListener("click", () => modal.removeAttribute("open"));
+          modal
+            .querySelector('[data-act="modal-send"]')
+            .addEventListener("click", () => {
+              const from = mount.querySelector("#mFrom").value.trim();
+              const to = mount.querySelector("#mTo").value.trim();
+              if (!from || !to) {
+                alert("Uzupełnij wymagane pola");
+                return;
+              }
+              const payload = buildPayload();
+              const body = buildEmailBody(payload);
+              const mailto = `mailto:krastranseu@gmail.com?subject=${encodeURIComponent(
+                "wycena z aplikacji"
+              )}&body=${encodeURIComponent(body)}`;
+              window.location.href = mailto;
+              modal.removeAttribute("open");
+            });
+
+          // ===================== SUMMARY / PAYLOAD =====================
+          function summarize() {
+            let volume_m3 = 0,
+              weight_kg = 0;
+            state.items.forEach((it) => {
+              volume_m3 += volItem(it);
+              weight_kg += weightItem(it);
+            });
+            return { items: state.items.length, volume_m3, weight_kg };
+          }
+          function listItems() {
+            return state.items.map((it) => ({
+              name: presetName(it.type) || "custom",
+              qty: it.stackCount,
+              dims: `${it.L}×${it.W}×${it.H} cm`,
+              weight_each: it.weight || 0,
+            }));
+          }
+          function presetName(id) {
+            const p = PRESETS.find((x) => x.id === id);
+            return p ? p.label : "Element";
+          }
+          function buildPayload() {
+            const v = vehicle();
+            const sum = summarize();
+            return {
+              vehicle_id: v.id,
+              vehicle_name: v.name_pl,
+              items: state.items.map((it) => ({
+                type: presetName(it.type),
+                qty: it.stackCount,
+                dims_cm: { L: it.L, W: it.W, H: it.H },
+                weight_each_kg: it.weight || 0,
+              })),
+              total_volume_m3: sum.volume_m3,
+              total_weight_kg: sum.weight_kg,
+              packed_ratio: Math.min(1, volBar.value / 100),
+            };
+          }
+          function buildEmailBody(payload) {
+            const from = mount.querySelector("#mFrom").value.trim();
+            const to = mount.querySelector("#mTo").value.trim();
+            const ldate = mount.querySelector("#ldate").value;
+            const lfrom = mount.querySelector("#lfrom").value;
+            const lto = mount.querySelector("#lto").value;
+            const udate = mount.querySelector("#udate").value;
+            const ufrom = mount.querySelector("#ufrom").value;
+            const uto = mount.querySelector("#uto").value;
+            const notes = mount.querySelector("#mNotes").value.trim();
+            const lines = payload.items
+              .map(
+                (x) =>
+                  `• ${x.qty}× ${x.type} ${x.dims_cm.L}×${x.dims_cm.W}×${x.dims_cm.H} cm • ${x.weight_each_kg} kg/szt`
+              )
+              .join("\n");
+            return [
+              `POJAZD: ${payload.vehicle_name} (${payload.vehicle_id})`,
+              `TRASA: ${from} → ${to}`,
+              `ZAŁADUNEK: ${ldate || ""} ${lfrom || ""}–${lto || ""}`,
+              `ROZŁADUNEK: ${udate || ""} ${ufrom || ""}–${uto || ""}`,
+              `ELEMENTY:\n${lines}`,
+              `SUMA: ${payload.total_volume_m3.toFixed(2)} m³ • ${Math.round(
+                payload.total_weight_kg
+              )} kg • wypełnienie ${(payload.packed_ratio * 100).toFixed(0)}%`,
+              notes ? `UWAGI: ${notes}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n");
+          }
+
+          // ===================== INIT =====================
+          function seedPresets() {
+            state.items.push({
+              id: uid(),
+              type: "eur_pallet",
+              L: 120,
+              W: 80,
+              H: 180,
+              weight: 350,
+              stackable: true,
+              stackCount: 1,
+              x: 0,
+              y: 0,
+              rot: 0,
+            });
+            state.items.push({
+              id: uid(),
+              type: "eur_pallet",
+              L: 120,
+              W: 80,
+              H: 180,
+              weight: 350,
+              stackable: true,
+              stackCount: 1,
+              x: 120,
+              y: 0,
+              rot: 0,
+            });
+          }
+          function firstTimeInit() {
+            if (!loadFromHash()) loadLocal();
+            renderPresets();
+            renderAll();
+            if (!state.items.length) {
+              seedPresets();
+              renderAll();
+            }
+          }
+
+          // Shortcuts (global)
+          window.addEventListener("keydown", (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
+              e.preventDefault();
+              copySelected();
+            }
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "v") {
+              e.preventDefault();
+              pasteClipboard();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+              e.preventDefault();
+              undo();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+              e.preventDefault();
+              redo();
+            }
+            if (e.key === "R" || e.key === "r") rotateSelected(+1);
+            if (e.key === "Delete") {
+              deleteSelected();
+            }
+            if (e.key === "+" || e.key === "=") {
+              changeStack(+1);
+            }
+            if (e.key === "-") {
+              changeStack(-1);
+            }
+            if (
+              e.key === "ArrowLeft" &&
+              e.shiftKey &&
+              (e.metaKey || e.ctrlKey)
+            ) {
+              applyVariant(state.variants.index - 1);
+            }
+            if (
+              e.key === "ArrowRight" &&
+              e.shiftKey &&
+              (e.metaKey || e.ctrlKey)
+            ) {
+              applyVariant(state.variants.index + 1);
+            }
+          });
+
+          firstTimeInit();
+        } catch (err) {
+          const root = document.getElementById("van-pack");
+          const box = document.createElement("div");
+          box.style.cssText =
+            "background:#2b1111;color:#ffd7d7;border:1px solid #7a2b2b;border-radius:10px;padding:10px;margin:10px 0";
+          box.textContent =
+            "Błąd inicjalizacji: " + (err && err.message ? err.message : err);
+          root.appendChild(box);
+          console.error(err);
+        }
+      })();
+    </script>
+  </body>
+</html>

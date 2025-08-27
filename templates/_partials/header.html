@@ -1,133 +1,73 @@
 <!-- @format -->
 
-{# templates/_partials/header.html #} {% set _nav = (nav if nav is mapping else
-{}) %} {% set top = (_nav.get('top') or []) %} {% set children =
-(_nav.get('children') or {}) %} {% set brand_obj = (_site.get('brand') if _site
-is mapping else None) %} {% set brand_name = (brand_obj.get('name') if brand_obj
-is mapping else (brand_obj or 'Kras‑Trans')) %} {% set home_href = '/' ~
-(page.lang or 'pl') ~ '/' %}
-
+{# Accessible, server-rendered header with mobile nav #}
 <header class="site-header" role="banner">
-  <div class="wrap header__bar">
-    <a class="brand" href="{{ home_href }}" aria-label="{{ brand_name }}">
-      {# If you have brand logo path in _site.logo – use it; else show text #}
-      {% if _site and _site.get('logo') %}
-      <img
-        src="{{ _site.logo }}"
-        alt="{{ brand_name }}"
-        width="180"
-        height="36"
-      />
-      {% else %}
-      <span class="brand__text">{{ brand_name }}</span>
-      {% endif %}
-    </a>
+  <a class="site-header__skip" href="#MainContent">Skip to content</a>
 
-    <nav class="main-nav" role="navigation" aria-label="Primary">
-      <ul class="nav-list">
-        {% for item in top %} {% set key = item.href or item.label %} {% set
-        kids = children.get(item.label) or children.get(item.href) or
-        children.get(key) or [] %}
-        <li class="nav__item{% if kids %} has-children{% endif %}">
-          {% if kids %}
-          <button
-            class="top-link"
-            type="button"
-            data-menu="mega"
-            aria-expanded="false"
-          >
-            <span>{{ item.label }}</span>
-          </button>
-          <div class="mega" hidden>
-            <div class="mega__colwrap">
-              {% for child in kids %}
-              <a class="mega__link" href="{{ child.href }}"
-                >{{ child.label }}</a
-              >
-              {% endfor %}
-            </div>
-          </div>
-          {% else %}
-          <a class="top-link" href="{{ item.href }}">{{ item.label }}</a>
-          {% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-    </nav>
-
-    <div class="header__actions">
-      {% set alts = alternates or hreflang or {} %} {% if alts %}
-      <details class="lang" role="list">
-        <summary aria-haspopup="listbox">
-          <img
-            src="/assets/flags/{{ (page.lang or 'pl')|replace('en','gb') }}.svg"
-            alt=""
-            width="20"
-            height="14"
-          />
-          <span>{{ (page.lang or 'pl')|upper }}</span>
-        </summary>
-        <ul class="lang__list" role="listbox">
-          {% for code, href in alts.items() %}
-          <li>
-            <a href="{{ href }}">
-              <img
-                src="/assets/flags/{{ code|replace('en','gb') }}.svg"
-                alt=""
-                width="20"
-                height="14"
-              />
-              <span>{{ code|upper }}</span>
-            </a>
-          </li>
-          {% endfor %}
-        </ul>
-      </details>
+  <div class="site-header__row">
+    <div class="site-header__brand">
+      <a
+        href="{{ '/' if lang == 'en' else '/' }}"
+        class="site-header__logo-link"
+        aria-label="{{ site.name or 'Home' }}"
+      >
+        {# fallback na standardowy plik jeśli w arkuszu nie ustawiono logo #} {%
+        set _logo = (site.logo or '/assets/img/logo.svg') %}
+        <img
+          class="site-header__logo"
+          src="{{ _logo }}"
+          alt="{{ site.name or 'Logo' }}"
+          width="180"
+          height="48"
+          loading="eager"
+          fetchpriority="high"
+        />
+      </a>
+      {% if site.tagline %}
+      <span class="site-header__tagline">{{ site.tagline }}</span>
       {% endif %}
-      <button
-        class="theme-toggle"
-        type="button"
-        aria-label="Toggle theme"
-        title="Theme"
-      >
-        ☀
-      </button>
-      <button
-        class="nav-toggle"
-        type="button"
-        aria-expanded="false"
-        aria-controls="mobileMenu"
-        aria-label="Menu"
-      >
-        <span></span>
-      </button>
     </div>
-  </div>
 
-  <div class="mobile-menu" id="mobileMenu" hidden>
-    <div class="mobile-menu__inner">
-      <nav class="mobile-nav" role="navigation" aria-label="Mobile">
-        <ul class="mobile-nav__list">
-          {% for item in top %} {% set key = item.href or item.label %} {% set
-          kids = children.get(item.label) or children.get(item.href) or
-          children.get(key) or [] %}
-          <li class="mobile-nav__item">
-            {% if kids %}
-            <details>
-              <summary>{{ item.label }}</summary>
-              <ul class="mmega">
-                {% for child in kids %}
-                <li><a href="{{ child.href }}">{{ child.label }}</a></li>
+    <div class="site-header__navwrap">
+      <details class="site-nav" data-enhance="false">
+        <summary class="site-nav__toggle" aria-label="Toggle menu">
+          <span class="site-nav__burger" aria-hidden="true"></span>
+          <span class="site-nav__label">Menu</span>
+        </summary>
+
+        <nav class="site-nav__panel" aria-label="Main">
+          <ul class="site-nav__list">
+            {# oczekujemy struktury nav.items: [{label, url, children?}] #} {%
+            for item in (nav.items or []) %}
+            <li class="site-nav__item">
+              <a
+                class="site-nav__link"
+                href="{{ item.url or '#' }}"
+                {%
+                if
+                item.current
+                %}aria-current="page"
+                {%
+                endif
+                %}
+                >{{ item.label }}</a
+              >
+              {% if item.children %}
+              <ul class="site-nav__sublist">
+                {% for c in item.children %}
+                <li class="site-nav__subitem">
+                  <a class="site-nav__sublink" href="{{ c.url or '#' }}"
+                    >{{ c.label }}</a
+                  >
+                </li>
                 {% endfor %}
               </ul>
-            </details>
-            {% else %}
-            <a href="{{ item.href }}">{{ item.label }}</a>
-            {% endif %}
-          </li>
-          {% endfor %}
-        </ul>
-      </nav>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </nav>
+      </details>
     </div>
   </div>
 </header>
