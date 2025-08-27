@@ -1,0 +1,13 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+<!-- @format -->
+
+• Micro-PRs: one task = one file change with a small diff.
+• Never touch dist/ or commit binaries.
+• Acceptance: short bullet list (what/where/how to verify).
+• After change run: `python tools/build.py` and `pytest -q`.
+• If information is missing (schema/headers/columns), use FORM MODE: describe missing inputs instead of guessing.

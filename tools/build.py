@@ -499,7 +499,13 @@ def _nav_data_from_rows(rows, fallback):
             id_map[label] = ident
             top.append({"label": label, "href": href, "order": order, "col": col, "id": ident})
 
-        top.sort(key=lambda i: (i.get("order", 0), (i.get("label") or "").lower()))
+        def to_int(v, default=9999):
+            try:
+                return int(float(v))
+            except Exception:
+                return default
+
+        top.sort(key=lambda i: ((to_int(i.get("order"), 9999) or 9999), (i.get("label") or "").lower()))
 
         children: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         for r in arr:
@@ -689,8 +695,13 @@ def render_template(name: str, ctx: Dict[str, Any]) -> str:
     return env.get_template(name).render(**ctx)
 
 # Globalne dane dostępne w szablonach
+site_ctx = CFG.get("site", {})
+# Logo fallback so templates/_partials/header.html can always show a logo
+if not site_ctx.get("logo"):
+    site_ctx["logo"] = "/assets/img/logo.svg"
+
 env.globals.update({
-  "site": CFG.get("site", {}),
+  "site": site_ctx,
   "cms_endpoint": "",
   "ga_id": GA_ID,
   "gsc_verification": GSC,
@@ -1478,26 +1489,42 @@ def build_all():
             page_faq.sort(key=lambda x: x.get("order", 0))
             slug_dbg = page_rec.get("slugKey") or page_key
             alternates_map = {LL: path_for(key, LL) for LL in routes.get(key, {})}
+            blocks_sample = page_blocks[:2]
             ctx = {
                 "lang": L,
                 "site": SITE,
-                "assets": CFG.get("assets", {}),
                 "page": page_rec,
                 "pg": page_rec,
-                "meta": meta,
+                "meta": {},
                 "nav": nav_by_lang.get(L, {}),
+                "nav_data": nav_by_lang.get(L, {}),  # Keep for backward compatibility
+                "blocks": page_blocks,
                 "routes": routes,
                 "path_for": path_for,
                 "title": page_rec.get("seo_title") or page_rec.get("h1") or page_rec.get("title"),
                 "h1": page_rec.get("h1") or "",
                 "meta_desc": page_rec.get("meta_desc") or "",
-                "blocks": blocks_lang,
-                "faq": faq_all,
-                "alternates": alternates_map,
                 "canonical": canonical,
-                "STR": lambda key, _L=L: STR(_L, key),
-                "strings": strings_local,
-                "ssr": None,
+                "hreflang": hreflang_map.get(page_key, {}),
+                "debug": {
+                    "cms_source": "CMS.xlsx",
+                    "page_key": page_key,
+                    "page_rec": {
+                        "slug": page_rec.get("slug"),
+                        "slugKey": page_rec.get("slugKey"),
+                        "type": page_rec.get("type"),
+                        "template": page_rec.get("template"),
+                        "seo_title": page_rec.get("seo_title"),
+                        "h1": page_rec.get("h1"),
+                        "title": page_rec.get("title"),
+                        "lead": page_rec.get("lead"),
+                        "cta_label": page_rec.get("cta_label"),
+                        "body_md_len": len(page_rec.get("body_md") or ""),
+                        "body_html_len": len(page_rec.get("body_html") or ""),
+                    },
+                    "blocks_count": len(page_blocks),
+                    "blocks_sample": blocks_sample,
+                }
             }
             blocks_sample = page_blocks[:2]
             prov = {
@@ -1938,5 +1965,17 @@ def write_news_sitemap():
 
 
 # ------------------------------ MAIN ---------------------------------------
-if __name__=="__main__":
-    build_all()
+if __name__ == "__main__":
+    import argparse, traceback, sys
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--debug", action="store_true",
+                    help="re-raise exception after printing traceback")
+    args = ap.parse_args()
+    try:
+        build_all()
+    except Exception as exc:
+        print("\n[BUILD] ERROR:", exc, file=sys.stderr)
+        traceback.print_exc()
+        if args.debug:
+            raise
+        sys.exit(1)

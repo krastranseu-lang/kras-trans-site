@@ -1,0 +1,42 @@
+{
+  "sha": "63fcb4e9f281fc960b482105027b035083b1897ac4b4db80e008b0594df72372",
+  "lang": "de",
+  "slugKey": "home",
+  "page": {
+    "seo_title": "Express-Transport: 3,5‑t Transporter & Lkw — Polen & EU",
+    "h1": "Transportunternehmen Łódź — Express-Transport mit 3,5‑t‑Transportern & Lkw in Polen und der EU",
+    "title": "Straßentransport aus Łódź | Express-Lieferungen 24/7 in Polen & EU",
+    "lead": "Familiengeführter Spediteur aus Łódź. Express-Transporte door‑to‑door in Polen & der EU — 3,5‑t‑Transporter & Lkw, GPS, Versicherung.",
+    "cta_label": "",
+    "body_md_len": 1326,
+    "body_html_len": 1558
+  },
+  "blocks_count": 5,
+  "blocks_sample": [
+    {
+      "block": "home.hero",
+      "lang": "de",
+      "page": "home",
+      "title": "Kras‑Trans — road transport • Poland & EU",
+      "lead": "Express deliveries with 3.5 t vans & trucks. 15‑minute quotes, 24/7, GPS tracking.",
+      "body_md": "",
+      "cta_label": "Angebot anfordern",
+      "cta_href": "/de/contact/",
+      "order": 10,
+      "enabled": true
+    },
+    {
+      "block": "home.usp",
+      "lang": "de",
+      "page": "home",
+      "title": "Why work with us",
+      "lead": "",
+      "body_md": "- Express door‑to‑door\n- 3.5 t vans + trucks\n- Dispatcher & live GPS\n- Cargo insurance\n- Clear pricing, no extras",
+      "cta_label": "",
+      "cta_href": "",
+      "order": 20,
+      "enabled": true,
+      "body_html": "<ul>\n<li>Express door‑to‑door</li>\n<li>3.5 t vans + trucks</li>\n<li>Dispatcher &amp; live GPS</li>\n<li>Cargo insurance</li>\n<li>Clear pricing, no extras</li>\n</ul>"
+    }
+  ]
+}

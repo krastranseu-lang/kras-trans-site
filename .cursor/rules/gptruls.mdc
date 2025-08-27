@@ -1,0 +1,64 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+<!-- @format -->
+
+Goal
+• We build a static site for Kras-Trans using: Jinja2 templates (templates/), CSS (assets/css/), JS (assets/js/), Python build (tools/), and pages.yml (GitHub Actions). No Shopify/Drupal/Liquid.
+• All content comes from data/cms/menu.xlsx only. If data are missing, the section is not rendered (no placeholders).
+• i18n languages: pl, en, de, fr, it, ru, ua with routes /{lang}/… (home at /{lang}/).
+
+Working mode
+• One task = one small change = one file. Show DIFF only.
+• Large changes → ZIP preserving repo structure.
+• Keep build/tests green.
+
+Do not
+• Do not edit dist/.
+• Do not commit binary XLSX/ZIP via PR (menu.xlsx is uploaded via GitHub UI).
+• Respect CODEOWNERS for data/cms/menu.xlsx.
+• Do not bring external frameworks/tools unless explicitly requested.
+
+CMS contract (short)
+• Sheets: Pages, Nav, Blocks, Routes, Strings, props (headers match the contract).
+• Pages: type=home|page, slugKey, slug, publish, order, h1, title, seo_title, meta_desc, lead, body_md.
+• Nav: lang, label, href, parent, order(int), col(int), enabled; meta fields: nav.logo.src, nav.logo.alt, nav.cta.label, nav.cta.slugKey, nav.social.\*.
+• Blocks: block, lang, page (slugKey), type (hero|list|bullets|cta|text…), title, lead, body_md, cta_label, cta_href, order, enabled.
+• Routes: slugKey + language columns without prefixes ("home", "services", …).
+• Strings/props: key -> per-language values (CTA text, metas, etc.).
+
+Navigation / mega-menu
+• Top-level <a> always navigates; <button.mega-toggle> opens the panel (aria-expanded/aria-controls + [hidden]/aria-hidden).
+• Desktop hover (matchMedia '(hover:hover) and (pointer:fine)') opens mega; mobile uses click.
+• Only one mega open; Esc/click-outside closes.
+• Panel full-width (left:0; right:0; no horizontal scroll).
+• Sorting: top-level by order (int; missing/invalid → 9999).
+• Children grouped by col (int; missing=1) and sorted by order within each column.
+• Language switcher with flag + code; clicking replaces the first URL segment with target language.
+
+SEO / A11y
+• base.html: <title> = seo_title || h1 || title; <meta name="description"> = meta_desc; canonical/hreflang/OG/JSON-LD as standard.
+• Semantic HTML only; focus-visible; WCAG AA contrast; correct aria on toggles/panels.
+• One h1 per page (preferably in hero); duplicate h1 from body can be visually hidden in CSS.
+
+Performance
+• Defer JS; avoid heavy runtimes.
+• LCP < 2.5s (preload LCP image; lazy-load others); images later can be WebP/AVIF.
+• No horizontal scroll; minimize CLS.
+
+PR / CI rules
+• Show DIFF only; one file per task.
+• Acceptance criteria in description (what/where/how to verify).
+• Tests: pytest must pass; local build: `python tools/build.py`.
+• Do not change pages.yml unless explicitly instructed.
+
+Globs to work on
+• templates/**/_.html, assets/css/_.css, assets/js/_.js, tools/_.py, .github/workflows/pages.yml, data/**/\*.json (never dist/).
+
+CSR fallback / API
+• If a section needs runtime data, add `data-api` attributes and use a global `CMS_ENDPOINT` with a proper fallback to prebuilt data.
+
+If a requested patch does not fit these principles — skip silently.

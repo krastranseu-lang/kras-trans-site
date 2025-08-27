@@ -1,0 +1,15 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+<!-- @format -->
+
+• Mobile-first; Flex/Grid; html,body{overflow-x:hidden} (no horizontal scroll).
+• Container/spacing: `.wrap{max-width:1280px;margin:0 auto;padding:0 24px}`, `.section{padding:56px 0}@media(min-width:1024px){.section{padding:80px 0}}`.
+• Clamp typography scale for body/h1/h2/h3; readable first.
+• Markdown prose: `.content[data-md]` with ~70ch width, nice spacing for p/ul/ol/blockquote.
+• Sticky “glass” header; mega-panel with subtle animation; z-index correct; desktop hover open; mobile click.
+• Dark mode: readable toggle/links; primary CTA text always white; good contrast.
+• 3D cards `.tile3d` (shadow + subtle hover); avoid `!important`.

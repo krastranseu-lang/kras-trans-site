@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "/Users/illia/Desktop/CursorRepoGitHub/kras-trans-site/tools/build.py", line 1966, in run_build
+    build_all()
+  File "/Users/illia/Desktop/CursorRepoGitHub/kras-trans-site/tools/build.py", line 1559, in build_all
+    html = render_template(template_rel, ctx)
+  File "/Users/illia/Desktop/CursorRepoGitHub/kras-trans-site/tools/build.py", line 696, in render_template
+    return env.get_template(name).render(**ctx)
+  File "/Users/illia/.pyenv/versions/3.10.6/lib/python3.10/site-packages/jinja2/environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "/Users/illia/.pyenv/versions/3.10.6/lib/python3.10/site-packages/jinja2/environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "templates/pages/page.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "templates/base.html", line 149, in top-level template code
+    {% include "_partials/header.html" %}
+  File "templates/_partials/header.html", line 5, in top-level template code
+    {# LOGO #} {% set meta = (nav.meta if nav is mapping else {}) %} {% set
+  File "/Users/illia/.pyenv/versions/3.10.6/lib/python3.10/site-packages/jinja2/environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'dict object' has no attribute 'meta'
