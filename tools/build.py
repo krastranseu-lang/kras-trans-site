@@ -367,7 +367,14 @@ def ensure_dir(p: pathlib.Path):
     p.mkdir(parents=True, exist_ok=True)
 
 def norm_slug(s: str) -> str:
-    s = unicodedata.normalize("NFD", s or "").encode("ascii","ignore").decode("ascii")
+    # manual pre-map for characters that NFD+ascii ignore would drop (e.g., Polish ł)
+    # ensures predictable IDs for menu items across languages
+    translit_map = {
+        "ł": "l", "Ł": "l",
+        "ß": "ss", "æ": "ae", "œ": "oe", "ø": "o", "đ": "d",
+    }
+    s = "".join(translit_map.get(ch, ch) for ch in (s or ""))
+    s = unicodedata.normalize("NFD", s).encode("ascii","ignore").decode("ascii")
     s = re.sub(r"&","-and-", s.lower())
     s = re.sub(r"[^a-z0-9]+","-", s).strip("-")
     return re.sub(r"-{2,}","-", s)
@@ -516,8 +523,20 @@ def _nav_data_from_rows(rows, fallback):
             href = (r.get("href") or "").strip()
             order = int(r.get("order") or 0)
             group = (r.get("group") or "").strip()
+            # allow explicit column assignment from sheet (integer-like)
+            col_val = r.get("col")
+            try:
+                col = int(float(col_val)) if col_val not in (None, "") else None
+            except Exception:
+                col = None
             pid = id_map.get(parent) or norm_slug(parent)
-            children[pid].append({"label": label, "href": href, "group": group, "order": order})
+            children[pid].append({
+                "label": label,
+                "href": href,
+                "group": group,
+                "order": order,
+                "col": col,
+            })
 
         for arr in children.values():
             arr.sort(key=lambda i: (i.get("order", 0), (i.get("label") or "").lower()))
@@ -1756,6 +1775,15 @@ def build_all():
     # IndexNow key file
     if INDEXNOW_KEY and INDEXNOW_KEY.lower()!="change_me_indexnow_key":
         write_text(OUT/f"{INDEXNOW_KEY}.txt", INDEXNOW_KEY)
+
+    # Standalone VanFit subpage (outside locales; bypasses any locale guard)
+    try:
+        vanfit_tpl = Path("templates/pages/vanfit.html")
+        if vanfit_tpl.exists():
+            write_text(OUT/"vanfit"/"index.html", read_text(vanfit_tpl))
+            print("[extra] wrote standalone /vanfit/ page")
+    except Exception as e:
+        print(f"[extra] vanfit page error: {e}", file=sys.stderr)
 
 
     # SITEMAPY
