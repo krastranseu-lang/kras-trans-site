@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VanFit</title>
+    <link rel="stylesheet" href="assets/css/vanfit.css" />
+  </head>
+  <body>
+    <div id="van-pack" class="vp" data-lang="pl">
+      <noscript>
+        <div style="color:#fff;background:#c00;padding:10px;border-radius:8px">
+          Ta aplikacja wymaga JavaScript.
+        </div>
+      </noscript>
+    </div>
+
+    <!-- Three.js (CDN) -->
+    <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.161.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Three.js postprocessing (for sketch/outline mode) -->
+    <script src="https://unpkg.com/three@0.161.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://unpkg.com/three@0.161.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://unpkg.com/three@0.161.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://unpkg.com/three@0.161.0/examples/js/postprocessing/OutlinePass.js"></script>
+    <script src="https://unpkg.com/three@0.161.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://unpkg.com/three@0.161.0/examples/js/shaders/FXAAShader.js"></script>
+
+    <!-- App bootstrap (ES module) -->
+    <script type="module" src="assets/js/main.js"></script>
+  </body>
+</html>
