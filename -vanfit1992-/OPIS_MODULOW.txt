@@ -1,0 +1,158 @@
+VanFit — opis modułów i funkcji (skrót)
+
+Wejście i style
+----------------
+- -vanfit1992-/index.html
+  - Punkt wejścia aplikacji (HTML).
+  - Ładuje Three.js (CDN) i moduł bootstrap `assets/js/main.js`.
+
+- -vanfit1992-/assets/css/vanfit.css
+  - Style, zmienne motywu (dark/light/sepia), layout, toolbar, overlay, etykiety.
+
+Bootstrap
+---------
+- -vanfit1992-/assets/js/main.js
+  - Ładuje pozostałe pliki JS w ustalonej kolejności (zachowując globalny zakres jak w monolicie).
+  - Start po `DOMContentLoaded`.
+
+Warstwa konfiguracyjna i stan
+-----------------------------
+- assets/js/config-i18n.js
+  - Odpowiada za: konfigurację i18n oraz słowniki, definicje pojazdów i presetów, narzędzia kontrastu etykiet.
+  - Kluczowe: `applyLabelContrast(el, bgColor)`, stałe `VEHICLES`, `I18N`, `PRESETS`.
+
+- assets/js/state.js
+  - Odpowiada za: inicjalizację języka i motywu (AUTO/light/dark), globalny stan aplikacji.
+  - Kluczowe: obiekt `state`, prosty `Store` (get/set/subscribe/mutate), funkcje: `t(key, vars)`, `vehicle()`.
+  - Reaguje na: zmiany preferencji systemowych i `localStorage` (synchronizacja motywu i języka).
+
+Budowa DOM i utilsy
+-------------------
+- assets/js/dom-build.js
+  - Odpowiada za: zbudowanie całego DOM (toolbar, panele, viewporty 2D/3D), podpięcie zdarzeń UI.
+  - Kluczowe: `setTheme(mode)`, `setLang(code)`, drivery UI (przyciski, menu języka, panele, PDF, 2D/3D toggle przygotowanie).
+
+- assets/js/util.js
+  - Odpowiada za: utilsy wspólne i adaptację do urządzenia.
+  - Kluczowe: `getDevice()`, `applyDevice()`, `tuneRendererForDevice()`, `uid()`, `deepClone()`, `dispatchSelectionChange()`, konwersje i liczenie wolumenu/wagi, `dims2D(it)`.
+
+Render 2D (canvas/SVG)
+----------------------
+- assets/js/render2d-floor.js
+  - Odpowiada za: rysowanie siatki/podłogi i przedmiotów w 2D oraz linijki.
+  - Kluczowe: `worldToScreen()`, `screenToWorld()`, `render()`, `updateRulers()`, `fitCanvasToVehicleWidth(force)`, `layoutLabels2D()`.
+  - Dodatkowo: prosty stan 2D `VP2D` + `saveState2D()`/`loadState2D()`.
+
+- assets/js/svg-export.js
+  - Odpowiada za: budowę SVG planszy (siatka, kadłub, symbole, kontener na elementy).
+  - Kluczowe: `buildSVG()`.
+
+- assets/js/viewport-zoompan.js
+  - Odpowiada za: zoom/pan viewportu 2D (scroll z Ctrl, dblclick, Space+drag, MMB) + przyciski toolbaru.
+  - Kluczowe: `zoomAt(pointer, factor)` oraz wewnętrzna instalacja nasłuchów panningu/zoomu.
+
+Etykiety i overlay
+------------------
+- assets/js/overlay-labels.js
+  - Odpowiada za: generowanie i rozmieszczanie etykiet 2D (IIFE zwraca `overlayLabels`).
+  - Kluczowe API: `overlayLabels.buildLabel(it)`, `overlayLabels.measureLabel(el)`, `overlayLabels.updateAll()`, `overlayLabels.openTooltip(id)`, `overlayLabels.closeTooltip(id)`, `overlayLabels.worldToScreen(x,y)`.
+  - Dodatkowo: skróty historii i persistence: `pushHistory()`, `undo()`, `redo()`, `saveLocal()`, `loadLocal()`, `shareLink()`, `loadFromHash()`; obsługa błędów: `showError(msg)`.
+
+UI pojazdu i presety
+--------------------
+- assets/js/vehicle-ui.js
+  - Odpowiada za: selekcję i prezentację parametrów pojazdu.
+  - Kluczowe: `renderVehSelect()`, `renderSpecs()`, lokalizacja nazw (`localizeVehName`).
+
+- assets/js/presets.js
+  - Odpowiada za: listę presetów i dodawanie z nich pozycji.
+  - Kluczowe: `renderPresets()` (używa `PRESETS`, `addItemFromPreset`, `autopackUltra`).
+
+API pozycji i interakcje 2D
+---------------------------
+- assets/js/items-api.js
+  - Odpowiada za: operacje na pozycjach (dodawanie, usuwanie, kopiuj/wklej, rotacja, układanie).
+  - Kluczowe: `addItemFromPreset(p, opts)`, `addCustomLine()`, `rotateSelected(dir)`, `rotateSelectedStrict()`, `deleteSelected()`, `changeStack(delta)`, `stackAll()`.
+  - Algorytmika pomocnicza (w pliku): `placeNewItem(it)`, testy kolizji i wyjścia poza obrys (`intersects`, `outOfBounds`, `triggerCollisionFlash`).
+
+- assets/js/drag-docking.js
+  - Odpowiada za: drag&drop w 2D (overlay etykiet), dokowanie, skróty klawiatury dla viewportu.
+  - Kluczowe: nasłuchy na etykietach, `installViewportKeys()` (sterowanie strzałkami, R, Delete, +/-, A/B warianty).
+
+Autopakowanie i warianty
+------------------------
+- assets/js/autopack.js
+  - Odpowiada za: automatyczne układanie/kandydaty i wybór wariantu.
+  - Kluczowe: `autopackUltra(seed, quick)`, `applyVariant(idx, opts)`.
+
+Parsery wejścia
+---------------
+- assets/js/parser-bulk-ultra.js
+  - Odpowiada za: „ciężki” parser tabel/mieszanego tekstu (RU/UA/PL), podgląd i dodanie do stanu.
+  - Kluczowe: `extractLogistics(text)`, `prettyExtractPreview(res)`, `applyExtractedItems(items)`, integracja z UI (input/blur/click), 2D/3D toggle, PDF (print).
+
+- assets/js/parser-megaprompt-light.js
+  - Odpowiada za: lekki parser fallback (mega‑prompt) stosowany, gdy główny nie wykryje nic.
+  - Kluczowe: `parseRawText(text)`.
+
+Render 3D (Twoje trzy subsystemy)
+---------------------------------
+- assets/js/three-core.js
+  - Odpowiada za: bazę Three.js (kontekst, kamery, renderer, gridy i outline, resize).
+  - Kluczowe: stała `CM_TO_M`, obiekt `threeCtx`, `threeInit()`, `threeResize()`, `threeSetCamera(mode)`, `threeSetSectionEnabled(on)`, `threeUpdateSectionPlane(pos)`, `threeUpdateVehicle()`, `threeUpdateItems()`.
+
+- assets/js/three-postfx.js
+  - Odpowiada za: post‑processing (FXAA, OutlinePass, sketch mode), tooltip 3D, wskaźniki, raycaster glue.
+  - Kluczowe: `threeRenderFrame() / render` (render jednej klatki), `threeSetSketch(on)`, helpery tooltipu.
+
+- assets/js/three-interactions.js
+  - Odpowiada za: interakcje 3D (raycast, drag, snap, kolizje) z wykorzystaniem `threeCtx`.
+  - Kluczowe: `threeGetRayInfo(event)`, `threeStartDrag(info)`, `threeUpdateDrag(event)`, `threeEndDrag(event)`, przeliczanie kandydatów pozycji.
+
+- assets/js/geo-epal-pallet.js
+  - Odpowiada za: geometrię EPAL (mesh + dodanie do sceny).
+  - Kluczowe: `createPallet()`, `threeAddPallet()` (udostępniane też przez `window.*`).
+
+- assets/js/geo-cardboard-box.js
+  - Odpowiada za: geometrię „kartonu” (FEFCO 0201‑like) i przyciski kamer.
+  - Kluczowe: `createBox()`, `threeAddBox()`, `placeOnTopOf()`, zdarzenia kamer (`camTop/Side/Rear/...`).
+
+Orkiestracja renderu
+--------------------
+- assets/js/render3d-isometric.js
+  - Odpowiada za: uproszczony podgląd izometryczny na 2D canvas oraz główną orkiestrację renderu.
+  - Kluczowe: `renderAll()` (główna pętla UI — przełącza 2D/3D, wywołuje `threeInit/Update*`, `buildSVG`, `renderItems`, `overlayLabels.updateAll`, `renderCompareB`, `renderSection`, `updateRulers`).
+  - Inne: `render3D()` (rysunek izometryczny), utilsy projekcji (`projectIso`, `compute3DScaleOrigin`), pomoc w A/B.
+
+Inicjalizacja i testy
+---------------------
+- assets/js/init.js
+  - Odpowiada za: start aplikacji (seed danych, wczytanie stanu/URL, dopasowanie widoku, obserwatory rozmiaru, skróty globalne).
+  - Kluczowe: `firstTimeInit()`, `seedPresets()`, podpięcie `installViewportKeys()` i initial focus/ARIA.
+
+- assets/js/selftest-labels.js, selftest-2d.js, selftest-3d.js, selftest-run.js
+  - Odpowiada za: szybkie self‑testy (etykiety, 2D, 3D) i ich uruchomienie po starcie.
+  - Kluczowe: `selfTestLabels()`, `selfTest2D()`, `selfTest3D()`, wywołania w `selftest-run.js` (timery `setTimeout`).
+
+Obiekty globalne i skróty (używane w wielu plikach)
+---------------------------------------------------
+- `mount` — główny kontener `#van-pack` (DOM).
+- `stageWrap` — wrapper sceny 2D/3D (wewnątrz DOM zbudowanego przez `dom-build.js`).
+- `state` — stan aplikacji (pozycje, pojazd, warianty, tryb widoku, historia).
+- `overlayLabels` — API etykiet (budowa, layout, tooltipy, aktualizacja).
+- `threeCtx` — kontekst Three.js (kamera, scena, renderer, kontrolery, passy, siatki itd.).
+- `VP2D` — pomocniczy stan widoku 2D (zoom/pan i elementy do prostego canvas‑preview).
+- `VEHICLES`, `I18N`, `PRESETS` — dane konfiguracyjne (pojazdy, słowniki, presety).
+
+Przepływ uruchomienia
+----------------------
+1) `index.html` ładuje Three.js i `assets/js/main.js` (ESM bootstrap).
+2) `main.js` w ustalonej kolejności ładuje moduły, które ustawiają globalne obiekty i budują DOM.
+3) `init.js` uruchamia `firstTimeInit()` → budowa presetów, wczytanie stanu, `renderAll()`, dopasowanie widoku.
+4) Po starcie `selftest-run.js` odpala szybkie testy (logi w konsoli).
+
+Uwagi
+-----
+- Kod jest rozcięty na klasyczne skrypty (bez `import/export`); `main.js` dba o kolejność i wspólny zakres.
+- Migracja do ESM jest możliwa przez stopniowe dodanie `export`/`import` (zaczynając od `threeCtx`, `state`, `overlayLabels`, `renderAll`).
+
