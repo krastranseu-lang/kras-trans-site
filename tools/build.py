@@ -700,7 +700,25 @@ def page_to_slugkey(val: str) -> str:
 # --------------------------- KOPIOWANIE ASSETS ------------------------------
 ASSETS_DIR = pathlib.Path("assets")
 if ASSETS_DIR.exists():
-    shutil.copytree(ASSETS_DIR, OUT / "assets", dirs_exist_ok=True)
+    # Copy assets while excluding demo/test files that should not ship.
+    # Specifically skip assets/media/vanFit1.html which contains placeholder text
+    # and is only used for internal demos; its presence breaks production checks.
+    def _assets_ignore(src: str, names: list[str]) -> set[str]:
+        ignores: set[str] = set()
+        try:
+            rel = pathlib.Path(src).resolve().relative_to(ASSETS_DIR.resolve())
+        except Exception:
+            rel = pathlib.Path("")
+        # Exclude placeholder/demo HTML from media folder
+        if str(rel) == "media" and "vanFit1.html" in names:
+            ignores.add("vanFit1.html")
+        return ignores
+    shutil.copytree(ASSETS_DIR, OUT / "assets", dirs_exist_ok=True, ignore=_assets_ignore)
+    # If an older build already had the excluded file, ensure it is removed.
+    try:
+        (OUT / "assets" / "media" / "vanFit1.html").unlink(missing_ok=True)
+    except Exception:
+        pass
 
 # ---------------------------- ŚRODOWISKO JINJA -----------------------------
 TEMPLATES = Path(CFG["paths"]["src"]["templates"])
