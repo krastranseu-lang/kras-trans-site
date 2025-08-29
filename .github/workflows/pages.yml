@@ -108,9 +108,11 @@ jobs:
           set -e
           source .venv/bin/activate
           python tools/build.py
-                - name: Build VanFit (standalone)
+- name: Build VanFit (standalone)
         run: |
-          python tools/build_vanfit.py
+          set -e
+          source .venv/bin/activate
+          python tools/build_vanfit.py       
 
       - name: Verify build
         run: |
