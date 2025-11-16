@@ -1541,7 +1541,7 @@ def build_all():
                 "title": page_rec.get("seo_title") or page_rec.get("h1") or page_rec.get("title"),
                 "h1": page_rec.get("h1") or "",
                 "meta_desc": page_rec.get("meta_desc") or "",
-                "canonical": canonical,
+               "canonical": canonical,
                 "hreflang": hreflang_map.get(page_key, {}),
                 "debug": {
                     "cms_source": "CMS.xlsx",
